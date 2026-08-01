@@ -41,16 +41,20 @@ window.Storage = {
     this._safeSet('cbt_api_key', key);
   },
 
-  // === Chatbot Session Limit ===
-  getFreeSessionCount() {
-    return this._safeGet('cbt_free_sessions', 10);
+  // === Pro Mode Session Limit ===
+  getProSessionCount() {
+    return this._safeGet('cbt_pro_sessions', 100);
+  },
+  
+  setProSessionCount(count) {
+    this._safeSet('cbt_pro_sessions', count);
   },
 
-  decrementFreeSessionCount() {
-    let current = this.getFreeSessionCount();
+  decrementProSessionCount() {
+    let current = this.getProSessionCount();
     if (current > 0) {
       current--;
-      this._safeSet('cbt_free_sessions', current);
+      this._safeSet('cbt_pro_sessions', current);
     }
     return current;
   },

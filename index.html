@@ -52,15 +52,15 @@
   <div id="api-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card">
       <div class="disclaimer-icon">💎</div>
-      <h2>Pro Mode 활성화</h2>
-      <p>더 깊이 있고 자연스러운 ChatGPT 기반 상담을 위해 OpenAI API 키를 입력해주세요.</p>
+      <h2>Pro Mode 결제 / 활성화</h2>
+      <p>더 깊이 있고 자연스러운 ChatGPT 기반 상담(100회)을 위해 결제 후 활성화 키를 입력해주세요.</p>
       <div class="form-group" style="margin: 1.5rem 0;">
-        <input type="password" id="api-key-input" placeholder="sk-... 또는 비밀번호" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">키는 브라우저(로컬 기기)에만 안전하게 저장됩니다. (비밀번호 입력 시 자동 매핑됩니다)</p>
+        <input type="password" id="api-key-input" placeholder="활성화 키 입력 (또는 비밀번호)" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">데모: 1024를 입력하면 100회가 충전됩니다.</p>
       </div>
       <div class="form-actions">
         <button id="api-modal-cancel" class="btn-secondary">취소</button>
-        <button id="api-modal-save" class="btn-primary">저장 및 켜기</button>
+        <button id="api-modal-save" class="btn-primary">결제 후 켜기</button>
       </div>
     </div>
   </div>
@@ -91,9 +91,9 @@
         <p class="tab-subtitle">오늘의 마음 상태를 점검해보세요</p>
       </div>
       <div class="home-banner glass-card" style="background: var(--gradient-primary); color: white; padding: 1.5rem; border-radius: 1rem; margin: 1rem; text-align: center; cursor: pointer;" onclick="document.querySelector('[data-tab=\'chat\']').click()">
-        <h3>🤖 인지행동치료 챗봇 (무료 10회)</h3>
+        <h3>🤖 인지행동치료 챗봇 (무료 무제한)</h3>
         <p style="margin-top: 0.5rem; opacity: 0.9;">지금 바로 마음속 이야기를 나눠보세요.</p>
-        <div id="home-session-count" style="font-size: 1.5rem; font-weight: bold; margin-top: 1rem;">10 / 10회 남음</div>
+        <div id="home-session-count" style="font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #fbbf24;">💎 Pro: 100회 남음</div>
       </div>
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
         <h3>👨‍⚕️ 추천 전문 상담사</h3>
@@ -104,8 +104,8 @@
 
     <!-- CHAT TAB -->
     <section id="tab-chat" class="tab-content active">
-      <div id="session-banner" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-primary); padding: 0.5rem; text-align: center; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); font-weight: bold;">
-        무료 CBT 챗봇 상담: <span id="chat-session-count">10</span>회 남음
+      <div id="session-banner" class="hidden" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-primary); padding: 0.5rem; text-align: center; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); font-weight: bold;">
+        💎 Pro 모드: <span id="chat-session-count">100</span>회 남음
       </div>
       <div id="chat-messages" class="chat-messages">
         <!-- Messages will be inserted dynamically -->

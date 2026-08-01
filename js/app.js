@@ -124,29 +124,49 @@ window.App = {
   },
   
   updateSessionUI() {
-    const count = window.Storage.getFreeSessionCount();
+    const isPro = window.Storage.getProMode();
+    const count = window.Storage.getProSessionCount();
     const chatCounter = document.getElementById('chat-session-count');
     const homeCounter = document.getElementById('home-session-count');
+    const sessionBanner = document.getElementById('session-banner');
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
     
     if (chatCounter) chatCounter.textContent = count;
-    if (homeCounter) homeCounter.textContent = `${count} / 10회 남음`;
+    if (homeCounter) homeCounter.textContent = isPro ? `💎 Pro: ${count}회 남음` : '무료 무제한';
     
-    if (count <= 0) {
-      if (inputEl) {
-        inputEl.value = '';
-        inputEl.placeholder = '무료 상담이 종료되었습니다. 전문 상담사를 예약해주세요.';
-        inputEl.disabled = true;
+    if (isPro) {
+      if (sessionBanner) sessionBanner.classList.remove('hidden');
+      if (count <= 0) {
+        if (inputEl) {
+          inputEl.value = '';
+          inputEl.placeholder = 'Pro 모드 결제 횟수(100회)가 소진되었습니다.';
+          inputEl.disabled = true;
+        }
+        if (sendBtn) sendBtn.disabled = true;
+      } else {
+        if (inputEl) {
+          inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
+          inputEl.disabled = false;
+        }
+        if (sendBtn) sendBtn.disabled = false;
       }
-      if (sendBtn) sendBtn.disabled = true;
+    } else {
+      if (sessionBanner) sessionBanner.classList.add('hidden');
+      if (inputEl) {
+        inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
+        inputEl.disabled = false;
+      }
+      if (sendBtn) sendBtn.disabled = false;
     }
   },
   
   async sendMessage() {
-    const count = window.Storage.getFreeSessionCount();
-    if (count <= 0) {
-      alert("무료 제공된 10회 CBT 챗봇 상담이 모두 종료되었습니다.\n\n나를 위한 전문 상담사를 찾아보세요!");
+    const isPro = window.Storage.getProMode();
+    const count = window.Storage.getProSessionCount();
+    
+    if (isPro && count <= 0) {
+      alert("Pro 모드 결제 횟수(100회)가 소진되었습니다.\n\n나를 위한 전문 상담사를 찾아보시거나 무료 모드로 전환해주세요.");
       this.switchTab('counselors');
       return;
     }
@@ -160,9 +180,11 @@ window.App = {
     this.autoResizeTextarea();
     this.clearQuickReplies();
     
-    // Decrement count
-    window.Storage.decrementFreeSessionCount();
-    this.updateSessionUI();
+    // Decrement count if Pro
+    if (isPro) {
+      window.Storage.decrementProSessionCount();
+      this.updateSessionUI();
+    }
     
     // Display user message
     this.displayMessage({ role: 'user', text: text });
@@ -403,6 +425,7 @@ window.App = {
       // Toggle off
       window.Storage.setProMode(false);
       this.applyProModeUI(false);
+      this.updateSessionUI();
     } else {
       // Show modal to enter API key
       const modal = document.getElementById('api-modal');
@@ -435,10 +458,13 @@ window.App = {
     if (key) {
       window.Storage.setApiKey(key);
       window.Storage.setProMode(true);
+      window.Storage.setProSessionCount(100); // Reset count on new purchase/login
       this.applyProModeUI(true);
       this.hideProModal();
+      this.updateSessionUI();
+      alert("Pro 모드 결제가 완료되어 100회가 충전되었습니다!");
     } else {
-      alert("API 키를 입력해주세요.");
+      alert("결제 키를 입력해주세요.");
     }
   },
   
