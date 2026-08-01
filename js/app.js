@@ -55,6 +55,12 @@ window.App = {
       btnPro.addEventListener('click', () => this.showProModal());
     }
     
+    // 4.7 Fullscreen setup
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+    if (btnFullscreen) {
+      btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
+    }
+    
     // 5. Set up modal close handlers
     const crisisClose = document.getElementById('crisis-close');
     if (crisisClose) crisisClose.addEventListener('click', () => this.hideCrisisModal());
@@ -396,6 +402,19 @@ window.App = {
       this.hideProModal();
     } else {
       alert("API 키를 입력해주세요.");
+    }
+  },
+  
+  // === Fullscreen Management ===
+  toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
     }
   }
 };

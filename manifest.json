@@ -1,0 +1,17 @@
+{
+  "name": "우렁의사의 마음챙김 CBT",
+  "short_name": "마음챙김 CBT",
+  "description": "인지행동치료 기반 심리상담 AI 도우미",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

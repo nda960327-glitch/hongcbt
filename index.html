@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
   <title>우렁의사의 마음챙김 CBT</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
   
   <!-- Google Fonts: Noto Sans KR -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,6 +75,7 @@
           <h1 class="app-title">우렁의사의 마음챙김 CBT</h1>
         </div>
         <div class="header-right">
+          <button id="btn-fullscreen" class="header-btn" title="전체화면">⛶</button>
           <button id="btn-pro" class="header-btn" title="Pro Mode 켜기/끄기" style="font-size: 1rem; border: 1px solid var(--glass-border); padding: 0.2rem 0.6rem; margin-right: 0.5rem;">💎 Pro</button>
           <button id="btn-theme" class="header-btn" title="테마 변경">🌙</button>
           <button id="btn-reset" class="header-btn" title="대화 초기화">🔄</button>
@@ -252,5 +256,15 @@
   <script defer src="js/dashboard.js"></script>
   <script defer src="js/learn.js"></script>
   <script defer src="js/app.js"></script>
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.error('Service Worker registration failed: ', err);
+        });
+      });
+    }
+  </script>
 </body>
 </html>
