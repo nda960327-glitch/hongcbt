@@ -100,6 +100,57 @@
         <p style="color: var(--text-muted); font-size: 0.85rem;">나에게 딱 맞는 상담사를 찾아보세요.</p>
         <button class="btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="document.querySelector('[data-tab=\'counselors\']').click()">상담사 둘러보기</button>
       </div>
+      
+      <!-- 광고 및 제휴 콘텐츠 섹션 -->
+      <div style="margin: 2rem 0 1rem 0;">
+        <h3 style="margin: 0 1rem 0.5rem 1rem; font-size: 1.1rem;">✨ 추천 제휴 콘텐츠</h3>
+        <p style="margin: 0 1rem 1rem 1rem; font-size: 0.8rem; color: var(--text-muted);">마음 건강을 위한 맞춤형 정보</p>
+        
+        <div style="display: flex; gap: 1rem; overflow-x: auto; padding: 0 1rem 1rem 1rem; scroll-snap-type: x mandatory; scrollbar-width: none;">
+          <!-- 광고 1: 병원 홍보 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer;" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
+            <div style="height: 120px; background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+              🏥
+            </div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.3rem; border-radius: 4px;">제휴병원</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">서울 마음그린 정신건강의학과</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시! 편안한 마음으로 방문하세요.</p>
+            </div>
+          </div>
+          
+          <!-- 광고 2: 수면 클리닉 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer;" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
+            <div style="height: 120px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+              🌙
+            </div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: #8b5cf6; font-weight: bold; border: 1px solid #8b5cf6; padding: 0.1rem 0.3rem; border-radius: 4px;">수면클리닉</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">굿나잇 수면클리닉 기획전</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">불면증으로 고통받고 계신가요? 수면다원검사로 원인을 찾아드립니다.</p>
+            </div>
+          </div>
+          
+          <!-- 광고 3: 심리 서적 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer;" onclick="alert('도서 구매 페이지로 이동합니다.')">
+            <div style="height: 120px; background: linear-gradient(135deg, #10b981, #059669); border-radius: 8px 8px 0 0; display: flex; align-items: center; justify-content: center; font-size: 3rem;">
+              📚
+            </div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: #10b981; font-weight: bold; border: 1px solid #10b981; padding: 0.1rem 0.3rem; border-radius: 4px;">추천도서</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">베스트셀러: 내 마음을 안아주는 연습</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">상처받은 당신을 위한 인지심리학자의 따뜻한 위로와 솔루션.</p>
+            </div>
+          </div>
+        </div>
+        
+        <style>
+          /* Hide scrollbar for the horizontal ad container but keep functionality */
+          div[style*="overflow-x: auto"]::-webkit-scrollbar {
+            display: none;
+          }
+        </style>
+      </div>
     </section>
 
     <!-- CHAT TAB -->
