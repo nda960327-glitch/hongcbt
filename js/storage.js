@@ -41,6 +41,20 @@ window.Storage = {
     this._safeSet('cbt_api_key', key);
   },
 
+  // === Chatbot Session Limit ===
+  getFreeSessionCount() {
+    return this._safeGet('cbt_free_sessions', 10);
+  },
+
+  decrementFreeSessionCount() {
+    let current = this.getFreeSessionCount();
+    if (current > 0) {
+      current--;
+      this._safeSet('cbt_free_sessions', current);
+    }
+    return current;
+  },
+
   // === Chat Messages ===
   saveMessage(message) {
     const messages = this.getMessages();

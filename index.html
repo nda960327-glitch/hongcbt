@@ -84,8 +84,29 @@
     </header>
 
     <!-- Tab Content Sections -->
+    <!-- HOME TAB -->
+    <section id="tab-home" class="tab-content">
+      <div class="tab-header">
+        <h2>🏠 우렁의사 홈</h2>
+        <p class="tab-subtitle">오늘의 마음 상태를 점검해보세요</p>
+      </div>
+      <div class="home-banner glass-card" style="background: var(--gradient-primary); color: white; padding: 1.5rem; border-radius: 1rem; margin: 1rem; text-align: center; cursor: pointer;" onclick="document.querySelector('[data-tab=\'chat\']').click()">
+        <h3>🤖 인지행동치료 챗봇 (무료 10회)</h3>
+        <p style="margin-top: 0.5rem; opacity: 0.9;">지금 바로 마음속 이야기를 나눠보세요.</p>
+        <div id="home-session-count" style="font-size: 1.5rem; font-weight: bold; margin-top: 1rem;">10 / 10회 남음</div>
+      </div>
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3>👨‍⚕️ 추천 전문 상담사</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">나에게 딱 맞는 상담사를 찾아보세요.</p>
+        <button class="btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="document.querySelector('[data-tab=\'counselors\']').click()">상담사 둘러보기</button>
+      </div>
+    </section>
+
     <!-- CHAT TAB -->
     <section id="tab-chat" class="tab-content active">
+      <div id="session-banner" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-primary); padding: 0.5rem; text-align: center; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); font-weight: bold;">
+        무료 CBT 챗봇 상담: <span id="chat-session-count">10</span>회 남음
+      </div>
       <div id="chat-messages" class="chat-messages">
         <!-- Messages will be inserted dynamically -->
       </div>
@@ -227,23 +248,62 @@
       </div>
     </div>
 
+    <!-- COUNSELORS TAB -->
+    <section id="tab-counselors" class="tab-content">
+      <div class="tab-header">
+        <h2>👨‍⚕️ 상담사 매칭</h2>
+        <p class="tab-subtitle">검증된 병원 소속 상담사들과 함께하세요</p>
+      </div>
+      <div id="counselors-list" style="padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Counselor cards inserted dynamically -->
+      </div>
+    </section>
+
+    <!-- MYPAGE TAB -->
+    <section id="tab-mypage" class="tab-content">
+      <div class="tab-header">
+        <h2>👤 마이페이지</h2>
+      </div>
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3>나의 상담 내역</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">예약된 상담이 없습니다.</p>
+        <hr style="border-color: var(--glass-border); margin: 1rem 0;">
+        <h3>CBT 요약 리포트</h3>
+        <button class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="alert('챗봇과의 대화 요약 리포트는 상담사에게 전송할 수 있습니다.')">리포트 보기</button>
+      </div>
+    </section>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card">
+        <h2>상담 예약 및 결제</h2>
+        <div id="booking-details" style="margin: 1.5rem 0; text-align: left; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px;">
+          <!-- details inserted dynamically -->
+        </div>
+        <div class="form-actions">
+          <button id="booking-cancel" class="btn-secondary">취소</button>
+          <button id="booking-confirm" class="btn-primary">결제하기</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Bottom Navigation -->
     <nav id="bottom-nav" class="bottom-nav glass-nav">
+      <button class="nav-item" data-tab="home">
+        <span style="font-size: 1.5rem;">🏠</span>
+        <span>홈</span>
+      </button>
       <button class="nav-item active" data-tab="chat">
-        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="currentColor"/></svg>
-        <span>대화</span>
+        <span style="font-size: 1.5rem;">🤖</span>
+        <span>챗봇</span>
       </button>
-      <button class="nav-item" data-tab="record">
-        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z" fill="currentColor"/></svg>
-        <span>기록</span>
+      <button class="nav-item" data-tab="counselors">
+        <span style="font-size: 1.5rem;">👨‍⚕️</span>
+        <span>상담사</span>
       </button>
-      <button class="nav-item" data-tab="dashboard">
-        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" fill="currentColor"/></svg>
-        <span>대시보드</span>
-      </button>
-      <button class="nav-item" data-tab="learn">
-        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/></svg>
-        <span>학습</span>
+      <button class="nav-item" data-tab="mypage">
+        <span style="font-size: 1.5rem;">👤</span>
+        <span>마이</span>
       </button>
     </nav>
   </div>
@@ -252,9 +312,8 @@
   <script defer src="js/storage.js"></script>
   <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>
-  <script defer src="js/thought-record.js"></script>
-  <script defer src="js/dashboard.js"></script>
-  <script defer src="js/learn.js"></script>
+  <script defer src="js/marketplace.js"></script>
+  <script defer src="js/booking.js"></script>
   <script defer src="js/app.js"></script>
   
   <script>

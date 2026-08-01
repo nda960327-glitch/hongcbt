@@ -76,6 +76,11 @@ window.App = {
     const apiModalSave = document.getElementById('api-modal-save');
     if (apiModalSave) apiModalSave.addEventListener('click', () => this.saveProModeSettings());
     
+    // 5.5 Init components
+    if (window.Booking) window.Booking.init();
+    if (window.Marketplace) window.Marketplace.init();
+    this.updateSessionUI();
+
     // 6. Initialize Chatbot
     const messages = window.Storage.getMessages();
     if (messages && messages.length > 0) {
@@ -109,15 +114,43 @@ window.App = {
     });
     
     // Trigger tab-specific refresh
-    if (tabName === 'dashboard' && window.Dashboard) {
-      window.Dashboard.refresh();
+    // Trigger tab-specific refresh
+    if (tabName === 'counselors' && window.Marketplace) {
+      window.Marketplace.init();
     }
-    if (tabName === 'record' && window.ThoughtRecord) {
-      window.ThoughtRecord.loadRecords();
+    if (tabName === 'chat') {
+      this.updateSessionUI();
+    }
+  },
+  
+  updateSessionUI() {
+    const count = window.Storage.getFreeSessionCount();
+    const chatCounter = document.getElementById('chat-session-count');
+    const homeCounter = document.getElementById('home-session-count');
+    const inputEl = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('chat-send');
+    
+    if (chatCounter) chatCounter.textContent = count;
+    if (homeCounter) homeCounter.textContent = `${count} / 10회 남음`;
+    
+    if (count <= 0) {
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.placeholder = '무료 상담이 종료되었습니다. 전문 상담사를 예약해주세요.';
+        inputEl.disabled = true;
+      }
+      if (sendBtn) sendBtn.disabled = true;
     }
   },
   
   async sendMessage() {
+    const count = window.Storage.getFreeSessionCount();
+    if (count <= 0) {
+      alert("무료 제공된 10회 CBT 챗봇 상담이 모두 종료되었습니다.\n\n나를 위한 전문 상담사를 찾아보세요!");
+      this.switchTab('counselors');
+      return;
+    }
+
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
     if (!text) return;
@@ -126,6 +159,10 @@ window.App = {
     inputEl.value = '';
     this.autoResizeTextarea();
     this.clearQuickReplies();
+    
+    // Decrement count
+    window.Storage.decrementFreeSessionCount();
+    this.updateSessionUI();
     
     // Display user message
     this.displayMessage({ role: 'user', text: text });
