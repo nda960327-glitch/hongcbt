@@ -44,7 +44,9 @@ window.Booking = {
 
   closeModal() {
     const modal = document.getElementById('booking-modal');
+    const datetimeInput = document.getElementById('booking-datetime');
     if (modal) modal.classList.add('hidden');
+    if (datetimeInput) datetimeInput.value = '';
     this.currentCounselorId = null;
   },
 
@@ -52,7 +54,22 @@ window.Booking = {
     if (!this.currentCounselorId) return;
     const counselor = window.Marketplace.getCounselor(this.currentCounselorId);
     
-    alert(`결제가 완료되었습니다!\n\n${counselor.name}님과의 상담이 예약되었습니다. 마이페이지에서 확인하세요.`);
+    const datetimeInput = document.getElementById('booking-datetime');
+    const selectedTime = datetimeInput ? datetimeInput.value : '';
+    
+    if (!selectedTime) {
+      alert("예약하실 일시를 선택해주세요.");
+      return;
+    }
+    
+    // Format date string for display
+    const dateObj = new Date(selectedTime);
+    const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 ${dateObj.getHours()}시 ${dateObj.getMinutes()}분`;
+    
+    alert(`결제가 완료되었습니다!\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
+    
+    // 💡 Add mock logic to update MyPage with this new booking if necessary
+    
     this.closeModal();
     
     // Move to MyPage

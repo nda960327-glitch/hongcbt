@@ -7,8 +7,10 @@ window.Marketplace = {
       rating: 4.9,
       reviews: 128,
       tags: ["우울증", "불안장애", "스트레스"],
+      tags: ["우울증", "불안장애", "스트레스"],
       price: 40000,
       image: "👩‍⚕️",
+      isAvailableNow: true,
       career: [
         "현) 연세 마음가득 정신건강의학과 수석 상담사",
         "전) 서울시 청년마음건강지원센터 전임 상담사",
@@ -28,8 +30,10 @@ window.Marketplace = {
       rating: 4.8,
       reviews: 94,
       tags: ["공황장애", "대인관계", "가족상담"],
+      tags: ["공황장애", "대인관계", "가족상담"],
       price: 50000,
       image: "👨‍⚕️",
+      isAvailableNow: false,
       career: [
         "현) 서울 해맑은 의원 대표원장",
         "전) 삼성서울병원 정신건강의학과 전문의",
@@ -47,8 +51,10 @@ window.Marketplace = {
       rating: 5.0,
       reviews: 215,
       tags: ["트라우마", "자존감", "번아웃"],
+      tags: ["트라우마", "자존감", "번아웃"],
       price: 45000,
       image: "👩‍⚕️",
+      isAvailableNow: true,
       career: [
         "현) 마음의온도 심리상담센터 소장",
         "인지행동치료학회 인지행동치료 전문가",
@@ -69,8 +75,24 @@ window.Marketplace = {
     const list = document.getElementById('counselors-list');
     if (!list) return;
 
-    list.innerHTML = this.counselors.map(c => `
-      <div class="glass-card counselor-card" style="display: flex; gap: 1rem; padding: 1rem;">
+    const sortType = document.getElementById('counselor-sort') ? document.getElementById('counselor-sort').value : 'rating';
+    const filterAvailable = document.getElementById('counselor-available-now') ? document.getElementById('counselor-available-now').checked : false;
+
+    let filtered = [...this.counselors];
+    if (filterAvailable) {
+      filtered = filtered.filter(c => c.isAvailableNow);
+    }
+
+    filtered.sort((a, b) => {
+      if (sortType === 'rating') return b.rating - a.rating;
+      if (sortType === 'reviews') return b.reviews - a.reviews;
+      if (sortType === 'price_low') return a.price - b.price;
+      return 0;
+    });
+
+    list.innerHTML = filtered.map(c => `
+      <div class="glass-card counselor-card" style="display: flex; gap: 1rem; padding: 1rem; position: relative;">
+        ${c.isAvailableNow ? '<span style="position: absolute; top: 1rem; right: 1rem; background: rgba(16, 185, 129, 0.2); color: #10b981; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite;">상담가능</span>' : ''}
         <div style="font-size: 3rem; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 0.5rem; display: flex; align-items: center; justify-content: center;">
           ${c.image}
         </div>
