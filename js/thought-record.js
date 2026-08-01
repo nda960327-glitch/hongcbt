@@ -51,7 +51,39 @@ window.ThoughtRecord = {
     }
 
     this.setupDistortionChips();
+
+    if (window.Storage.getThoughtRecords().length === 0) {
+      this.populateMockRecords();
+    }
+
     this.loadRecords();
+  },
+  
+  populateMockRecords() {
+    const mock1 = {
+      id: 'rec_mock1',
+      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
+      situation: '회사에서 내가 낸 아이디어가 반려되었을 때',
+      thought: '내 능력이 부족해서 다들 나를 무시하는구나. 난 이 직장에 어울리지 않아.',
+      emotions: [{ name: '우울함', intensity: 80 }, { name: '불안함', intensity: 70 }],
+      distortions: ['personalization', 'jumping-conclusions'],
+      alternative: '아이디어가 반려된 것은 그저 프로젝트 방향성과 맞지 않았을 뿐이다. 내 능력 전체를 부정당한 것이 아니다.',
+      newEmotions: '우울함 40%, 평온함 30%'
+    };
+    
+    const mock2 = {
+      id: 'rec_mock2',
+      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days ago
+      situation: '친구에게 카톡을 보냈는데 3시간 넘게 읽씹 당함',
+      thought: '친구가 나한테 화난 게 틀림없어. 내가 어제 말실수를 한 것 같아.',
+      emotions: [{ name: '불안함', intensity: 90 }],
+      distortions: ['emotional-reasoning', 'jumping-conclusions'],
+      alternative: '단순히 바빠서 확인을 못했거나 알림을 못 봤을 수도 있다. 무조건 나 때문이라고 생각할 근거는 없다.',
+      newEmotions: '불안함 30%, 편안함 50%'
+    };
+
+    window.Storage.saveThoughtRecord(mock1);
+    window.Storage.saveThoughtRecord(mock2);
   },
   
   loadRecords() {
