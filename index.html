@@ -263,15 +263,78 @@
     <section id="tab-mypage" class="tab-content">
       <div class="tab-header">
         <h2>👤 마이페이지</h2>
+        <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
       </div>
+      
+      <!-- 예약된 상담 내역 -->
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <h3>나의 상담 내역</h3>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">예약된 상담이 없습니다.</p>
-        <hr style="border-color: var(--glass-border); margin: 1rem 0;">
-        <h3>CBT 요약 리포트</h3>
-        <button class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="alert('챗봇과의 대화 요약 리포트는 상담사에게 전송할 수 있습니다.')">리포트 보기</button>
+        <h3 style="margin-top:0;">나의 상담 내역</h3>
+        <!-- 예약 예시 (Mock Data) -->
+        <div style="background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.2); border-radius: 8px; padding: 1rem; margin-top: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">예약번호: 1029384</span>
+          </div>
+          <h4 style="margin: 0 0 0.2rem 0;">👩‍⚕️ 김유진 심리상담사</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">연세 마음가득 정신건강의학과</p>
+          <div style="margin-top: 0.8rem; font-size: 0.95rem; font-weight: bold; color: var(--text-primary);">
+            📅 2026년 8월 5일 (수) 오후 2:00
+          </div>
+        </div>
+      </div>
+
+      <!-- CBT 대화 요약 리포트 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3 style="margin-top:0;">CBT 요약 리포트</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">챗봇과의 대화를 요약하여 상담사에게 전달할 수 있습니다.</p>
+        
+        <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="generateMockReport()">+ 오늘의 대화 요약 생성하기</button>
+
+        <div id="report-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+          <!-- 리포트 예시 (Mock Data) -->
+          <div style="background: rgba(0,0,0,0.1); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 28일 작성</div>
+            <h4 style="margin: 0 0 0.5rem 0;">📝 [주요 감정: 불안, 우울] 주간 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 인지왜곡:</strong> 흑백논리, 재앙화<br>
+              - <strong>상황 요약:</strong> 직장에서의 실수로 인해 해고될지도 모른다는 극심한 불안을 호소함.<br>
+              - <strong>대처 변화:</strong> 인지 재구성을 통해 실수가 잦지 않았음을 객관화하고 불안도가 80에서 40으로 감소함.
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);">상담사에게 전송</button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
+
+    <script>
+      function generateMockReport() {
+        const list = document.getElementById('report-list');
+        const now = new Date();
+        const dateString = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 작성';
+        
+        const newReport = document.createElement('div');
+        newReport.style = "background: rgba(0,0,0,0.1); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-primary); animation: slideIn 0.3s ease-out;";
+        newReport.innerHTML = \`
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">\${dateString}</div>
+            <h4 style="margin: 0 0 0.5rem 0;">✨ [새로운 리포트] 오늘의 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 감정:</strong> 스트레스, 피로감<br>
+              - <strong>상황 요약:</strong> 오늘 하루의 복잡한 감정을 챗봇과 나누며 정리를 시도함.<br>
+              - <strong>인사이트:</strong> 완벽주의적 성향(해야만 한다)이 스트레스를 가중시키고 있음을 인지함.
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);">상담사에게 전송</button>
+            </div>
+        \`;
+        
+        list.insertBefore(newReport, list.firstChild);
+        alert('오늘의 챗봇 대화를 기반으로 요약 리포트가 생성되었습니다!');
+      }
+    </script>
 
     <!-- Booking Modal -->
     <div id="booking-modal" class="modal-overlay hidden">
