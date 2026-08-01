@@ -115,27 +115,52 @@ window.App = {
       if (installBanner) {
         installBanner.style.display = 'flex';
       }
+      
+      // Aggressive Popup for Mobile Users (wait 2 seconds before prompting)
+      if (!localStorage.getItem('cbt_install_prompt_dismissed')) {
+        setTimeout(() => {
+          const globalModal = document.getElementById('global-install-modal');
+          if (globalModal) globalModal.classList.remove('hidden');
+        }, 2000);
+      }
     });
 
     const btnInstall = document.getElementById('btn-install-app');
-    if (btnInstall) {
-      btnInstall.addEventListener('click', async () => {
-        if (this.deferredPrompt) {
-          // Show the install prompt
-          this.deferredPrompt.prompt();
-          // Wait for the user to respond to the prompt
-          const { outcome } = await this.deferredPrompt.userChoice;
-          console.log(`User response to the install prompt: ${outcome}`);
-          // We've used the prompt, and can't use it again, throw it away
-          this.deferredPrompt = null;
-          
-          const installBanner = document.getElementById('pwa-install-banner');
-          if (installBanner) installBanner.style.display = 'none';
-        } else {
-          // Fallback if prompt isn't available (e.g. already installed or iOS Safari)
-          alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 공유 버튼 > '홈 화면에 추가'를 선택하세요.)");
-        }
-      });
+    const btnGlobalInstall = document.getElementById('btn-global-install');
+    
+    const triggerInstall = async () => {
+      if (this.deferredPrompt) {
+        // Show the install prompt
+        this.deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await this.deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        // We've used the prompt, and can't use it again, throw it away
+        this.deferredPrompt = null;
+        
+        const installBanner = document.getElementById('pwa-install-banner');
+        if (installBanner) installBanner.style.display = 'none';
+        
+        const globalModal = document.getElementById('global-install-modal');
+        if (globalModal) globalModal.classList.add('hidden');
+      } else {
+        // Fallback if prompt isn't available (e.g. already installed or iOS Safari)
+        alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)");
+      }
+    };
+
+    if (btnInstall) btnInstall.addEventListener('click', triggerInstall);
+    if (btnGlobalInstall) btnGlobalInstall.addEventListener('click', triggerInstall);
+    
+    // For iOS where beforeinstallprompt doesn't fire, show aggressive popup
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    
+    if (isIos && !isStandalone && !localStorage.getItem('cbt_install_prompt_dismissed')) {
+      setTimeout(() => {
+        const globalModal = document.getElementById('global-install-modal');
+        if (globalModal) globalModal.classList.remove('hidden');
+      }, 2000);
     }
 
     window.addEventListener('appinstalled', () => {

@@ -522,6 +522,27 @@
       </div>
     </div>
 
+    <!-- Global PWA Install Modal -->
+    <div id="global-install-modal" class="modal-overlay hidden" style="z-index: 9999;">
+      <div class="modal-content glass-card" style="text-align: center;">
+        <div style="font-size: 3.5rem; margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite;">🐌</div>
+        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">우렁의사 앱 다운로드</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
+          바탕화면에 우렁의사를 설치하고<br>언제든 빠르게 마음을 돌보세요!
+        </p>
+        <button id="btn-global-install" class="btn-primary" style="margin-bottom: 0.8rem; box-shadow: var(--shadow-glow);">무료 앱 설치하기</button>
+        <button class="btn-secondary" onclick="closeGlobalInstallModal()">다음에 할게요</button>
+      </div>
+    </div>
+    
+    <script>
+      function closeGlobalInstallModal() {
+        const modal = document.getElementById('global-install-modal');
+        if (modal) modal.classList.add('hidden');
+        try { localStorage.setItem('cbt_install_prompt_dismissed', 'true'); } catch(e){}
+      }
+    </script>
+
     <!-- Counselor Profile Modal -->
     <div id="counselor-profile-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card" style="max-height: 85vh; overflow-y: auto; padding-bottom: 2rem; position: relative;">
