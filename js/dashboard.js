@@ -27,7 +27,48 @@ window.Dashboard = {
   
   init() {
     if (this._inited) return; this._inited = true;
+    
+    if (window.Storage.getMoodEntries(7).length === 0) {
+      this.populateMockData();
+    }
+    
     this.refresh();
+  },
+  
+  populateMockData() {
+    const today = new Date();
+    // 7 days of mood data
+    const scores = [3, 2, 4, 3, 5, 4, 4];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      window.Storage.saveMoodEntry({
+        date: d.toISOString(),
+        score: scores[6 - i]
+      });
+    }
+    
+    // Some distortion stats
+    const distortions = [
+      'all-or-nothing', 'all-or-nothing', 
+      'jumping-conclusions', 'jumping-conclusions', 'jumping-conclusions',
+      'emotional-reasoning',
+      'personalization', 'personalization',
+      'mental-filter'
+    ];
+    distortions.forEach(d => window.Storage.incrementDistortion(d));
+    
+    // Active days for streak
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const activeDays = window.Storage._safeGet('cbt_active_days', []);
+      const dateStr = d.toISOString().split('T')[0];
+      if (!activeDays.includes(dateStr)) {
+        activeDays.push(dateStr);
+        window.Storage._safeSet('cbt_active_days', activeDays);
+      }
+    }
   },
   
   refresh() {
