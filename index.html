@@ -45,6 +45,23 @@
     </div>
   </div>
 
+  <!-- API Key Modal (for Pro Mode) -->
+  <div id="api-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="disclaimer-icon">💎</div>
+      <h2>Pro Mode 활성화</h2>
+      <p>더 깊이 있고 자연스러운 ChatGPT 기반 상담을 위해 OpenAI API 키를 입력해주세요.</p>
+      <div class="form-group" style="margin: 1.5rem 0;">
+        <input type="password" id="api-key-input" placeholder="sk-... 또는 비밀번호" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">키는 브라우저(로컬 기기)에만 안전하게 저장됩니다. (비밀번호 입력 시 자동 매핑됩니다)</p>
+      </div>
+      <div class="form-actions">
+        <button id="api-modal-cancel" class="btn-secondary">취소</button>
+        <button id="api-modal-save" class="btn-primary">저장 및 켜기</button>
+      </div>
+    </div>
+  </div>
+
   <!-- App Container -->
   <div id="app-container">
     <!-- Header -->
@@ -55,6 +72,7 @@
           <h1 class="app-title">우렁의사의 마음챙김 CBT</h1>
         </div>
         <div class="header-right">
+          <button id="btn-pro" class="header-btn" title="Pro Mode 켜기/끄기" style="font-size: 1rem; border: 1px solid var(--glass-border); padding: 0.2rem 0.6rem; margin-right: 0.5rem;">💎 Pro</button>
           <button id="btn-theme" class="header-btn" title="테마 변경">🌙</button>
           <button id="btn-reset" class="header-btn" title="대화 초기화">🔄</button>
         </div>
@@ -228,6 +246,7 @@
 
   <!-- JavaScript -->
   <script defer src="js/storage.js"></script>
+  <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>
   <script defer src="js/thought-record.js"></script>
   <script defer src="js/dashboard.js"></script>

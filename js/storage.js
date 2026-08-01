@@ -24,6 +24,23 @@ window.Storage = {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   },
 
+  // === Pro Mode & API Key ===
+  getProMode() {
+    return this._safeGet('cbt_pro_mode', false);
+  },
+  
+  setProMode(enabled) {
+    this._safeSet('cbt_pro_mode', enabled);
+  },
+
+  getApiKey() {
+    return this._safeGet('cbt_api_key', '');
+  },
+
+  setApiKey(key) {
+    this._safeSet('cbt_api_key', key);
+  },
+
   // === Chat Messages ===
   saveMessage(message) {
     const messages = this.getMessages();

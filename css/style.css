@@ -1179,3 +1179,29 @@ textarea:focus {
 
 /* Utilities */
 .hidden { display: none !important; }
+/* ========== PRO MODE ========== */
+body.pro-mode-active {
+  --accent-primary: #f59e0b; /* Gold/Amber */
+  --accent-secondary: #d97706;
+  --gradient-primary: linear-gradient(135deg, #f59e0b, #d97706);
+  --shadow-glow: 0 0 20px rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="light"] body.pro-mode-active {
+  --accent-primary: #d97706;
+  --accent-secondary: #b45309;
+  --gradient-primary: linear-gradient(135deg, #d97706, #b45309);
+  --shadow-glow: 0 0 20px rgba(217, 119, 6, 0.2);
+}
+
+body.pro-mode-active .app-title {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+body.pro-mode-active #btn-pro {
+  background: var(--gradient-primary);
+  color: white;
+  border-color: transparent;
+  box-shadow: var(--shadow-glow);
+  animation: pulseGlow 2s infinite;
+}
