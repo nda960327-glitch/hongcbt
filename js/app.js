@@ -110,18 +110,11 @@ window.App = {
       e.preventDefault();
       // Stash the event so it can be triggered later.
       this.deferredPrompt = e;
-      // Update UI notify the user they can install the PWA
+      
+      // Notify via banner on home
       const installBanner = document.getElementById('pwa-install-banner');
       if (installBanner) {
         installBanner.style.display = 'flex';
-      }
-      
-      // Aggressive Popup for Mobile Users (wait 2 seconds before prompting)
-      if (!localStorage.getItem('cbt_install_prompt_dismissed')) {
-        setTimeout(() => {
-          const globalModal = document.getElementById('global-install-modal');
-          if (globalModal) globalModal.classList.remove('hidden');
-        }, 2000);
       }
     });
 
@@ -130,12 +123,8 @@ window.App = {
     
     const triggerInstall = async () => {
       if (this.deferredPrompt) {
-        // Show the install prompt
         this.deferredPrompt.prompt();
-        // Wait for the user to respond to the prompt
         const { outcome } = await this.deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        // We've used the prompt, and can't use it again, throw it away
         this.deferredPrompt = null;
         
         const installBanner = document.getElementById('pwa-install-banner');
@@ -144,23 +133,22 @@ window.App = {
         const globalModal = document.getElementById('global-install-modal');
         if (globalModal) globalModal.classList.add('hidden');
       } else {
-        // Fallback if prompt isn't available (e.g. already installed or iOS Safari)
-        alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)");
+        alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)\n(크롬의 경우 메뉴 ➔ '앱 설치'를 선택하세요.)");
       }
     };
 
     if (btnInstall) btnInstall.addEventListener('click', triggerInstall);
     if (btnGlobalInstall) btnGlobalInstall.addEventListener('click', triggerInstall);
     
-    // For iOS where beforeinstallprompt doesn't fire, show aggressive popup
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    // Show aggressive popup on ALL mobile visits if not dismissed and not already standalone
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    if (isIos && !isStandalone && !localStorage.getItem('cbt_install_prompt_dismissed')) {
+    if (isMobile && !isStandalone && !localStorage.getItem('cbt_install_prompt_dismissed')) {
       setTimeout(() => {
         const globalModal = document.getElementById('global-install-modal');
         if (globalModal) globalModal.classList.remove('hidden');
-      }, 2000);
+      }, 1500);
     }
 
     window.addEventListener('appinstalled', () => {
