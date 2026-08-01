@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
+  <title>우렁의사</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f8a6b">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  
+  <!-- Google Fonts: Noto Sans KR (본문) + Gowun Batang (제목, 따뜻한 세리프) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Crisis Modal (hidden by default) -->
+  <div id="crisis-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="modal-icon modal-icon--crisis" data-icon="sos" data-icon-size="46"></div>
+      <h2>도움이 필요하신가요?</h2>
+      <p>지금 많이 힘드시군요. 전문 상담사의 도움을 받으실 수 있습니다.</p>
+      <div class="crisis-contacts">
+        <a href="tel:1393" class="crisis-btn"><span class="crisis-icon" data-icon="phone" data-icon-size="22"></span>자살예방상담전화<span class="crisis-number">1393</span></a>
+        <a href="tel:15770199" class="crisis-btn"><span class="crisis-icon" data-icon="hospital" data-icon-size="22"></span>정신건강위기상담<span class="crisis-number">1577-0199</span></a>
+        <a href="tel:109" class="crisis-btn"><span class="crisis-icon" data-icon="heart" data-icon-size="22"></span>생명의전화<span class="crisis-number">109</span></a>
+      </div>
+      <button id="crisis-close" class="btn-secondary">대화 계속하기</button>
+      <p class="crisis-disclaimer">이 앱은 전문 상담을 대체하지 않습니다</p>
+    </div>
+  </div>
+
+  <!-- Disclaimer Modal (shown on first visit) -->
+  <div id="disclaimer-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="disclaimer-icon" data-art="mascot" data-art-size="88"></div>
+      <h2>우렁의사의 마음챙김 CBT에 오신 것을 환영합니다</h2>
+      <p>이 앱은 인지행동치료(CBT) 기법을 기반으로 한 <strong>자기관리 보조 도구</strong>입니다.</p>
+      <ul>
+        <li>전문적인 정신건강 치료를 대체하지 않습니다</li>
+        <li>심각한 위기 상황에서는 전문가의 도움을 받으세요</li>
+        <li>대화 내용은 기기에만 저장되며 외부로 전송되지 않습니다</li>
+      </ul>
+      <button id="disclaimer-accept" class="btn-primary">이해했습니다, 시작하기</button>
+    </div>
+  </div>
+
+  <!-- API Key Modal (for Pro Mode) -->
+  <div id="api-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="modal-icon modal-icon--pro" data-icon="gem" data-icon-size="44"></div>
+      <h2>Pro Mode 결제 / 활성화</h2>
+      <p>더 깊이 있고 자연스러운 ChatGPT 기반 상담(100회)을 위해 결제 후 활성화 키를 입력해주세요.</p>
+      <div class="form-group" style="margin: 1.5rem 0;">
+        <input type="password" id="api-key-input" placeholder="활성화 키 입력 (또는 비밀번호)" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">데모: 1024를 입력하면 100회가 충전됩니다.</p>
+      </div>
+      <div class="form-actions">
+        <button id="api-modal-cancel" class="btn-secondary">취소</button>
+        <button id="api-modal-save" class="btn-primary">결제 후 켜기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App Container -->
+  <div id="app-container">
+    <!-- Header -->
+    <header id="app-header">
+      <div class="header-content">
+        <div class="header-left">
+          <span class="app-logo" data-art="mascot" data-art-size="34"></span>
+          <h1 class="app-title">우렁의사</h1>
+        </div>
+        <div class="header-right">
+          <button id="btn-fullscreen" class="header-btn" title="전체화면"><span data-icon="fullscreen" data-icon-size="20"></span></button>
+          <button id="btn-pro" class="header-btn header-btn--pro" title="Pro Mode 켜기/끄기"><span data-icon="gem" data-icon-size="16"></span><span>Pro</span></button>
+          <button id="btn-theme" class="header-btn" title="테마 변경"><span data-icon="moon" data-icon-size="20"></span></button>
+          <button id="btn-reset" class="header-btn" title="대화 초기화"><span data-icon="reset" data-icon-size="20"></span></button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Content Sections -->
+    <!-- HOME TAB -->
+    <section id="tab-home" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="home" data-icon-size="24"></span>우렁의사 홈</h2>
+        <p class="tab-subtitle">오늘의 마음 상태를 점검해보세요</p>
+      </div>
+      <div class="home-banner" onclick="window.App.switchTab('chat')">
+        <div class="home-banner__art" data-art="heroChat"></div>
+        <div class="home-banner__body">
+          <h3>인지행동치료 챗봇</h3>
+          <p>지금 바로 마음속 이야기를 나눠보세요.</p>
+          <div id="home-session-count" class="home-banner__count">무료 무제한</div>
+        </div>
+      </div>
+      <div id="pwa-install-banner" class="glass-card" style="margin: 1rem; padding: 1rem; border: 1px solid var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); display: none; flex-direction: column; gap: 0.8rem;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <div class="banner-ico" data-icon="download" data-icon-size="26"></div>
+          <div>
+            <h3 style="margin: 0; color: var(--accent-primary); font-size: 1.1rem;">우렁의사 앱 설치하기</h3>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">홈 화면에 추가하고 더 빠르고 편하게 이용하세요!</p>
+          </div>
+        </div>
+        <button id="btn-install-app" class="btn-primary" style="width: 100%; box-shadow: var(--shadow-sm);">앱 다운로드</button>
+      </div>
+
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3 class="card-head"><span class="h-ico" data-icon="counselor" data-icon-size="20"></span>추천 전문 상담사</h3>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">나에게 딱 맞는 상담사를 찾아보세요.</p>
+        <button class="btn-secondary" style="width: 100%; margin-top: 1rem;" onclick="window.App.switchTab('counselors')">상담사 둘러보기</button>
+      </div>
+
+      <!-- 내 마음 도구 (CBT 셀프케어 진입점) -->
+      <h3 class="card-head" style="margin: 0.4rem 1.25rem 0.6rem; font-size: 1.05rem;"><span class="h-ico" data-icon="bulb" data-icon-size="20"></span>내 마음 도구</h3>
+      <div class="home-tools">
+        <button class="home-tool" onclick="window.App.switchTab('record')">
+          <span class="home-tool__ico" data-icon="record" data-icon-size="24"></span>
+          <span class="home-tool__t">사고 기록</span>
+          <span class="home-tool__d">생각 정리</span>
+        </button>
+        <button class="home-tool" onclick="window.App.switchTab('learn')">
+          <span class="home-tool__ico" data-icon="book" data-icon-size="24"></span>
+          <span class="home-tool__t">인지왜곡 학습</span>
+          <span class="home-tool__d">10가지 함정</span>
+        </button>
+        <button class="home-tool" onclick="window.App.switchTab('dashboard')">
+          <span class="home-tool__ico" data-icon="dashboard" data-icon-size="24"></span>
+          <span class="home-tool__t">마음 대시보드</span>
+          <span class="home-tool__d">감정 추적</span>
+        </button>
+      </div>
+
+      <!-- 광고 및 제휴 콘텐츠 섹션 -->
+      <div style="margin: 0.3rem 0 0.5rem 0;">
+        <h3 class="card-head" style="margin: 0 1.25rem 0.3rem; font-size: 1.05rem;"><span class="h-ico" data-icon="sparkle" data-icon-size="20"></span>추천 제휴 콘텐츠</h3>
+        <p style="margin: 0 1.25rem 0.9rem; font-size: 0.8rem; color: var(--text-muted);">마음 건강을 위한 맞춤형 정보</p>
+
+        <div style="display: flex; gap: 0.85rem; overflow-x: auto; padding: 0 1.25rem 1rem; scroll-snap-type: x mandatory; scrollbar-width: none;">
+          <!-- 광고 1: 병원 홍보 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
+            <div class="ad-art" data-art="adHospital"></div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.4rem; border-radius: 6px;">제휴병원</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">서울 마음그린 정신건강의학과</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시! 편안한 마음으로 방문하세요.</p>
+            </div>
+          </div>
+          
+          <!-- 광고 2: 수면 클리닉 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
+            <div class="ad-art" data-art="adSleep"></div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: #6f97ab; font-weight: bold; border: 1px solid #6f97ab; padding: 0.1rem 0.4rem; border-radius: 6px;">수면클리닉</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">굿나잇 수면클리닉 기획전</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">불면증으로 고통받고 계신가요? 수면다원검사로 원인을 찾아드립니다.</p>
+            </div>
+          </div>
+          
+          <!-- 광고 3: 심리 서적 -->
+          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('도서 구매 페이지로 이동합니다.')">
+            <div class="ad-art" data-art="adBook"></div>
+            <div style="padding: 1rem;">
+              <span style="font-size: 0.7rem; color: var(--accent-secondary); font-weight: bold; border: 1px solid var(--accent-secondary); padding: 0.1rem 0.4rem; border-radius: 6px;">추천도서</span>
+              <h4 style="margin: 0.5rem 0 0.3rem 0;">베스트셀러: 내 마음을 안아주는 연습</h4>
+              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">상처받은 당신을 위한 인지심리학자의 따뜻한 위로와 솔루션.</p>
+            </div>
+          </div>
+        </div>
+        
+        <style>
+          /* Hide scrollbar for the horizontal ad container but keep functionality */
+          div[style*="overflow-x: auto"]::-webkit-scrollbar {
+            display: none;
+          }
+        </style>
+      </div>
+    </section>
+
+    <!-- CHAT TAB -->
+    <section id="tab-chat" class="tab-content active">
+      <div id="session-banner" class="hidden" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-primary); padding: 0.5rem; text-align: center; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); font-weight: bold;">
+        <span class="h-ico" data-icon="gem" data-icon-size="16"></span>Pro 모드 · <span id="chat-session-count">100</span>회 남음
+      </div>
+      <div id="chat-messages" class="chat-messages">
+        <!-- Messages will be inserted dynamically -->
+      </div>
+      <div id="quick-replies" class="quick-replies">
+        <!-- Quick reply buttons inserted dynamically -->
+      </div>
+      <div id="chat-input-area" class="chat-input-area">
+        <div class="input-wrapper glass-input">
+          <textarea id="chat-input" placeholder="마음속 이야기를 편하게 적어주세요..." rows="1"></textarea>
+          <button id="chat-send" class="send-btn" disabled>
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- THOUGHT RECORD TAB -->
+    <section id="tab-record" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="record" data-icon-size="24"></span>사고 기록</h2>
+        <button id="btn-new-record" class="btn-primary btn-sm">+ 새 기록</button>
+      </div>
+      <div id="record-empty" class="empty-state">
+        <div class="empty-icon" data-art="sprout"></div>
+        <p>아직 사고 기록이 없습니다</p>
+        <p class="empty-sub">대화 중 자동으로 생성되거나, 직접 작성할 수 있습니다</p>
+      </div>
+      <div id="record-list" class="record-list"></div>
+
+      <!-- New Record Form (hidden by default) -->
+      <div id="record-form-overlay" class="modal-overlay hidden">
+        <div class="modal-content glass-card record-form-modal">
+          <div class="form-header">
+            <h3>새 사고 기록</h3>
+            <button id="record-form-close" class="close-btn">✕</button>
+          </div>
+          <form id="record-form">
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="pin" data-icon-size="16"></span>상황</label>
+              <textarea id="rf-situation" placeholder="어떤 상황이었나요?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="quote" data-icon-size="16"></span>자동적 사고</label>
+              <textarea id="rf-thought" placeholder="그 순간 어떤 생각이 들었나요?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="faceDown" data-icon-size="16"></span>감정 (0~100)</label>
+              <div id="rf-emotions" class="emotion-inputs">
+                <div class="emotion-row">
+                  <input type="text" class="emotion-name" placeholder="감정 이름" value="불안">
+                  <input type="range" class="emotion-slider" min="0" max="100" value="50">
+                  <span class="emotion-value">50</span>
+                </div>
+              </div>
+              <button type="button" id="rf-add-emotion" class="btn-text">+ 감정 추가</button>
+            </div>
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="d_filter" data-icon-size="16"></span>인지왜곡</label>
+              <div id="rf-distortions" class="distortion-chips">
+                <!-- Chips for each distortion type -->
+              </div>
+            </div>
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="bulb" data-icon-size="16"></span>대안적 사고</label>
+              <textarea id="rf-alternative" placeholder="다르게 생각해본다면?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label><span class="lbl-ico" data-icon="faceSmile" data-icon-size="16"></span>변화된 감정 (0~100)</label>
+              <div id="rf-new-emotions" class="emotion-inputs">
+                <div class="emotion-row">
+                  <input type="text" class="emotion-name" placeholder="감정 이름" value="안도">
+                  <input type="range" class="emotion-slider" min="0" max="100" value="50">
+                  <span class="emotion-value">50</span>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" id="rf-cancel" class="btn-secondary">취소</button>
+              <button type="submit" class="btn-primary">저장하기</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD TAB -->
+    <section id="tab-dashboard" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
+      </div>
+      <div class="dashboard-grid">
+        <div class="dash-card glass-card">
+          <h3>이번 주 감정 흐름</h3>
+          <div id="mood-chart" class="chart-container"></div>
+        </div>
+        <div class="dash-card glass-card">
+          <h3>인지왜곡 패턴</h3>
+          <div id="distortion-chart" class="chart-container"></div>
+        </div>
+        <div class="dash-card glass-card stats-card">
+          <h3>활동 요약</h3>
+          <div id="stats-summary" class="stats-grid">
+            <div class="stat-item"><span class="stat-value" id="stat-sessions">0</span><span class="stat-label">총 대화</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">연속 일수</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-distortions">0</span><span class="stat-label">발견한 왜곡</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="dashboard-empty" class="empty-state hidden">
+        <div class="empty-icon" data-art="sprout"></div>
+        <p>아직 데이터가 충분하지 않습니다</p>
+        <p class="empty-sub">대화를 시작하면 감정 변화를 추적할 수 있습니다</p>
+      </div>
+    </section>
+
+    <!-- LEARN TAB -->
+    <section id="tab-learn" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="book" data-icon-size="24"></span>인지왜곡 학습</h2>
+        <p class="tab-subtitle">우리 마음의 10가지 생각 함정을 알아보세요</p>
+      </div>
+      <div id="distortion-cards" class="distortion-cards-grid"></div>
+      <div class="quiz-section">
+        <div class="glass-card quiz-card">
+          <h3 class="card-head"><span class="h-ico" data-icon="target" data-icon-size="20"></span>인지왜곡 퀴즈</h3>
+          <p class="quiz-desc">문장을 읽고 어떤 인지왜곡인지 맞춰보세요</p>
+          <div id="quiz-content"></div>
+          <button id="quiz-start" class="btn-primary">퀴즈 시작하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detail Modal for distortion cards -->
+    <div id="distortion-detail-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card detail-modal">
+        <button class="close-btn" id="detail-close">✕</button>
+        <div id="detail-content"></div>
+      </div>
+    </div>
+
+    <!-- COUNSELORS TAB -->
+    <section id="tab-counselors" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="counselor" data-icon-size="24"></span>상담사 매칭</h2>
+        <p class="tab-subtitle">검증된 병원 소속 상담사들과 함께하세요</p>
+      </div>
+      <div style="padding: 0 1.25rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.6rem;">
+        <select id="counselor-sort" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.5rem; font-size: 0.9rem; outline: none;" onchange="window.Marketplace.renderCounselors()">
+          <option value="rating">별점 높은 순</option>
+          <option value="reviews">리뷰 많은 순</option>
+          <option value="price_low">낮은 가격순</option>
+        </select>
+        <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-primary);">
+          <input type="checkbox" id="counselor-available-now" onchange="window.Marketplace.renderCounselors()" style="accent-color: #10b981;">
+          지금 바로 상담 가능
+        </label>
+      </div>
+      <div id="counselors-list" style="padding: 0 1.25rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
+        <!-- Counselor cards inserted dynamically -->
+      </div>
+    </section>
+
+    <!-- MYPAGE TAB -->
+    <section id="tab-mypage" class="tab-content">
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="user" data-icon-size="24"></span>마이페이지</h2>
+        <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
+      </div>
+      
+      <!-- 예약된 상담 내역 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3 style="margin-top:0;">나의 상담 내역</h3>
+        <!-- 예약 예시 (Mock Data) -->
+        <div onclick="openBookingInfo('1029384')" style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent); border-radius: 12px; padding: 1rem; margin-top: 1rem; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+            <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">예약번호: 1029384</span>
+          </div>
+          <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>김유진 심리상담사</h4>
+          <p style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">연세 마음가득 정신건강의학과</p>
+          <div style="margin-top: 0.8rem; font-size: 0.95rem; font-weight: bold; color: var(--text-primary);">
+            <span class="h-ico" data-icon="calendar" data-icon-size="18"></span>2026년 8월 5일 (수) 오후 2:00
+          </div>
+        </div>
+      </div>
+
+      <!-- CBT 대화 요약 리포트 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3 style="margin-top:0;">CBT 요약 리포트</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">챗봇과의 대화를 요약하여 상담사에게 전달할 수 있습니다.</p>
+        
+        <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="generateMockReport()">+ 오늘의 대화 요약 생성하기</button>
+
+        <div id="report-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+          <!-- 리포트 1 (Mock Data) -->
+          <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 28일 작성</div>
+            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="record" data-icon-size="17"></span>[주요 감정: 불안, 무기력] 주간 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 인지왜곡:</strong> 재앙화, 독심술<br>
+              - <strong>상황 요약:</strong> 발표 중 실수할 것이라는 극심한 불안감 호소.<br>
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/28')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
+            </div>
+          </div>
+
+          <!-- 리포트 2 (Mock Data) -->
+          <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 15일 작성</div>
+            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="record" data-icon-size="17"></span>[주요 감정: 분노, 우울] 주간 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 인지왜곡:</strong> 흑백논리, 당위적 진술<br>
+              - <strong>상황 요약:</strong> 직장 동료와의 갈등으로 인한 스트레스.<br>
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/15')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      function generateMockReport() {
+        const list = document.getElementById('report-list');
+        const now = new Date();
+        const dateString = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 작성';
+        
+        const newReport = document.createElement('div');
+        newReport.style = "background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-primary); animation: slideIn 0.3s ease-out;";
+        newReport.innerHTML = `
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">${dateString}</div>
+            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="sparkle" data-icon-size="17"></span>[새로운 리포트] 오늘의 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 감정:</strong> 스트레스, 피로감<br>
+              - <strong>상황 요약:</strong> 오늘 하루의 복잡한 감정을 챗봇과 나누며 정리를 시도함.<br>
+              - <strong>인사이트:</strong> 완벽주의적 성향(해야만 한다)이 스트레스를 가중시키고 있음을 인지함.
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('today')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
+            </div>
+        `;
+
+        list.insertBefore(newReport, list.firstChild);
+        alert('오늘의 챗봇 대화를 기반으로 요약 리포트가 생성되었습니다!');
+      }
+
+      function openReportDetail(id) {
+        const modal = document.getElementById('report-detail-modal');
+        if (modal) modal.classList.remove('hidden');
+      }
+      function closeReportDetail() {
+        const modal = document.getElementById('report-detail-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+    </script>
+
+    <!-- Report Detail Modal -->
+    <div id="report-detail-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card" style="max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 class="card-head" style="margin: 0;"><span class="h-ico" data-icon="dashboard" data-icon-size="22"></span>CBT 상세 리포트</h2>
+          <button class="close-btn" onclick="closeReportDetail()">✕</button>
+        </div>
+        
+        <div style="background: color-mix(in srgb, var(--accent-primary) 6%, transparent); padding: 1.2rem; border-radius: 14px; margin-bottom: 1.5rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent);">
+          <h4 style="margin: 0 0 1rem 0; color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="dashboard" data-icon-size="18"></span>감정 변화 추이</h4>
+          
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
+              <span>대화 시작 전 (불안 80)</span>
+              <span style="color: var(--danger); font-weight: bold;">매우 높음</span>
+            </div>
+            <div style="width: 100%; background: var(--bg-tertiary); border-radius: 99px; height: 12px; overflow: hidden;">
+              <div style="width: 80%; background: linear-gradient(90deg, #f87171, #ef4444); height: 100%; border-radius: 99px;"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
+              <span>대화 종료 후 (불안 35)</span>
+              <span style="color: var(--success); font-weight: bold;">안정됨 (-56%)</span>
+            </div>
+            <div style="width: 100%; background: var(--bg-tertiary); border-radius: 99px; height: 12px; overflow: hidden;">
+              <div style="width: 35%; background: linear-gradient(90deg, #34d399, #10b981); height: 100%; border-radius: 99px; animation: loadBar 1s ease-out;"></div>
+            </div>
+          </div>
+          <style>@keyframes loadBar { from { width: 80%; background: #ef4444; } to { width: 35%; background: #10b981; } }</style>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.05); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(16, 185, 129, 0.1);">
+          <h4 style="margin: 0 0 1rem 0; color: #10b981; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="sparkle" data-icon-size="18"></span>인지왜곡 분석 (AI 감지)</h4>
+          
+          <!-- Mock Donut Chart (CSS) -->
+          <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: conic-gradient(#10b981 0% 75%, #f59e0b 75% 100%); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+              <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">4건</div>
+            </div>
+            <div style="flex: 1; font-size: 0.85rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span><span style="display:inline-block; width:10px; height:10px; background:#10b981; border-radius:50%; margin-right:5px;"></span>재앙화</span>
+                <strong>75% (3회)</strong>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span><span style="display:inline-block; width:10px; height:10px; background:#f59e0b; border-radius:50%; margin-right:5px;"></span>독심술</span>
+                <strong>25% (1회)</strong>
+              </div>
+            </div>
+          </div>
+          
+          <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0; color: var(--text-secondary);">
+            <li style="margin-bottom: 0.4rem;"><strong>재앙화</strong>: "이번 발표를 망치면 내 인생은 끝이야" 등 파국적인 결과를 예상하는 패턴</li>
+            <li><strong>독심술</strong>: "팀장님이 나를 한심하게 생각할 거야"와 같이 타인의 속마음을 자의적으로 추측</li>
+          </ul>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.05); padding: 1.2rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(245, 158, 11, 0.1);">
+          <h4 style="margin: 0 0 1rem 0; color: #d97706; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="quote" data-icon-size="18"></span>주요 대화 발췌 (상담 참고용)</h4>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid #fbd38d; padding-left: 1rem;">
+            <strong style="color: var(--text-primary);">내담자:</strong> "발표 준비를 아무리 해도 불안해요. 무대에서 실수할 게 뻔해요."<br><br>
+            <strong style="color: var(--accent-primary);">우렁의사:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요?"<br><br>
+            <strong style="color: var(--text-primary);">내담자:</strong> "사실 실수한 적은 있었지만, 사람들이 크게 신경 쓰지는 않았던 것 같아요."
+          </div>
+        </div>
+
+        <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="closeReportDetail()">확인</button>
+      </div>
+    </div>
+
+    <!-- Global PWA Install Modal -->
+    <div id="global-install-modal" class="modal-overlay hidden" style="z-index: 9999;">
+      <div class="modal-content glass-card" style="text-align: center;">
+        <div style="font-size: 3.5rem; margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite;">🐌</div>
+        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">우렁의사 앱 다운로드</h2>
+        <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
+          바탕화면에 우렁의사를 설치하고<br>언제든 빠르게 마음을 돌보세요!
+        </p>
+        <button id="btn-global-install" class="btn-primary" style="margin-bottom: 0.8rem; box-shadow: var(--shadow-glow);">무료 앱 설치하기</button>
+        <button class="btn-secondary" onclick="closeGlobalInstallModal()">다음에 할게요</button>
+      </div>
+    </div>
+    
+    <script>
+      function closeGlobalInstallModal() {
+        const modal = document.getElementById('global-install-modal');
+        if (modal) modal.classList.add('hidden');
+        try { localStorage.setItem('cbt_install_prompt_dismissed', 'true'); } catch(e){}
+      }
+    </script>
+
+    <!-- Counselor Profile Modal -->
+    <div id="counselor-profile-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card" style="max-height: 85vh; overflow-y: auto; padding-bottom: 2rem; position: relative;">
+        <button class="close-btn" style="position: absolute; top: 1rem; right: 1rem; z-index: 10;" onclick="window.Marketplace.closeProfile()">✕</button>
+        <div id="counselor-profile-content">
+          <!-- dynamically inserted -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Booking Info Modal -->
+    <div id="booking-info-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card" style="max-height: 85vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 class="card-head" style="margin: 0;"><span class="h-ico" data-icon="calendar" data-icon-size="22"></span>예약 상세정보</h2>
+          <button class="close-btn" onclick="closeBookingInfo()">✕</button>
+        </div>
+        
+        <div style="background: var(--bg-tertiary); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.5rem; text-align: center;">
+          <span style="display: inline-block; background: var(--success); color: white; padding: 0.3rem 0.8rem; border-radius: 99px; font-size: 0.85rem; font-weight: bold; margin-bottom: 0.8rem;">예약 확정</span>
+          <h3 style="margin: 0 0 0.2rem 0; font-size: 1.2rem;">김유진 심리상담사</h3>
+          <p style="margin: 0; color: var(--text-secondary); font-size: 0.95rem;">연세 마음가득 정신건강의학과</p>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">일정 안내</h4>
+          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">예약번호</span>
+            <strong>1029384</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">예약 일시</span>
+            <strong>2026년 8월 5일 (수) 오후 2:00</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
+            <span style="color: var(--text-secondary);">상담 방식</span>
+            <strong>화상 상담 (비대면)</strong>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">결제 내역</h4>
+          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
+            <span style="color: var(--text-secondary);">결제 금액</span>
+            <strong>80,000원</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
+            <span style="color: var(--text-secondary);">결제 수단</span>
+            <strong>신용카드 (카카오페이)</strong>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
+          <button class="btn-secondary" style="flex: 1;" onclick="alert('예약을 취소하시겠습니까? (위약금 규정 안내)')">예약 취소</button>
+          <button class="btn-primary" style="flex: 1;" onclick="alert('화상 상담 링크는 상담 시작 10분 전에 활성화됩니다.')">화상 상담 입장</button>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      function openBookingInfo(id) {
+        const modal = document.getElementById('booking-info-modal');
+        if (modal) modal.classList.remove('hidden');
+      }
+      function closeBookingInfo() {
+        const modal = document.getElementById('booking-info-modal');
+        if (modal) modal.classList.add('hidden');
+      }
+    </script>
+
+    <!-- Booking Modal (New Reservation) -->
+    <div id="booking-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card">
+        <h2>상담 예약 및 결제</h2>
+        <div id="booking-details" style="margin: 1.5rem 0; text-align: left; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
+          <!-- details inserted dynamically -->
+        </div>
+        <div style="margin-bottom: 1.5rem; text-align: left;">
+          <label style="display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">예약 일시 선택</label>
+          <input type="datetime-local" id="booking-datetime" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        </div>
+        <div class="form-actions">
+          <button id="booking-cancel" class="btn-secondary">취소</button>
+          <button id="booking-confirm" class="btn-primary">결제하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav glass-nav">
+      <button class="nav-item" data-tab="home">
+        <span class="nav-ico" data-icon="home" data-icon-size="23"></span>
+        <span>홈</span>
+      </button>
+      <button class="nav-item active" data-tab="chat">
+        <span class="nav-ico" data-icon="chat" data-icon-size="23"></span>
+        <span>챗봇</span>
+      </button>
+      <button class="nav-item" data-tab="record">
+        <span class="nav-ico" data-icon="record" data-icon-size="23"></span>
+        <span>기록</span>
+      </button>
+      <button class="nav-item" data-tab="dashboard">
+        <span class="nav-ico" data-icon="dashboard" data-icon-size="23"></span>
+        <span>대시보드</span>
+      </button>
+      <button class="nav-item" data-tab="mypage">
+        <span class="nav-ico" data-icon="user" data-icon-size="23"></span>
+        <span>마이</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- JavaScript -->
+  <script defer src="js/icons.js"></script>
+  <script defer src="js/storage.js"></script>
+  <script defer src="js/llm.js"></script>
+  <script defer src="js/chatbot.js"></script>
+  <script defer src="js/marketplace.js"></script>
+  <script defer src="js/booking.js"></script>
+  <script defer src="js/thought-record.js"></script>
+  <script defer src="js/dashboard.js"></script>
+  <script defer src="js/learn.js"></script>
+  <script defer src="js/app.js"></script>
+  
+  <script>
+    // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기
+    function hydrateIcons(root) {
+      if (!window.Icons) return;
+      (root || document).querySelectorAll('[data-icon]').forEach(el => {
+        if (el.dataset.done) return;
+        const size = el.dataset.iconSize ? parseInt(el.dataset.iconSize, 10) : 22;
+        el.innerHTML = window.Icons.svg(el.dataset.icon, { size });
+        el.dataset.done = '1';
+      });
+      (root || document).querySelectorAll('[data-art]').forEach(el => {
+        if (el.dataset.done) return;
+        const fn = window.Icons.art[el.dataset.art];
+        if (typeof fn === 'function') {
+          const size = el.dataset.artSize ? parseInt(el.dataset.artSize, 10) : undefined;
+          el.innerHTML = fn(size);
+          el.dataset.done = '1';
+        }
+      });
+    }
+    window.hydrateIcons = hydrateIcons;
+    document.addEventListener('DOMContentLoaded', () => hydrateIcons());
+    window.addEventListener('load', () => hydrateIcons());
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(err => {
+          console.error('Service Worker registration failed: ', err);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
