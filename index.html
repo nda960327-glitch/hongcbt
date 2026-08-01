@@ -291,18 +291,31 @@
         <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="generateMockReport()">+ 오늘의 대화 요약 생성하기</button>
 
         <div id="report-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
-          <!-- 리포트 예시 (Mock Data) -->
+          <!-- 리포트 1 (Mock Data) -->
           <div style="background: rgba(0,0,0,0.1); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
             <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 28일 작성</div>
-            <h4 style="margin: 0 0 0.5rem 0;">📝 [주요 감정: 불안, 우울] 주간 대화 요약</h4>
+            <h4 style="margin: 0 0 0.5rem 0;">📝 [주요 감정: 불안, 무기력] 주간 대화 요약</h4>
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-              - <strong>주요 인지왜곡:</strong> 흑백논리, 재앙화<br>
-              - <strong>상황 요약:</strong> 직장에서의 실수로 인해 해고될지도 모른다는 극심한 불안을 호소함.<br>
-              - <strong>대처 변화:</strong> 인지 재구성을 통해 실수가 잦지 않았음을 객관화하고 불안도가 80에서 40으로 감소함.
+              - <strong>주요 인지왜곡:</strong> 재앙화, 독심술<br>
+              - <strong>상황 요약:</strong> 발표 중 실수할 것이라는 극심한 불안감 호소.<br>
             </p>
             <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">상세보기</button>
-              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);">상담사에게 전송</button>
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/28')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
+            </div>
+          </div>
+
+          <!-- 리포트 2 (Mock Data) -->
+          <div style="background: rgba(0,0,0,0.1); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 15일 작성</div>
+            <h4 style="margin: 0 0 0.5rem 0;">📝 [주요 감정: 분노, 우울] 주간 대화 요약</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+              - <strong>주요 인지왜곡:</strong> 흑백논리, 당위적 진술<br>
+              - <strong>상황 요약:</strong> 직장 동료와의 갈등으로 인한 스트레스.<br>
+            </p>
+            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/15')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
             </div>
           </div>
         </div>
@@ -326,15 +339,58 @@
               - <strong>인사이트:</strong> 완벽주의적 성향(해야만 한다)이 스트레스를 가중시키고 있음을 인지함.
             </p>
             <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;">상세보기</button>
-              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);">상담사에게 전송</button>
+              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('today')">상세보기</button>
+              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
             </div>
         \`;
         
         list.insertBefore(newReport, list.firstChild);
         alert('오늘의 챗봇 대화를 기반으로 요약 리포트가 생성되었습니다!');
       }
+
+      function openReportDetail(id) {
+        const modal = document.getElementById('report-detail-modal');
+        if (modal) modal.classList.remove('hidden');
+      }
+      function closeReportDetail() {
+        const modal = document.getElementById('report-detail-modal');
+        if (modal) modal.classList.add('hidden');
+      }
     </script>
+
+    <!-- Report Detail Modal -->
+    <div id="report-detail-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card" style="max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 style="margin: 0;">📊 CBT 상세 리포트</h2>
+          <button class="close-btn" onclick="closeReportDetail()">✕</button>
+        </div>
+        
+        <div style="background: rgba(37, 99, 235, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-primary);">1. 감정 변화 추이</h4>
+          <p style="font-size: 0.85rem; margin: 0;">대화 시작 전 <strong>'불안(80/100)'</strong> 수준이었으나, 대화 종료 후 <strong>'불안(35/100)'</strong>으로 약 <strong>56% 감소</strong>하였습니다. 마음이 진정되는 효과가 확인되었습니다.</p>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">2. 인지왜곡 분석 (AI 감지)</h4>
+          <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0;">
+            <li style="margin-bottom: 0.3rem;"><strong>재앙화 (Catastrophizing)</strong>: "이번 발표를 망치면 내 인생은 끝이야" 등 파국적인 결과를 예상하는 패턴이 3회 발견됨.</li>
+            <li><strong>독심술 (Mind Reading)</strong>: "팀장님이 나를 한심하게 생각할 거야"와 같이 타인의 속마음을 자의적으로 추측하는 패턴이 1회 발견됨.</li>
+          </ul>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+          <h4 style="margin: 0 0 0.5rem 0; color: #f59e0b;">3. 주요 대화 발췌 (상담 참고용)</h4>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); border-left: 2px solid #f59e0b; padding-left: 0.8rem;">
+            <strong>내담자:</strong> "발표 준비를 아무리 해도 불안해요. 무대에서 실수할 게 뻔해요."<br><br>
+            <strong>우렁의사:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요? 최악의 상황이 현실이 된 적이 있나요?"<br><br>
+            <strong>내담자:</strong> "사실 실수한 적은 있었지만, 사람들이 크게 신경 쓰지는 않았던 것 같아요."
+          </div>
+        </div>
+
+        <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="closeReportDetail()">확인</button>
+      </div>
+    </div>
 
     <!-- Booking Modal -->
     <div id="booking-modal" class="modal-overlay hidden">
