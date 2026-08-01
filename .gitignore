@@ -1,0 +1,7 @@
+# Local server state / node modules
+node_modules/
+.DS_Store
+Thumbs.db
+
+# App local temporary files
+server.js

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
+  <title>우렁의사의 마음챙김 CBT</title>
+  
+  <!-- Google Fonts: Noto Sans KR -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Crisis Modal (hidden by default) -->
+  <div id="crisis-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <h2>🆘 도움이 필요하신가요?</h2>
+      <p>지금 많이 힘드시군요. 전문 상담사의 도움을 받으실 수 있습니다.</p>
+      <div class="crisis-contacts">
+        <a href="tel:1393" class="crisis-btn"><span class="crisis-icon">📞</span>자살예방상담전화<span class="crisis-number">1393</span></a>
+        <a href="tel:15770199" class="crisis-btn"><span class="crisis-icon">🏥</span>정신건강위기상담<span class="crisis-number">1577-0199</span></a>
+        <a href="tel:109" class="crisis-btn"><span class="crisis-icon">💚</span>생명의전화<span class="crisis-number">109</span></a>
+      </div>
+      <button id="crisis-close" class="btn-secondary">대화 계속하기</button>
+      <p class="crisis-disclaimer">이 앱은 전문 상담을 대체하지 않습니다</p>
+    </div>
+  </div>
+
+  <!-- Disclaimer Modal (shown on first visit) -->
+  <div id="disclaimer-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="disclaimer-icon">🧠</div>
+      <h2>우렁의사의 마음챙김 CBT에 오신 것을 환영합니다</h2>
+      <p>이 앱은 인지행동치료(CBT) 기법을 기반으로 한 <strong>자기관리 보조 도구</strong>입니다.</p>
+      <ul>
+        <li>전문적인 정신건강 치료를 대체하지 않습니다</li>
+        <li>심각한 위기 상황에서는 전문가의 도움을 받으세요</li>
+        <li>대화 내용은 기기에만 저장되며 외부로 전송되지 않습니다</li>
+      </ul>
+      <button id="disclaimer-accept" class="btn-primary">이해했습니다, 시작하기</button>
+    </div>
+  </div>
+
+  <!-- App Container -->
+  <div id="app-container">
+    <!-- Header -->
+    <header id="app-header">
+      <div class="header-content">
+        <div class="header-left">
+          <span class="app-logo">🧠</span>
+          <h1 class="app-title">우렁의사의 마음챙김 CBT</h1>
+        </div>
+        <div class="header-right">
+          <button id="btn-theme" class="header-btn" title="테마 변경">🌙</button>
+          <button id="btn-reset" class="header-btn" title="대화 초기화">🔄</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Tab Content Sections -->
+    <!-- CHAT TAB -->
+    <section id="tab-chat" class="tab-content active">
+      <div id="chat-messages" class="chat-messages">
+        <!-- Messages will be inserted dynamically -->
+      </div>
+      <div id="quick-replies" class="quick-replies">
+        <!-- Quick reply buttons inserted dynamically -->
+      </div>
+      <div id="chat-input-area" class="chat-input-area">
+        <div class="input-wrapper glass-input">
+          <textarea id="chat-input" placeholder="마음속 이야기를 편하게 적어주세요..." rows="1"></textarea>
+          <button id="chat-send" class="send-btn" disabled>
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- THOUGHT RECORD TAB -->
+    <section id="tab-record" class="tab-content">
+      <div class="tab-header">
+        <h2>📝 사고 기록</h2>
+        <button id="btn-new-record" class="btn-primary btn-sm">+ 새 기록</button>
+      </div>
+      <div id="record-empty" class="empty-state">
+        <div class="empty-icon">📝</div>
+        <p>아직 사고 기록이 없습니다</p>
+        <p class="empty-sub">대화 중 자동으로 생성되거나, 직접 작성할 수 있습니다</p>
+      </div>
+      <div id="record-list" class="record-list"></div>
+
+      <!-- New Record Form (hidden by default) -->
+      <div id="record-form-overlay" class="modal-overlay hidden">
+        <div class="modal-content glass-card record-form-modal">
+          <div class="form-header">
+            <h3>새 사고 기록</h3>
+            <button id="record-form-close" class="close-btn">✕</button>
+          </div>
+          <form id="record-form">
+            <div class="form-group">
+              <label>📍 상황</label>
+              <textarea id="rf-situation" placeholder="어떤 상황이었나요?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label>💭 자동적 사고</label>
+              <textarea id="rf-thought" placeholder="그 순간 어떤 생각이 들었나요?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label>😔 감정 (0~100)</label>
+              <div id="rf-emotions" class="emotion-inputs">
+                <div class="emotion-row">
+                  <input type="text" class="emotion-name" placeholder="감정 이름" value="불안">
+                  <input type="range" class="emotion-slider" min="0" max="100" value="50">
+                  <span class="emotion-value">50</span>
+                </div>
+              </div>
+              <button type="button" id="rf-add-emotion" class="btn-text">+ 감정 추가</button>
+            </div>
+            <div class="form-group">
+              <label>🔍 인지왜곡</label>
+              <div id="rf-distortions" class="distortion-chips">
+                <!-- Chips for each distortion type -->
+              </div>
+            </div>
+            <div class="form-group">
+              <label>💡 대안적 사고</label>
+              <textarea id="rf-alternative" placeholder="다르게 생각해본다면?" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label>😊 변화된 감정 (0~100)</label>
+              <div id="rf-new-emotions" class="emotion-inputs">
+                <div class="emotion-row">
+                  <input type="text" class="emotion-name" placeholder="감정 이름" value="안도">
+                  <input type="range" class="emotion-slider" min="0" max="100" value="50">
+                  <span class="emotion-value">50</span>
+                </div>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" id="rf-cancel" class="btn-secondary">취소</button>
+              <button type="submit" class="btn-primary">저장하기</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD TAB -->
+    <section id="tab-dashboard" class="tab-content">
+      <div class="tab-header">
+        <h2>📊 마음 대시보드</h2>
+      </div>
+      <div class="dashboard-grid">
+        <div class="dash-card glass-card">
+          <h3>이번 주 감정 흐름</h3>
+          <div id="mood-chart" class="chart-container"></div>
+        </div>
+        <div class="dash-card glass-card">
+          <h3>인지왜곡 패턴</h3>
+          <div id="distortion-chart" class="chart-container"></div>
+        </div>
+        <div class="dash-card glass-card stats-card">
+          <h3>활동 요약</h3>
+          <div id="stats-summary" class="stats-grid">
+            <div class="stat-item"><span class="stat-value" id="stat-sessions">0</span><span class="stat-label">총 대화</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">연속 일수</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-distortions">0</span><span class="stat-label">발견한 왜곡</span></div>
+          </div>
+        </div>
+      </div>
+      <div id="dashboard-empty" class="empty-state hidden">
+        <div class="empty-icon">📊</div>
+        <p>아직 데이터가 충분하지 않습니다</p>
+        <p class="empty-sub">대화를 시작하면 감정 변화를 추적할 수 있습니다</p>
+      </div>
+    </section>
+
+    <!-- LEARN TAB -->
+    <section id="tab-learn" class="tab-content">
+      <div class="tab-header">
+        <h2>📚 인지왜곡 학습</h2>
+        <p class="tab-subtitle">우리 마음의 10가지 생각 함정을 알아보세요</p>
+      </div>
+      <div id="distortion-cards" class="distortion-cards-grid"></div>
+      <div class="quiz-section">
+        <div class="glass-card quiz-card">
+          <h3>🎯 인지왜곡 퀴즈</h3>
+          <p class="quiz-desc">문장을 읽고 어떤 인지왜곡인지 맞춰보세요</p>
+          <div id="quiz-content"></div>
+          <button id="quiz-start" class="btn-primary">퀴즈 시작하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detail Modal for distortion cards -->
+    <div id="distortion-detail-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card detail-modal">
+        <button class="close-btn" id="detail-close">✕</button>
+        <div id="detail-content"></div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav glass-nav">
+      <button class="nav-item active" data-tab="chat">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z" fill="currentColor"/></svg>
+        <span>대화</span>
+      </button>
+      <button class="nav-item" data-tab="record">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z" fill="currentColor"/></svg>
+        <span>기록</span>
+      </button>
+      <button class="nav-item" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" fill="currentColor"/></svg>
+        <span>대시보드</span>
+      </button>
+      <button class="nav-item" data-tab="learn">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/></svg>
+        <span>학습</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- JavaScript -->
+  <script defer src="js/storage.js"></script>
+  <script defer src="js/chatbot.js"></script>
+  <script defer src="js/thought-record.js"></script>
+  <script defer src="js/dashboard.js"></script>
+  <script defer src="js/learn.js"></script>
+  <script defer src="js/app.js"></script>
+</body>
+</html>
