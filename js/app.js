@@ -427,8 +427,22 @@ window.App = {
   
   // === Theme Management ===
   initTheme() {
-    const saved = localStorage.getItem('cbt_theme') || 'dark';
-    this.applyTheme(saved);
+    const saved = localStorage.getItem('cbt_theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // 사용자가 명시적으로 저장한 테마가 있으면 그것을, 없으면 시스템 테마를 따름
+    const themeToApply = saved ? saved : (prefersDark ? 'dark' : 'light');
+    this.applyTheme(themeToApply);
+
+    // 시스템 테마 변경 감지
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+        // 사용자가 수동으로 테마를 고정하지 않은 경우에만 자동 전환
+        if (!localStorage.getItem('cbt_theme')) {
+          this.applyTheme(e.matches ? 'dark' : 'light');
+        }
+      });
+    }
   },
   
   toggleTheme() {
