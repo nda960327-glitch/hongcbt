@@ -96,10 +96,10 @@ window.Dashboard = {
     // Format data for chart
     const data = this._prepareMoodData(moodEntries);
     
-    // SVG setup
-    const width = 600;
-    const height = 250;
-    const padding = { top: 40, right: 30, bottom: 40, left: 40 };
+    // SVG setup for better mobile readability (aspect ratio 2:1)
+    const width = 440;
+    const height = 220;
+    const padding = { top: 40, right: 30, bottom: 40, left: 30 };
     
     const innerWidth = width - padding.left - padding.right;
     const innerHeight = height - padding.top - padding.bottom;
