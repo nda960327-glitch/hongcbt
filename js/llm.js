@@ -13,7 +13,7 @@ window.LLM = {
   async generateResponse(userText) {
     const apiKey = window.Storage.getApiKey();
     if (!apiKey) {
-      return [{ text: "API 키가 설정되지 않았습니다. 헤더의 💎 Pro 버튼을 눌러 OpenAI API 키를 입력해주세요.", delay: 0 }];
+      return [{ text: "API 키가 설정되지 않았습니다. 헤더의 Pro 버튼을 눌러 OpenAI API 키를 입력해주세요.", delay: 0 }];
     }
 
     // 1. Build Conversation History

@@ -4,8 +4,8 @@
   "description": "인지행동치료 기반 심리상담 AI 도우미",
   "start_url": "./index.html",
   "display": "fullscreen",
-  "background_color": "#0f172a",
-  "theme_color": "#2563eb",
+  "background_color": "#faf5ee",
+  "theme_color": "#4f8a6b",
   "icons": [
     {
       "src": "icon.svg",

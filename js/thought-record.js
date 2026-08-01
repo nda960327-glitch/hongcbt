@@ -1,18 +1,24 @@
 window.ThoughtRecord = {
+  iconMap: {
+    'all-or-nothing':'d_all','overgeneralization':'d_over','mental-filter':'d_filter',
+    'disqualifying-positive':'d_disq','jumping-conclusions':'d_jump','magnification-minimization':'d_mag',
+    'emotional-reasoning':'d_emo','should-statements':'d_should','personalization':'d_person','labeling':'d_label'
+  },
   distortions: [
-    { id: 'all-or-nothing', label: '이분법적 사고', emoji: '⚫' },
-    { id: 'overgeneralization', label: '과잉일반화', emoji: '🔄' },
-    { id: 'mental-filter', label: '정신적 필터', emoji: '🔍' },
-    { id: 'disqualifying-positive', label: '긍정 격하', emoji: '⬇️' },
-    { id: 'jumping-conclusions', label: '예단', emoji: '🔮' },
-    { id: 'magnification-minimization', label: '극대화/축소화', emoji: '📐' },
-    { id: 'emotional-reasoning', label: '감정적 추리', emoji: '💭' },
-    { id: 'should-statements', label: '당위적 명령', emoji: '📋' },
-    { id: 'personalization', label: '개인화', emoji: '👤' },
-    { id: 'labeling', label: '낙인찍기', emoji: '🏷️' }
+    { id: 'all-or-nothing', label: '이분법적 사고', emoji: '' },
+    { id: 'overgeneralization', label: '과잉일반화', emoji: '' },
+    { id: 'mental-filter', label: '정신적 필터', emoji: '' },
+    { id: 'disqualifying-positive', label: '긍정 격하', emoji: '' },
+    { id: 'jumping-conclusions', label: '예단', emoji: '' },
+    { id: 'magnification-minimization', label: '극대화/축소화', emoji: '' },
+    { id: 'emotional-reasoning', label: '감정적 추리', emoji: '' },
+    { id: 'should-statements', label: '당위적 명령', emoji: '' },
+    { id: 'personalization', label: '개인화', emoji: '' },
+    { id: 'labeling', label: '낙인찍기', emoji: '' }
   ],
   
   init() {
+    if (this._inited) return; this._inited = true;
     const btnNew = document.getElementById('btn-new-record');
     if (btnNew) btnNew.addEventListener('click', () => this.showForm());
     
@@ -34,8 +40,16 @@ window.ThoughtRecord = {
         e.preventDefault();
         this.handleSubmit();
       });
+      // 슬라이더 값 실시간 표시
+      form.addEventListener('input', (e) => {
+        if (e.target.type === 'range') {
+          const row = e.target.closest('.emotion-row');
+          const span = row && row.querySelector('.emotion-value, .intensity-value');
+          if (span) span.textContent = e.target.value + (span.classList.contains('intensity-value') ? '%' : '');
+        }
+      });
     }
-    
+
     this.setupDistortionChips();
     this.loadRecords();
   },
@@ -76,13 +90,13 @@ window.ThoughtRecord = {
     
     let distortionsHtml = (record.distortions || []).map(dId => {
       const dist = this.distortions.find(d => d.id === dId);
-      return dist ? `<span class="distortion-chip small">${dist.emoji} ${dist.label}</span>` : '';
+      return dist ? `<span class="distortion-chip small"><span class="chip-ico">${window.Icons?window.Icons.svg(this.iconMap[dist.id],{size:14}):''}</span>${dist.label}</span>` : '';
     }).join('');
     
     card.innerHTML = `
       <div class="record-header">
         <span class="record-date">${dateStr}</span>
-        <button class="btn-delete-record" data-id="${record.id}">❌</button>
+        <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
       </div>
       <div class="record-body">
         <div class="record-section">
@@ -164,7 +178,7 @@ window.ThoughtRecord = {
       const chip = document.createElement('div');
       chip.className = 'distortion-chip';
       chip.dataset.id = dist.id;
-      chip.innerHTML = `${dist.emoji} ${dist.label}`;
+      chip.innerHTML = `<span class="chip-ico">${window.Icons?window.Icons.svg(this.iconMap[dist.id],{size:15}):''}</span>${dist.label}`;
       chip.addEventListener('click', () => {
         chip.classList.toggle('selected');
       });
@@ -180,7 +194,7 @@ window.ThoughtRecord = {
       <input type="text" class="emotion-name" placeholder="감정 (예: 우울함, 불안함)" required>
       <input type="range" class="emotion-intensity" min="0" max="100" value="50">
       <span class="intensity-value">50%</span>
-      <button type="button" class="btn-remove-emotion">✖</button>
+      <button type="button" class="btn-remove-emotion" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:14}):'✕'}</button>
     `;
     
     const slider = row.querySelector('.emotion-intensity');
@@ -200,13 +214,19 @@ window.ThoughtRecord = {
     const situation = document.getElementById('rf-situation').value;
     const thought = document.getElementById('rf-thought').value;
     const alternative = document.getElementById('rf-alternative').value;
-    const newEmotions = document.getElementById('rf-new-emotions').value;
-    
-    const emotionRows = document.querySelectorAll('#rf-emotions .emotion-row');
-    const emotions = Array.from(emotionRows).map(row => ({
-      name: row.querySelector('.emotion-name').value,
-      intensity: parseInt(row.querySelector('.emotion-intensity').value, 10)
-    })).filter(e => e.name.trim() !== '');
+
+    const readEmotions = (sel) => Array.from(document.querySelectorAll(sel + ' .emotion-row')).map(row => {
+      const nameEl = row.querySelector('.emotion-name');
+      const rangeEl = row.querySelector('.emotion-intensity, .emotion-slider');
+      return {
+        name: nameEl ? nameEl.value : '',
+        intensity: rangeEl ? parseInt(rangeEl.value, 10) : 0
+      };
+    }).filter(e => e.name.trim() !== '');
+
+    const emotions = readEmotions('#rf-emotions');
+    // 변화된 감정: 표시용 문자열로 정리
+    const newEmotions = readEmotions('#rf-new-emotions').map(e => `${e.name} ${e.intensity}%`).join(', ');
     
     const selectedDistortions = Array.from(document.querySelectorAll('#rf-distortions .distortion-chip.selected'))
       .map(chip => chip.dataset.id);

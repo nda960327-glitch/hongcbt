@@ -1,15 +1,15 @@
 window.Dashboard = {
   distortionColors: {
-    'all-or-nothing': '#8b5cf6', // purple
-    'overgeneralization': '#3b82f6', // blue
-    'mental-filter': '#06d6a0', // mint
-    'disqualifying-positive': '#f472b6', // pink
-    'jumping-conclusions': '#fbbf24', // amber
-    'magnification-minimization': '#ef4444', // red
-    'emotional-reasoning': '#14b8a6', // teal
-    'should-statements': '#a855f7', // violet
-    'personalization': '#f97316', // orange
-    'labeling': '#6366f1' // indigo
+    'all-or-nothing': '#5fa986', // sage
+    'overgeneralization': '#7ba0b8', // dusty blue
+    'mental-filter': '#c98a5a', // terracotta
+    'disqualifying-positive': '#d98a84', // soft rose
+    'jumping-conclusions': '#e0a94b', // honey
+    'magnification-minimization': '#cf6b60', // clay red
+    'emotional-reasoning': '#6bab9a', // teal-sage
+    'should-statements': '#b08fb0', // muted mauve
+    'personalization': '#d98466', // burnt orange
+    'labeling': '#8a9c6e' // olive
   },
   
   distortionLabels: {
@@ -26,6 +26,7 @@ window.Dashboard = {
   },
   
   init() {
+    if (this._inited) return; this._inited = true;
     this.refresh();
   },
   
@@ -73,38 +74,43 @@ window.Dashboard = {
     // Area path (close the path to the bottom)
     const areaPath = `${pathData} L ${points[points.length-1].x},${height - padding.bottom} L ${points[0].x},${height - padding.bottom} Z`;
     
-    const emojis = ['😢', '😔', '😐', '😊', '😁']; // 1 to 5
+    const FACE_NAMES = ['faceSad','faceDown','faceNeutral','faceSmile','faceGrin'];
+    const faceMark = (level, x, y, size, color) => {
+      const inner = (window.Icons && window.Icons.faces[FACE_NAMES[(level||1)-1]]) || '';
+      const sc = size / 24;
+      return `<g transform="translate(${x - size/2},${y - size/2}) scale(${sc})" style="color:${color}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`;
+    };
     
     let html = `
       <svg viewBox="0 0 ${width} ${height}" class="mood-chart-svg" width="100%" height="100%" style="overflow: visible;">
         <defs>
           <linearGradient id="moodGradient" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.6"/>
-            <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#7fc29b" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#7fc29b" stop-opacity="0"/>
           </linearGradient>
         </defs>
-        
+
         <!-- Grid lines -->
         ${[1, 2, 3, 4, 5].map(val => `
-          <line x1="${padding.left}" y1="${yScale(val)}" x2="${width - padding.right}" y2="${yScale(val)}" stroke="#e2e8f0" stroke-dasharray="4,4" />
-          <text x="${padding.left - 10}" y="${yScale(val) + 5}" text-anchor="end" font-size="12" fill="#64748b">${emojis[val-1]}</text>
+          <line x1="${padding.left}" y1="${yScale(val)}" x2="${width - padding.right}" y2="${yScale(val)}" stroke="rgba(140,128,114,0.28)" stroke-dasharray="4,4" />
+          ${faceMark(val, padding.left - 16, yScale(val), 18, '#9c9187')}
         `).join('')}
-        
+
         <!-- Area -->
         <path d="${areaPath}" fill="url(#moodGradient)" class="anim-area" opacity="0">
           <animate attributeName="opacity" to="1" dur="1s" fill="freeze" />
         </path>
-        
+
         <!-- Line -->
-        <path d="${pathData}" fill="none" stroke="#8b5cf6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="anim-line" />
-        
+        <path d="${pathData}" fill="none" stroke="#5fa986" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="anim-line" />
+
         <!-- Points & Labels -->
         ${data.map((d, i) => `
           <g class="chart-point-group" transform="translate(${points[i].x}, ${points[i].y})">
-            <circle cx="0" cy="0" r="6" fill="#fff" stroke="#8b5cf6" stroke-width="3" />
-            <text x="0" y="-15" text-anchor="middle" font-size="16">${emojis[Math.round(d.score)-1]}</text>
+            <circle cx="0" cy="0" r="6" fill="var(--bg-secondary)" stroke="#5fa986" stroke-width="3" />
+            ${faceMark(Math.round(d.score), 0, -16, 20, '#5fa986')}
           </g>
-          <text x="${points[i].x}" y="${height - padding.bottom + 20}" text-anchor="middle" font-size="12" fill="#64748b">${d.label}</text>
+          <text x="${points[i].x}" y="${height - padding.bottom + 20}" text-anchor="middle" font-size="12" fill="#9c9187">${d.label}</text>
         `).join('')}
       </svg>
     `;
@@ -223,7 +229,7 @@ window.Dashboard = {
       const p0 = points[i === 0 ? 0 : i - 1];
       const p1 = points[i];
       const p2 = points[i + 1];
-      const p3 = points[i + 2 !== undefined ? i + 2 : i + 1];
+      const p3 = points[i + 2] !== undefined ? points[i + 2] : points[i + 1];
       
       const cp1x = p1.x + (p2.x - p0.x) / 6;
       const cp1y = p1.y + (p2.y - p0.y) / 6;

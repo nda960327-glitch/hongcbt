@@ -161,10 +161,22 @@ window.App = {
       tab.classList.toggle('active', tab.id === `tab-${tabName}`);
     });
     
-    // Trigger tab-specific refresh
+    // Scroll the newly shown tab back to top
+    const activeTab = document.getElementById(`tab-${tabName}`);
+    if (activeTab) activeTab.scrollTop = 0;
+
     // Trigger tab-specific refresh
     if (tabName === 'counselors' && window.Marketplace) {
-      window.Marketplace.init();
+      window.Marketplace.renderCounselors();
+    }
+    if (tabName === 'record' && window.ThoughtRecord) {
+      window.ThoughtRecord.loadRecords();
+    }
+    if (tabName === 'dashboard' && window.Dashboard) {
+      window.Dashboard.refresh();
+    }
+    if (tabName === 'learn' && window.Learn) {
+      window.Learn.renderCards();
     }
     if (tabName === 'chat') {
       this.updateSessionUI();
@@ -181,7 +193,7 @@ window.App = {
     const sendBtn = document.getElementById('chat-send');
     
     if (chatCounter) chatCounter.textContent = count;
-    if (homeCounter) homeCounter.textContent = isPro ? `💎 Pro: ${count}회 남음` : '무료 무제한';
+    if (homeCounter) homeCounter.textContent = isPro ? `Pro · ${count}회 남음` : '무료 무제한';
     
     if (isPro) {
       if (sessionBanner) sessionBanner.classList.remove('hidden');
@@ -297,7 +309,7 @@ window.App = {
     let html = '';
     if (msg.role === 'bot') {
       html = `
-        <div class="message-avatar">🧠</div>
+        <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
         <div class="message-bubble">
           <p>${msg.text.replace(/\n/g, '<br>')}</p>
           <span class="message-time">${time}</span>
@@ -325,7 +337,7 @@ window.App = {
     wrapper.className = 'message bot typing-indicator-wrapper';
     wrapper.id = 'typing-indicator';
     wrapper.innerHTML = `
-      <div class="message-avatar">🧠</div>
+      <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
       <div class="message-bubble">
         <div class="typing-indicator">
           <span></span><span></span><span></span>
@@ -459,7 +471,9 @@ window.App = {
       document.documentElement.removeAttribute('data-theme');
     }
     const btn = document.getElementById('btn-theme');
-    if (btn) btn.textContent = theme === 'light' ? '☀️' : '🌙';
+    if (btn && window.Icons) {
+      btn.innerHTML = window.Icons.svg(theme === 'light' ? 'sun' : 'moon', { size: 20 });
+    }
   },
 
   // === Pro Mode Management ===

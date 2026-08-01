@@ -9,7 +9,7 @@ window.Marketplace = {
       tags: ["우울증", "불안장애", "스트레스"],
       tags: ["우울증", "불안장애", "스트레스"],
       price: 40000,
-      image: "👩‍⚕️",
+      avatar: 0,
       isAvailableNow: true,
       career: [
         "현) 연세 마음가득 정신건강의학과 수석 상담사",
@@ -32,7 +32,7 @@ window.Marketplace = {
       tags: ["공황장애", "대인관계", "가족상담"],
       tags: ["공황장애", "대인관계", "가족상담"],
       price: 50000,
-      image: "👨‍⚕️",
+      avatar: 1,
       isAvailableNow: false,
       career: [
         "현) 서울 해맑은 의원 대표원장",
@@ -53,7 +53,7 @@ window.Marketplace = {
       tags: ["트라우마", "자존감", "번아웃"],
       tags: ["트라우마", "자존감", "번아웃"],
       price: 45000,
-      image: "👩‍⚕️",
+      avatar: 2,
       isAvailableNow: true,
       career: [
         "현) 마음의온도 심리상담센터 소장",
@@ -91,27 +91,32 @@ window.Marketplace = {
     });
 
     list.innerHTML = filtered.map(c => `
-      <div class="glass-card counselor-card" style="display: flex; gap: 1rem; padding: 1rem; position: relative;">
-        ${c.isAvailableNow ? '<span style="position: absolute; top: 1rem; right: 1rem; background: rgba(16, 185, 129, 0.2); color: #10b981; font-size: 0.75rem; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: bold; animation: pulse 2s infinite;">상담가능</span>' : ''}
-        <div style="font-size: 3rem; background: rgba(255,255,255,0.1); border-radius: 12px; padding: 0.5rem; display: flex; align-items: center; justify-content: center;">
-          ${c.image}
-        </div>
-        <div style="flex: 1;">
-          <h3 style="margin: 0; font-size: 1.2rem;">${c.name}</h3>
-          <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.2rem 0;">🏥 ${c.hospital}</p>
-          <div style="display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0;">
-            <span style="color: #fbbf24;">★ ${c.rating}</span>
-            <span style="color: var(--text-muted); font-size: 0.8rem;">(${c.reviews}개 후기)</span>
+      <div class="glass-card counselor-card">
+        <div class="cc-top">
+          <div class="counselor-avatar">
+            ${window.Icons ? window.Icons.art.avatar(c.avatar, 72) : ''}
           </div>
-          <div style="display: flex; gap: 0.3rem; margin-bottom: 0.5rem;">
-            ${c.tags.map(t => `<span style="background: rgba(37,99,235,0.1); color: var(--accent-primary); padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">${t}</span>`).join('')}
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-            <span style="font-weight: bold; font-size: 1.1rem;">30분 / ${c.price.toLocaleString()}원</span>
-            <div style="display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="padding: 0.4rem 1rem;" onclick="window.Marketplace.openProfile('${c.id}')">프로필</button>
-              <button class="btn-primary" style="padding: 0.4rem 1rem;" onclick="window.Booking.openModal('${c.id}')">예약</button>
+          <div class="cc-info">
+            <div class="cc-name-row">
+              <h3>${c.name}</h3>
+              ${c.isAvailableNow ? '<span class="cc-badge">상담가능</span>' : ''}
             </div>
+            <p class="meta-line cc-hospital">${window.Icons ? window.Icons.svg('hospital', { size: 14 }) : ''}<span>${c.hospital}</span></p>
+            <div class="cc-rating">
+              ${window.Icons ? window.Icons.svg('starFull', { size: 15, color: '#e8b04b' }) : ''}
+              <strong>${c.rating}</strong>
+              <span class="cc-reviews">(${c.reviews}개 후기)</span>
+            </div>
+            <div class="cc-tags">
+              ${c.tags.map(t => `<span class="cc-tag">${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <div class="cc-bottom">
+          <div class="cc-price"><span>30분 상담</span><strong>${c.price.toLocaleString()}원</strong></div>
+          <div class="cc-actions">
+            <button class="btn-secondary cc-btn" onclick="window.Marketplace.openProfile('${c.id}')">프로필</button>
+            <button class="btn-primary cc-btn" onclick="window.Booking.openModal('${c.id}')">예약하기</button>
           </div>
         </div>
       </div>
@@ -132,34 +137,35 @@ window.Marketplace = {
     
     content.innerHTML = `
       <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-        <div style="font-size: 4rem; background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1rem; display: flex; align-items: center; justify-content: center;">
-          ${counselor.image}
+        <div class="counselor-avatar counselor-avatar--lg">
+          ${window.Icons ? window.Icons.art.avatar(counselor.avatar, 96) : ''}
         </div>
         <div>
           <h2 style="margin: 0;">${counselor.name}</h2>
-          <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0.2rem 0;">🏥 ${counselor.hospital}</p>
-          <div style="display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0;">
-            <span style="color: #fbbf24; font-weight: bold; font-size: 1.1rem;">★ ${counselor.rating}</span>
+          <p class="meta-line" style="color: var(--text-muted); font-size: 0.9rem; margin: 0.3rem 0;">${window.Icons ? window.Icons.svg('hospital', { size: 15 }) : ''}${counselor.hospital}</p>
+          <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.5rem 0;">
+            ${window.Icons ? window.Icons.stars(counselor.rating, 17) : ''}
+            <span style="font-weight: 700; font-size: 1.05rem;">${counselor.rating}</span>
             <span style="color: var(--text-muted); font-size: 0.9rem;">(${counselor.reviews}개 후기)</span>
           </div>
         </div>
       </div>
       
-      <div style="background: rgba(0,0,0,0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-        <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-primary);">📌 주요 이력</h4>
+      <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+        <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-primary);" class="card-head">${window.Icons ? window.Icons.svg('pin',{size:16}):''}주요 이력</h4>
         <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0; line-height: 1.6;">
           ${counselor.career.map(c => `<li>${c}</li>`).join('')}
         </ul>
       </div>
 
       <div style="margin-bottom: 1.5rem;">
-        <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">💬 내담자 리얼 리뷰</h4>
+        <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;" class="card-head">${window.Icons ? window.Icons.svg('quote',{size:17}):''}내담자 리얼 리뷰</h4>
         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
           ${counselor.reviewsList.map(r => `
-            <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+            <div style="background: var(--bg-tertiary); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border);">
               <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
                 <span style="font-weight: bold; font-size: 0.85rem;">${r.author}</span>
-                <span style="color: #fbbf24; font-size: 0.8rem;">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</span>
+                ${window.Icons ? window.Icons.stars(r.rating,14) : ''}
               </div>
               <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">"${r.text}"</p>
             </div>

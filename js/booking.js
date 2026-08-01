@@ -30,8 +30,8 @@ window.Booking = {
         <span>상담료 (30분)</span>
         <strong>${counselor.price.toLocaleString()}원</strong>
       </div>
-      <div style="font-size: 0.8rem; color: var(--text-muted); background: rgba(0,0,0,0.2); padding: 0.8rem; border-radius: 4px; margin-top: 1rem;">
-        <strong>💸 [플랫폼 투명 정산 시스템]</strong><br><br>
+      <div style="font-size: 0.8rem; color: var(--text-muted); background: var(--bg-tertiary); padding: 0.8rem; border-radius: 4px; margin-top: 1rem;">
+        <strong>[플랫폼 투명 정산 시스템]</strong><br><br>
         결제하신 금액은 다음과 같이 안전하게 배분됩니다:<br>
         - 우렁의사 플랫폼 운영비 (10%): ${platformFee.toLocaleString()}원<br>
         - 소속 병원 인프라 지원 (45%): ${hospitalShare.toLocaleString()}원<br>
@@ -68,7 +68,7 @@ window.Booking = {
     
     alert(`결제가 완료되었습니다!\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
     
-    // 💡 Add mock logic to update MyPage with this new booking if necessary
+    // Add mock logic to update MyPage with this new booking if necessary
     
     this.closeModal();
     
