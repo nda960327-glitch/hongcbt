@@ -1,6 +1,7 @@
 window.App = {
   currentTab: 'chat',
   typingIndicatorElement: null,
+  deferredPrompt: null,
   
   init() {
     // 1. Check first visit
@@ -98,6 +99,53 @@ window.App = {
     if (window.ThoughtRecord) window.ThoughtRecord.init();
     if (window.Dashboard) window.Dashboard.init();
     if (window.Learn) window.Learn.init();
+    
+    // 9. PWA Install Logic
+    this.initPWA();
+  },
+
+  initPWA() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      this.deferredPrompt = e;
+      // Update UI notify the user they can install the PWA
+      const installBanner = document.getElementById('pwa-install-banner');
+      if (installBanner) {
+        installBanner.style.display = 'flex';
+      }
+    });
+
+    const btnInstall = document.getElementById('btn-install-app');
+    if (btnInstall) {
+      btnInstall.addEventListener('click', async () => {
+        if (this.deferredPrompt) {
+          // Show the install prompt
+          this.deferredPrompt.prompt();
+          // Wait for the user to respond to the prompt
+          const { outcome } = await this.deferredPrompt.userChoice;
+          console.log(`User response to the install prompt: ${outcome}`);
+          // We've used the prompt, and can't use it again, throw it away
+          this.deferredPrompt = null;
+          
+          const installBanner = document.getElementById('pwa-install-banner');
+          if (installBanner) installBanner.style.display = 'none';
+        } else {
+          // Fallback if prompt isn't available (e.g. already installed or iOS Safari)
+          alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 공유 버튼 > '홈 화면에 추가'를 선택하세요.)");
+        }
+      });
+    }
+
+    window.addEventListener('appinstalled', () => {
+      // Hide the app-provided install promotion
+      const installBanner = document.getElementById('pwa-install-banner');
+      if (installBanner) installBanner.style.display = 'none';
+      // Clear the deferredPrompt so it can be garbage collected
+      this.deferredPrompt = null;
+      console.log('PWA was installed');
+    });
   },
   
   switchTab(tabName) {

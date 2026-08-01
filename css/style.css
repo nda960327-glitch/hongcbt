@@ -49,45 +49,46 @@
 
 /* ========== LIGHT THEME ========== */
 [data-theme="light"] {
-  --bg-primary: #f8f9fc;
+  --bg-primary: #f4f6f9;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #eef0f6;
+  --bg-tertiary: #eaecf0;
 
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  --glass-shadow: rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.04);
+  --glass-shadow: rgba(0, 0, 0, 0.05);
 
-  --accent-primary: #7c3aed;
-  --accent-secondary: #059669;
-  --accent-tertiary: #ec4899;
-  --accent-warm: #d97706;
+  --accent-primary: #4f46e5;
+  --accent-secondary: #10b981;
+  --accent-tertiary: #f43f5e;
+  --accent-warm: #f59e0b;
 
-  --gradient-primary: linear-gradient(135deg, #7c3aed, #059669);
-  --gradient-warm: linear-gradient(135deg, #ec4899, #d97706);
-  --gradient-cool: linear-gradient(135deg, #2563eb, #7c3aed);
-  --gradient-bg: radial-gradient(circle at 15% 50%, rgba(124, 58, 237, 0.06), transparent 50%),
-                 radial-gradient(circle at 85% 30%, rgba(5, 150, 105, 0.04), transparent 50%);
+  --gradient-primary: linear-gradient(135deg, #4f46e5, #3b82f6);
+  --gradient-warm: linear-gradient(135deg, #f43f5e, #f59e0b);
+  --gradient-cool: linear-gradient(135deg, #0ea5e9, #6366f1);
+  --gradient-bg: none;
 
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
 
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.1);
-  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.03);
+  --shadow-md: 0 10px 25px rgba(0,0,0,0.05);
+  --shadow-lg: 0 20px 40px rgba(0,0,0,0.08);
+  --shadow-glow: 0 0 25px rgba(79, 70, 229, 0.15);
 }
 
 /* Light theme — glass overrides */
 [data-theme="light"] .glass-card {
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.03);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
 }
 
 [data-theme="light"] .glass-nav {
-  background: rgba(255, 255, 255, 0.88);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.03);
 }
 
 /* Light theme — header */

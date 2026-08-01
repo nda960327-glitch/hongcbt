@@ -96,6 +96,17 @@
         <p style="margin-top: 0.5rem; opacity: 0.9;">지금 바로 마음속 이야기를 나눠보세요.</p>
         <div id="home-session-count" style="font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #fbbf24;">💎 Pro: 100회 남음</div>
       </div>
+      <div id="pwa-install-banner" class="glass-card" style="margin: 1rem; padding: 1rem; border: 1px solid var(--accent-primary); background: rgba(124, 58, 237, 0.05); display: none; flex-direction: column; gap: 0.8rem;">
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <div style="font-size: 2.5rem;">📱</div>
+          <div>
+            <h3 style="margin: 0; color: var(--accent-primary); font-size: 1.1rem;">우렁의사 앱 설치하기</h3>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.8rem; color: var(--text-secondary);">홈 화면에 추가하고 더 빠르고 편하게 이용하세요!</p>
+          </div>
+        </div>
+        <button id="btn-install-app" class="btn-primary" style="width: 100%; box-shadow: var(--shadow-sm);">앱 다운로드</button>
+      </div>
+
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
         <h3>👨‍⚕️ 추천 전문 상담사</h3>
         <p style="color: var(--text-muted); font-size: 0.85rem;">나에게 딱 맞는 상담사를 찾아보세요.</p>
@@ -429,25 +440,63 @@
           <button class="close-btn" onclick="closeReportDetail()">✕</button>
         </div>
         
-        <div style="background: rgba(37, 99, 235, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-          <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-primary);">1. 감정 변화 추이</h4>
-          <p style="font-size: 0.85rem; margin: 0;">대화 시작 전 <strong>'불안(80/100)'</strong> 수준이었으나, 대화 종료 후 <strong>'불안(35/100)'</strong>으로 약 <strong>56% 감소</strong>하였습니다. 마음이 진정되는 효과가 확인되었습니다.</p>
+        <div style="background: rgba(37, 99, 235, 0.05); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(37, 99, 235, 0.1);">
+          <h4 style="margin: 0 0 1rem 0; color: var(--accent-primary); display: flex; align-items: center; gap: 0.5rem;">📉 감정 변화 추이</h4>
+          
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
+              <span>대화 시작 전 (불안 80)</span>
+              <span style="color: var(--danger); font-weight: bold;">매우 높음</span>
+            </div>
+            <div style="width: 100%; background: rgba(0,0,0,0.1); border-radius: 99px; height: 12px; overflow: hidden;">
+              <div style="width: 80%; background: linear-gradient(90deg, #f87171, #ef4444); height: 100%; border-radius: 99px;"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
+              <span>대화 종료 후 (불안 35)</span>
+              <span style="color: var(--success); font-weight: bold;">안정됨 (-56%)</span>
+            </div>
+            <div style="width: 100%; background: rgba(0,0,0,0.1); border-radius: 99px; height: 12px; overflow: hidden;">
+              <div style="width: 35%; background: linear-gradient(90deg, #34d399, #10b981); height: 100%; border-radius: 99px; animation: loadBar 1s ease-out;"></div>
+            </div>
+          </div>
+          <style>@keyframes loadBar { from { width: 80%; background: #ef4444; } to { width: 35%; background: #10b981; } }</style>
         </div>
 
-        <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #10b981;">2. 인지왜곡 분석 (AI 감지)</h4>
-          <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0;">
-            <li style="margin-bottom: 0.3rem;"><strong>재앙화 (Catastrophizing)</strong>: "이번 발표를 망치면 내 인생은 끝이야" 등 파국적인 결과를 예상하는 패턴이 3회 발견됨.</li>
-            <li><strong>독심술 (Mind Reading)</strong>: "팀장님이 나를 한심하게 생각할 거야"와 같이 타인의 속마음을 자의적으로 추측하는 패턴이 1회 발견됨.</li>
+        <div style="background: rgba(16, 185, 129, 0.05); padding: 1.2rem; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid rgba(16, 185, 129, 0.1);">
+          <h4 style="margin: 0 0 1rem 0; color: #10b981; display: flex; align-items: center; gap: 0.5rem;">🧠 인지왜곡 분석 (AI 감지)</h4>
+          
+          <!-- Mock Donut Chart (CSS) -->
+          <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1rem;">
+            <div style="width: 80px; height: 80px; border-radius: 50%; background: conic-gradient(#10b981 0% 75%, #f59e0b 75% 100%); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm);">
+              <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">4건</div>
+            </div>
+            <div style="flex: 1; font-size: 0.85rem;">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                <span><span style="display:inline-block; width:10px; height:10px; background:#10b981; border-radius:50%; margin-right:5px;"></span>재앙화</span>
+                <strong>75% (3회)</strong>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span><span style="display:inline-block; width:10px; height:10px; background:#f59e0b; border-radius:50%; margin-right:5px;"></span>독심술</span>
+                <strong>25% (1회)</strong>
+              </div>
+            </div>
+          </div>
+          
+          <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0; color: var(--text-secondary);">
+            <li style="margin-bottom: 0.4rem;"><strong>재앙화</strong>: "이번 발표를 망치면 내 인생은 끝이야" 등 파국적인 결과를 예상하는 패턴</li>
+            <li><strong>독심술</strong>: "팀장님이 나를 한심하게 생각할 거야"와 같이 타인의 속마음을 자의적으로 추측</li>
           </ul>
         </div>
 
-        <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-          <h4 style="margin: 0 0 0.5rem 0; color: #f59e0b;">3. 주요 대화 발췌 (상담 참고용)</h4>
-          <div style="font-size: 0.85rem; color: var(--text-secondary); border-left: 2px solid #f59e0b; padding-left: 0.8rem;">
-            <strong>내담자:</strong> "발표 준비를 아무리 해도 불안해요. 무대에서 실수할 게 뻔해요."<br><br>
-            <strong>우렁의사:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요? 최악의 상황이 현실이 된 적이 있나요?"<br><br>
-            <strong>내담자:</strong> "사실 실수한 적은 있었지만, 사람들이 크게 신경 쓰지는 않았던 것 같아요."
+        <div style="background: rgba(245, 158, 11, 0.05); padding: 1.2rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid rgba(245, 158, 11, 0.1);">
+          <h4 style="margin: 0 0 1rem 0; color: #d97706; display: flex; align-items: center; gap: 0.5rem;">💬 주요 대화 발췌 (상담 참고용)</h4>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid #fbd38d; padding-left: 1rem;">
+            <strong style="color: var(--text-primary);">내담자:</strong> "발표 준비를 아무리 해도 불안해요. 무대에서 실수할 게 뻔해요."<br><br>
+            <strong style="color: var(--accent-primary);">우렁의사:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요?"<br><br>
+            <strong style="color: var(--text-primary);">내담자:</strong> "사실 실수한 적은 있었지만, 사람들이 크게 신경 쓰지는 않았던 것 같아요."
           </div>
         </div>
 
