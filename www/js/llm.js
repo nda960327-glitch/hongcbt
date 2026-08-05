@@ -36,18 +36,19 @@ window.LLM = {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        if (r.status === 404 || r.status === 405) {
-          this._proxyAvailable = false; // 프록시 없음 → 직접 호출로 폴백
-        } else {
+        const contentType = r.headers.get("content-type") || "";
+        if (r.status !== 404 && r.status !== 405 && contentType.includes("application/json")) {
           this._proxyAvailable = true;
-          return r; // 성공/업스트림 오류 모두 프록시 응답을 그대로 사용
+          return r;
+        } else {
+          this._proxyAvailable = false;
         }
       } catch (e) {
-        this._proxyAvailable = false; // 프록시 도달 불가 → 직접 호출로 폴백
+        this._proxyAvailable = false;
       }
     }
 
-    // 직접 호출 (Android APK 등 서버 프록시가 없는 환경)
+    // 직접 호출 (Android APK 또는 정적 웹 호스팅 환경)
     const apiKey = this._getApiKey();
     return fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -204,6 +205,9 @@ window.LLM = {
 
     } catch (error) {
       console.error("Fetch error:", error);
+      if (window.Chatbot && window.Chatbot.processInput) {
+        return window.Chatbot.processInput(userText);
+      }
       return [{ text: "네트워크가 잠깐 불안정한 것 같아요. 인터넷 연결을 확인하고 다시 이야기해줄래요?", delay: 0 }];
     }
   },
