@@ -279,7 +279,23 @@ window.App = {
     setTimeout(async () => {
       let responses;
       if (window.Storage.getProMode() && window.LLM) {
-        responses = await window.LLM.generateResponse(text);
+        // 유료 AI가 제안한 '기록 저장' 액션은 모델 호출 없이 바로 처리한다.
+        if (text === '이 대화를 기록으로 저장' && window.LLM._pendingRecord) {
+          const ok = window.LLM.commitPendingRecord();
+          responses = [{
+            text: ok
+              ? "이 대화를 생각 기록지에 저장했어요. '기록'과 '대시보드'에서 마음의 흐름을 다시 볼 수 있어요."
+              : "저장할 내용을 찾지 못했어요. 조금 더 이야기 나눈 뒤 다시 시도해볼까요?",
+            delay: 600
+          }];
+          if (window.ThoughtRecord && window.ThoughtRecord.loadRecords) window.ThoughtRecord.loadRecords();
+          if (window.Dashboard && window.Dashboard.refresh) window.Dashboard.refresh();
+        } else if (text === '계속 이야기하기') {
+          window.LLM._pendingRecord = null;
+          responses = [{ text: "좋아요, 편하게 이어서 이야기해주세요.", delay: 500 }];
+        } else {
+          responses = await window.LLM.generateResponse(text);
+        }
       } else {
         responses = window.Chatbot.processInput(text);
       }
