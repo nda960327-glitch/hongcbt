@@ -29,6 +29,7 @@ window.LLM = {
   async _chatCompletion(payload) {
     const isHttp = typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
 
+    // 1. 동일 출처 /api/chat 프록시 시도
     if (this._proxyAvailable !== false && isHttp) {
       try {
         const r = await fetch("/api/chat", {
@@ -37,7 +38,7 @@ window.LLM = {
           body: JSON.stringify(payload)
         });
         const contentType = r.headers.get("content-type") || "";
-        if (r.status !== 404 && r.status !== 405 && contentType.includes("application/json")) {
+        if (r.ok && contentType.includes("application/json")) {
           this._proxyAvailable = true;
           return r;
         } else {
@@ -48,7 +49,22 @@ window.LLM = {
       }
     }
 
-    // 직접 호출 (Android APK 또는 정적 웹 호스팅 환경)
+    // 2. 로컬 개발 서버(http://localhost:3030/api/chat) 프록시 시도
+    if (isHttp && typeof location !== 'undefined' && location.port !== '3030') {
+      try {
+        const r = await fetch("http://localhost:3030/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const contentType = r.headers.get("content-type") || "";
+        if (r.ok && contentType.includes("application/json")) {
+          return r;
+        }
+      } catch (e) {}
+    }
+
+    // 3. 직접 OpenAI API 호출
     const apiKey = this._getApiKey();
     return fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -174,21 +190,24 @@ window.LLM = {
       });
 
       if (!response.ok) {
-        let err = {};
-        try { err = await response.json(); } catch (e) {}
-        console.error("OpenAI API Error:", err);
-        if (response.status === 401) {
-          return [{ text: "API 연결 인증에 문제가 생겼어요. 잠시 후 다시 시도하거나 프로필에서 키를 확인해주세요.", delay: 0 }];
+        console.error("OpenAI API error status:", response.status);
+        if (window.Chatbot && typeof window.Chatbot.processInput === 'function') {
+          const fallbackRes = window.Chatbot.processInput(userText);
+          if (fallbackRes && fallbackRes.length > 0) return fallbackRes;
         }
-        if (response.status === 429) {
-          return [{ text: "지금 요청이 몰려서 잠깐 숨 고를 시간이 필요해요. 조금만 있다가 다시 말 걸어줄래요?", delay: 0 }];
-        }
-        return [{ text: "죄송해요, AI 서버와 연결하는 중에 문제가 생겼어요. 잠시 후 다시 시도해주세요.", delay: 0 }];
+        return [{ text: "오늘 하루 어떤 일들이 있으셨나요? 편하게 차근차근 이야기해 주세요 :)", delay: 500 }];
       }
 
       const data = await response.json();
       let botText = (data.choices && data.choices[0] && data.choices[0].message.content) || "";
       botText = botText.trim();
+
+      if (!botText) {
+        if (window.Chatbot && typeof window.Chatbot.processInput === 'function') {
+          const fallbackRes = window.Chatbot.processInput(userText);
+          if (fallbackRes && fallbackRes.length > 0) return fallbackRes;
+        }
+      }
 
       // 위기 개입
       let crisis = false;
@@ -205,10 +224,11 @@ window.LLM = {
 
     } catch (error) {
       console.error("Fetch error:", error);
-      if (window.Chatbot && window.Chatbot.processInput) {
-        return window.Chatbot.processInput(userText);
+      if (window.Chatbot && typeof window.Chatbot.processInput === 'function') {
+        const fallbackRes = window.Chatbot.processInput(userText);
+        if (fallbackRes && fallbackRes.length > 0) return fallbackRes;
       }
-      return [{ text: "네트워크가 잠깐 불안정한 것 같아요. 인터넷 연결을 확인하고 다시 이야기해줄래요?", delay: 0 }];
+      return [{ text: "오늘 마음 상태는 어떠신가요? 이야기 들려주세요 :)", delay: 500 }];
     }
   },
 
