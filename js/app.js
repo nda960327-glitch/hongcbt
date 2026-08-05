@@ -554,7 +554,7 @@ window.App = {
       this.applyProModeUI(true);
       this.hideProModal();
       this.updateSessionUI();
-      alert("Pro 모드 결제가 완료되어 100회가 충전되었습니다!");
+      alert("Pro 모드 결제가 완료되어 무제한으로 활성화되었습니다!");
     } else {
       alert("결제 키를 입력해주세요.");
     }
