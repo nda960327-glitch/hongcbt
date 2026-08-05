@@ -4,6 +4,11 @@ window.LLM = {
   META_DELIM: "§§META§§",
   _pendingRecord: null,
 
+  // 백엔드 프록시 주소. 설정하면 브라우저는 키 없이 이 서버로만 요청하고,
+  // 서버가 OpenAI 키를 숨긴 채 대신 호출한다. (예: "https://cbt-proxy.<계정>.workers.dev")
+  // 비워두면 기존처럼 사용자가 입력한 키로 브라우저가 직접 호출한다(레거시).
+  BACKEND_URL: "",
+
   // CBT 마음 동반자 시스템 프롬프트
   SYSTEM_PROMPT: `당신은 '우렁의사'라는 이름의, 인지행동치료(CBT)에 기반한 따뜻한 마음 동반자입니다.
 딱딱한 챗봇이 아니라, 곁에서 진심으로 들어주는 사람처럼 대화합니다.
@@ -92,8 +97,9 @@ window.LLM = {
   },
 
   async generateResponse(userText) {
-    const apiKey = window.Storage.getApiKey();
-    if (!apiKey) {
+    const proxied = !!this.BACKEND_URL;
+    const apiKey = proxied ? null : window.Storage.getApiKey();
+    if (!proxied && !apiKey) {
       return [{ text: "API 키가 설정되지 않았습니다. 헤더의 Pro 버튼을 눌러 OpenAI API 키를 입력해주세요.", delay: 0 }];
     }
 
@@ -116,9 +122,14 @@ window.LLM = {
 
     // 3) 호출
     try {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      // 프록시가 있으면 키 없이 서버로, 없으면 기존처럼 OpenAI로 직접 호출.
+      const endpoint = proxied ? this.BACKEND_URL : "https://api.openai.com/v1/chat/completions";
+      const headers = { "Content-Type": "application/json" };
+      if (!proxied) headers["Authorization"] = `Bearer ${apiKey}`;
+
+      const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        headers: headers,
         body: JSON.stringify({
           model: this.MODEL,
           messages: messages,

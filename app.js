@@ -555,19 +555,21 @@ window.App = {
   
   saveProModeSettings() {
     const input = document.getElementById('api-key-input');
-    let key = input ? input.value.trim() : '';
-    
-    // Hidden shortcut for easy access (obfuscated to bypass GitHub secret scanning)
-    if (key === '1024') {
-      const part1 = 'sk-proj-ULgXXtFEzTua_rJbGKJt';
-      const part2 = 'DcJskKeL0L5ULIkjwEHllVV4t';
-      const part3 = 'kUugrhBlOplNHSwYw41N4X_bsp';
-      const part4 = '5R7T3BlbkFJLiJyNiSTEtcZ31J25N';
-      const part5 = 'wyBHOrMMiajw9WVAE84yQnXPLJ';
-      const part6 = 'BM-5RJLttpzL0brgHrdgSgUKTtIf8A';
-      key = part1 + part2 + part3 + part4 + part5 + part6;
+    const key = input ? input.value.trim() : '';
+
+    // 백엔드 프록시가 설정된 경우: 서버가 키를 안전하게 보관하므로
+    // 브라우저에서는 키를 받지 않고 Pro만 활성화한다.
+    const proxied = !!(window.LLM && window.LLM.BACKEND_URL);
+    if (proxied) {
+      window.Storage.setProMode(true);
+      this.applyProModeUI(true);
+      this.hideProModal();
+      this.updateSessionUI();
+      alert("Pro 모드가 활성화되었습니다! 이제 제한 없이 무제한으로 대화할 수 있어요.");
+      return;
     }
 
+    // (프록시 미설정 시) 사용자가 자신의 OpenAI 키를 직접 입력하는 레거시 방식.
     if (key) {
       window.Storage.setApiKey(key);
       window.Storage.setProMode(true);
@@ -576,7 +578,7 @@ window.App = {
       this.updateSessionUI();
       alert("Pro 모드가 활성화되었습니다! 이제 제한 없이 무제한으로 대화할 수 있어요.");
     } else {
-      alert("결제 키를 입력해주세요.");
+      alert("API 키를 입력해주세요.");
     }
   },
   

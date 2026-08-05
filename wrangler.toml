@@ -1,0 +1,7 @@
+name = "cbt-proxy"
+main = "cbt-proxy.worker.js"
+compatibility_date = "2024-11-01"
+
+# 비밀값은 파일에 두지 말고 반드시 secret 으로 넣으세요:
+#   wrangler secret put OPENAI_API_KEY
+#   wrangler secret put ALLOWED_ORIGIN   (선택)
