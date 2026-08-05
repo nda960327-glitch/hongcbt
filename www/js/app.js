@@ -198,22 +198,29 @@ window.App = {
   
   updateSessionUI() {
     const isPro = window.Storage.getProMode();
-    const count = window.Storage.getProSessionCount();
+    const freeCount = window.Storage.getFreeSessionCount();
     const chatCounter = document.getElementById('chat-session-count');
     const homeCounter = document.getElementById('home-session-count');
     const sessionBanner = document.getElementById('session-banner');
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
     
-    if (chatCounter) chatCounter.textContent = count;
-    if (homeCounter) homeCounter.textContent = isPro ? `Pro · ${count}회 남음` : '무료 무제한';
+    if (chatCounter) chatCounter.textContent = isPro ? '∞' : freeCount;
+    if (homeCounter) homeCounter.textContent = isPro ? 'Pro · AI 무제한' : `무료 AI · ${freeCount}회 남음`;
     
     if (isPro) {
       if (sessionBanner) sessionBanner.classList.remove('hidden');
-      if (count <= 0) {
+      if (inputEl) {
+        inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
+        inputEl.disabled = false;
+      }
+      if (sendBtn) sendBtn.disabled = false;
+    } else {
+      if (sessionBanner) sessionBanner.classList.add('hidden');
+      if (freeCount <= 0) {
         if (inputEl) {
           inputEl.value = '';
-          inputEl.placeholder = 'Pro 모드 결제 횟수(100회)가 소진되었습니다.';
+          inputEl.placeholder = '무료 AI 상담 횟수(30회)가 소진되었습니다. Pro로 업그레이드 해주세요.';
           inputEl.disabled = true;
         }
         if (sendBtn) sendBtn.disabled = true;
@@ -224,24 +231,18 @@ window.App = {
         }
         if (sendBtn) sendBtn.disabled = false;
       }
-    } else {
-      if (sessionBanner) sessionBanner.classList.add('hidden');
-      if (inputEl) {
-        inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
-        inputEl.disabled = false;
-      }
-      if (sendBtn) sendBtn.disabled = false;
     }
   },
   
   async sendMessage() {
     const isPro = window.Storage.getProMode();
-    const count = window.Storage.getProSessionCount();
     
-    if (isPro && count <= 0) {
-      alert("Pro 모드 결제 횟수(100회)가 소진되었습니다.\n\n나를 위한 전문 상담사를 찾아보시거나 무료 모드로 전환해주세요.");
-      this.switchTab('counselors');
-      return;
+    if (!isPro) {
+      const freeCount = window.Storage.getFreeSessionCount();
+      if (freeCount <= 0) {
+        this.displayMessage({ role: 'bot', text: "무료 AI 상담 횟수(30회)를 모두 사용했습니다. 무제한 AI 상담을 이용하려면 프로필에서 우렁의사 Pro로 업그레이드 해주세요." });
+        return;
+      }
     }
 
     const inputEl = document.getElementById('chat-input');
@@ -253,9 +254,9 @@ window.App = {
     this.autoResizeTextarea();
     this.clearQuickReplies();
     
-    // Decrement count if Pro
-    if (isPro) {
-      window.Storage.decrementProSessionCount();
+    // Decrement count if Free mode
+    if (!isPro) {
+      window.Storage.decrementFreeSessionCount();
       this.updateSessionUI();
     }
     
@@ -270,9 +271,11 @@ window.App = {
     // Simulating slight processing delay
     setTimeout(async () => {
       let responses;
-      if (window.Storage.getProMode() && window.LLM) {
+      if (window.LLM) {
+        // Free and Pro modes both use the AI. Free is limited to 30 messages; Pro is unlimited.
         responses = await window.LLM.generateResponse(text);
       } else {
+        // Fallback to the offline chatbot only if the AI module fails to load.
         responses = window.Chatbot.processInput(text);
       }
       this.removeTypingIndicator();

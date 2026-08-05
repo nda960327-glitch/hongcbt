@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-app-v2';
+const CACHE_NAME = 'cbt-app-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 

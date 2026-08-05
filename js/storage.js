@@ -41,22 +41,41 @@ window.Storage = {
     this._safeSet('cbt_api_key', key);
   },
 
-  // === Pro Mode Session Limit ===
-  getProSessionCount() {
-    return this._safeGet('cbt_pro_sessions', 100);
+  // === Free Session Limit ===
+  getFreeSessionCount() {
+    return this._safeGet('cbt_free_sessions', 30);
   },
   
-  setProSessionCount(count) {
-    this._safeSet('cbt_pro_sessions', count);
+  setFreeSessionCount(count) {
+    this._safeSet('cbt_free_sessions', count);
   },
 
-  decrementProSessionCount() {
-    let current = this.getProSessionCount();
+  decrementFreeSessionCount() {
+    let current = this.getFreeSessionCount();
     if (current > 0) {
       current--;
-      this._safeSet('cbt_pro_sessions', current);
+      this._safeSet('cbt_free_sessions', current);
     }
     return current;
+  },
+
+  // === Long-term Therapeutic Memory (the "case file") ===
+  // A persistent, evolving clinical + personal memo the AI maintains about the user
+  // across every session. This is what lets the assistant "remember everything".
+  getUserMemory() {
+    return this._safeGet('cbt_user_memory', '');
+  },
+
+  setUserMemory(text) {
+    // Guard against runaway growth of the injected memory blob.
+    if (typeof text === 'string' && text.length > 6000) {
+      text = text.slice(0, 6000);
+    }
+    this._safeSet('cbt_user_memory', text || '');
+  },
+
+  clearUserMemory() {
+    localStorage.removeItem('cbt_user_memory');
   },
 
   // === Chat Messages ===
@@ -259,6 +278,7 @@ window.Storage = {
       distortionStats: this.getDistortionStats(),
       activeDays: this._safeGet('cbt_active_days', []),
       totalSessions: this.getTotalSessions(),
+      userMemory: this.getUserMemory(),
       exportDate: new Date().toISOString()
     };
     return JSON.stringify(data);
@@ -273,6 +293,7 @@ window.Storage = {
       if (data.distortionStats) this._safeSet('cbt_distortion_stats', data.distortionStats);
       if (data.activeDays) this._safeSet('cbt_active_days', data.activeDays);
       if (data.totalSessions !== undefined) this._safeSet('cbt_total_sessions', data.totalSessions);
+      if (data.userMemory !== undefined) this.setUserMemory(data.userMemory);
       return true;
     } catch (error) {
       console.error('Error importing data', error);
@@ -289,9 +310,10 @@ window.Storage = {
       'cbt_session_state',
       'cbt_first_visit',
       'cbt_active_days',
-      'cbt_total_sessions'
+      'cbt_total_sessions',
+      'cbt_user_memory'
     ];
-    
+
     keys.forEach(key => localStorage.removeItem(key));
   }
 };
