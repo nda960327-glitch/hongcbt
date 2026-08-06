@@ -227,6 +227,15 @@ window.Storage = {
   clearSessionState() {
     localStorage.removeItem('cbt_session_state');
   },
+
+  // === Summary Report ===
+  saveSummaryReport(report) {
+    this._safeSet('cbt_latest_summary_report', report);
+  },
+
+  getSummaryReport() {
+    return this._safeGet('cbt_latest_summary_report', null);
+  },
   
   // === App State ===
   isFirstVisit() {

@@ -79,11 +79,13 @@ window.Dashboard = {
     const btn = document.getElementById('btn-generate-summary');
     if (!container) return;
 
-    // 1. 샘플 데이터 상태일 때 요약 버튼 누르면 샘플 기록 및 가짜 통계 자동 삭제!
-    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
-    if (records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'))) {
-      window.Storage._safeSet('cbt_thought_records', []);
-      window.Storage._safeSet('cbt_distortion_stats', {});
+    // 1. 만약 샘플 데이터 상태라면 샘플 기록 및 가짜 통계 자동 즉시 삭제!
+    if (window.Storage) {
+      const records = window.Storage.getThoughtRecords() || [];
+      if (records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'))) {
+        window.Storage._safeSet('cbt_thought_records', []);
+        window.Storage._safeSet('cbt_distortion_stats', {});
+      }
     }
 
     if (btn) {
@@ -91,66 +93,77 @@ window.Dashboard = {
       btn.innerHTML = '⏳ 요약 생성 중...';
     }
 
-    const persona = window.Personas ? window.Personas.getActive() : { name: '우렁의사', id: 'woorung' };
-    const memory = window.Storage ? window.Storage.getUserMemory() : '';
-    const messages = (window.Storage && window.Storage.getMessages()) || [];
-    const userMsgs = messages.filter(m => m.role === 'user');
-    const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
-    const distortionStats = (window.Storage && window.Storage.getDistortionStats()) || {};
-
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
-    const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-
-    let chiefComplaint = '일상 업무 및 대인관계 스트레스 탐색 대화';
-    if (userMsgs.length > 0) {
-      const lastUserMsg = userMsgs[userMsgs.length - 1].content;
-      chiefComplaint = `최근 대화 발언: "${lastUserMsg.length > 55 ? lastUserMsg.slice(0, 55) + '...' : lastUserMsg}" (총 ${userMsgs.length}회 대화 진행)`;
-    } else if (thoughtRecords.length > 0) {
-      chiefComplaint = `사고기록지 기반 주요 고민: "${thoughtRecords[0].situation || '일상적 고민'}"`;
-    }
-
-    const distKeys = Object.keys(distortionStats).filter(k => distortionStats[k] > 0);
-    const distNames = {
-      'jumping-conclusions': '예단(지레짐작)',
-      'all-or-nothing': '이분법적 사고(흑백논리)',
-      'personalization': '개인화(자책)',
-      'overgeneralization': '과잉일반화',
-      'mental-filter': '정신적 필터',
-      'emotional-reasoning': '감정적 추리',
-      'should-statements': '당위적 명령'
-    };
-    let distortionText = distKeys.length > 0 
-      ? distKeys.map(k => `${distNames[k] || k} (${distortionStats[k]}회)`).join(', ')
-      : '지레짐작(예단) 및 과잉일반화 경향성 관찰';
-
-    let clinicalNote = '';
-    if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
-      clinicalNote = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' / ');
-    } else {
-      clinicalNote = '내담자는 CBT 인지 재구성 기법을 적용하여 상황과 인지왜곡을 분리 파악 중이며, 대안적 사고 탐색에 긍정적인 치료적 수용도를 보임.';
-    }
-
-    const summaryObj = {
-      date: `${dateStr} ${timeStr}`,
-      persona: `${persona.name} (${persona.role || 'CBT 전문 AI'})`,
-      chiefComplaint,
-      distortionText,
-      clinicalNote
-    };
-
-    if (window.Storage) {
-      window.Storage._safeSet('cbt_latest_summary_report', summaryObj);
-    }
+    container.innerHTML = `
+      <div style="background: var(--bg-tertiary); border: 1px dashed var(--accent-primary); border-radius: 12px; padding: 1.2rem; text-align: center;">
+        <div style="font-size: 1.2rem; margin-bottom: 0.4rem;">⏳</div>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-primary); font-weight: 600;">AI 상담사와 나눈 대화 및 마음 통계를 분석하여 임상 요약 리포트를 작성 중입니다...</p>
+      </div>
+    `;
 
     setTimeout(() => {
+      const persona = window.Personas ? window.Personas.getActive() : { name: '우렁의사', id: 'woorung', role: 'CBT·DBT 전문 AI' };
+      const memory = window.Storage ? window.Storage.getUserMemory() : '';
+      const messages = (window.Storage && window.Storage.getMessages()) || [];
+      const userMsgs = messages.filter(m => m.role === 'user');
+      const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
+      const distortionStats = (window.Storage && window.Storage.getDistortionStats()) || {};
+
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+      const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+      let chiefComplaint = '일상 업무, 인지적 왜곡 및 대인관계 스트레스 탐색';
+      if (userMsgs.length > 0) {
+        const lastUserMsg = userMsgs[userMsgs.length - 1].content;
+        chiefComplaint = `최근 내담자 발언: "${lastUserMsg.length > 60 ? lastUserMsg.slice(0, 60) + '...' : lastUserMsg}" (총 ${userMsgs.length}회 대화 진행)`;
+      } else if (thoughtRecords.length > 0) {
+        chiefComplaint = `사고기록지 기반 주요 호소: "${thoughtRecords[0].situation || '일상적 스트레스 고민'}"`;
+      }
+
+      const distKeys = Object.keys(distortionStats).filter(k => distortionStats[k] > 0);
+      const distNames = {
+        'jumping-conclusions': '예단(지레짐작)',
+        'all-or-nothing': '이분법적 사고(흑백논리)',
+        'personalization': '개인화(자책)',
+        'overgeneralization': '과잉일반화',
+        'mental-filter': '정신적 필터',
+        'emotional-reasoning': '감정적 추리',
+        'should-statements': '당위적 명령'
+      };
+      let distortionText = distKeys.length > 0 
+        ? distKeys.map(k => `${distNames[k] || k} (${distortionStats[k]}회)`).join(', ')
+        : '지레짐작(예단) 및 과잉일반화 경향성 탐지';
+
+      let clinicalNote = '';
+      if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
+        clinicalNote = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' / ');
+      } else {
+        clinicalNote = '내담자는 CBT 인지 재구성 기법을 적용하여 상황과 인지왜곡을 분리 파악 중이며, 대안적 사고 탐색에 긍정적인 수용도를 보임.';
+      }
+
+      const summaryObj = {
+        date: `${dateStr} ${timeStr}`,
+        persona: `${persona.name} (${persona.role || 'CBT 전문 AI'})`,
+        chiefComplaint,
+        distortionText,
+        clinicalNote
+      };
+
+      if (window.Storage && window.Storage.saveSummaryReport) {
+        window.Storage.saveSummaryReport(summaryObj);
+      }
+
+      this.updateSampleBadges();
+      this.updateStats();
+      this.renderMoodChart();
+      this.renderDistortionChart();
       this.renderSummaryReportCard(summaryObj);
+
       if (btn) {
         btn.disabled = false;
         btn.innerHTML = '✨ 요약 다시 생성하기';
       }
-      this.refresh();
-    }, 450);
+    }, 400);
   },
 
   renderSummaryReportCard(report) {
@@ -158,14 +171,14 @@ window.Dashboard = {
     if (!container) return;
 
     if (!report) {
-      report = window.Storage ? window.Storage._safeGet('cbt_latest_summary_report', null) : null;
+      report = window.Storage && window.Storage.getSummaryReport ? window.Storage.getSummaryReport() : null;
     }
 
     if (!report) {
       container.innerHTML = `
-        <div style="background: rgba(127,194,155,0.08); border: 1px dashed var(--accent-primary); border-radius: 12px; padding: 1.1rem; text-align: center;">
+        <div style="background: rgba(127,194,155,0.08); border: 1px dashed var(--accent-primary); border-radius: 12px; padding: 1.2rem; text-align: center;">
           <p style="margin: 0 0 0.4rem 0; font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">아직 생성된 요약 리포트가 없습니다.</p>
-          <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">위의 <strong>[+ 오늘의 대화 요약 생성하기]</strong> 버튼을 누르시면 오프라인 전문 상담사에 바로 전달 가능한 요약 리포트가 생성됩니다.</p>
+          <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">상단의 <strong>[+ 오늘의 대화 요약 생성하기]</strong> 버튼을 누르시면 오프라인 전문 상담사에 전달 가능한 AI 요약 리포트가 즉시 작성됩니다.</p>
         </div>
       `;
       return;
