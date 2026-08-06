@@ -1353,3 +1353,21 @@ body.kb-open .tab-content { padding-bottom: 8px; }
 @media (min-width: 430px) {
   .tab-content { padding-left: 4px; padding-right: 4px; }
 }
+
+/* ============================================================
+   큰 글꼴 방어 — 갤럭시 '글자 크게' 설정에서도 텍스트가 잘리지 않게
+   ============================================================ */
+/* 상담사 카드 하단: 가격은 절대 잘리지 않고, 공간이 부족하면 줄바꿈 */
+.cc-bottom { flex-wrap: wrap; }
+.cc-price { flex-shrink: 0; }
+.cc-price > strong { white-space: nowrap; overflow: visible; }
+.cc-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+/* 버튼 글자는 넘치면 줄바꿈 (한 단어 잘림 방지) */
+.btn-primary, .btn-secondary { line-height: 1.3; }
+
+/* 프로필 바 도구 줄: 큰 글씨에서 자연스럽게 줄바꿈 */
+#persona-bar > div:last-child { flex-wrap: wrap; row-gap: 0.3rem; }
+
+/* 하단 내비 라벨: 잘리는 대신 축소 */
+.bottom-nav .nav-item span:last-child { font-size: clamp(0.55rem, 2.6vw, 0.72rem); white-space: nowrap; }

@@ -1,4 +1,4 @@
-window.Storage = {
+﻿window.Storage = {
   // === Helper Methods ===
   _safeGet(key, defaultValue) {
     try {
@@ -157,7 +157,7 @@ window.Storage = {
   // === Mood Entries ===
   saveMoodEntry(entry) {
     const entries = this._safeGet('cbt_mood_entries', []);
-    const dateStr = entry.date ? entry.date.split('T')[0] : new Date().toISOString().split('T')[0];
+    const dateStr = entry.date ? entry.date.split('T')[0] : new Date().toLocaleDateString('sv-CA');
     
     // Check if entry for today already exists, if so update it
     const existingIndex = entries.findIndex(e => e.date.startsWith(dateStr));
@@ -190,7 +190,7 @@ window.Storage = {
   
   getTodayMood() {
     const entries = this._safeGet('cbt_mood_entries', []);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('sv-CA');
     return entries.find(e => e.date.startsWith(todayStr)) || null;
   },
   
@@ -291,7 +291,7 @@ window.Storage = {
   
   markDayActive() {
     const activeDays = this._safeGet('cbt_active_days', []);
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('sv-CA');
     
     if (!activeDays.includes(todayStr)) {
       activeDays.push(todayStr);

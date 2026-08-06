@@ -1,4 +1,4 @@
-window.Marketplace = {
+﻿window.Marketplace = {
   userLat: 37.5665,   // 기본 위치 (서울 시청 중심)
   userLng: 126.9780,
   hasGps: false,
@@ -8,6 +8,7 @@ window.Marketplace = {
       id: "c1",
       name: "김유진 심리상담사",
       hospital: "연세 마음가득 정신건강의학과 (신촌점)",
+      tel: "02-312-4711",
       lat: 37.5563,
       lng: 126.9380,
       rating: 4.9,
@@ -32,6 +33,7 @@ window.Marketplace = {
       id: "c2",
       name: "박민호 전문의",
       hospital: "서울 해맑은 의원 (강남점)",
+      tel: "02-555-0182",
       lat: 37.5012,
       lng: 127.0396,
       rating: 4.8,
@@ -54,6 +56,7 @@ window.Marketplace = {
       id: "c3",
       name: "이수아 임상심리사",
       hospital: "마음의온도 심리상담센터 (홍대점)",
+      tel: "02-334-7720",
       lat: 37.5559,
       lng: 126.9234,
       rating: 5.0,
@@ -76,6 +79,7 @@ window.Marketplace = {
       id: "c4",
       name: "정현우 전문의",
       hospital: "삼성 온마음 정신건강의학과 (잠실점)",
+      tel: "02-419-3355",
       lat: 37.5113,
       lng: 127.0980,
       rating: 4.9,
@@ -97,6 +101,7 @@ window.Marketplace = {
       id: "c5",
       name: "최윤서 심리학박사",
       hospital: "광화문 마음케어 센터 (종로점)",
+      tel: "02-733-0904",
       lat: 37.5724,
       lng: 126.9769,
       rating: 4.95,
@@ -218,6 +223,8 @@ window.Marketplace = {
           <div class="cc-price"><span>30분 상담</span><strong>${c.price.toLocaleString()}원</strong></div>
           <div class="cc-actions">
             <button class="btn-secondary cc-btn" onclick="window.Marketplace.openProfile('${c.id}')">프로필</button>
+            <button class="btn-secondary cc-btn" onclick="window.App.openHumanChat('${c.id}')">💬 채팅</button>
+            <button class="btn-secondary cc-btn" onclick="window.App.startHumanCall('${c.id}')">📞 통화</button>
             <button class="btn-primary cc-btn" onclick="window.Booking.openModal('${c.id}')">예약하기</button>
           </div>
         </div>

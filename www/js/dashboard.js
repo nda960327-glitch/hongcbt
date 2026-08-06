@@ -1,4 +1,4 @@
-window.Dashboard = {
+﻿window.Dashboard = {
   distortionColors: {
     'all-or-nothing': '#5fa986', // sage
     'overgeneralization': '#7ba0b8', // dusty blue
@@ -721,7 +721,7 @@ ${recent}`;
         const hasMsg = messages.some(m => {
           if (!m.timestamp) return false;
           const mDate = typeof m.timestamp === 'number' ? new Date(m.timestamp) : new Date(m.timestamp);
-          return mDate.toISOString().split('T')[0] === dateStr;
+          return mDate.toLocaleDateString('sv-CA') === dateStr;
         });
         if (hasMsg) score = 3;
       }

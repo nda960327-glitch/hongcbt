@@ -41,16 +41,24 @@ window.CallTalk = {
     }
 
     this._renderOverlay(p);
+    // 연결음(뚜루루) — 상담사가 받으면 멈춘다
+    if (window.App && window.App.ringStart) window.App.ringStart();
+
     // 첫 과금 + 30초마다 차감
     this._bill();
     this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
 
-    // 상담사가 먼저 받는다
-    const hello = { role: 'bot', text: `여보세요? 나 ${p.name}${p.id === 'woorung' ? '예요' : '이야'}. 목소리로 들으니까 더 반갑다. 무슨 얘기부터 할까?`, timestamp: new Date().toISOString() };
-    window.Storage.saveMessage(hello);
-    if (window.App) window.App.displayMessage(hello);
-    this._speakThen(hello.text, p.id, () => this._listen());
+    // 1.8초 뒤 상담사가 받는다
+    setTimeout(() => {
+      if (!this._active) return;
+      if (window.App && window.App.ringStop) window.App.ringStop();
+      this._setStatus('통화 중');
+      const hello = { role: 'bot', text: `여보세요? 나 ${p.name}${p.id === 'woorung' ? '예요' : '이야'}. 목소리로 들으니까 더 반갑다. 무슨 얘기부터 할까?`, timestamp: new Date().toISOString() };
+      window.Storage.saveMessage(hello);
+      if (window.App) window.App.displayMessage(hello);
+      this._speakThen(hello.text, p.id, () => this._listen());
+    }, 1800);
   },
 
   _bill() {
@@ -137,6 +145,7 @@ window.CallTalk = {
   end(reason) {
     if (!this._active) return;
     this._active = false;
+    if (window.App && window.App.ringStop) window.App.ringStop();
     clearInterval(this._billTimer);
     clearInterval(this._clockTimer);
     try { if (this._rec) this._rec.abort(); } catch (e) {}

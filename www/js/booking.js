@@ -1,12 +1,42 @@
+﻿// ============================================================================
+//  상담 예약 — 마인드카페식 달력 + 시간대 선택 + 우렁캐시 결제
+//  상담사별·날짜별 가능 시간은 결정적 해시로 생성(서버 연동 전 데모 스케줄).
+//  실서비스에서는 slotsFor()가 상담사 가능시간 API 응답으로 교체된다.
+// ============================================================================
 window.Booking = {
   currentCounselorId: null,
+  calYear: 0,
+  calMonth: 0, // 0-11
+  selDate: null,  // 'YYYY-MM-DD'
+  selTime: null,  // 'HH:MM'
 
   init() {
     const cancelBtn = document.getElementById('booking-cancel');
     const confirmBtn = document.getElementById('booking-confirm');
-    
     if (cancelBtn) cancelBtn.addEventListener('click', () => this.closeModal());
     if (confirmBtn) confirmBtn.addEventListener('click', () => this.confirmBooking());
+  },
+
+  _hash(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  },
+
+  // 해당 상담사·날짜의 예약 가능 시간대
+  slotsFor(counselorId, dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    if (d.getDay() === 0) return []; // 일요일 휴무
+    const base = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00'];
+    const h = this._hash(String(counselorId) + dateStr);
+    let slots = base.filter((_, i) => ((h >> i) & 3) !== 3); // 약 75% 오픈
+    // 오늘이면 이미 지난 시간 제외 (2시간 여유)
+    const today = new Date();
+    if (dateStr === today.toLocaleDateString('sv-CA')) {
+      const cut = today.getHours() + 2;
+      slots = slots.filter(t => parseInt(t, 10) >= cut);
+    }
+    return slots;
   },
 
   openModal(counselorId) {
@@ -14,55 +44,130 @@ window.Booking = {
     const counselor = window.Marketplace.getCounselor(counselorId);
     if (!counselor) return;
 
-    const modal = document.getElementById('booking-modal');
+    const now = new Date();
+    this.calYear = now.getFullYear();
+    this.calMonth = now.getMonth();
+    this.selDate = null;
+    this.selTime = null;
+
     const details = document.getElementById('booking-details');
-    
-    // Profit sharing logic (10% platform, 45% hospital, 45% counselor)
-    const platformFee = counselor.price * 0.10;
-    const hospitalShare = counselor.price * 0.45;
-    const counselorShare = counselor.price * 0.45;
-
     details.innerHTML = `
-      <h3 style="margin-top:0;">${counselor.name}</h3>
-      <p style="color:var(--text-muted); font-size:0.9rem;">${counselor.hospital}</p>
-      <hr style="border-color: var(--glass-border); margin: 1rem 0;">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-        <span>상담료 (30분)</span>
-        <strong>${counselor.price.toLocaleString()}원</strong>
+      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;">
+        <div style="min-width: 0;">
+          <strong style="font-size: 1.02rem; color: var(--text-primary);">${counselor.name}</strong>
+          <div style="color: var(--text-muted); font-size: 0.78rem;">${counselor.hospital}</div>
+        </div>
+        <strong style="color: var(--accent-primary); white-space: nowrap;">30분 · ${counselor.price.toLocaleString()}캐시</strong>
       </div>
-      <div style="font-size: 0.8rem; color: var(--text-muted); background: var(--bg-tertiary); padding: 0.8rem; border-radius: 4px; margin-top: 1rem;">
-        <strong>[플랫폼 투명 정산 시스템]</strong><br><br>
-        결제하신 금액은 다음과 같이 안전하게 배분됩니다:<br>
-        - 우렁의사 플랫폼 운영비 (10%): ${platformFee.toLocaleString()}원<br>
-        - 소속 병원 인프라 지원 (45%): ${hospitalShare.toLocaleString()}원<br>
-        - 담당 상담사 직접 수익 (45%): ${counselorShare.toLocaleString()}원
-      </div>
-    `;
+      <div style="margin-top: 0.65rem; padding-top: 0.6rem; border-top: 1px dashed var(--glass-border); font-size: 0.78rem; color: var(--text-secondary); line-height: 1.7;">
+        <b style="color: var(--text-primary);">예약 후 이렇게 진행돼요</b><br>
+        · 1회기 상담 시간은 <b>30분</b>입니다.<br>
+        · 예약이 확정되면 <b>알림</b>으로 알려드려요.<br>
+        · 예약 시간이 되면 <b>마이페이지 › 나의 상담 내역</b>의 [📞 전화 상담] 버튼으로 상담사님과 바로 연결됩니다.<br>
+        · 상담 전 나누고 싶은 이야기는 [💬 채팅]으로 미리 남겨둘 수 있어요.<br>
+        · 시간 변경·취소는 <b>상담 24시간 전까지 무료</b>입니다.
+      </div>`;
 
-    if (modal) modal.classList.remove('hidden');
+    this.renderCal();
+    this.renderTimes();
+    document.getElementById('booking-modal').classList.remove('hidden');
+  },
+
+  renderCal() {
+    const el = document.getElementById('bk-cal');
+    if (!el) return;
+    const y = this.calYear, m = this.calMonth;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const maxDate = new Date(today.getTime() + 60 * 86400000); // 60일 이내 예약
+    const first = new Date(y, m, 1);
+    const startDow = first.getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const curMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const thisMonth = new Date(y, m, 1);
+    const canPrev = thisMonth > curMonth;
+    const canNext = thisMonth < new Date(today.getFullYear(), today.getMonth() + 2, 1);
+
+    let cells = '';
+    for (let i = 0; i < startDow; i++) cells += '<span></span>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(y, m, d);
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const inRange = date >= today && date <= maxDate;
+      const hasSlots = inRange && this.slotsFor(this.currentCounselorId, dateStr).length > 0;
+      const sel = this.selDate === dateStr;
+      const isToday = date.getTime() === today.getTime();
+      cells += `<button ${hasSlots ? `onclick="window.Booking.pickDate('${dateStr}')"` : 'disabled'}
+        style="all: unset; box-sizing: border-box; width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 0.88rem; cursor: ${hasSlots ? 'pointer' : 'default'};
+        ${sel ? 'background: var(--accent-primary); color: #fff; font-weight: 800;'
+          : hasSlots ? `color: var(--text-primary); ${isToday ? 'background: color-mix(in srgb, var(--accent-primary) 16%, transparent); font-weight: 700;' : ''}`
+          : 'color: var(--text-muted); opacity: 0.35;'}">${d}</button>`;
+    }
+
+    el.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; margin: 0.2rem 0 0.5rem;">
+        <button ${canPrev ? 'onclick="window.Booking.moveMonth(-1)"' : 'disabled style="opacity:0.3;"'} style="all: unset; cursor: pointer; padding: 0.3rem 0.7rem; font-size: 1.1rem; color: var(--text-primary); opacity: ${canPrev ? 1 : 0.3};">‹</button>
+        <strong style="font-size: 1.05rem; color: var(--text-primary);">${y}년 ${m + 1}월</strong>
+        <button ${canNext ? 'onclick="window.Booking.moveMonth(1)"' : 'disabled'} style="all: unset; cursor: pointer; padding: 0.3rem 0.7rem; font-size: 1.1rem; color: var(--text-primary); opacity: ${canNext ? 1 : 0.3};">›</button>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.15rem; text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+        <span style="color:#c96a5a;">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span style="color:#7ba0b8;">토</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.15rem;">${cells}</div>`;
+  },
+
+  moveMonth(delta) {
+    this.calMonth += delta;
+    if (this.calMonth < 0) { this.calMonth = 11; this.calYear--; }
+    if (this.calMonth > 11) { this.calMonth = 0; this.calYear++; }
+    this.selDate = null; this.selTime = null;
+    this.renderCal(); this.renderTimes();
+  },
+
+  pickDate(dateStr) {
+    this.selDate = dateStr;
+    this.selTime = null;
+    this.renderCal();
+    this.renderTimes();
+  },
+
+  renderTimes() {
+    const el = document.getElementById('bk-times');
+    if (!el) return;
+    if (!this.selDate) {
+      el.innerHTML = `<p style="grid-column: 1 / -1; margin: 0.2rem 0; font-size: 0.8rem; color: var(--text-muted); text-align: center;">먼저 날짜를 선택해주세요.</p>`;
+      return;
+    }
+    const slots = this.slotsFor(this.currentCounselorId, this.selDate);
+    el.innerHTML = slots.map(t => `
+      <button onclick="window.Booking.pickTime('${t}')"
+        style="all: unset; box-sizing: border-box; text-align: center; padding: 0.55rem 0.2rem; border-radius: 10px; font-size: 0.86rem; cursor: pointer;
+        border: 1.5px solid ${this.selTime === t ? 'var(--accent-primary)' : 'var(--glass-border)'};
+        background: ${this.selTime === t ? 'var(--accent-primary)' : 'var(--bg-tertiary)'};
+        color: ${this.selTime === t ? '#fff' : 'var(--text-primary)'}; font-weight: ${this.selTime === t ? '800' : '500'};">${t}</button>`).join('');
+  },
+
+  pickTime(t) {
+    this.selTime = t;
+    this.renderTimes();
   },
 
   closeModal() {
-    const modal = document.getElementById('booking-modal');
-    const datetimeInput = document.getElementById('booking-datetime');
-    if (modal) modal.classList.add('hidden');
-    if (datetimeInput) datetimeInput.value = '';
+    document.getElementById('booking-modal').classList.add('hidden');
     this.currentCounselorId = null;
+    this.selDate = null;
+    this.selTime = null;
   },
 
   confirmBooking() {
     if (!this.currentCounselorId) return;
     const counselor = window.Marketplace.getCounselor(this.currentCounselorId);
 
-    const datetimeInput = document.getElementById('booking-datetime');
-    const selectedTime = datetimeInput ? datetimeInput.value : '';
-
-    if (!selectedTime) {
-      alert("예약하실 일시를 선택해주세요.");
+    if (!this.selDate || !this.selTime) {
+      alert('예약하실 날짜와 시간을 선택해주세요.');
       return;
     }
 
-    // 우렁 캐시로 실제 결제 (잔액 부족 시 충전 유도)
+    // 우렁 캐시로 결제 (잔액 부족 시 충전 유도)
     if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`)) {
       alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
       this.closeModal();
@@ -70,10 +175,10 @@ window.Booking = {
       return;
     }
 
-    const dateObj = new Date(selectedTime);
-    const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일 ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+    const dateObj = new Date(this.selDate + 'T' + this.selTime + ':00');
+    const dow = ['일', '월', '화', '수', '목', '금', '토'][dateObj.getDay()];
+    const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일 (${dow}) ${this.selTime}`;
 
-    // 예약 내역 저장 → 마이페이지 '나의 상담 내역'에 표시
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     bookings.unshift({
       id: 'bk_' + Date.now(),

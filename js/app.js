@@ -10,11 +10,8 @@
       window.Storage.markVisited();
     }
     
-    // 첫 화면(챗봇)도 헤더 숨김 규칙 적용
-    const initHeader = document.getElementById('app-header');
-    if (initHeader && ['home', 'chat', 'counselors', 'dashboard'].includes(this.currentTab)) {
-      initHeader.style.display = 'none';
-    }
+    // 첫 화면(챗봇)도 헤더 숨김 규칙 적용 (여백까지 제거되는 클래스 방식)
+    document.body.classList.toggle('header-hidden', ['home', 'chat', 'counselors', 'dashboard'].includes(this.currentTab));
 
     // 2. Set up navigation
     document.querySelectorAll('.nav-item[data-tab]').forEach(navItem => {
@@ -888,9 +885,10 @@ ${memory || '(없음)'}`;
       const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
       this.displayMessage(msg);
       window.Storage.saveMessage(msg);
+      this.playNotify(); // 알림음 + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
       if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(persona.name, { body: text, icon: 'icon.png' }); } catch (e) {}
+        try { new Notification(persona.name, { body: text, icon: 'icon.png', vibrate: [120, 60, 120] }); } catch (e) {}
       }
     } catch (e) {}
   },
@@ -931,6 +929,10 @@ ${memory || '(없음)'}`;
         <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
         <div style="margin-top: 0.7rem; font-size: 0.9rem; font-weight: bold; color: var(--text-primary);">
           <span class="h-ico" data-icon="calendar" data-icon-size="17"></span>${b.time}
+        </div>
+        <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openHumanChat('${b.counselorId}')">💬 채팅</button>
         </div>
       </div>`).join('')
       || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
@@ -976,37 +978,244 @@ ${memory || '(없음)'}`;
     if (!el) return;
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     el.innerHTML = apps.map(a => `
-      <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
-        <div style="min-width: 0;">
-          <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
-          <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
+      <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
+          <div style="min-width: 0;">
+            <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
+          </div>
+          <span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>
         </div>
-        <span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>
+        <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; margin-top: 0.55rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
       </div>`).join('');
+  },
+
+  // === 상담사 가능 시간 설정 (요일 × 시간 토글) ===
+  AVAIL_SLOTS: ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00'],
+
+  openAvailSettings() {
+    const grid = document.getElementById('avail-grid');
+    if (!grid) return;
+    const saved = window.Storage._safeGet('cbt_my_avail', null) || { 1: [...this.AVAIL_SLOTS], 2: [...this.AVAIL_SLOTS], 3: [...this.AVAIL_SLOTS], 4: [...this.AVAIL_SLOTS], 5: [...this.AVAIL_SLOTS], 6: [], 0: [] };
+    const dows = [['1', '월'], ['2', '화'], ['3', '수'], ['4', '목'], ['5', '금'], ['6', '토'], ['0', '일']];
+    grid.innerHTML = dows.map(([d, label]) => `
+      <div>
+        <div style="font-size: 0.82rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">${label}요일</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">
+          ${this.AVAIL_SLOTS.map(t => {
+            const on = (saved[d] || []).includes(t);
+            return `<button data-dow="${d}" data-time="${t}" onclick="this.dataset.on = this.dataset.on === '1' ? '0' : '1'; this.style.background = this.dataset.on === '1' ? 'var(--accent-primary)' : 'var(--bg-tertiary)'; this.style.color = this.dataset.on === '1' ? '#fff' : 'var(--text-muted)';"
+              data-on="${on ? 1 : 0}"
+              style="all: unset; box-sizing: border-box; padding: 0.32rem 0.55rem; border-radius: 8px; font-size: 0.76rem; cursor: pointer; border: 1px solid var(--glass-border); background: ${on ? 'var(--accent-primary)' : 'var(--bg-tertiary)'}; color: ${on ? '#fff' : 'var(--text-muted)'};">${t}</button>`;
+          }).join('')}
+        </div>
+      </div>`).join('');
+    document.getElementById('avail-modal').classList.remove('hidden');
+  },
+
+  saveAvailSettings() {
+    const result = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+    document.querySelectorAll('#avail-grid button[data-dow]').forEach(b => {
+      if (b.dataset.on === '1') result[b.dataset.dow].push(b.dataset.time);
+    });
+    window.Storage._safeSet('cbt_my_avail', result);
+    document.getElementById('avail-modal').classList.add('hidden');
+    alert('상담 가능 시간이 저장되었습니다.\n입점 승인 후 예약 캘린더에 반영됩니다.');
+  },
+
+  // 다음(카카오) 우편번호 서비스로 주소 검색 — API 키 불필요한 한국 표준 방식
+  openAddressSearch() {
+    const layer = document.getElementById('creg-postcode-layer');
+    if (!layer) return;
+    const openIt = () => {
+      layer.classList.remove('hidden');
+      layer.innerHTML = '';
+      new window.daum.Postcode({
+        oncomplete: (data) => {
+          const addr = data.roadAddress || data.jibunAddress;
+          const el = document.getElementById('creg-hosp-addr');
+          if (el) el.value = `(${data.zonecode}) ${addr}`;
+          layer.classList.add('hidden');
+          const d2 = document.getElementById('creg-hosp-addr2');
+          if (d2) d2.focus();
+        },
+        onclose: () => layer.classList.add('hidden'),
+        width: '100%', height: '100%'
+      }).embed(layer);
+      layer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+    if (window.daum && window.daum.Postcode) { openIt(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    s.onload = openIt;
+    s.onerror = () => alert('주소 검색 서비스를 불러오지 못했어요. 인터넷 연결을 확인해주세요.');
+    document.head.appendChild(s);
   },
 
   submitCounselorReg() {
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
-    const name = v('creg-name'), license = v('creg-license'), licenseNo = v('creg-license-no');
+    const name = v('creg-name'), license = v('creg-license'), price = v('creg-price');
     const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
-    if (!name || !license || !licenseNo || !hospital || !addr) {
-      alert('이름, 자격 구분, 자격증 번호, 병원명, 병원 주소는 필수입니다.');
+    if (!name || !license || !price || !hospital || !addr) {
+      alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
       return;
     }
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     apps.unshift({
       id: 'ca_' + Date.now(), ts: Date.now(), status: 'pending',
-      name, license, licenseNo,
-      career: v('creg-career'), price: v('creg-price'), intro: v('creg-intro'),
-      hospital, addr, tel: v('creg-hosp-tel')
+      name, license,
+      career: v('creg-career'), price: parseInt(price, 10), intro: v('creg-intro'),
+      hospital, addr: (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: v('creg-hosp-tel')
     });
     window.Storage._safeSet('cbt_counselor_apps', apps.slice(0, 10));
     document.getElementById('counselor-reg-modal').classList.add('hidden');
-    ['creg-name','creg-license','creg-license-no','creg-career','creg-price','creg-intro','creg-hosp-name','creg-hosp-addr','creg-hosp-tel']
+    ['creg-name','creg-license','creg-career','creg-price','creg-intro','creg-hosp-name','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
     this.renderCounselorApps();
     this.switchTab('mypage');
+  },
+
+  // ==========================================================================
+  //  사운드·진동 (파일 없이 WebAudio 생성)
+  // ==========================================================================
+  _audioCtx: null,
+  _ringTimer: null,
+
+  _ctx() {
+    if (!this._audioCtx) {
+      try { this._audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    if (this._audioCtx && this._audioCtx.state === 'suspended') { try { this._audioCtx.resume(); } catch (e) {} }
+    return this._audioCtx;
+  },
+
+  _tone(freq, dur, delay = 0, vol = 0.12) {
+    const ctx = this._ctx();
+    if (!ctx) return;
+    const t = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.02);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  },
+
+  // 알림음: 딩-동 + 진동
+  playNotify() {
+    this._tone(880, 0.14, 0);
+    this._tone(1174, 0.18, 0.16);
+    if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+  },
+
+  // 전화 연결음(뚜루루): 1초 울리고 2초 쉬는 표준 링백톤
+  ringStart() {
+    this.ringStop();
+    const burst = () => { this._tone(440, 1.0, 0, 0.09); this._tone(480, 1.0, 0, 0.09); if (navigator.vibrate) { try { navigator.vibrate(180); } catch (e) {} } };
+    burst();
+    this._ringTimer = setInterval(burst, 3000);
+  },
+
+  ringStop() {
+    if (this._ringTimer) { clearInterval(this._ringTimer); this._ringTimer = null; }
+  },
+
+  // ==========================================================================
+  //  인간 상담사 — 보이스톡(전화망 연결)과 채팅방
+  // ==========================================================================
+  startHumanCall(counselorId) {
+    const c = window.Marketplace.getCounselor(counselorId);
+    if (!c) return;
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const hasPaid = bookings.some(b => b.counselorId === c.id);
+
+    if (!hasPaid) {
+      if (!confirm(`${c.name}님과의 보이스톡 상담\n30분 상담권 ${c.price.toLocaleString()}캐시 결제 후 연결됩니다.\n진행할까요?`)) return;
+      if (!window.Wallet.spend(c.price, `${c.name} 보이스톡 상담권`)) {
+        alert(`잔액이 부족해요. (필요: ${c.price.toLocaleString()}캐시)\n마이페이지에서 충전해주세요.`);
+        this.switchTab('mypage');
+        return;
+      }
+      bookings.unshift({ id: 'bk_' + Date.now(), counselorId: c.id, name: c.name, hospital: c.hospital, price: c.price, time: '보이스톡 상담', whenTs: Date.now(), ts: Date.now() });
+      window.Storage._safeSet('cbt_bookings', bookings.slice(0, 50));
+    }
+
+    // 통화 기록 + 연결음 후 전화 연결 (실제 음성 통화)
+    const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
+    logs.unshift({ ts: Date.now(), counselorId: c.id, name: c.name, tel: c.tel });
+    window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
+
+    this.ringStart();
+    setTimeout(() => {
+      this.ringStop();
+      window.location.href = 'tel:' + String(c.tel || '').replace(/-/g, '');
+    }, 1300);
+  },
+
+  openHumanChat(counselorId) {
+    const c = window.Marketplace.getCounselor(counselorId);
+    if (!c) return;
+    const key = 'cbt_hchat_' + c.id;
+    let msgs = window.Storage._safeGet(key, []) || [];
+    if (msgs.length === 0) {
+      msgs.push({ role: 'sys', text: `🙌 ${c.name}님과의 상담 채팅방이 열렸어요.\n남기신 메시지는 상담사님께 전달되며, 접속하시면 답장이 도착합니다.`, ts: Date.now() });
+      window.Storage._safeSet(key, msgs);
+    }
+
+    const old = document.getElementById('hchat-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'hchat-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: var(--bg-primary); display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;';
+    ov.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
+        <button id="hchat-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;">✕</button>
+        <div style="flex: 1; min-width: 0;">
+          <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</strong>
+          <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${c.hospital}</span>
+        </div>
+        <button id="hchat-call" class="btn-primary" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem; flex-shrink: 0;">📞 통화</button>
+      </div>
+      <div id="hchat-msgs" style="flex: 1; overflow-y: auto; padding: 1rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem;"></div>
+      <div style="display: flex; gap: 0.5rem; padding: 0.7rem 0.9rem calc(0.7rem + var(--safe-bottom, 0px)); border-top: 1px solid var(--glass-border); background: var(--bg-secondary);">
+        <input id="hchat-input" placeholder="메시지 보내기" style="flex: 1; min-width: 0; padding: 0.65rem 0.9rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        <button id="hchat-send" class="btn-primary" style="width: auto; padding: 0.5rem 1rem; border-radius: 999px;">전송</button>
+      </div>`;
+    document.body.appendChild(ov);
+
+    const render = () => {
+      const box = document.getElementById('hchat-msgs');
+      msgs = window.Storage._safeGet(key, []) || [];
+      box.innerHTML = msgs.map(m => {
+        if (m.role === 'sys') return `<div style="align-self: center; background: var(--bg-tertiary); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.78rem; color: var(--text-secondary); white-space: pre-line; max-width: 90%;">${m.text}</div>`;
+        const mine = m.role === 'me';
+        return `<div style="align-self: ${mine ? 'flex-end' : 'flex-start'}; background: ${mine ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${mine ? '#fff' : 'var(--text-primary)'}; border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.55rem 0.85rem; font-size: 0.88rem; max-width: 78%; white-space: pre-line;">${m.text}</div>`;
+      }).join('');
+      box.scrollTop = box.scrollHeight;
+    };
+    render();
+
+    const send = () => {
+      const inp = document.getElementById('hchat-input');
+      const t = inp.value.trim();
+      if (!t) return;
+      msgs.push({ role: 'me', text: t, ts: Date.now() });
+      // 첫 발송 시 한 번만: 전달 안내
+      if (!msgs.some(m => m.role === 'sys' && m.text.includes('전달되었'))) {
+        msgs.push({ role: 'sys', text: '✅ 메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [📞 통화] 버튼을 이용해주세요.', ts: Date.now() });
+      }
+      window.Storage._safeSet(key, msgs.slice(-200));
+      inp.value = '';
+      render();
+    };
+    document.getElementById('hchat-send').addEventListener('click', send);
+    document.getElementById('hchat-input').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+    document.getElementById('hchat-close').addEventListener('click', () => ov.remove());
+    document.getElementById('hchat-call').addEventListener('click', () => this.startHumanCall(c.id));
   },
 
   resetChat() {
