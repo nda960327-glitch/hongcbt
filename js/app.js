@@ -486,7 +486,8 @@ window.App = {
     const titleEl = modal.querySelector('h2');
     if (titleEl) titleEl.textContent = force ? '함께할 AI 상담사를 골라주세요' : 'AI 상담사 선택';
 
-    const activeId = window.Personas.getActive().id;
+    // 아직 한 번도 고른 적 없으면(온보딩) '현재 상담사' 표시를 하지 않는다
+    const activeId = window.Personas.hasChosen() ? window.Personas.getActive().id : null;
     listEl.innerHTML = '';
     window.Personas.list.forEach(p => {
       const card = document.createElement('div');
