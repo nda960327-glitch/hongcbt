@@ -426,6 +426,7 @@ ${transcript}`;
       });
       distortions.forEach(d => window.Storage.incrementDistortion(d));
       console.log("세션 사고 기록 저장 완료");
+      if (window.Dashboard) window.Dashboard.refresh();
     } catch (e) {
       console.warn("세션 기록 생략:", e);
     }

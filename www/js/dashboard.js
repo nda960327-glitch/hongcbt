@@ -75,6 +75,45 @@ window.Dashboard = {
     this.updateStats();
     this.renderMoodChart();
     this.renderDistortionChart();
+    this.renderChatInsights();
+  },
+
+  renderChatInsights() {
+    const container = document.getElementById('chat-insights-content');
+    if (!container) return;
+
+    const persona = window.Personas ? window.Personas.getActive() : { name: '우렁의사', id: 'woorung' };
+    const memory = window.Storage ? window.Storage.getUserMemory() : '';
+    const messages = (window.Storage && window.Storage.getMessages()) || [];
+    const userMsgCount = messages.filter(m => m.role === 'user').length;
+    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    const autoRecordsCount = records.filter(r => r.source === 'chat').length;
+
+    if (userMsgCount === 0) {
+      container.innerHTML = `
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">아직 대화 내역이 없습니다. AI 상담사와 대화를 나누시면 내담자의 마음 상태, 감정 패턴, 자동 사고가 이곳에 실시간으로 요약 연동됩니다.</p>
+      `;
+      return;
+    }
+
+    let memorySummary = '';
+    if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
+      const lines = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 5);
+      memorySummary = lines.map(l => `<div style="background: var(--bg-tertiary); padding: 0.45rem 0.75rem; border-radius: 8px; margin-top: 0.4rem; font-size: 0.82rem; border-left: 3px solid var(--accent-primary); color: var(--text-primary);">${l.replace(/^-\s*/, '')}</div>`).join('');
+    } else {
+      memorySummary = `<p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.4rem 0 0 0;">현재 총 <strong>${userMsgCount}개</strong>의 대화 메시지가 연동되었으며, AI 상담사가 대화에서 추출한 장기기억 차트와 자동 사고 기록지가 대시보드에 실시간으로 반영되고 있습니다.</p>`;
+    }
+
+    container.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; background: rgba(127,194,155,0.12); padding: 0.6rem 0.85rem; border-radius: 10px;">
+        ${window.Personas ? window.Personas.avatarSvg(persona.id, 32) : ''}
+        <div>
+          <strong style="font-size: 0.88rem; color: var(--text-primary);">${persona.name} 상담사가 기록 중인 마음 차트</strong>
+          <div style="font-size: 0.76rem; color: var(--text-muted);">챗봇 대화 중 자동 생성된 사고 기록: <strong style="color: var(--accent-primary);">${autoRecordsCount}건</strong></div>
+        </div>
+      </div>
+      ${memorySummary}
+    `;
   },
   
   renderMoodChart() {

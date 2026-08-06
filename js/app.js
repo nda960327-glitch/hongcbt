@@ -217,6 +217,9 @@ window.App = {
     if (tabName === 'chat') {
       this.updateSessionUI();
     }
+    if (tabName === 'dashboard' && window.Dashboard) {
+      window.Dashboard.refresh();
+    }
   },
   
   updateSessionUI() {
@@ -238,6 +241,11 @@ window.App = {
     inputEl.value = '';
     this.autoResizeTextarea();
     this.clearQuickReplies();
+    
+    if (window.Storage) {
+      window.Storage.incrementSessions();
+      window.Storage.markDayActive();
+    }
     
     // Display user message
     this.displayMessage({ role: 'user', text: text });
