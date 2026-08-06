@@ -92,6 +92,14 @@ window.Storage = {
     };
     messages.push(messageWithId);
     this._safeSet('cbt_messages', messages);
+
+    // 챗봇 대화가 시작되면 샘플 사고기록지와 가짜 통계를 자동으로 깔끔히 정리함!
+    const records = this._safeGet('cbt_thought_records', []);
+    if (records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'))) {
+      this._safeSet('cbt_thought_records', []);
+      this._safeSet('cbt_distortion_stats', {});
+    }
+
     return messageWithId;
   },
   

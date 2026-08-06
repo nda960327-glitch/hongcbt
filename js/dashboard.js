@@ -264,23 +264,25 @@ window.Dashboard = {
     const storedSessions = (window.Storage && window.Storage.getTotalSessions()) || 0;
     const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
     const stats = (window.Storage && window.Storage.getDistortionStats()) || {};
+    const isOnlyMock = records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_')) && userMsgs === 0;
+
     const uniqueTypes = Object.keys(stats).filter(k => stats[k] > 0).length;
     const streak = (window.Storage && window.Storage.getStreak()) || 0;
 
     if (elSessions) {
-      this._animateCounter(elSessions, userMsgs || storedSessions || 11);
+      this._animateCounter(elSessions, isOnlyMock ? 11 : (userMsgs || storedSessions || 0));
     }
     
     if (elRecords) {
-      this._animateCounter(elRecords, records.length || 7);
+      this._animateCounter(elRecords, isOnlyMock ? 7 : records.length);
     }
     
     if (elStreak) {
-      this._animateCounter(elStreak, streak || 7);
+      this._animateCounter(elStreak, isOnlyMock ? 5 : streak);
     }
     
     if (elDistortions) {
-      this._animateCounter(elDistortions, uniqueTypes || 7);
+      this._animateCounter(elDistortions, isOnlyMock ? 7 : uniqueTypes);
     }
   },
 
@@ -290,6 +292,8 @@ window.Dashboard = {
     const moodEntries = (window.Storage && window.Storage.getMoodEntries(30)) || [];
     const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
     const messages = (window.Storage && window.Storage.getMessages()) || [];
+    const userMsgs = messages.filter(m => m.role === 'user').length;
+    const isOnlyMock = thoughtRecords.length > 0 && thoughtRecords.every(r => r.id && r.id.startsWith('rec_mock_')) && userMsgs === 0;
     const baselineScores = [2, 3, 2, 4, 3, 4, 5];
 
     for (let i = 6; i >= 0; i--) {
@@ -320,9 +324,6 @@ window.Dashboard = {
               score = Math.max(1, Math.min(5, Math.round(5 - (avgNew / 25))));
             }
           }
-          if (!score) {
-            score = baselineScores[6 - i];
-          }
         }
       }
 
@@ -336,9 +337,10 @@ window.Dashboard = {
         if (hasMsg) score = 3;
       }
 
-      // 4. Default fallback baseline for smooth, elegant curve
+      // 4. Default fallback: 0건 샘플 상태일 때는 샘플 회복 곡선 [2,3,2,4,3,4,5] 제공.
+      // 실사용 대화나 기록이 생성되면 샘플을 즉시 제거하고 기본 평온 상태(3) 적용!
       if (!score) {
-        score = baselineScores[6 - i];
+        score = isOnlyMock ? baselineScores[6 - i] : 3;
       }
 
       result.push({ score, label, dateStr });
