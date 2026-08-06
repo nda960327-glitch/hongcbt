@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "bartender-community",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server", "C:/Users/SAMSUNG/.gemini/antigravity/scratch/bartender-community", "-p", "8123", "-c-1"],
+      "port": 8123
+    },
+    {
       "name": "woodong",
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
