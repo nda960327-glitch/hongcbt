@@ -24,13 +24,13 @@ window.Storage = {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   },
 
-  // === Pro Mode & API Key ===
+  // === Pro Mode & API Key (전체 100% 무료 무제한) ===
   getProMode() {
-    return this._safeGet('cbt_pro_mode', false);
+    return true;
   },
   
   setProMode(enabled) {
-    this._safeSet('cbt_pro_mode', enabled);
+    this._safeSet('cbt_pro_mode', true);
   },
 
   getApiKey() {
@@ -41,22 +41,17 @@ window.Storage = {
     this._safeSet('cbt_api_key', key);
   },
 
-  // === Free Session Limit ===
+  // === Free Session Limit (무제한) ===
   getFreeSessionCount() {
-    return this._safeGet('cbt_free_sessions', 30);
+    return 999999;
   },
   
   setFreeSessionCount(count) {
-    this._safeSet('cbt_free_sessions', count);
+    this._safeSet('cbt_free_sessions', 999999);
   },
 
   decrementFreeSessionCount() {
-    let current = this.getFreeSessionCount();
-    if (current > 0) {
-      current--;
-      this._safeSet('cbt_free_sessions', current);
-    }
-    return current;
+    return 999999;
   },
 
   // === Long-term Therapeutic Memory (the "case file") ===

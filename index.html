@@ -51,22 +51,6 @@
     </div>
   </div>
 
-  <!-- API Key Modal (for Pro Mode) -->
-  <div id="api-modal" class="modal-overlay hidden">
-    <div class="modal-content glass-card">
-      <div class="modal-icon modal-icon--pro" data-icon="gem" data-icon-size="44"></div>
-      <h2>Pro Mode 결제 / 활성화</h2>
-      <p>더 깊이 있고 자연스러운 ChatGPT 기반 상담을 <strong>무제한</strong>으로 이용하기 위해 결제 후 활성화 키를 입력해주세요.<br><span style="font-size: 0.8rem; color: var(--text-muted);">무료 버전은 30회로 제한됩니다.</span></p>
-      <div class="form-group" style="margin: 1.5rem 0;">
-        <input type="password" id="api-key-input" placeholder="활성화 키 입력 (또는 비밀번호)" style="width: 100%; padding: 0.75rem; border-radius: 8px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
-      </div>
-      <div class="form-actions">
-        <button id="api-modal-cancel" class="btn-secondary">취소</button>
-        <button id="api-modal-save" class="btn-primary">결제 후 켜기</button>
-      </div>
-    </div>
-  </div>
-
   <!-- AI 상담사 선택 모달 -->
   <div id="persona-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card" style="max-width: 420px; max-height: 82vh; overflow-y: auto;">
@@ -88,7 +72,6 @@
         </div>
         <div class="header-right">
           <button id="btn-fullscreen" class="header-btn" title="전체화면"><span data-icon="fullscreen" data-icon-size="20"></span></button>
-          <button id="btn-pro" class="header-btn header-btn--pro" title="Pro Mode 켜기/끄기"><span data-icon="gem" data-icon-size="16"></span><span>Pro</span></button>
           <button id="btn-theme" class="header-btn" title="테마 변경"><span data-icon="moon" data-icon-size="20"></span></button>
           <button id="btn-reset" class="header-btn" title="대화 초기화"><span data-icon="reset" data-icon-size="20"></span></button>
         </div>
@@ -195,9 +178,6 @@
 
     <!-- CHAT TAB -->
     <section id="tab-chat" class="tab-content active">
-      <div id="session-banner" class="hidden" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-primary); padding: 0.5rem; text-align: center; font-size: 0.85rem; border-bottom: 1px solid var(--glass-border); font-weight: bold;">
-        <span class="h-ico" data-icon="gem" data-icon-size="16"></span><span id="session-banner-text">무료 이용 · <span id="chat-session-count">30</span>회 남음</span>
-      </div>
       <!-- 현재 AI 상담사 프로필 바 -->
       <div id="persona-bar" style="display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.85rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
         <span id="persona-bar-avatar" style="display: inline-flex; flex: 0 0 auto; line-height: 0;"></span>

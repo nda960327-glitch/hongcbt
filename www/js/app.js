@@ -79,13 +79,6 @@ window.App = {
       btnTheme.addEventListener('click', () => this.toggleTheme());
     }
     
-    // 4.6 Pro Mode setup
-    this.initProMode();
-    const btnPro = document.getElementById('btn-pro');
-    if (btnPro) {
-      btnPro.addEventListener('click', () => this.showProModal());
-    }
-    
     // 4.7 Fullscreen setup
     const btnFullscreen = document.getElementById('btn-fullscreen');
     if (btnFullscreen) {
@@ -102,12 +95,6 @@ window.App = {
       // 이용 안내를 확인한 다음, 상담사를 고른 적 없으면 이어서 선택하게 한다
       this.maybeForcePersonaChoice();
     });
-    
-    const apiModalCancel = document.getElementById('api-modal-cancel');
-    if (apiModalCancel) apiModalCancel.addEventListener('click', () => this.hideProModal());
-    
-    const apiModalSave = document.getElementById('api-modal-save');
-    if (apiModalSave) apiModalSave.addEventListener('click', () => this.saveProModeSettings());
     
     // 5.5 Init components
     if (window.Voice) window.Voice.init();
@@ -233,54 +220,16 @@ window.App = {
   },
   
   updateSessionUI() {
-    const isPro = window.Storage.getProMode();
-    const freeCount = window.Storage.getFreeSessionCount();
-    const chatCounter = document.getElementById('chat-session-count');
-    const homeCounter = document.getElementById('home-session-count');
-    const sessionBanner = document.getElementById('session-banner');
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
-    
-    if (chatCounter) chatCounter.textContent = isPro ? '∞' : freeCount;
-    if (homeCounter) homeCounter.textContent = isPro ? 'Pro · AI 무제한' : `무료 AI · ${freeCount}회 남음`;
-    
-    if (isPro) {
-      if (sessionBanner) sessionBanner.classList.remove('hidden');
-      if (inputEl) {
-        inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
-        inputEl.disabled = false;
-      }
-      if (sendBtn) sendBtn.disabled = false;
-    } else {
-      if (sessionBanner) sessionBanner.classList.add('hidden');
-      if (freeCount <= 0) {
-        if (inputEl) {
-          inputEl.value = '';
-          inputEl.placeholder = '무료 AI 상담 횟수(30회)가 소진되었습니다. Pro로 업그레이드 해주세요.';
-          inputEl.disabled = true;
-        }
-        if (sendBtn) sendBtn.disabled = true;
-      } else {
-        if (inputEl) {
-          inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
-          inputEl.disabled = false;
-        }
-        if (sendBtn) sendBtn.disabled = false;
-      }
+    if (inputEl) {
+      inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
+      inputEl.disabled = false;
     }
+    if (sendBtn) sendBtn.disabled = false;
   },
   
   async sendMessage() {
-    const isPro = window.Storage.getProMode();
-    
-    if (!isPro) {
-      const freeCount = window.Storage.getFreeSessionCount();
-      if (freeCount <= 0) {
-        this.displayMessage({ role: 'bot', text: "무료 AI 상담 횟수(30회)를 모두 사용했습니다. 무제한 AI 상담을 이용하려면 프로필에서 우렁의사 Pro로 업그레이드 해주세요." });
-        return;
-      }
-    }
-
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
     if (!text) return;
@@ -289,12 +238,6 @@ window.App = {
     inputEl.value = '';
     this.autoResizeTextarea();
     this.clearQuickReplies();
-    
-    // Decrement count if Free mode
-    if (!isPro) {
-      window.Storage.decrementFreeSessionCount();
-      this.updateSessionUI();
-    }
     
     // Display user message
     this.displayMessage({ role: 'user', text: text });
