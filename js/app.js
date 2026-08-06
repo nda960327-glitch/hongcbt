@@ -41,17 +41,14 @@
       });
       chatSend.addEventListener('click', () => this.sendMessage());
 
-      // 키보드가 올라오면(입력 중) 하단 내비게이션을 숨겨 화면을 넓게 쓴다
-      const nav = document.getElementById('bottom-nav');
-      if (nav) {
-        chatInput.addEventListener('focus', () => { nav.style.display = 'none'; });
-        chatInput.addEventListener('blur', () => { setTimeout(() => { nav.style.display = ''; }, 150); });
-        if (window.visualViewport) {
-          window.visualViewport.addEventListener('resize', () => {
-            const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.72;
-            nav.style.display = (keyboardOpen && document.activeElement === chatInput) ? 'none' : '';
-          });
-        }
+      // 키보드가 올라오면(입력 중): 하단바 숨김 + 그 여백 제거 → 입력창이 키보드 바로 위에 붙는다
+      chatInput.addEventListener('focus', () => document.body.classList.add('kb-open'));
+      chatInput.addEventListener('blur', () => setTimeout(() => document.body.classList.remove('kb-open'), 150));
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+          const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.72;
+          document.body.classList.toggle('kb-open', keyboardOpen && document.activeElement === chatInput);
+        });
       }
     }
     
@@ -297,9 +294,8 @@
     if (tabName === 'learn' && window.Learn) {
       window.Learn.renderCards();
     }
-    // 홈·챗봇·상담사매칭·대시보드에서는 상단 로고 헤더를 숨겨 공간을 넓게 쓴다
-    const header = document.getElementById('app-header');
-    if (header) header.style.display = ['home', 'chat', 'counselors', 'dashboard'].includes(tabName) ? 'none' : '';
+    // 홈·챗봇·상담사매칭·대시보드에서는 상단 로고 헤더와 그 여백까지 제거
+    document.body.classList.toggle('header-hidden', ['home', 'chat', 'counselors', 'dashboard'].includes(tabName));
 
     if (tabName === 'chat') {
       this.updateSessionUI();
@@ -795,7 +791,7 @@
   _todayCheckinSlots() {
     const cnt = window.Storage._safeGet('cbt_checkin_count', 5);
     if (!cnt) return [];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = (function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})(); // 로컬 날짜 (UTC 자정 버그 방지)
     if (window.Storage._safeGet('cbt_checkin_slots_date', '') !== todayStr) {
       let slots = [];
       if (window.Storage._safeGet('cbt_checkin_mode', 'random') === 'fixed') {

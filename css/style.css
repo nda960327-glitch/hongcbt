@@ -1320,3 +1320,12 @@ body.pro-mode-active #btn-pro {
    ============================================================ */
 :root, html[data-theme="light"] { color-scheme: light; }
 html[data-theme="dark"], [data-theme="dark"] { color-scheme: dark; }
+
+/* 헤더 없는 탭(홈·챗봇·상담사매칭·대시보드): 로고 바와 그 여백까지 제거 */
+body.header-hidden #app-header { display: none; }
+body.header-hidden .tab-content { padding-top: 10px; }
+
+/* 키보드가 올라온 동안(입력 중): 하단바 숨기고 그 여백까지 걷어내
+   입력창이 키보드 바로 위에 붙게 한다 */
+body.kb-open #bottom-nav { display: none; }
+body.kb-open .tab-content { padding-bottom: 8px; }

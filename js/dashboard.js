@@ -373,6 +373,13 @@ ${recent}`;
     return this.MOOD_RULES.find(r => r.keys.some(k => t.includes(k))) || null;
   },
 
+  // 로컬(기기) 기준 날짜 문자열 — toISOString은 UTC라 한국 새벽(00~09시)에
+  // '어제'가 되어 오늘 차트가 비어버리는 버그가 있었다.
+  _localDate(d) {
+    d = d instanceof Date ? d : new Date(d);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  },
+
   // 감정 로그에 기록 — 대화를 초기화해도 감정 흐름은 살아남는다
   logMood(text, ts) {
     const hit = this.detectMood(text);
@@ -399,10 +406,10 @@ ${recent}`;
     if (!container) return;
 
     this._backfillMoodLog();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = this._localDate(new Date());
     const colorOf = emo => (this.MOOD_RULES.find(r => r.emo === emo) || {}).c || 'var(--text-muted)';
     const points = ((window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [])
-      .filter(p => p.ts && new Date(p.ts).toISOString().split('T')[0] === todayStr)
+      .filter(p => p.ts && this._localDate(p.ts) === todayStr)
       .map(p => {
         const d = new Date(p.ts);
         return { time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), emo: p.emo, v: p.v, c: colorOf(p.emo) };
@@ -413,16 +420,26 @@ ${recent}`;
       return;
     }
 
-    const EMOJI = { '기쁨': '😄', '편안': '😌', '뿌듯': '😎', '불안': '😰', '우울': '😢', '분노': '😤', '외로움': '🥺', '좌절': '😮‍💨' };
     const shown = points.slice(-8);
-    const W = 340, H = 120, padL = 16, padR = 16, padT = 26, padB = 30;
+    const W = 340, H = 132, padL = 40, padR = 16, padT = 14, padB = 30;
     const innerH = H - padT - padB;
-    const step = (W - padL - padR) / (shown.length - 1);
+    const step = shown.length > 1 ? (W - padL - padR) / (shown.length - 1) : 0;
     const y = v => padT + innerH - ((v - 1) / 4) * innerH;
     const pts = shown.map((p, i) => ({ x: padL + i * step, y: y(p.v) }));
     const linePath = this._createSmoothPath ? this._createSmoothPath(pts)
       : pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
     const areaPath = `${linePath} L ${pts[pts.length - 1].x},${H - padB} L ${pts[0].x},${H - padB} Z`;
+
+    // 주간 차트와 같은 손그림 얼굴 마커 (시스템 이모지 대신 앱 고유 그림체)
+    const FACE_NAMES = ['faceSad', 'faceDown', 'faceNeutral', 'faceSmile', 'faceGrin'];
+    const faceMark = (level, fx, fy, size, color) => {
+      const inner = (window.Icons && window.Icons.faces && window.Icons.faces[FACE_NAMES[(level || 1) - 1]]) || '';
+      const sc = size / 24;
+      return `<g transform="translate(${fx - size / 2},${fy - size / 2}) scale(${sc})" style="color:${color}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`;
+    };
+    const lvl = v => Math.max(1, Math.min(5, Math.round(v)));
+    // 같은 시각이 반복되면 라벨 생략
+    const timeLabels = shown.map((p, i) => (i > 0 && shown[i - 1].time === p.time) ? '' : p.time);
 
     // 하루를 한 줄로: 시작점과 끝점을 비교해 요약
     const first = shown[0], last = shown[shown.length - 1];
@@ -441,19 +458,22 @@ ${recent}`;
             <stop offset="100%" stop-color="#7fc29b" stop-opacity="0.02"/>
           </linearGradient>
         </defs>
-        <!-- 위 = 편안한 영역, 아래 = 힘든 영역 (은은한 배경 띠) -->
-        <rect x="0" y="${padT - 8}" width="${W}" height="${innerH / 2 + 8}" rx="10" fill="#7fc29b" opacity="0.07"/>
-        <rect x="0" y="${padT + innerH / 2}" width="${W}" height="${innerH / 2 + 8}" rx="10" fill="#7b6fa8" opacity="0.06"/>
-        <text x="${W - 8}" y="${padT + 2}" text-anchor="end" font-size="9" fill="#6f9e7e" font-weight="700">편안 🙂</text>
-        <text x="${W - 8}" y="${H - padB + 1}" text-anchor="end" font-size="9" fill="#8a7fae" font-weight="700">힘듦 ☁️</text>
+        <!-- 점선 가이드 + 왼쪽 얼굴 축 (위=편안, 아래=힘듦) — 주간 차트와 같은 문법 -->
+        ${[1, 3, 5].map(v => `
+          <line x1="${padL - 4}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke="rgba(140,128,114,0.25)" stroke-dasharray="4,4"/>
+          ${faceMark(v, padL - 22, y(v), 16, '#9c9187')}
+        `).join('')}
 
         <path d="${areaPath}" fill="url(#todayMoodArea)"/>
-        <path d="${linePath}" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+        <path d="${linePath}" fill="none" stroke="#5fa986" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
 
         ${shown.map((p, i) => `
-          <circle cx="${pts[i].x}" cy="${pts[i].y}" r="10" fill="var(--bg-secondary)" stroke="${p.c}" stroke-width="2.2"/>
-          <text x="${pts[i].x}" y="${pts[i].y + 4}" text-anchor="middle" font-size="11">${EMOJI[p.emo] || '🙂'}<title>${p.time} · ${p.emo}</title></text>
-          <text x="${pts[i].x}" y="${H - padB + 14}" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">${p.time}</text>
+          <g>
+            <title>${p.time} · ${p.emo}</title>
+            <circle cx="${pts[i].x}" cy="${pts[i].y}" r="11" fill="var(--bg-secondary)" stroke="${p.c}" stroke-width="2.2"/>
+            ${faceMark(lvl(p.v), pts[i].x, pts[i].y, 15, p.c)}
+          </g>
+          ${timeLabels[i] ? `<text x="${pts[i].x}" y="${H - padB + 15}" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">${timeLabels[i]}</text>` : ''}
         `).join('')}
       </svg>
       <p style="margin: 0.45rem 0 0; text-align: center; font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">${summary}</p>
@@ -658,14 +678,14 @@ ${recent}`;
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = this._localDate(d);
       const label = `${d.getMonth() + 1}/${d.getDate()}`;
 
       let score = null;
 
       // 0. 영속 감정 로그 (대화를 지워도 남는 하루 평균) — 최우선
       const dayPoints = ((window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [])
-        .filter(p => p.ts && new Date(p.ts).toISOString().split('T')[0] === dateStr);
+        .filter(p => p.ts && this._localDate(p.ts) === dateStr);
       if (dayPoints.length > 0) {
         const avg = dayPoints.reduce((s, p) => s + p.v, 0) / dayPoints.length;
         score = Math.max(1, Math.min(5, Math.round(avg)));
