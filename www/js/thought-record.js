@@ -157,6 +157,22 @@ window.ThoughtRecord = {
       if (emptyState) emptyState.classList.remove('hidden');
     } else {
       if (emptyState) emptyState.classList.add('hidden');
+      
+      const isOnlyMock = records.every(r => r.id && r.id.startsWith('rec_mock_'));
+      if (isOnlyMock) {
+        const noticeBanner = document.createElement('div');
+        noticeBanner.className = 'sample-notice-banner';
+        noticeBanner.style.cssText = 'background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent); border-radius: 12px; padding: 0.95rem 1.1rem; margin-bottom: 1.1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; box-shadow: var(--shadow-sm);';
+        noticeBanner.innerHTML = `
+          <div style="font-size: 0.84rem; color: var(--text-primary); line-height: 1.45;">
+            💡 <strong>가이드용 샘플 사고 기록 안내</strong><br>
+            현재 기록은 0건일 때 안내되는 <strong>샘플 데이터</strong>입니다. 챗봇 대화나 직접 작성으로 내 사고 기록이 생성되면 <strong>샘플은 자동으로 삭제</strong>됩니다!
+          </div>
+          <span style="background: var(--accent-primary); color: #fff; font-size: 0.73rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 20px; white-space: nowrap; flex-shrink: 0;">샘플 데이터</span>
+        `;
+        container.appendChild(noticeBanner);
+      }
+
       // Sort by descending date
       records.sort((a, b) => new Date(b.date) - new Date(a.date));
       records.forEach(record => {
@@ -168,6 +184,7 @@ window.ThoughtRecord = {
   renderRecordCard(record) {
     const card = document.createElement('div');
     card.className = 'record-card glass-card';
+    const isMock = record.id && record.id.startsWith('rec_mock_');
     
     const dateStr = new Date(record.date).toLocaleDateString('ko-KR', {
       year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
@@ -185,7 +202,10 @@ window.ThoughtRecord = {
     
     card.innerHTML = `
       <div class="record-header">
-        <span class="record-date">${dateStr}</span>
+        <span class="record-date">
+          ${dateStr}
+          ${isMock ? '<span style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">샘플</span>' : ''}
+        </span>
         <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
       </div>
       <div class="record-body">

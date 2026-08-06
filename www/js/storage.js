@@ -105,7 +105,16 @@ window.Storage = {
   
   // === Thought Records ===
   saveThoughtRecord(record) {
-    const records = this.getThoughtRecords();
+    let records = this._safeGet('cbt_thought_records', []);
+    const isNewRealRecord = !record.id || !record.id.startsWith('rec_mock_');
+    const isOnlyMockPresent = records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'));
+
+    // 만약 진짜 사용자의 새로운 사고 기록이 저장되는데 기존 기록이 샘플뿐이었다면, 샘플 기록과 통계를 깔끔하게 자동 삭제함
+    if (isNewRealRecord && isOnlyMockPresent) {
+      records = [];
+      this._safeSet('cbt_distortion_stats', {});
+    }
+
     const newRecord = {
       id: record.id || this._generateId(),
       date: record.date || new Date().toISOString(),
