@@ -35,9 +35,145 @@
     this.updateStats();
     this.renderMoodChart();
     this.renderTodayMoodChart();
+    this.renderMoodCalendar();
     this.renderMyReports();
     this.renderDistortionChart();
     this.renderChatInsights();
+    this.renderCareFootprint();
+    if (window.Weekly) window.Weekly.renderCard();
+    if (window.Growth) window.Growth.renderNightList();
+  },
+
+  // ==========================================================================
+  //  마음 돌봄 정원 — 딱딱한 CBT 숫자 대신, 나를 돌본 흔적이 자라나는 정원.
+  //  행동활성화(BA) 원리: 돌봄 행동이 눈에 보이면 다음 행동이 쉬워진다.
+  // ==========================================================================
+  renderCareFootprint() {
+    const el = document.getElementById('care-footprint');
+    if (!el) return;
+    const S = window.Storage;
+    const dayKey = ts => new Date(ts).toLocaleDateString('sv-CA');
+
+    // 최근 7일 각 날의 '돌봄 행동' 수집 (체크인·하루정리·미션·사고기록·호흡은 카운터라 제외)
+    const events = {};
+    const add = (ts, label) => { const k = dayKey(ts); (events[k] = events[k] || []).push(label); };
+    (S._safeGet('cbt_mood_log', []) || []).forEach(m => add(m.ts, '감정 체크인'));
+    (S._safeGet('cbt_night_journal', []) || []).forEach(j => add(j.ts, '하루 정리'));
+    ((S._safeGet('cbt_mission_log', []) || []).filter(m => m.done)).forEach(m => add(m.ts, '행동 미션'));
+    (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_')).forEach(r => add(new Date(r.date).getTime(), '사고 기록'));
+
+    const week = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const k = d.toLocaleDateString('sv-CA');
+      week.push({ k, dow: d.toLocaleDateString('ko-KR', { weekday: 'short' }), n: (events[k] || []).length, today: i === 0 });
+    }
+    const weekTotal = week.reduce((s, d) => s + d.n, 0);
+    const plant = n => n === 0 ? '·' : n === 1 ? '🌱' : n <= 3 ? '🌿' : '🌸';
+
+    // 이번 주 돌봄 종류별 집계
+    const from = Date.now() - 7 * 86400000;
+    const week7 = ts => ts >= from;
+    const care = [
+      { emoji: '🫶', name: '감정 체크인', n: (S._safeGet('cbt_mood_log', []) || []).filter(m => week7(m.ts)).length },
+      { emoji: '🌙', name: '하루 정리',   n: (S._safeGet('cbt_night_journal', []) || []).filter(j => week7(j.ts)).length },
+      { emoji: '🎯', name: '행동 미션',   n: ((S._safeGet('cbt_mission_log', []) || []).filter(m => m.done && week7(m.ts))).length },
+      { emoji: '📝', name: '생각 정리',   n: (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && week7(new Date(r.date).getTime())).length },
+      { emoji: '🫧', name: '호흡·안정',   n: null, total: S._safeGet('cbt_breath_count', 0) || 0 }
+    ];
+    const streak = S.getStreak() || 0;
+
+    // 우렁이의 응원 한 줄 (데이터 기반)
+    let cheer;
+    if (weekTotal === 0) cheer = '이번 주 첫 돌봄을 시작해볼까요? 체크인 한 번이면 씨앗이 심어져요.';
+    else if (weekTotal < 5) cheer = `이번 주 나를 ${weekTotal}번 돌봤어요. 씨앗이 움트고 있어요.`;
+    else if (weekTotal < 12) cheer = `이번 주 나를 ${weekTotal}번 돌봤어요! 정원이 제법 푸릇푸릇해요.`;
+    else cheer = `이번 주 ${weekTotal}번의 돌봄이라니, 정원이 활짝 피었어요! 🌸`;
+
+    el.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+        <h3 style="margin: 0;">🌿 나의 마음 정원</h3>
+        ${streak >= 2 ? `<span style="font-size: 0.74rem; font-weight: 800; color: #e8590c;">🔥 ${streak}일 연속</span>` : ''}
+      </div>
+      <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.25rem 0 0.8rem;">나를 돌본 만큼 자라나요 — ${cheer}</p>
+      <div style="display: flex; gap: 0.35rem; margin-bottom: 0.9rem;">
+        ${week.map(d => `
+          <div title="${d.k} · 돌봄 ${d.n}회" style="flex: 1; text-align: center; padding: 0.5rem 0 0.4rem; border-radius: 12px; background: ${d.n > 0 ? 'color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary))' : 'var(--bg-tertiary)'}; ${d.today ? 'outline: 2px solid var(--accent-primary); outline-offset: 1px;' : ''}">
+            <div style="font-size: ${d.n > 0 ? '1.25rem' : '1.1rem'}; line-height: 1.3; ${d.n === 0 ? 'color: var(--text-muted); opacity: 0.5;' : ''}">${plant(d.n)}</div>
+            <div style="font-size: 0.62rem; font-weight: 700; color: var(--text-muted); margin-top: 0.15rem;">${d.dow}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+        ${care.map(c => `
+          <span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 999px; background: ${(c.n || c.total) ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'}; color: ${(c.n || c.total) ? 'var(--accent-primary)' : 'var(--text-muted)'}; border: 1px solid ${(c.n || c.total) ? 'color-mix(in srgb, var(--accent-primary) 28%, transparent)' : 'var(--glass-border)'};">
+            ${c.emoji} ${c.name} ${c.n != null ? (c.n ? `주 ${c.n}회` : '—') : (c.total ? `누적 ${c.total}회` : '—')}
+          </span>`).join('')}
+      </div>`;
+  },
+
+  // ==========================================================================
+  //  감정 캘린더 — 한 달을 색으로 (원탭 체크인·대화·하루정리 기분 로그 기반)
+  // ==========================================================================
+  _calOffset: 0,
+
+  shiftCalendar(d) {
+    this._calOffset = Math.min(0, this._calOffset + d);
+    this.renderMoodCalendar();
+  },
+
+  renderMoodCalendar() {
+    const el = document.getElementById('mood-calendar');
+    if (!el) return;
+    const base = new Date();
+    base.setDate(1);
+    base.setMonth(base.getMonth() + this._calOffset);
+    const y = base.getFullYear(), m = base.getMonth();
+
+    const log = (window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [];
+    const byDay = {};
+    log.forEach(e => {
+      const k = new Date(e.ts).toLocaleDateString('sv-CA');
+      (byDay[k] = byDay[k] || []).push(e.v || 3);
+    });
+
+    const colorFor = v => v >= 4.3 ? '#4f8a6b' : v >= 3.5 ? '#8fbf7f' : v >= 2.6 ? '#e0c36b' : v >= 1.9 ? '#dd9a62' : '#cf6b60';
+    const emoFor = v => v >= 4.3 ? '😄' : v >= 3.5 ? '🙂' : v >= 2.6 ? '😐' : v >= 1.9 ? '😟' : '😢';
+    const firstDow = new Date(y, m, 1).getDay(); // 0=일
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const todayStr = new Date().toLocaleDateString('sv-CA');
+
+    let cells = '';
+    for (let i = 0; i < firstDow; i++) cells += '<div></div>';
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const arr = byDay[key];
+      const avg = arr ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+      const isToday = key === todayStr;
+      const isFuture = key > todayStr;
+      cells += `<div onclick="${avg != null ? `window.App.showRecordToast('${key.slice(5).replace('-', '/')} · ${emoFor(avg)} 평균 ${avg.toFixed(1)}점 (${arr.length}회 기록)')` : ''}"
+        style="aspect-ratio: 1; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; cursor: ${avg != null ? 'pointer' : 'default'};
+        ${avg != null ? `background: ${colorFor(avg)}; color: #fff;` : `background: var(--bg-tertiary); color: var(--text-muted); ${isFuture ? 'opacity: 0.35;' : ''}`}
+        ${isToday ? 'outline: 2px solid var(--accent-primary); outline-offset: 1.5px;' : ''}">${d}</div>`;
+    }
+
+    el.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+        <h3 style="margin: 0;">🗓️ 감정 캘린더</h3>
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="window.Dashboard.shiftCalendar(-1)">‹</button>
+          <strong style="font-size: 0.88rem; color: var(--text-primary); min-width: 82px; text-align: center;">${y}년 ${m + 1}월</strong>
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem; ${this._calOffset >= 0 ? 'opacity: 0.35; pointer-events: none;' : ''}" onclick="window.Dashboard.shiftCalendar(1)">›</button>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; font-size: 0.64rem; font-weight: 700; color: var(--text-muted); text-align: center; margin-bottom: 0.3rem;">
+        <div style="color: #cf6b60;">일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div style="color: #6f97ab;">토</div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem;">${cells}</div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.7rem; font-size: 0.66rem; color: var(--text-muted);">
+        힘든 날
+        ${['#cf6b60', '#dd9a62', '#e0c36b', '#8fbf7f', '#4f8a6b'].map(c => `<span style="width: 13px; height: 13px; border-radius: 4px; background: ${c};"></span>`).join('')}
+        좋은 날 · 칸을 누르면 상세
+      </div>`;
   },
 
   updateSampleBadges() {

@@ -13,10 +13,13 @@ window.Growth = {
     { id: 'record5',    emoji: '📝', name: '마음 기록가',   desc: '사고 기록 5개',      metric: 'records', goal: 5 },
     { id: 'mood30',     emoji: '🌈', name: '감정 관찰자',   desc: '기분 기록 30개',     metric: 'moods',   goal: 30 },
     { id: 'breath10',   emoji: '🫧', name: '숨 고르기 달인', desc: '호흡 연습 10회',     metric: 'breaths', goal: 10 },
-    { id: 'night7',     emoji: '🌙', name: '굿나잇 요정',   desc: '하루 정리 7회',      metric: 'nights',  goal: 7 }
+    { id: 'night7',     emoji: '🌙', name: '굿나잇 요정',   desc: '하루 정리 7회',      metric: 'nights',  goal: 7 },
+    { id: 'mission5',   emoji: '🚶', name: '작은 실천가',   desc: '행동 미션 5개',      metric: 'missions', goal: 5 },
+    { id: 'mission20',  emoji: '🏃', name: '실천 마스터',   desc: '행동 미션 20개',     metric: 'missions', goal: 20 }
   ],
 
   init() {
+    this.applyShield();       // 빠진 날이 있으면 보호권으로 메꾼다 (스트릭 계산 전에)
     this.renderStreakChip();
     this.maybeShowNightCard();
     this.renderNightList();
@@ -31,8 +34,54 @@ window.Growth = {
       records: (S.getThoughtRecords() || []).length,
       moods: (S._safeGet('cbt_mood_log', []) || []).length,
       breaths: S._safeGet('cbt_breath_count', 0) || 0,
-      nights: (S._safeGet('cbt_night_journal', []) || []).length
+      nights: (S._safeGet('cbt_night_journal', []) || []).length,
+      missions: (S._safeGet('cbt_mission_log', []) || []).filter(m => m.done).length
     };
+  },
+
+  // ==========================================================================
+  //  스트릭 보호권 — 하루 빠져도 보호권이 자동으로 그 날을 메꿔준다
+  // ==========================================================================
+  SHIELD_PRICE: 1000,
+  SHIELD_MAX: 3,
+
+  shields() {
+    return window.Storage._safeGet('cbt_streak_shields', 0) || 0;
+  },
+
+  applyShield() {
+    let shields = this.shields();
+    if (shields <= 0) return;
+    const days = window.Storage._safeGet('cbt_active_days', []) || [];
+    const todayStr = new Date().toLocaleDateString('sv-CA');
+    const prevDays = [...days].sort().filter(d => d < todayStr);
+    if (!prevDays.length) return;
+    const last = new Date(prevDays[prevDays.length - 1] + 'T00:00:00');
+    const today = new Date(todayStr + 'T00:00:00');
+    const gap = Math.round((today - last) / 86400000) - 1; // 어제까지 빠진 날 수
+    if (gap <= 0 || gap > shields) return; // 빠진 날이 없거나, 보호권으로 못 메꾸면 그대로
+    for (let i = 1; i <= gap; i++) {
+      days.push(new Date(last.getTime() + i * 86400000).toLocaleDateString('sv-CA'));
+    }
+    window.Storage._safeSet('cbt_active_days', days);
+    window.Storage._safeSet('cbt_streak_shields', shields - gap);
+    setTimeout(() => {
+      if (window.App && window.App.showRecordToast) window.App.showRecordToast(`🛡️ 스트릭 보호권 ${gap}개가 빠진 날을 지켜줬어요!`);
+    }, 1200);
+  },
+
+  buyShield() {
+    if (this.shields() >= this.SHIELD_MAX) {
+      alert(`보호권은 최대 ${this.SHIELD_MAX}개까지 보관할 수 있어요.`);
+      return;
+    }
+    if (!window.Wallet || !window.Wallet.spend(this.SHIELD_PRICE, '스트릭 보호권 구매')) {
+      alert(`캐시가 부족해요. (보호권 1개 = ${this.SHIELD_PRICE.toLocaleString()}캐시)\n마이페이지 지갑에서 충전해주세요.`);
+      return;
+    }
+    window.Storage._safeSet('cbt_streak_shields', this.shields() + 1);
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('🛡️ 스트릭 보호권을 손에 넣었어요!');
+    this.renderBadgeCard();
   },
 
   bumpBreath() {
@@ -55,6 +104,7 @@ window.Growth = {
       const label = newly.map(b => `${b.emoji} '${b.name}'`).join(', ');
       window.App.showRecordToast(newly.length === 1 ? `${label} 뱃지 획득!` : `뱃지 ${newly.length}개 획득! ${label}`);
       if (window.App.playNotify) window.App.playNotify();
+      if (window.App.stickerPop) window.App.stickerPop('party', 1600);
     }
     this.renderStreakChip();
   },
@@ -72,6 +122,20 @@ window.Growth = {
     if (line) {
       const st = this.stats().streak;
       line.textContent = st >= 2 ? `🔥 ${st}일 연속 방문 중` : (st === 1 ? '🌱 오늘부터 스트릭 시작!' : '');
+    }
+    // 스트릭 보호권
+    const shieldRow = document.getElementById('shield-row');
+    if (shieldRow) {
+      const n = this.shields();
+      shieldRow.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
+          <span style="font-size: 1.5rem;">🛡️</span>
+          <div style="flex: 1; min-width: 0;">
+            <strong style="font-size: 0.85rem; color: var(--text-primary); display: block;">스트릭 보호권 ${'●'.repeat(n)}${'○'.repeat(this.SHIELD_MAX - n)}</strong>
+            <span style="font-size: 0.72rem; color: var(--text-muted);">하루 빠져도 자동으로 그 날을 메꿔 스트릭을 지켜줘요 (최대 ${this.SHIELD_MAX}개)</span>
+          </div>
+          <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem; flex-shrink: 0;" onclick="window.Growth.buyShield()">구매<br>${this.SHIELD_PRICE.toLocaleString()}캐시</button>
+        </div>`;
     }
     const el = document.getElementById('badge-grid');
     if (!el) return;
@@ -137,6 +201,8 @@ window.Growth = {
       return `<div style="padding: 0.7rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
         <div style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">
           <span style="font-size: 1.1rem;">${emoji}</span>${dateStr} 밤
+          <span style="flex: 1;"></span>
+          <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);">🕐 ${d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 취침</span>
         </div>
         ${j.moment ? `<p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">${esc(j.moment)}</p>` : ''}
         ${j.note ? `<p style="margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">💬 나에게: ${esc(j.note)}</p>` : ''}
@@ -174,8 +240,11 @@ window.Growth = {
         <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">1 / 3</p>
         <h2 style="margin: 0 0 1rem; font-size: 1.2rem; color: #ffffff;">오늘 하루, 전체적으로 어땠어요?</h2>
         <div style="display: flex; justify-content: space-between; gap: 0.3rem;">
-          ${[['😄', 5, '기쁨'], ['🙂', 4, '편안'], ['😐', 3, '보통'], ['😟', 2, '불안'], ['😢', 1.5, '우울']].map(([e, v, emo]) =>
-            `<button data-v="${v}" data-emo="${emo}" class="ng-mood" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.8rem; padding: 0.5rem 0; border-radius: 14px; cursor: pointer; background: rgba(255,255,255,0.14);">${e}</button>`).join('')}
+          ${[['joy', 5, '기쁨'], ['empathy', 4, '편안'], ['blank', 3, '보통'], ['surprise', 2, '불안'], ['sad', 1.5, '우울']].map(([st, v, emo]) =>
+            `<button data-v="${v}" data-emo="${emo}" class="ng-mood" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.4rem 0 0.35rem; border-radius: 14px; cursor: pointer; background: rgba(255,255,255,0.14);">
+              <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg(st, 46) : ''}</span>
+              <span style="font-size: 0.66rem; font-weight: 700; color: #e9e2d2;">${emo}</span>
+            </button>`).join('')}
         </div>`);
       document.querySelectorAll('.ng-mood').forEach(b => b.addEventListener('click', () => {
         this._night.mood = { v: parseFloat(b.dataset.v), emo: b.dataset.emo };
@@ -262,6 +331,7 @@ window.Growth = {
         <p style="font-size: 0.95rem; color: #f3edde; line-height: 1.75; white-space: pre-line;">${goodnight}</p>
         <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards();" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 🌙</button>
         <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;">🫧 4·7·8 호흡하면서 잠들기</button>
+        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.SleepSounds && window.SleepSounds.open();" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.55rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;">🌧️ 빗소리 들으면서 잠들기</button>
       </div>`;
     document.body.appendChild(ov);
   }

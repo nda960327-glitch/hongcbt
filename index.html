@@ -123,12 +123,36 @@
           <span id="streak-chip" onclick="window.App.switchTab('mypage')" style="display: none; font-size: 0.72rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.18rem 0.55rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></span>
         </div>
         <div id="quick-mood-row" style="display: flex; justify-content: space-between; gap: 0.3rem;">
-          <button onclick="window.App.quickMood(5,'기쁨','😄')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😄</button>
-          <button onclick="window.App.quickMood(4,'편안','🙂')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">🙂</button>
-          <button onclick="window.App.quickMood(3,'보통','😐')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😐</button>
-          <button onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😟</button>
-          <button onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😢</button>
+          <button data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
+            <span data-sticker="joy" data-sticker-size="50" style="line-height: 0;"></span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">기쁨</span>
+          </button>
+          <button data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
+            <span data-sticker="empathy" data-sticker-size="50" style="line-height: 0;"></span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">편안</span>
+          </button>
+          <button data-emo="보통" onclick="window.App.quickMood(3,'보통','😐')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
+            <span data-sticker="blank" data-sticker-size="50" style="line-height: 0;"></span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">보통</span>
+          </button>
+          <button data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
+            <span data-sticker="surprise" data-sticker-size="50" style="line-height: 0;"></span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">불안</span>
+          </button>
+          <button data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
+            <span data-sticker="sad" data-sticker-size="50" style="line-height: 0;"></span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">우울</span>
+          </button>
         </div>
+      </div>
+
+      <!-- 오늘의 우렁 미션 (행동활성화) -->
+      <div class="glass-card" style="margin: 0 1.25rem 1rem; padding: 0.95rem 1rem;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+          <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">🎯 오늘의 우렁 미션</p>
+          <span style="font-size: 0.7rem; color: var(--text-muted);">몸이 움직이면 마음이 따라와요</span>
+        </div>
+        <div id="mission-card-body"></div>
       </div>
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
@@ -284,8 +308,8 @@
           <span id="sub-badge" style="flex: 0 0 auto; font-size: 0.64rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap;"></span>
           <span style="flex: 1 1 auto;"></span>
           <button id="btn-chat-search" class="btn-secondary" title="대화 검색" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem;" onclick="window.App.openChatSearch()">🔍</button>
-          <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem; display: flex; align-items: center; gap: 0.22rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="13"></span><span id="tts-text">소리 끔</span></button>
-          <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.6rem; white-space: nowrap;">바꾸기</button>
+          <!-- 소리(TTS) 설정은 마이페이지 > 앱 설정에 있음 (중복 버튼 제거) -->
+          <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.6rem; white-space: nowrap;">상담사 바꾸기</button>
           <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem; white-space: nowrap;">초기화</button>
         </div>
       </div>
@@ -395,18 +419,17 @@
           <div id="mood-chart" class="chart-container"></div>
           <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin: 0.4rem 0 0;">화면에는 최근 7일이 보이지만, 감정 기록은 사라지지 않고 계속 쌓이고 있어요. (대화를 지워도 유지)</p>
         </div>
+        <!-- 감정 캘린더 (월간 히트맵) -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <div id="mood-calendar"></div>
+        </div>
+
         <div class="dash-card glass-card">
           <h3>인지왜곡 패턴</h3>
           <div id="distortion-chart" class="chart-container"></div>
         </div>
         <div class="dash-card glass-card stats-card">
-          <h3>활동 요약</h3>
-          <div id="stats-summary" class="stats-grid">
-            <div class="stat-item"><span class="stat-value" id="stat-sessions">0</span><span class="stat-label">총 대화</span></div>
-            <div class="stat-item"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록</span></div>
-            <div class="stat-item"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">연속 일수</span></div>
-            <div class="stat-item"><span class="stat-value" id="stat-distortions">0</span><span class="stat-label">발견한 왜곡</span></div>
-          </div>
+          <div id="care-footprint"></div>
         </div>
 
         <!-- 사고 기록지 바로가기 -->
@@ -420,6 +443,13 @@
             </span>
             <span style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem; flex-shrink: 0; box-shadow: var(--shadow-sm);">›</span>
           </button>
+        </div>
+
+        <!-- 우렁이의 주간 편지 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0;">💌 우렁이의 주간 편지</h3>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">일주일의 감정·기록을 모아 우렁이가 편지로 정리해드려요. (일요일 밤 추천)</p>
+          <div id="weekly-letter-body"></div>
         </div>
 
         <!-- 지난 밤들 (하루 정리 아카이브) -->
@@ -610,6 +640,7 @@
           <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
         </div>
         <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.3rem 0 0.85rem;">우렁이와 함께한 발자국이 뱃지로 쌓여요. 매일 들러 체크인만 해도 스트릭이 이어집니다.</p>
+        <div id="shield-row" style="margin-bottom: 0.85rem;"></div>
         <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
       </div>
 
@@ -960,6 +991,10 @@
   <script defer src="js/booking.js"></script>
   <script defer src="js/thought-record.js"></script>
   <script defer src="js/growth.js"></script>
+  <script defer src="js/missions.js"></script>
+  <script defer src="js/weekly.js"></script>
+  <script defer src="js/sleep.js"></script>
+  <script defer src="js/onboard.js"></script>
   <script defer src="js/dashboard.js"></script>
   <script defer src="js/learn.js"></script>
   <script defer src="js/app.js"></script>

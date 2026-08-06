@@ -125,6 +125,17 @@
   color: #ffffff;
 }
 
+/* ── 어두운 전체화면 오버레이의 글자색 ─────────────────────────────────
+   전역 h·p 규칙이 라이트 테마에서 '어두운 글자색'을 강제해 어두운 오버레이
+   (마음 응급처치·하루정리·수면 사운드·통화)에서 글씨가 아예 안 보였다.
+   오버레이 안에서는 컨테이너에 지정한 밝은 색을 그대로 상속받는다. */
+#calm-overlay h1, #calm-overlay h2, #calm-overlay h3, #calm-overlay p, #calm-overlay strong,
+#night-overlay h1, #night-overlay h2, #night-overlay h3, #night-overlay p, #night-overlay strong,
+#sleep-overlay h1, #sleep-overlay h2, #sleep-overlay h3, #sleep-overlay p, #sleep-overlay strong,
+#call-overlay h1, #call-overlay h2, #call-overlay h3, #call-overlay p, #call-overlay strong {
+  color: inherit;
+}
+
 /* 오버레이(하루정리·사고기록 위저드) placeholder — 배경색을 따라가게 */
 #night-overlay textarea::placeholder { color: #f0ead9; opacity: 0.6; }
 #tr-wizard textarea::placeholder,
