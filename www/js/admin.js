@@ -171,6 +171,19 @@ window.Admin = {
         </div>
 
         <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">💼 수익 구조</h3>
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
+            <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
+            상담사 45% · 병원 45% · 플랫폼 10% — PG 수수료(~3%)는 플랫폼 부담 → <b style="color: var(--accent-primary);">플랫폼 실수익 7%</b><br>
+            <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
+            <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
+              <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
+              구글 수수료 15% 선차감 후 <b>순액 기준</b> 정산 — 구독 9,900원 → 순입금 8,415원 (전액 플랫폼, API 원가 차감)
+            </div>
+          </div>
+        </div>
+
+        <div>
           <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">🗂️ 상담사 입점 심사 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${apps.length}건)</span></h3>
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
             ${apps.length ? apps.map(appCard).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">접수된 신청이 없습니다.</p>'}
@@ -211,5 +224,15 @@ window.Admin = {
 
       </div>`;
     document.body.appendChild(ov);
+    // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
+    fetch('/api/bookings?code=' + this.PASS).then(r => r.ok ? r.json() : null).then(d => {
+      const el = document.getElementById('admin-rev');
+      if (!el) return;
+      if (!d) { el.textContent = '서버 미연결 — 정산 집계 불가'; return; }
+      const now = Date.now();
+      const done = (d.items || []).filter(b => b.status !== 'cancelled' && b.whenTs <= now);
+      const gross = done.reduce((s, b) => s + (b.price || 0), 0);
+      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.45).toLocaleString()} · 병원 ${Math.round(gross * 0.45).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.07).toLocaleString()}</b> (PG ${Math.round(gross * 0.03).toLocaleString()})`;
+    }).catch(() => {});
   }
 };
