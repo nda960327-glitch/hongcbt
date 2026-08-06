@@ -93,10 +93,11 @@ window.CallTalk = {
     const c = window.Marketplace.getCounselor(counselorId);
     if (!c) return;
     const prepaid = !!opts.prepaid;
-    this._rate = prepaid ? 0 : (c.callRate || 700);
+    const liveRate = window.Marketplace.callRateFor(c); // 예약 상담료 ÷60 ×1.25 자동 책정
+    this._rate = prepaid ? 0 : liveRate;
 
     if (!prepaid && (!window.Wallet || window.Wallet.balance() < this._rate * 2)) {
-      alert(`바로상담은 30초당 ${(c.callRate || 700).toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
+      alert(`바로상담은 30초당 ${liveRate.toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
       if (window.App) window.App.switchTab('mypage');
       return;
     }
@@ -125,7 +126,7 @@ window.CallTalk = {
       this._warnTimer = setTimeout(() => { if (this._active) this._setStatus('⏰ 상담 종료 5분 전이에요'); }, 25 * 60000);
       this._prepaidTimer = setTimeout(() => {
         if (!this._active) return;
-        const rate = c.callRate || 700;
+        const rate = window.Marketplace.callRateFor(c);
         if (confirm(`예약된 30분 상담 시간이 끝났어요.\n계속 통화하면 지금부터 30초당 ${rate.toLocaleString()}캐시가 차감됩니다.\n연장할까요?`)) {
           this._rate = rate;
           const el = document.getElementById('call-spent');
@@ -159,7 +160,7 @@ window.CallTalk = {
         <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;">👩‍⚕️</div>
         <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
         <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
-        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${(c.callRate || 700).toLocaleString()}`}</p>
+        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}`}</p>
         <button onclick="window.CallTalk.dialSafe('${c.safeTel}')" style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);">📞 안심번호로 전화 연결</button>
         <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 260px; line-height: 1.5;">050 안심번호로 연결되어 <b>서로의 실제 번호는 공개되지 않아요.</b> 통화를 마치면 아래 종료 버튼으로 정산을 끝내주세요.</p>
       </div>

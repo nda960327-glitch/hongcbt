@@ -175,6 +175,30 @@
       </div>`;
   },
 
+  // '그날의 나'에서 잘못 남긴 기록 삭제 (재미로 눌러본 가짜 데이터 정리용)
+  deleteMood(ts, key) {
+    const log = (window.Storage._safeGet('cbt_mood_log', []) || []).filter(m => m.ts !== ts);
+    window.Storage._safeSet('cbt_mood_log', log);
+    this.renderMoodCalendar();
+    this.renderTodayMoodChart();
+    this.openDayDetail(key);
+  },
+
+  deleteNight(ts, key) {
+    if (!confirm('이 하루 정리를 삭제할까요?')) return;
+    const j = (window.Storage._safeGet('cbt_night_journal', []) || []).filter(x => x.ts !== ts);
+    window.Storage._safeSet('cbt_night_journal', j);
+    if (window.Growth) window.Growth.renderNightList();
+    this.openDayDetail(key);
+  },
+
+  deleteMission(ts, key) {
+    const log = (window.Storage._safeGet('cbt_mission_log', []) || []).filter(m => m.ts !== ts);
+    window.Storage._safeSet('cbt_mission_log', log);
+    this.renderCareFootprint();
+    this.openDayDetail(key);
+  },
+
   // 날짜 탭 → 그날의 나: 기분 체크인·하루정리·미션·사고기록을 한 장으로
   openDayDetail(key) {
     const S = window.Storage;
@@ -210,20 +234,21 @@
             <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.6rem 0 0;">이 날은 남긴 기록이 없어요.<br>기록이 없던 날도, 살아낸 하루예요.</p>
           </div>` : `
           ${moods.length ? `
-            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🫶 감정 체크인</p>
+            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🫶 감정 체크인 <span style="font-weight: 500; font-size: 0.68rem;">(✕로 잘못 누른 기록 삭제)</span></p>
             <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.9rem;">
-              ${moods.map(m => `<span style="font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.25rem 0.6rem;">${MOOD_EMOJI[m.emo] || '🙂'} ${esc(m.emo)} <span style="color: var(--text-muted); font-size: 0.68rem;">${new Date(m.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span></span>`).join('')}
+              ${moods.map(m => `<span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.25rem 0.35rem 0.25rem 0.6rem;">${MOOD_EMOJI[m.emo] || '🙂'} ${esc(m.emo)} <span style="color: var(--text-muted); font-size: 0.68rem;">${new Date(m.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span><button onclick="window.Dashboard.deleteMood(${m.ts}, '${key}')" style="all: unset; cursor: pointer; width: 16px; height: 16px; border-radius: 50%; background: var(--glass-border); color: var(--text-muted); font-size: 0.62rem; display: inline-flex; align-items: center; justify-content: center;">✕</button></span>`).join('')}
             </div>` : ''}
           ${nights.map(j => `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🌙 하루 정리 <span style="font-weight: 600;">(${new Date(j.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 취침)</span></p>
-            <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6;">
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6; position: relative;">
+              <button onclick="window.Dashboard.deleteNight(${j.ts}, '${key}')" title="이 하루 정리 삭제" style="all: unset; cursor: pointer; position: absolute; top: 0.5rem; right: 0.6rem; color: var(--text-muted); font-size: 0.78rem; padding: 0.15rem;">✕</button>
               ${j.mood ? `그날의 기분: ${MOOD_EMOJI[j.mood.emo] || ''} ${esc(j.mood.emo)}<br>` : ''}
               ${j.moment ? `남은 순간: ${esc(j.moment)}<br>` : ''}
               ${j.note ? `나에게: ${esc(j.note)}` : ''}
             </div>`).join('')}
           ${missions.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🎯 해낸 미션</p>
-            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => esc(m.text ? `🌱 ${m.text}` : missionName(m.id))).join('<br>')}</div>` : ''}
+            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => `${esc(m.text ? `🌱 ${m.text}` : missionName(m.id))} <button onclick="window.Dashboard.deleteMission(${m.ts}, '${key}')" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.66rem; padding: 0.1rem 0.3rem;">✕</button>`).join('<br>')}</div>` : ''}
           ${records.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">📝 사고 기록 ${records.length}건</p>
             ${records.map(r => `<div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">"${esc((r.thought || '').slice(0, 60))}"${r.alternative ? `<br><span style="color: var(--accent-primary);">→ ${esc(r.alternative.slice(0, 60))}</span>` : ''}</div>`).join('')}

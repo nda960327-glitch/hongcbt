@@ -1210,10 +1210,23 @@ ${memory || '(없음)'}`;
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
   quickMood(v, emo, emoji) {
     const log = window.Storage._safeGet('cbt_mood_log', []) || [];
-    log.push({ ts: Date.now(), emo, v });
+    // 연타 방지: 1분 안에 다시 누르면 새 기록 대신 마지막 체크인을 교체 (잘못 누른 것 수정)
+    const last = log[log.length - 1];
+    const replacing = last && Date.now() - last.ts < 60000;
+    if (replacing) log[log.length - 1] = { ts: Date.now(), emo, v };
+    else log.push({ ts: Date.now(), emo, v });
     window.Storage._safeSet('cbt_mood_log', log.slice(-800));
     window.Storage.markDayActive();
     if (window.Growth) window.Growth.checkAwards();
+    if (replacing) {
+      // 교체 모드: 조용히 바꿨다고만 알리고 끝 (반응 토스트·팝·호흡 권유 생략)
+      this.showRecordToast(`${emoji} 방금 체크인을 '${emo}'(으)로 바꿨어요`);
+      document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
+      const rb = document.querySelector(`#quick-mood-row button[data-emo="${emo}"]`);
+      if (rb) rb.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
+      if (window.Dashboard) window.Dashboard.renderTodayMoodChart();
+      return;
+    }
     // 우렁이 반응 토스트
     const reactions = {
       '기쁨': ['우로록! 좋은 날이네 ✨', '오늘 기분 최고구나!'],
@@ -1487,7 +1500,7 @@ ${memory || '(없음)'}`;
       hospital: a.hospital,
       tel: a.tel || '',
       safeTel: '0507-14' + String(Math.floor(Math.random() * 90) + 10) + '-' + String(Math.floor(Math.random() * 9000) + 1000),
-      callRate: 700,
+      callRate: Math.max(500, Math.round((a.price || 40000) / 60 * 1.25 / 10) * 10), // 참고값 — 실사용은 callRateFor()가 계산
       lat: 37.5665 + (Math.random() - 0.5) * 0.05,
       lng: 126.9780 + (Math.random() - 0.5) * 0.05,
       rating: 5.0,
@@ -1742,7 +1755,7 @@ ${memory || '(없음)'}`;
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const prepaid = bookings.some(b => b.counselorId === c.id && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
     if (!prepaid) {
-      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${(c.callRate || 700).toLocaleString()}캐시가 실시간 차감됩니다.\n연결할까요?`)) return;
+      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)\n연결할까요?`)) return;
     }
     window.CallTalk.startHuman(c.id, { prepaid });
   },

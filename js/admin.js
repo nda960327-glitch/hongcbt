@@ -177,6 +177,10 @@ window.Admin = {
             상담사 45% · 병원 45% · 플랫폼 10% — PG 수수료(~3%)는 플랫폼 부담 → <b style="color: var(--accent-primary);">플랫폼 실수익 7%</b><br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
+              <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산은 구글 순액(85%) 기준 45/45/10 → 상담사 몫이 예약 상담 대비 분당 약 +6%
+            </div>
+            <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
               구글 수수료 15% 선차감 후 <b>순액 기준</b> 정산 — 구독 9,900원 → 순입금 8,415원 (전액 플랫폼, API 원가 차감)
             </div>

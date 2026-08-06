@@ -242,6 +242,13 @@
     `).join('');
   },
 
+  // 바로상담(30초당) 요금 — 예약 상담료에서 자동 책정: ÷60 × 1.25(즉시성 프리미엄)
+  // 상담사가 따로 정할 필요 없이 예약 상담료와 항상 정합. 10캐시 단위, 최저 500.
+  callRateFor(c) {
+    if (!c || !c.price) return 700;
+    return Math.max(500, Math.round(c.price / 60 * 1.25 / 10) * 10);
+  },
+
   // 기본 상담사 + 입점 상담사 합본, 내가 남긴 리뷰를 별점·후기 목록에 실반영
   all() {
     const customs = (window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [];
