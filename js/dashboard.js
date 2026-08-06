@@ -27,46 +27,19 @@ window.Dashboard = {
   
   init() {
     if (this._inited) return; this._inited = true;
-    
-    if (window.Storage.getMoodEntries(7).length === 0) {
-      this.populateMockData();
-    }
-    
+    this.cleanMockDataIfPresent();
     this.refresh();
   },
-  
-  populateMockData() {
-    const today = new Date();
-    // 7 days of mood data
-    const scores = [3, 2, 4, 3, 5, 4, 4];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      window.Storage.saveMoodEntry({
-        date: d.toISOString(),
-        score: scores[6 - i]
-      });
-    }
-    
-    // Some distortion stats
-    const distortions = [
-      'all-or-nothing', 'all-or-nothing', 
-      'jumping-conclusions', 'jumping-conclusions', 'jumping-conclusions',
-      'emotional-reasoning',
-      'personalization', 'personalization',
-      'mental-filter'
-    ];
-    distortions.forEach(d => window.Storage.incrementDistortion(d));
-    
-    // Active days for streak
-    for (let i = 4; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - i);
-      const activeDays = window.Storage._safeGet('cbt_active_days', []);
-      const dateStr = d.toISOString().split('T')[0];
-      if (!activeDays.includes(dateStr)) {
-        activeDays.push(dateStr);
-        window.Storage._safeSet('cbt_active_days', activeDays);
+
+  cleanMockDataIfPresent() {
+    // 이전 데모용 샘플 데이터가 가짜로 채워져 있었던 경우 깔끔히 청소하여 실제 실시간 데이터만 렌더링되게 함
+    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    const stats = (window.Storage && window.Storage.getDistortionStats()) || {};
+    // 실제 사고 기록지가 없는데 가짜 distortion stats가 켜져 있으면 초기화
+    if (records.length === 0 && (stats['jumping-conclusions'] === 3 || stats['all-or-nothing'] === 2)) {
+      if (window.Storage) {
+        window.Storage._safeSet('cbt_distortion_stats', {});
+        window.Storage._safeSet('cbt_mood_entries', []);
       }
     }
   },
@@ -120,20 +93,17 @@ window.Dashboard = {
     const container = document.getElementById('mood-chart');
     if (!container) return;
     
-    // Get last 7 days mood data from Storage
-    const moodEntries = window.Storage.getMoodEntries(7) || [];
+    // Calculate REAL last 7 days mood data from actual chat messages and thought records
+    const data = this._prepareMoodData();
     
-    if (moodEntries.length === 0) {
+    if (data.length === 0) {
       container.innerHTML = `
-        <div class="empty-state">
-          <p>아직 기분 기록이 없습니다.</p>
-          <p>채팅이나 기록을 통해 감정을 남겨보세요.</p>
+        <div class="empty-state" style="padding: 2.5rem 1rem; text-align: center;">
+          <p style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">아직 수집된 기분 기록이 없습니다</p>
+          <p style="font-size: 0.83rem; color: var(--text-muted); margin: 0;">AI 상담사와 대화를 나누시면 지난 7일간의 실제 감정 변화 그래프가 이곳에 실시간으로 표시됩니다.</p>
         </div>`;
       return;
     }
-    
-    // Format data for chart
-    const data = this._prepareMoodData(moodEntries);
     
     // SVG setup for better mobile readability (aspect ratio 2:1)
     const width = 440;
@@ -197,7 +167,6 @@ window.Dashboard = {
     
     container.innerHTML = html;
     
-    // Add CSS for animation dynamically or assume it exists
     const animStyle = document.createElement('style');
     animStyle.innerHTML = `
       .anim-line {
@@ -219,23 +188,23 @@ window.Dashboard = {
     `;
     container.appendChild(animStyle);
   },
-  
+
   renderDistortionChart() {
     const container = document.getElementById('distortion-chart');
     if (!container) return;
     
-    const stats = window.Storage.getDistortionStats() || {};
+    const stats = (window.Storage && window.Storage.getDistortionStats()) || {};
     const data = Object.entries(stats)
       .map(([id, count]) => ({ id, count, label: this.distortionLabels[id] || id, color: this.distortionColors[id] || '#cbd5e1' }))
       .filter(d => d.count > 0)
       .sort((a, b) => b.count - a.count)
-      .slice(0, 5); // top 5
+      .slice(0, 5);
       
     if (data.length === 0) {
       container.innerHTML = `
-        <div class="empty-state">
-          <p>아직 발견된 인지 왜곡이 없습니다.</p>
-          <p>사고 기록지를 꾸준히 작성해보세요.</p>
+        <div class="empty-state" style="padding: 2rem 1rem; text-align: center;">
+          <p style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">아직 발견된 인지 왜곡이 없습니다</p>
+          <p style="font-size: 0.83rem; color: var(--text-muted); margin: 0;">AI 상담사와 대화를 나누시면 생각 속 왜곡 패턴이 이곳에 자동 집계됩니다.</p>
         </div>`;
       return;
     }
@@ -259,44 +228,84 @@ window.Dashboard = {
     
     container.innerHTML = html;
     
-    // Trigger animation next frame
     setTimeout(() => {
       container.querySelectorAll('.bar-fill').forEach(bar => {
         bar.style.width = bar.getAttribute('data-width');
       });
     }, 50);
   },
-  
+
   updateStats() {
     const elSessions = document.getElementById('stat-sessions');
     const elRecords = document.getElementById('stat-records');
     const elStreak = document.getElementById('stat-streak');
     const elDistortions = document.getElementById('stat-distortions');
     
-    if (elSessions) this._animateCounter(elSessions, window.Storage.getTotalSessions());
+    if (elSessions) {
+      const msgs = (window.Storage && window.Storage.getMessages()) || [];
+      const userMsgs = msgs.filter(m => m.role === 'user').length;
+      this._animateCounter(elSessions, userMsgs || (window.Storage ? window.Storage.getTotalSessions() : 0));
+    }
     
     if (elRecords) {
-      const records = window.Storage.getThoughtRecords() || [];
+      const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
       this._animateCounter(elRecords, records.length);
     }
     
-    if (elStreak) this._animateCounter(elStreak, window.Storage.getStreak());
+    if (elStreak) {
+      this._animateCounter(elStreak, window.Storage ? window.Storage.getStreak() : 0);
+    }
     
     if (elDistortions) {
-      const stats = window.Storage.getDistortionStats() || {};
+      const stats = (window.Storage && window.Storage.getDistortionStats()) || {};
       const uniqueTypes = Object.keys(stats).filter(k => stats[k] > 0).length;
       this._animateCounter(elDistortions, uniqueTypes);
     }
   },
-  
-  _prepareMoodData(entries) {
-    // Return last 7 days of data with labels
-    // For simplicity, just format what we have
-    return entries.map(e => {
-      const date = new Date(e.date);
-      const label = `${date.getMonth()+1}/${date.getDate()}`;
-      return { score: e.score, label };
-    });
+
+  _prepareMoodData() {
+    const today = new Date();
+    const result = [];
+    const moodEntries = (window.Storage && window.Storage.getMoodEntries(30)) || [];
+    const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    const messages = (window.Storage && window.Storage.getMessages()) || [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = `${d.getMonth() + 1}/${d.getDate()}`;
+
+      let score = null;
+
+      // 1. 저장된 명시적 기분 기록 확인
+      const entry = moodEntries.find(e => e.date && e.date.startsWith(dateStr));
+      if (entry) score = entry.score;
+
+      // 2. 해당 날짜 사고 기록지 감정 점수 계산
+      if (!score) {
+        const record = thoughtRecords.find(r => r.date && r.date.startsWith(dateStr));
+        if (record && record.emotions && record.emotions.length > 0) {
+          const avgIntensity = record.emotions.reduce((sum, e) => sum + (e.intensity || 50), 0) / record.emotions.length;
+          score = Math.max(1, Math.min(5, Math.round(5 - (avgIntensity / 25))));
+        }
+      }
+
+      // 3. 해당 날짜 대화 기록이 있으면 기본 활성 점수 부여
+      if (!score) {
+        const hasMsg = messages.some(m => {
+          if (!m.timestamp) return false;
+          const mDate = typeof m.timestamp === 'number' ? new Date(m.timestamp) : new Date(m.timestamp);
+          return mDate.toISOString().split('T')[0] === dateStr;
+        });
+        if (hasMsg) score = 3;
+      }
+
+      if (score) {
+        result.push({ score, label, dateStr });
+      }
+    }
+    return result;
   },
   
   _createSmoothPath(points) {
