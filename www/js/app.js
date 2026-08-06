@@ -61,6 +61,16 @@ window.App = {
         memFileInput.value = '';
       });
     }
+
+    // 4.2 AI 상담사 페르소나
+    this.renderPersonaBar();
+    const btnPersona = document.getElementById('btn-persona-change');
+    if (btnPersona) btnPersona.addEventListener('click', () => this.showPersonaModal());
+    const personaClose = document.getElementById('persona-modal-close');
+    if (personaClose) personaClose.addEventListener('click', () => {
+      const m = document.getElementById('persona-modal');
+      if (m) m.classList.add('hidden');
+    });
     
     // 4.5 Theme toggle
     this.initTheme();
@@ -447,6 +457,70 @@ window.App = {
     if (modal) modal.classList.remove('hidden');
   },
   
+  // === AI 상담사 페르소나 UI ===
+  renderPersonaBar() {
+    if (!window.Personas) return;
+    const p = window.Personas.getActive();
+    const avatar = document.getElementById('persona-bar-avatar');
+    const name = document.getElementById('persona-bar-name');
+    const tagline = document.getElementById('persona-bar-tagline');
+    if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
+    if (name) name.textContent = p.name;
+    if (tagline) tagline.textContent = p.tagline;
+  },
+
+  showPersonaModal() {
+    if (!window.Personas) return;
+    const modal = document.getElementById('persona-modal');
+    const listEl = document.getElementById('persona-card-list');
+    if (!modal || !listEl) return;
+
+    const activeId = window.Personas.getActive().id;
+    listEl.innerHTML = '';
+    window.Personas.list.forEach(p => {
+      const card = document.createElement('div');
+      const isActive = p.id === activeId;
+      card.style.cssText = `border: 2px solid ${isActive ? p.color : 'var(--glass-border)'}; border-radius: 14px; padding: 0.9rem; cursor: pointer; background: ${isActive ? `color-mix(in srgb, ${p.color} 8%, var(--bg-secondary))` : 'var(--bg-secondary)'};`;
+      card.innerHTML = `
+        <div style="display: flex; gap: 0.8rem; align-items: center;">
+          <span style="flex-shrink: 0;">${window.Personas.avatarSvg(p.id, 52)}</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">${p.name}${isActive ? ' <span style="font-size:0.7rem; color:' + p.color + ';">● 현재 상담사</span>' : ''}</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">${p.tagline}</div>
+            <div style="margin-top: 0.3rem; display: flex; gap: 0.3rem; flex-wrap: wrap;">
+              ${p.tags.map(t => `<span style="font-size: 0.66rem; background: color-mix(in srgb, ${p.color} 15%, transparent); color: ${p.color}; padding: 0.12rem 0.42rem; border-radius: 999px; font-weight: 700;">${t}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+        <p style="margin: 0.6rem 0 0.2rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45;">${p.desc}</p>
+        <p style="margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--text-muted);"><b>이런 분께:</b> ${p.fit}</p>`;
+      card.addEventListener('click', () => this.selectPersona(p.id));
+      listEl.appendChild(card);
+    });
+    modal.classList.remove('hidden');
+  },
+
+  selectPersona(id) {
+    if (!window.Personas) return;
+    const prev = window.Personas.getActive().id;
+    window.Personas.setActive(id);
+    this.renderPersonaBar();
+    const modal = document.getElementById('persona-modal');
+    if (modal) modal.classList.add('hidden');
+    if (prev === id) return;
+
+    // 새 상담사의 첫 인사 (성격이 바로 느껴지도록)
+    const greetings = {
+      woorung: '안녕하세요, 우렁의사예요. 이어서 제가 함께할게요. 편하게 이야기해요.',
+      haru: '안녕! 나 하루야. 지금부터 내가 같이 갈게. 자, 오늘 뭐부터 얘기해볼까?',
+      dalnim: '…안녕하세요, 달님이에요. 서두르지 않아도 괜찮아요. 천천히, 편하실 때 말씀해주세요.',
+      sonamu: '반갑습니다, 소나무입니다. 잠시 숨 한 번 고르고… 천천히 시작해볼까요.'
+    };
+    const msg = { role: 'bot', text: greetings[id] || greetings.woorung, timestamp: new Date().toISOString() };
+    this.displayMessage(msg);
+    window.Storage.saveMessage(msg);
+  },
+
   resetChat() {
     if (confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
       // 대화(메시지)만 지운다. cbt_user_memory(장기기억)는 사용자가 기억 삭제를

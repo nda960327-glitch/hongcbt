@@ -198,6 +198,18 @@ window.LLM = {
     } catch (e) {}
 
     let prompt = this.CORE_PROMPT;
+
+    // 선택된 AI 상담사 페르소나의 성격을 정체성 위에 덮어쓴다
+    const persona = window.Personas ? window.Personas.getActive() : null;
+    if (persona && persona.style) {
+      prompt += `\n\n============================================================
+[상담사 페르소나 — 이름과 말투는 아래가 최우선]
+============================================================
+${persona.style}
+위 페르소나가 당신의 이름·성격·말투를 결정합니다. '우렁의사'라는 이름 대신 이 이름을 쓰세요.
+단, 치료 원칙·안전 규칙·말풍선 형식·장기기억 사용법 등 나머지 규칙은 전부 그대로 지킵니다.`;
+    }
+
     if (nowStr) prompt += `\n\n[현재 시각] ${nowStr}\n반드시 지금 시각에 맞게 말하세요. 한낮에 "잘 자", "좋은 꿈 꿔", 아침에 "저녁 먹었어?" 같은 엇박자는 즉시 AI 티가 납니다. 사용자가 지쳐 보여도 낮이면 낮잠·휴식·산책을 권하지, 밤 인사를 하지 마세요. 밤 인사는 실제로 밤이거나 사용자가 자러 간다고 할 때만.`;
     if (sessionNote) prompt += `\n\n${sessionNote}`;
     prompt += `\n\n[장기기억]\n` + (memory && memory.trim()
