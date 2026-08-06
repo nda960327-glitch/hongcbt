@@ -90,10 +90,10 @@ window.Dashboard = {
       return;
     }
     
-    // SVG setup for better mobile readability
-    const width = 460;
-    const height = 230;
-    const padding = { top: 38, right: 35, bottom: 42, left: 45 };
+    // SVG setup for better mobile readability (aspect ratio 2:1)
+    const width = 440;
+    const height = 220;
+    const padding = { top: 40, right: 30, bottom: 40, left: 30 };
     
     const innerWidth = width - padding.left - padding.right;
     const innerHeight = height - padding.top - padding.bottom;
@@ -110,40 +110,25 @@ window.Dashboard = {
     const areaPath = `${pathData} L ${points[points.length-1].x},${height - padding.bottom} L ${points[0].x},${height - padding.bottom} Z`;
     
     const FACE_NAMES = ['faceSad','faceDown','faceNeutral','faceSmile','faceGrin'];
-    const LEVEL_COLORS = ['#ef4444', '#f97316', '#eab308', '#3b82f6', '#10b981'];
-
     const faceMark = (level, x, y, size, color) => {
-      const idx = Math.max(0, Math.min(4, (level||1)-1));
-      const inner = (window.Icons && window.Icons.faces[FACE_NAMES[idx]]) || '';
+      const inner = (window.Icons && window.Icons.faces[FACE_NAMES[(level||1)-1]]) || '';
       const sc = size / 24;
-      const c = color || LEVEL_COLORS[idx];
-      return `<g transform="translate(${x - size/2},${y - size/2}) scale(${sc})" style="color:${c}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`;
+      return `<g transform="translate(${x - size/2},${y - size/2}) scale(${sc})" style="color:${color}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</g>`;
     };
     
     let html = `
       <svg viewBox="0 0 ${width} ${height}" class="mood-chart-svg" width="100%" height="100%" style="overflow: visible;">
         <defs>
           <linearGradient id="moodGradient" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="#10b981" stop-opacity="0.45"/>
-            <stop offset="50%" stop-color="#3b82f6" stop-opacity="0.2"/>
-            <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#7fc29b" stop-opacity="0.55"/>
+            <stop offset="100%" stop-color="#7fc29b" stop-opacity="0"/>
           </linearGradient>
-          <linearGradient id="lineGradient" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stop-color="#f97316"/>
-            <stop offset="35%" stop-color="#eab308"/>
-            <stop offset="70%" stop-color="#3b82f6"/>
-            <stop offset="100%" stop-color="#10b981"/>
-          </linearGradient>
-          <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-            <feGaussianBlur stdDeviation="3.5" result="blur" />
-            <feComposite in="SourceGraphic" in2="blur" operator="over" />
-          </filter>
         </defs>
 
-        <!-- Grid lines & Y-axis face icons -->
+        <!-- Grid lines -->
         ${[1, 2, 3, 4, 5].map(val => `
-          <line x1="${padding.left}" y1="${yScale(val)}" x2="${width - padding.right}" y2="${yScale(val)}" stroke="rgba(160, 150, 135, 0.2)" stroke-dasharray="4,4" />
-          ${faceMark(val, padding.left - 22, yScale(val), 20)}
+          <line x1="${padding.left}" y1="${yScale(val)}" x2="${width - padding.right}" y2="${yScale(val)}" stroke="rgba(140,128,114,0.28)" stroke-dasharray="4,4" />
+          ${faceMark(val, padding.left - 16, yScale(val), 18, '#9c9187')}
         `).join('')}
 
         <!-- Area -->
@@ -152,20 +137,16 @@ window.Dashboard = {
         </path>
 
         <!-- Line -->
-        <path d="${pathData}" fill="none" stroke="url(#lineGradient)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)" class="anim-line" />
+        <path d="${pathData}" fill="none" stroke="#5fa986" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" class="anim-line" />
 
         <!-- Points & Labels -->
-        ${data.map((d, i) => {
-          const ptColor = LEVEL_COLORS[Math.max(0, Math.min(4, d.score - 1))];
-          const isToday = i === data.length - 1;
-          return `
-            <g class="chart-point-group" transform="translate(${points[i].x}, ${points[i].y})">
-              <circle cx="0" cy="0" r="7" fill="var(--bg-primary)" stroke="${ptColor}" stroke-width="3" />
-              ${faceMark(d.score, 0, -20, 24, ptColor)}
-            </g>
-            <text x="${points[i].x}" y="${height - padding.bottom + 22}" text-anchor="middle" font-size="12" font-weight="${isToday ? '700' : '500'}" fill="${isToday ? 'var(--accent-primary)' : 'var(--text-muted)'}">${d.label}${isToday ? ' (오늘)' : ''}</text>
-          `;
-        }).join('')}
+        ${data.map((d, i) => `
+          <g class="chart-point-group" transform="translate(${points[i].x}, ${points[i].y})">
+            <circle cx="0" cy="0" r="6" fill="var(--bg-secondary)" stroke="#5fa986" stroke-width="3" />
+            ${faceMark(Math.round(d.score), 0, -16, 20, '#5fa986')}
+          </g>
+          <text x="${points[i].x}" y="${height - padding.bottom + 20}" text-anchor="middle" font-size="12" fill="#9c9187">${d.label}</text>
+        `).join('')}
       </svg>
     `;
     
