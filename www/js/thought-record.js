@@ -52,10 +52,7 @@ window.ThoughtRecord = {
 
     this.setupDistortionChips();
 
-    if (window.Storage.getThoughtRecords().length === 0) {
-      this.populateMockRecords();
-    }
-
+    // 완성형: 샘플(목업) 기록을 심지 않는다 — 빈 상태 안내가 대신한다
     this.loadRecords();
   },
   

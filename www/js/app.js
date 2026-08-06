@@ -304,6 +304,11 @@
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
+    if (tabName === 'mypage') {
+      if (window.Wallet) window.Wallet.renderCard();
+      this.renderMyBookings();
+      this.renderCounselorApps();
+    }
   },
   
   updateSessionUI() {
@@ -879,6 +884,120 @@ ${memory || '(없음)'}`;
         try { new Notification(persona.name, { body: text, icon: 'icon.png' }); } catch (e) {}
       }
     } catch (e) {}
+  },
+
+  // ==========================================================================
+  //  나의 상담 내역 (실제 예약) + 상담사 등록 신청 현황
+  // ==========================================================================
+  renderMyBookings() {
+    const upEl = document.getElementById('my-bookings');
+    const pastEl = document.getElementById('booking-history-full');
+    if (!upEl) return;
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
+    const now = Date.now();
+    // 예약 시간이 지났으면 '상담 완료'로 분류 (whenTs 없던 과거 데이터는 예정으로)
+    const upcoming = bookings.filter(b => !b.whenTs || b.whenTs > now);
+    const past = bookings.filter(b => b.whenTs && b.whenTs <= now);
+
+    if (bookings.length === 0) {
+      upEl.innerHTML = `
+        <div style="text-align: center; padding: 1.2rem 0.5rem 0.6rem;">
+          <span data-sticker="blank" data-sticker-size="72" style="line-height: 0; display: inline-block;"></span>
+          <p style="margin: 0.5rem 0 0.7rem; font-size: 0.85rem; color: var(--text-muted);">아직 예약한 상담이 없어요.</p>
+          <button class="btn-primary" style="width: auto; font-size: 0.82rem; padding: 0.5rem 1rem;" onclick="window.App.switchTab('counselors')">상담사 둘러보기 ›</button>
+        </div>`;
+      if (window.Stickers) upEl.querySelectorAll('[data-sticker]').forEach(s => { s.innerHTML = window.Stickers.svg(s.getAttribute('data-sticker'), parseInt(s.getAttribute('data-sticker-size'), 10)); });
+      if (pastEl) pastEl.innerHTML = '';
+      return;
+    }
+
+    upEl.innerHTML = upcoming.map(b => `
+      <div style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent); border-radius: 12px; padding: 1rem; margin-top: 0.8rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
+          <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">${b.price.toLocaleString()}캐시 결제</span>
+        </div>
+        <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
+        <div style="margin-top: 0.7rem; font-size: 0.9rem; font-weight: bold; color: var(--text-primary);">
+          <span class="h-ico" data-icon="calendar" data-icon-size="17"></span>${b.time}
+        </div>
+      </div>`).join('')
+      || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
+
+    if (pastEl) {
+      pastEl.innerHTML = past.length === 0
+        ? `<p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); text-align: center;">완료된 상담이 아직 없어요.</p>`
+        : past.map(b => {
+          const rv = reviews[b.id];
+          return `
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
+              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">${b.time}</span>
+            </div>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
+            <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              ${rv
+                ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
+                : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
+              <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.switchTab('counselors')">다시 예약</button>
+            </div>
+          </div>`;
+        }).join('');
+    }
+  },
+
+  // 리뷰 작성 → 저장 (완료된 상담)
+  writeReview(bookingId) {
+    const rating = parseInt(prompt('별점을 남겨주세요 (1~5)', '5'), 10);
+    if (!rating || rating < 1 || rating > 5) return;
+    const text = prompt('상담은 어떠셨나요? 한 줄 후기를 남겨주세요.', '') || '';
+    const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
+    reviews[bookingId] = { rating, text, ts: Date.now() };
+    window.Storage._safeSet('cbt_reviews', reviews);
+    alert('소중한 리뷰가 등록되었습니다. 감사합니다! ⭐');
+    this.renderMyBookings();
+  },
+
+  renderCounselorApps() {
+    const el = document.getElementById('my-counselor-apps');
+    if (!el) return;
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    el.innerHTML = apps.map(a => `
+      <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="min-width: 0;">
+          <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
+          <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
+        </div>
+        <span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>
+      </div>`).join('');
+  },
+
+  submitCounselorReg() {
+    const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
+    const name = v('creg-name'), license = v('creg-license'), licenseNo = v('creg-license-no');
+    const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
+    if (!name || !license || !licenseNo || !hospital || !addr) {
+      alert('이름, 자격 구분, 자격증 번호, 병원명, 병원 주소는 필수입니다.');
+      return;
+    }
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    apps.unshift({
+      id: 'ca_' + Date.now(), ts: Date.now(), status: 'pending',
+      name, license, licenseNo,
+      career: v('creg-career'), price: v('creg-price'), intro: v('creg-intro'),
+      hospital, addr, tel: v('creg-hosp-tel')
+    });
+    window.Storage._safeSet('cbt_counselor_apps', apps.slice(0, 10));
+    document.getElementById('counselor-reg-modal').classList.add('hidden');
+    ['creg-name','creg-license','creg-license-no','creg-career','creg-price','creg-intro','creg-hosp-name','creg-hosp-addr','creg-hosp-tel']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
+    this.renderCounselorApps();
+    this.switchTab('mypage');
   },
 
   resetChat() {

@@ -53,26 +53,45 @@ window.Booking = {
   confirmBooking() {
     if (!this.currentCounselorId) return;
     const counselor = window.Marketplace.getCounselor(this.currentCounselorId);
-    
+
     const datetimeInput = document.getElementById('booking-datetime');
     const selectedTime = datetimeInput ? datetimeInput.value : '';
-    
+
     if (!selectedTime) {
       alert("예약하실 일시를 선택해주세요.");
       return;
     }
-    
-    // Format date string for display
+
+    // 우렁 캐시로 실제 결제 (잔액 부족 시 충전 유도)
+    if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`)) {
+      alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
+      this.closeModal();
+      document.querySelector('[data-tab="mypage"]').click();
+      return;
+    }
+
     const dateObj = new Date(selectedTime);
-    const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth()+1}월 ${dateObj.getDate()}일 ${dateObj.getHours()}시 ${dateObj.getMinutes()}분`;
-    
-    alert(`결제가 완료되었습니다!\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
-    
-    // Add mock logic to update MyPage with this new booking if necessary
-    
+    const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일 ${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+
+    // 예약 내역 저장 → 마이페이지 '나의 상담 내역'에 표시
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    bookings.unshift({
+      id: 'bk_' + Date.now(),
+      counselorId: counselor.id,
+      name: counselor.name,
+      hospital: counselor.hospital,
+      price: counselor.price,
+      time: formattedDate,
+      whenTs: dateObj.getTime(),
+      status: 'confirmed',
+      ts: Date.now()
+    });
+    window.Storage._safeSet('cbt_bookings', bookings.slice(0, 50));
+
+    alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
+
     this.closeModal();
-    
-    // Move to MyPage
+    if (window.App && window.App.renderMyBookings) window.App.renderMyBookings();
     document.querySelector('[data-tab="mypage"]').click();
   }
 };

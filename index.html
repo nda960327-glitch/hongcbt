@@ -198,6 +198,7 @@
           <span id="persona-bar-tagline" style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">다정하고 능청스러운 동네 주치의</span>
         </div>
         <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; display: flex; align-items: center; gap: 0.25rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="14"></span><span id="tts-text">소리 끔</span></button>
+        <button id="btn-voice-call" title="보이스톡 (30초당 150캐시)" onclick="window.CallTalk && window.CallTalk.start(window.Personas.getActive().id)" style="width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; border: none; background: var(--accent-primary); color: #fff; font-size: 1rem; cursor: pointer; box-shadow: var(--shadow-sm);">📞</button>
         <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.75rem; white-space: nowrap;">바꾸기</button>
         <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; white-space: nowrap;">초기화</button>
       </div>
@@ -413,7 +414,51 @@
       <div id="counselors-list" style="padding: 0 1.25rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
         <!-- Counselor cards inserted dynamically -->
       </div>
+      <div style="padding: 0 1.25rem 1.5rem;">
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
+          <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
+          <div style="flex: 1; min-width: 0;">
+            <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
+            <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
+          </div>
+          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
+        </div>
+      </div>
     </section>
+
+    <!-- 상담사 등록 신청 모달 -->
+    <div id="counselor-reg-modal" class="modal-overlay hidden">
+      <div class="modal-content glass-card" style="max-width: 430px; max-height: 86vh; overflow-y: auto;">
+        <h2 style="margin-top: 0;">상담사 등록 신청</h2>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 정산은 상담료의 <b>상담사 45% · 소속병원 45% · 플랫폼 10%</b>로 배분됩니다.</p>
+        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+          <input id="creg-name" placeholder="이름" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <select id="creg-license" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+            <option value="">자격 구분 선택</option>
+            <option>정신건강의학과 전문의</option>
+            <option>임상심리전문가</option>
+            <option>정신건강임상심리사 1급</option>
+            <option>상담심리사 1급</option>
+            <option>상담심리사 2급</option>
+            <option>기타</option>
+          </select>
+          <input id="creg-license-no" placeholder="자격증 번호" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-career" type="number" min="0" placeholder="경력 (년)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-price" type="number" min="10000" step="1000" placeholder="30분 상담료 (원)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <textarea id="creg-intro" rows="2" placeholder="자기소개 (전문 분야 등)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; resize: vertical;"></textarea>
+          <div style="border-top: 1px dashed var(--glass-border); padding-top: 0.6rem; margin-top: 0.2rem;">
+            <strong style="font-size: 0.85rem; color: var(--text-primary);">소속 기관(병원) 정보</strong>
+          </div>
+          <input id="creg-hosp-name" placeholder="병원/기관명" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-hosp-addr" placeholder="병원 주소" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-hosp-tel" placeholder="병원 전화번호" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+        </div>
+        <div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+          <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('counselor-reg-modal').classList.add('hidden')">취소</button>
+          <button class="btn-primary" style="flex: 1;" onclick="window.App.submitCounselorReg()">신청하기</button>
+        </div>
+      </div>
+    </div>
 
     <!-- MYPAGE TAB -->
     <section id="tab-mypage" class="tab-content">
@@ -422,6 +467,13 @@
         <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
       </div>
       
+      <!-- 우렁 캐시 지갑 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
+        <h3 style="margin: 0 0 0.6rem 0;">💰 우렁 캐시</h3>
+        <div id="wallet-card-body"></div>
+        <p style="margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--text-muted);">캐시는 상담 예약 결제와 보이스톡(30초당 150캐시)에 사용돼요.</p>
+      </div>
+
       <!-- 내 이름(별명) 설정 -->
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
         <h3 style="margin-top:0;">내 이름(별명)</h3>
@@ -439,53 +491,12 @@
           <h3 style="margin: 0;">나의 상담 내역</h3>
           <button id="btn-booking-history" class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="document.getElementById('booking-history-full').classList.toggle('hidden'); this.textContent = document.getElementById('booking-history-full').classList.contains('hidden') ? '전체 내역 보기' : '접기';">전체 내역 보기</button>
         </div>
-        <!-- 예약 예시 (Mock Data) -->
-        <div onclick="openBookingInfo('1029384')" style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent); border-radius: 12px; padding: 1rem; margin-top: 1rem; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
-            <span style="font-size: 0.85rem; color: var(--text-muted);">예약번호: 1029384</span>
-          </div>
-          <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>김유진 심리상담사</h4>
-          <p style="margin: 0; font-size: 0.9rem; color: var(--text-muted);">연세 마음가득 정신건강의학과</p>
-          <div style="margin-top: 0.8rem; font-size: 0.95rem; font-weight: bold; color: var(--text-primary);">
-            <span class="h-ico" data-icon="calendar" data-icon-size="18"></span>2026년 8월 5일 (수) 오후 2:00
-          </div>
-        </div>
-
-        <!-- 전체 내역 (완료된 상담 포함) -->
-        <div id="booking-history-full" class="hidden" style="margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem;">
-          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1027311</span>
-            </div>
-            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>박서연 임상심리전문가</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">서울 마음숲 심리상담센터 · 2026년 7월 22일 (수) 오후 5:00</p>
-            <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
-              <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="alert('리뷰 작성 화면은 준비 중이에요. 소중한 후기는 곧 남기실 수 있어요!')">⭐ 리뷰 남기기</button>
-              <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="alert('같은 상담사로 재예약을 도와드릴게요! (상담사 매칭 탭에서 예약해주세요)')">다시 예약</button>
-            </div>
-          </div>
-          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1025190</span>
-            </div>
-            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>김유진 심리상담사</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">연세 마음가득 정신건강의학과 · 2026년 7월 8일 (수) 오후 2:00</p>
-            <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
-              <span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ 5.0 리뷰 작성 완료</span>
-            </div>
-          </div>
-          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem; opacity: 0.75;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-              <span style="background: #b5651d; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 취소</span>
-              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1023077</span>
-            </div>
-            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>이도현 상담심리사</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">한결 심리상담연구소 · 2026년 6월 30일 (화) 오전 11:00</p>
-          </div>
-        </div>
+        <!-- 예정된 상담 (실데이터) -->
+        <div id="my-bookings" style="display: flex; flex-direction: column; gap: 0.7rem;"></div>
+        <!-- 지난 상담 (실데이터, 전체 내역 보기로 토글) -->
+        <div id="booking-history-full" class="hidden" style="margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem;"></div>
+        <!-- 상담사 등록 신청 현황 -->
+        <div id="my-counselor-apps" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
       </div>
 
       <!-- 우렁이와의 비밀 (프라이버시 안심) -->
@@ -729,54 +740,7 @@
       </div>
     </div>
 
-    <!-- Booking Info Modal -->
-    <div id="booking-info-modal" class="modal-overlay hidden">
-      <div class="modal-content glass-card" style="max-height: 85vh; overflow-y: auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-          <h2 class="card-head" style="margin: 0;"><span class="h-ico" data-icon="calendar" data-icon-size="22"></span>예약 상세정보</h2>
-          <button class="close-btn" onclick="closeBookingInfo()">✕</button>
-        </div>
-        
-        <div style="background: var(--bg-tertiary); border-radius: 12px; padding: 1.2rem; margin-bottom: 1.5rem; text-align: center;">
-          <span style="display: inline-block; background: var(--success); color: white; padding: 0.3rem 0.8rem; border-radius: 99px; font-size: 0.85rem; font-weight: bold; margin-bottom: 0.8rem;">예약 확정</span>
-          <h3 style="margin: 0 0 0.2rem 0; font-size: 1.2rem;">김유진 심리상담사</h3>
-          <p style="margin: 0; color: var(--text-secondary); font-size: 0.95rem;">연세 마음가득 정신건강의학과</p>
-        </div>
-
-        <div style="margin-bottom: 1.5rem;">
-          <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">일정 안내</h4>
-          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
-            <span style="color: var(--text-secondary);">예약번호</span>
-            <strong>1029384</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
-            <span style="color: var(--text-secondary);">예약 일시</span>
-            <strong>2026년 8월 5일 (수) 오후 2:00</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
-            <span style="color: var(--text-secondary);">상담 방식</span>
-            <strong>화상 상담 (비대면)</strong>
-          </div>
-        </div>
-
-        <div style="margin-bottom: 1.5rem;">
-          <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">결제 내역</h4>
-          <div style="display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.5rem;">
-            <span style="color: var(--text-secondary);">결제 금액</span>
-            <strong>80,000원</strong>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
-            <span style="color: var(--text-secondary);">결제 수단</span>
-            <strong>신용카드 (카카오페이)</strong>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 0.8rem; margin-top: 1rem;">
-          <button class="btn-secondary" style="flex: 1;" onclick="alert('예약을 취소하시겠습니까? (위약금 규정 안내)')">예약 취소</button>
-          <button class="btn-primary" style="flex: 1;" onclick="alert('화상 상담 링크는 상담 시작 10분 전에 활성화됩니다.')">화상 상담 입장</button>
-        </div>
-      </div>
-    </div>
+    <!-- (샘플 예약 상세 모달 제거 — 예약 내역은 마이페이지에서 실데이터로 표시) -->
     
     <script>
       function openBookingInfo(id) {
@@ -839,6 +803,8 @@
   <script defer src="js/personas.js"></script>
   <script defer src="js/stickers.js"></script>
   <script defer src="js/i18n.js"></script>
+  <script defer src="js/wallet.js"></script>
+  <script defer src="js/calltalk.js"></script>
   <script defer src="js/voice.js"></script>
   <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>

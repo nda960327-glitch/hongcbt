@@ -1329,3 +1329,27 @@ body.header-hidden .tab-content { padding-top: 10px; }
    입력창이 키보드 바로 위에 붙게 한다 */
 body.kb-open #bottom-nav { display: none; }
 body.kb-open .tab-content { padding-bottom: 8px; }
+
+/* ============================================================
+   반응형 — 작은 폰(≤380px, ≤340px)에서도 깨지지 않게
+   ============================================================ */
+@media (max-width: 380px) {
+  .tab-header h2 { font-size: 1.15rem; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .home-tools { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+  .home-tool__d { display: none; }
+  #persona-bar { gap: 0.4rem; padding: 0.4rem 0.6rem; }
+  #persona-bar .btn-secondary { font-size: 0.68rem !important; padding: 0.3rem 0.5rem !important; }
+  .message-bubble { max-width: 82%; }
+  #wallet-card-body [style*="grid-template-columns"] { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 340px) {
+  #persona-bar-tagline { display: none; }
+  .tab-header h2 { font-size: 1.05rem; }
+  .message-bubble { max-width: 88%; }
+  .form-actions { flex-wrap: wrap; }
+}
+/* 큰 폰(≥430px): 콘텐츠 폭 유지하며 여백만 살짝 */
+@media (min-width: 430px) {
+  .tab-content { padding-left: 4px; padding-right: 4px; }
+}
