@@ -1266,3 +1266,15 @@ body.pro-mode-active #btn-pro {
   border-color: transparent !important;
   box-shadow: var(--shadow-glow);
 }
+
+/* ========== VOICE RECORDING PULSE ========== */
+.mic-btn.recording {
+  color: var(--danger) !important;
+  background: rgba(224, 138, 128, 0.15) !important;
+  animation: mic-pulse 1.2s infinite ease-in-out;
+}
+@keyframes mic-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(224, 138, 128, 0.5); }
+  50% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(224, 138, 128, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(224, 138, 128, 0); }
+}

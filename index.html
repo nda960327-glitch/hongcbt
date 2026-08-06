@@ -205,6 +205,7 @@
           <span id="persona-bar-name" style="font-weight: 700; font-size: 0.9rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">우렁의사</span>
           <span id="persona-bar-tagline" style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">다정하고 능청스러운 동네 주치의</span>
         </div>
+        <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; display: flex; align-items: center; gap: 0.25rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="14"></span><span id="tts-text">소리 끔</span></button>
         <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.75rem; white-space: nowrap;">바꾸기</button>
       </div>
       <div id="chat-messages" class="chat-messages">
@@ -215,6 +216,7 @@
       </div>
       <div id="chat-input-area" class="chat-input-area">
         <div class="input-wrapper glass-input">
+          <button id="btn-mic" class="mic-btn" title="음성으로 말하기" style="background: none; border: none; padding: 0.5rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);"><span class="h-ico" data-icon="mic" data-icon-size="20"></span></button>
           <textarea id="chat-input" placeholder="마음속 이야기를 편하게 적어주세요..." rows="1"></textarea>
           <button id="chat-send" class="send-btn" disabled>
             <svg viewBox="0 0 24 24" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
@@ -692,6 +694,7 @@
   <script defer src="js/storage.js"></script>
   <script defer src="js/memory-vault.js"></script>
   <script defer src="js/personas.js"></script>
+  <script defer src="js/voice.js"></script>
   <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>
   <script defer src="js/marketplace.js"></script>

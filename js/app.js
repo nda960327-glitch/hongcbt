@@ -110,6 +110,7 @@ window.App = {
     if (apiModalSave) apiModalSave.addEventListener('click', () => this.saveProModeSettings());
     
     // 5.5 Init components
+    if (window.Voice) window.Voice.init();
     if (window.Booking) window.Booking.init();
     if (window.Marketplace) window.Marketplace.init();
     this.updateSessionUI();
@@ -331,6 +332,10 @@ window.App = {
       
       this.displayMessage({ role: 'bot', text: response.text });
       window.Storage.saveMessage({ role: 'bot', text: response.text, timestamp: new Date().toISOString() });
+      if (window.Voice) {
+        const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
+        window.Voice.speak(response.text, personaId);
+      }
       
       if (response.crisis) {
         this.showCrisisModal();
@@ -521,9 +526,11 @@ window.App = {
   },
 
   _showPersonaGreeting(id) {
-    const msg = { role: 'bot', text: this.personaGreetings[id] || this.personaGreetings.woorung, timestamp: new Date().toISOString() };
+    const text = this.personaGreetings[id] || this.personaGreetings.woorung;
+    const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
     this.displayMessage(msg);
     window.Storage.saveMessage(msg);
+    if (window.Voice) window.Voice.speak(text, id);
   },
 
   selectPersona(id) {

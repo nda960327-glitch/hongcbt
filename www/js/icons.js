@@ -40,6 +40,9 @@
     close: '<path d="M6 6l12 12M18 6 6 18"/>',
     stethoscope: '<path d="M6 3v5a4 4 0 0 0 8 0V3"/><path d="M6 3H4M14 3h2M10 15v1a5 5 0 0 0 10 0v-2"/><circle cx="20" cy="12" r="2"/>',
     hospital: '<rect x="4" y="7" width="16" height="14" rx="1.5"/><path d="M9 7V4h6v3M12 11v5M9.5 13.5h5M4 21h16"/>',
+    mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/>',
+    'volume-2': '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"/>',
+    'volume-off': '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>',
     /* 인지왜곡 10 */
     d_all: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor" stroke="none"/>',
     d_over: '<path d="M4 8a8 8 0 0 1 14-3M20 5v4h-4"/><path d="M20 16a8 8 0 0 1-14 3M4 19v-4h4"/>',
