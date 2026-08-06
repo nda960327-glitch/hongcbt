@@ -202,6 +202,7 @@ window.Admin = {
                 <div style="flex: 1; min-width: 0;">
                   <strong style="font-size: 0.86rem; color: var(--text-primary);">${c.name}</strong>
                   <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${c.price.toLocaleString()}원</div>
+                  <div style="font-size: 0.72rem; margin-top: 0.15rem; ${c.inboxCode ? 'color: var(--accent-primary); font-weight: 700;' : 'color: var(--text-muted);'}">🔑 수신함 코드: ${c.inboxCode || '(서버 미연결 — 발급 안 됨)'}</div>
                 </div>
                 <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">노출 중단</button>
               </div>`).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">입점 승인된 상담사가 없습니다.</p>'}

@@ -45,7 +45,7 @@
     <!-- 로그인 (열람 코드) -->
     <div id="login" class="card" style="text-align: center;">
       <p style="font-weight: 700; margin-bottom: 0.3rem;">상담사 열람 코드</p>
-      <p class="muted" style="margin-bottom: 0.8rem;">내담자가 동의하고 전달한 상담 참고 자료를 열람합니다.<br>자료는 상담 목적 외 사용이 금지됩니다.</p>
+      <p class="muted" style="margin-bottom: 0.8rem;">입점 승인 시 발급된 <b>내 전용 6자리 코드</b>를 입력하세요.<br>내 앞으로 온 자료만 표시되며, 상담 목적 외 사용이 금지됩니다.</p>
       <input id="code" type="password" inputmode="numeric" placeholder="코드 입력">
       <p id="err" class="muted" style="color: #cf6b60; display: none; margin-top: 0.5rem;">코드가 올바르지 않습니다.</p>
       <button class="btn" onclick="login()">수신함 열기</button>
@@ -95,7 +95,8 @@
       document.getElementById('inbox').style.display = 'block';
       const items = data.items || [];
       const unread = items.filter(x => !x.read).length;
-      document.getElementById('count').textContent = `받은 자료 ${items.length}건 · 안 읽음 ${unread}건`;
+      const who = data.scope === 'counselor' ? `${data.counselorName} 님 · ` : '전체(운영자) · ';
+      document.getElementById('count').textContent = `${who}받은 자료 ${items.length}건 · 안 읽음 ${unread}건`;
       const list = document.getElementById('list');
       if (!items.length) {
         list.innerHTML = '<div class="card empty">아직 도착한 자료가 없습니다.<br>내담자가 앱에서 [상담 자료 보내기]로 동의·전달하면 여기에 쌓여요.</div>';

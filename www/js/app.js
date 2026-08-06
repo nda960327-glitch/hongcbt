@@ -1320,6 +1320,7 @@ ${memory || '(없음)'}`;
         ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
         ${delisted ? '<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">운영팀에 의해 노출이 중단되었어요. 문의는 고객센터로 부탁드려요.</p>' : ''}
         ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
+        ${(approved && a.inboxCode) ? `<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;">🔑 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html" target="_blank" style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>` : ''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
           <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
@@ -1367,6 +1368,25 @@ ${memory || '(없음)'}`;
     window.Storage._safeSet('cbt_custom_counselors', customs);
     this.renderCounselorApps();
     alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
+    // 서버 명부 등록 + 상담사 전용 수신함 코드 발급 (서버 꺼져 있으면 조용히 생략)
+    const newCu = customs[0];
+    try {
+      fetch('/api/counselors', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: newCu.id, name: newCu.name, adminCode: '1234' })
+      }).then(r => r.ok ? r.json() : null).then(d => {
+        if (!d || !d.inboxCode) return;
+        const cs = window.Storage._safeGet('cbt_custom_counselors', []) || [];
+        const target = cs.find(x => x.id === newCu.id);
+        if (target) { target.inboxCode = d.inboxCode; window.Storage._safeSet('cbt_custom_counselors', cs); }
+        const apps2 = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+        const a2 = apps2.find(x => x.id === appId);
+        if (a2) { a2.inboxCode = d.inboxCode; window.Storage._safeSet('cbt_counselor_apps', apps2); }
+        if (document.getElementById('admin-overlay') && window.Admin) window.Admin._render();
+        this.renderCounselorApps();
+      }).catch(() => {});
+    } catch (e) {}
   },
 
   // === 상담사 가능 시간 설정 (요일 × 시간 토글) ===
