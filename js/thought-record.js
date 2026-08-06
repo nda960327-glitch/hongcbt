@@ -204,7 +204,10 @@ window.ThoughtRecord = {
           ${isMock ? '<span style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">샘플</span>' : ''}
           ${record.source === 'chat' ? '<span style="background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">AI 자동 기록</span>' : ''}
         </span>
-        <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
+        <span style="display: inline-flex; gap: 0.1rem;">
+          ${isMock ? '' : `<button class="btn-edit-record" data-id="${record.id}" aria-label="수정" title="수정" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.3rem; font-size: 0.9rem;">✏️</button>`}
+          <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
+        </span>
       </div>
       <div class="record-body">
         <div class="record-section">
@@ -232,6 +235,12 @@ window.ThoughtRecord = {
     card.querySelector('.btn-delete-record').addEventListener('click', (e) => {
       e.stopPropagation();
       this.deleteRecord(record.id);
+    });
+
+    const editBtn = card.querySelector('.btn-edit-record');
+    if (editBtn) editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.editRecord(record.id);
     });
     
     card.querySelector('.btn-expand-record').addEventListener('click', (e) => {
@@ -399,14 +408,38 @@ window.ThoughtRecord = {
   // ==========================================================================
   EMOTION_PRESETS: ['불안', '우울', '분노', '짜증', '수치심', '죄책감', '외로움', '서운함', '무기력', '긴장'],
 
+  // 기존 기록 수정: 위저드를 그 기록의 내용으로 채워 연다
+  editRecord(id) {
+    const r = window.Storage.getThoughtRecord(id);
+    if (!r) return;
+    // "불안 30%, 수치심 30%" → {불안: 30, ...}
+    const after = {};
+    String(r.newEmotions || '').split(',').forEach(s => {
+      const m = s.trim().match(/^(.+?)\s+(\d+)%$/);
+      if (m) after[m[1]] = parseInt(m[2], 10);
+    });
+    this.startWizard({
+      editId: r.id,
+      editDate: r.date,
+      situation: r.situation,
+      thought: r.thought,
+      emotions: (r.emotions || []).map(e => ({ name: e.name, intensity: e.intensity })),
+      distortions: [...(r.distortions || [])],
+      alternative: r.alternative || '',
+      after
+    });
+  },
+
   startWizard(prefilled = {}) {
     this._wiz = {
+      editId: prefilled.editId || null,       // 수정 모드면 원본 id 유지
+      editDate: prefilled.editDate || null,
       situation: prefilled.situation || '',
       thought: prefilled.thought || '',
-      emotions: [],      // [{name, intensity}]
-      distortions: [],
-      alternative: '',
-      after: {}          // {name: intensity}
+      emotions: prefilled.emotions || [],      // [{name, intensity}]
+      distortions: prefilled.distortions || [],
+      alternative: prefilled.alternative || '',
+      after: prefilled.after || {}             // {name: intensity}
     };
     this._wizStep(1);
   },
@@ -637,9 +670,10 @@ window.ThoughtRecord = {
   _wizFinish() {
     const w = this._wiz;
     const newEmotions = w.emotions.map(e => `${e.name} ${w.after[e.name]}%`).join(', ');
+    const editing = !!w.editId;
     const record = {
-      id: 'rec_' + Date.now(),
-      date: new Date().toISOString(),
+      id: editing ? w.editId : 'rec_' + Date.now(),
+      date: editing ? w.editDate : new Date().toISOString(),
       situation: w.situation,
       thought: w.thought,
       emotions: w.emotions,
@@ -647,9 +681,18 @@ window.ThoughtRecord = {
       alternative: w.alternative,
       newEmotions
     };
+    if (editing) {
+      // 수정: 왜곡 통계는 이전 선택을 빼고 새 선택을 더한다 (이중 집계 방지)
+      const old = window.Storage.getThoughtRecord(w.editId);
+      if (old) {
+        const stats = window.Storage.getDistortionStats();
+        (old.distortions || []).forEach(id => { if (stats[id]) stats[id] = Math.max(0, stats[id] - 1); });
+        window.Storage._safeSet('cbt_distortion_stats', stats);
+      }
+    }
     window.Storage.saveThoughtRecord(record);
     w.distortions.forEach(id => window.Storage.incrementDistortion(id));
-    if (w.emotions.length > 0) {
+    if (!editing && w.emotions.length > 0) {
       const avgInt = w.emotions.reduce((s, e) => s + e.intensity, 0) / w.emotions.length;
       window.Storage.saveMoodEntry({ date: new Date().toISOString(), score: Math.max(1, Math.min(5, Math.round(5 - (avgInt / 25)))) });
     }
@@ -666,7 +709,7 @@ window.ThoughtRecord = {
     const bar = (v, color) => `<div style="width: 100%; background: var(--bg-tertiary); border-radius: 99px; height: 12px; overflow: hidden;"><div style="width: ${v}%; background: ${color}; height: 100%; border-radius: 99px; transition: width 0.8s;"></div></div>`;
     this._wizWrap(`
       <div style="text-align: center;">${window.Stickers ? window.Stickers.svg('proud', 110) : '🎉'}</div>
-      <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.3rem; text-align: center;">기록 완료!</h2>
+      <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.3rem; text-align: center;">${editing ? '수정 완료!' : '기록 완료!'}</h2>
       <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin: 0 0 1.2rem; line-height: 1.6;">${drop > 0 ? `생각을 정리하는 것만으로<br>마음의 무게가 <b style="color: var(--accent-primary);">${drop}%p</b> 가벼워졌어요.` : '지금 당장 가벼워지지 않아도 괜찮아요.<br>알아차린 것 자체가 큰 걸음이에요.'}</p>
       <div style="display: flex; flex-direction: column; gap: 0.8rem; text-align: left;">
         <div><div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem;"><span>기록 전</span><b>${before}%</b></div>${bar(before, 'linear-gradient(90deg, #f87171, #ef4444)')}</div>

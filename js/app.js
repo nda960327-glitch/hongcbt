@@ -215,7 +215,8 @@
     if (window.Growth) window.Growth.init();
     if (window.Missions) window.Missions.renderCard();
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
-    if (window.Weekly) window.Weekly.maybeNudge();
+    if (window.Weekly) window.Weekly.autoDeliver();
+    this._maybeBackupNudge();
     // 기존 사용자(이미 상담사 선택함)는 온보딩을 건너뛴 것으로 처리
     if (window.Onboard && window.Personas && window.Personas.hasChosen()) {
       window.Storage._safeSet('cbt_onboard_done', true);
@@ -351,6 +352,7 @@
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {
+      this._setNavBadge('mypage', false); // 답장·예약 변경 확인함
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
       if (window.Growth) window.Growth.renderBadgeCard();
@@ -913,6 +915,9 @@
   async _checkinTick() {
     try {
       this._bookingReminderTick(); // 예약 30분 전 알림도 같은 틱에서
+      this._hchatBgTick();         // 채팅창을 닫아둬도 상담사 답장 수신
+      this._bookingSyncTick();     // 상담사가 예약을 거절했는지 동기화
+      if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
       const fired = window.Storage._safeGet('cbt_checkin_fired', []);
@@ -1045,7 +1050,7 @@ ${memory || '(없음)'}`;
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
             <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
               ${cancelled
-                ? `<span style="font-size: 0.78rem; color: var(--text-muted);">환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
+                ? `<span style="font-size: 0.78rem; color: var(--text-muted);">${b.cancelledBy === 'counselor' ? '상담사 사정으로 취소 · ' : ''}환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
                 : rv
                   ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
                   : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
@@ -1189,6 +1194,80 @@ ${memory || '(없음)'}`;
     try { fetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
     this.renderMyBookings();
     this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
+  },
+
+  // 채팅창이 닫혀 있어도 상담사 답장을 받아온다 (1분 틱)
+  async _hchatBgTick() {
+    try {
+      if (document.getElementById('hchat-overlay')) return; // 열려 있으면 그쪽 8초 폴링이 담당
+      const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
+      const keys = Object.keys(localStorage).filter(k => k.startsWith('cbt_hchat_'));
+      for (const key of keys) {
+        const cid = key.replace('cbt_hchat_', '');
+        const res = await fetch(`/api/chat-msg?client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(cid)}`).catch(() => null);
+        if (!res || !res.ok) continue;
+        const data = await res.json();
+        const cur = window.Storage._safeGet(key, []) || [];
+        const known = new Set(cur.map(m => m.sid).filter(Boolean));
+        const fresh = (data.items || []).filter(m => m.from === 'counselor' && !known.has(m.id));
+        if (!fresh.length) continue;
+        fresh.forEach(m => cur.push({ role: 'them', text: m.text, ts: m.ts, sid: m.id }));
+        cur.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+        window.Storage._safeSet(key, cur.slice(-200));
+        const c = window.Marketplace ? window.Marketplace.getCounselor(cid) : null;
+        const name = (c && c.name) || fresh[0].counselorName || '상담사';
+        this.notify(`💬 ${name}님의 답장`, fresh[fresh.length - 1].text);
+        this.playWoorung();
+        this.showRecordToast(`💬 ${name}님이 답장했어요 (마이페이지 › 채팅)`);
+        this._setNavBadge('mypage', true);
+      }
+    } catch (e) {}
+  },
+
+  // 상담사가 예약을 거절했으면(병가 등) 전액 환불 + 알림 (1분 틱)
+  async _bookingSyncTick() {
+    try {
+      const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+      const active = bookings.filter(b => b.status === 'confirmed' && b.whenTs && b.whenTs > Date.now());
+      if (!active.length) return;
+      const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
+      const res = await fetch(`/api/bookings?client=${encodeURIComponent(clientName)}`).catch(() => null);
+      if (!res || !res.ok) return;
+      const server = (await res.json()).items || [];
+      let changed = false;
+      active.forEach(b => {
+        const sv = server.find(x => x.id === b.id);
+        if (sv && sv.status === 'declined') {
+          b.status = 'cancelled';
+          b.cancelledTs = Date.now();
+          b.cancelledBy = 'counselor';
+          b.refunded = b.price;
+          changed = true;
+          if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 예약 취소(상담사 사정) 전액 환불`);
+          this.notify('예약 취소 안내', `${b.name}님 사정으로 [${b.time}] 예약이 취소되어 전액 환불되었어요.`);
+          this.playWoorung();
+          this.showRecordToast(`😥 ${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
+        }
+      });
+      if (changed) {
+        window.Storage._safeSet('cbt_bookings', bookings);
+        if (this.currentTab === 'mypage') this.renderMyBookings();
+        this._setNavBadge('mypage', true);
+      }
+    } catch (e) {}
+  },
+
+  // 한 달 넘게 백업이 없으면 부드럽게 권유 (데이터가 유의미할 때만)
+  _maybeBackupNudge() {
+    const S = window.Storage;
+    const meaningful = (S.getMessages() || []).length > 20 || (S.getThoughtRecords() || []).length > 2;
+    if (!meaningful) return;
+    const last = S._safeGet('cbt_backup_ts', 0) || 0;
+    if (last && Date.now() - last < 30 * 86400000) return;
+    const monthKey = new Date().toISOString().slice(0, 7);
+    if (S._safeGet('cbt_backup_nudged', '') === monthKey) return;
+    S._safeSet('cbt_backup_nudged', monthKey);
+    setTimeout(() => this.showRecordToast('💾 우렁이의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
   },
 
   // 예약 30분 전 리마인더 (1분 주기 체크인 틱에서 호출)

@@ -79,6 +79,7 @@ window.MemoryVault = {
     };
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
+    window.Storage._safeSet("cbt_backup_ts", Date.now()); // 백업 넛지 기준일 갱신
     const dateStr = new Date().toISOString().split("T")[0];
     const blob = new Blob([sealed], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);

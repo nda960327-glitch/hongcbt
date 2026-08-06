@@ -109,36 +109,50 @@
       }
       el.innerHTML = items.map(b => {
         const cancelled = b.status === 'cancelled';
+        const declined = b.status === 'declined';
+        const inactive = cancelled || declined;
         const past = b.whenTs <= now;
-        const soon = !cancelled && !past && (b.whenTs - now) < 3600000;
-        return `<div class="card" style="${cancelled ? 'opacity: 0.55;' : ''} ${soon ? 'border-color: var(--accent);' : ''}">
+        const soon = !inactive && !past && (b.whenTs - now) < 3600000;
+        return `<div class="card" style="${inactive ? 'opacity: 0.55;' : ''} ${soon ? 'border-color: var(--accent);' : ''}">
           <div class="item-head" style="cursor: default;">
-            <strong style="${cancelled ? 'text-decoration: line-through;' : ''}">${esc(b.clientName)} 님 ${cancelled ? '' : '· 30분 상담'}</strong>
-            ${cancelled ? '<span class="badge-read">취소됨</span>' : past ? '<span class="badge-read">완료</span>' : soon ? '<span class="badge-new">곧 시작</span>' : '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">확정</span>'}
+            <strong style="${inactive ? 'text-decoration: line-through;' : ''}">${esc(b.clientName)} 님 ${inactive ? '' : '· 30분 상담'}</strong>
+            ${cancelled ? '<span class="badge-read">내담자 취소</span>'
+              : declined ? '<span class="badge-read" style="color: #cf6b60; border-color: #cf6b60;">거절함 (전액 환불)</span>'
+              : past ? '<span class="badge-read">완료</span>'
+              : soon ? '<span class="badge-new">곧 시작</span>'
+              : '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">확정</span>'}
           </div>
           <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시 결제</p>
+          ${(!inactive && !past) ? `<button class="btn ghost" style="width: auto; margin-top: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.78rem; color: #cf6b60;" onclick="declineBooking('${b.id}', '${esc(b.clientName)}')">이 예약 거절 (전액 환불)</button>` : ''}
         </div>`;
       }).join('');
       renderSettlement(items);
     }
 
-    // 정산: 완료된 상담(취소 제외, 시간 경과)의 45%가 상담사 몫
+    // 예약 거절 — 병가 등 부득이한 경우. 내담자에게 전액 환불되고 알림이 간다.
+    async function declineBooking(id, client) {
+      if (!confirm(`${client} 님의 예약을 거절할까요?\n내담자에게 전액 환불되며 취소 알림이 전달됩니다.\n(부득이한 경우에만 사용해주세요 — 잦은 거절은 노출에 불이익)`)) return;
+      await fetch('/api/bookings/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, code: CODE }) }).catch(() => {});
+      loadSchedule();
+    }
+
+    // 정산: 완료된 상담(취소 제외, 시간 경과)의 55%가 상담사 몫
     function renderSettlement(items) {
       const el = document.getElementById('settlement');
       const now = Date.now();
-      const done = items.filter(b => b.status !== 'cancelled' && b.whenTs <= now);
+      const done = items.filter(b => b.status !== 'cancelled' && b.status !== 'declined' && b.whenTs <= now);
       const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      const mine = Math.round(gross * 0.45);
+      const mine = Math.round(gross * 0.55);
       el.innerHTML = `
         <div class="card" style="background: linear-gradient(135deg, #eef6f0, #ffffff);">
           <div class="item-head" style="cursor: default;">
             <strong>💰 정산 현황</strong>
-            <span class="muted">상담사 45% · 병원 45% · 플랫폼 10% (결제수수료는 플랫폼 부담)</span>
+            <span class="muted">상담사 55% · 병원 35% · 플랫폼 10% (결제수수료는 플랫폼 부담)</span>
           </div>
           <div style="display: flex; gap: 1.2rem; margin-top: 0.6rem; flex-wrap: wrap;">
             <div><div class="muted">완료 상담</div><strong style="font-size: 1.15rem;">${done.length}건</strong></div>
             <div><div class="muted">총 결제액</div><strong style="font-size: 1.15rem;">${gross.toLocaleString()}캐시</strong></div>
-            <div><div class="muted">내 정산금 (45%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
+            <div><div class="muted">내 정산금 (55%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
           </div>
           <button class="btn" style="margin-top: 0.8rem; ${mine ? '' : 'opacity: 0.5; pointer-events: none;'}" onclick="alert('출금 신청이 접수되었습니다. (데모)\\n실서비스에서는 등록 계좌로 정산됩니다.')">출금 신청 (데모)</button>
         </div>`;

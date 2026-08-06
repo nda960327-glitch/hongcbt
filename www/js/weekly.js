@@ -115,19 +115,25 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     return letter;
   },
 
-  // 일요일 18시 ~ 월요일 정오: 이번 주 편지가 없으면 살짝 알려준다
-  maybeNudge() {
+  // 일요일 18시 ~ 월요일 정오: 이번 주 편지를 '자동으로' 써서 배달한다
+  async autoDeliver() {
     const d = new Date();
     const isWindow = (d.getDay() === 0 && d.getHours() >= 18) || (d.getDay() === 1 && d.getHours() < 12);
     if (!isWindow || this.hasThisWeek()) return;
-    const nudgedKey = window.Storage._safeGet('cbt_weekly_nudged', '');
-    if (nudgedKey === this.weekKey()) return;
-    window.Storage._safeSet('cbt_weekly_nudged', this.weekKey());
+    if (window.Storage._safeGet('cbt_weekly_nudged', '') === this.weekKey()) return;
+    window.Storage._safeSet('cbt_weekly_nudged', this.weekKey()); // 단일 실행 가드
+    await this.generate();
+    this.renderCard();
     if (window.App) {
-      if (window.App.showRecordToast) window.App.showRecordToast('💌 이번 주 회고 편지가 준비됐어요 (대시보드)');
+      if (window.App.notify) window.App.notify('💌 우렁이의 주간 편지', '이번 주를 돌아본 편지가 도착했어요');
+      if (window.App.playWoorung) window.App.playWoorung();
+      if (window.App.showRecordToast) window.App.showRecordToast('💌 주간 편지가 도착했어요 (대시보드)');
       if (window.App._setNavBadge) window.App._setNavBadge('dashboard', true);
     }
   },
+
+  // 하위 호환 별칭
+  maybeNudge() { return this.autoDeliver(); },
 
   async requestLetter() {
     const btn = document.getElementById('weekly-generate');
