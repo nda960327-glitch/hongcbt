@@ -10,6 +10,12 @@
       window.Storage.markVisited();
     }
     
+    // 첫 화면(챗봇)도 헤더 숨김 규칙 적용
+    const initHeader = document.getElementById('app-header');
+    if (initHeader && ['home', 'chat', 'counselors', 'dashboard'].includes(this.currentTab)) {
+      initHeader.style.display = 'none';
+    }
+
     // 2. Set up navigation
     document.querySelectorAll('.nav-item[data-tab]').forEach(navItem => {
       navItem.addEventListener('click', (e) => {
@@ -34,6 +40,19 @@
         }
       });
       chatSend.addEventListener('click', () => this.sendMessage());
+
+      // 키보드가 올라오면(입력 중) 하단 내비게이션을 숨겨 화면을 넓게 쓴다
+      const nav = document.getElementById('bottom-nav');
+      if (nav) {
+        chatInput.addEventListener('focus', () => { nav.style.display = 'none'; });
+        chatInput.addEventListener('blur', () => { setTimeout(() => { nav.style.display = ''; }, 150); });
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', () => {
+            const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.72;
+            nav.style.display = (keyboardOpen && document.activeElement === chatInput) ? 'none' : '';
+          });
+        }
+      }
     }
     
     // 4. Set up header buttons
@@ -278,6 +297,10 @@
     if (tabName === 'learn' && window.Learn) {
       window.Learn.renderCards();
     }
+    // 홈·챗봇·상담사매칭·대시보드에서는 상단 로고 헤더를 숨겨 공간을 넓게 쓴다
+    const header = document.getElementById('app-header');
+    if (header) header.style.display = ['home', 'chat', 'counselors', 'dashboard'].includes(tabName) ? 'none' : '';
+
     if (tabName === 'chat') {
       this.updateSessionUI();
     }
@@ -319,6 +342,10 @@
     // Display user message
     this.displayMessage({ role: 'user', text: text });
     window.Storage.saveMessage({ role: 'user', text: text, timestamp: new Date().toISOString() });
+
+    // 영속 통계: 총 대화 카운터 + 감정 로그 (대화를 초기화해도 남는다)
+    window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
+    if (window.Dashboard && window.Dashboard.logMood) window.Dashboard.logMood(text);
 
     // Show typing indicator
     this.showTypingIndicator();

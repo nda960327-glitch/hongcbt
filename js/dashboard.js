@@ -356,42 +356,60 @@ ${recent}`;
     }
   },
   
-  // 오늘의 감정 흐름 — 감정이 실제로 드러난 메시지만 골라 시간순으로 그린다.
-  // 위쪽일수록 편안한 감정, 아래쪽일수록 힘든 감정.
+  // 감정 감지 규칙 (오늘 차트·주간 차트·영속 로그가 공유)
+  MOOD_RULES: [
+    { emo: '기쁨',   v: 5,   c: '#5fa986', keys: ['기뻐', '기쁘', '좋아', '좋았', '행복', '즐거', '신나', '최고', '설레', '재밌', '재미있'] },
+    { emo: '편안',   v: 4,   c: '#7fc29b', keys: ['편안', '안심', '평화', '괜찮', '나아졌', '가벼워', '후련'] },
+    { emo: '뿌듯',   v: 4.5, c: '#8fae5f', keys: ['뿌듯', '해냈', '성공', '완성', '칭찬'] },
+    { emo: '불안',   v: 2,   c: '#c98a5a', keys: ['불안', '걱정', '긴장', '두렵', '무섭', '떨려', '초조'] },
+    { emo: '우울',   v: 1.5, c: '#7b6fa8', keys: ['우울', '슬프', '슬퍼', '눈물', '울었', '서럽', '허무', '공허', '힘들', '지쳤', '지친'] },
+    { emo: '분노',   v: 1.5, c: '#c96a5a', keys: ['화나', '화가', '짜증', '열받', '분노', '억울', '빡치'] },
+    { emo: '외로움', v: 2,   c: '#7ba0b8', keys: ['외로', '혼자', '고독', '쓸쓸'] },
+    { emo: '좌절',   v: 1.5, c: '#a8836f', keys: ['좌절', '실패', '포기', '망했', '망쳤', '답답', '절망', '무기력'] }
+  ],
+
+  detectMood(text) {
+    const t = String(text || '').replace(/\s+/g, '');
+    return this.MOOD_RULES.find(r => r.keys.some(k => t.includes(k))) || null;
+  },
+
+  // 감정 로그에 기록 — 대화를 초기화해도 감정 흐름은 살아남는다
+  logMood(text, ts) {
+    const hit = this.detectMood(text);
+    if (!hit || !window.Storage) return;
+    const log = window.Storage._safeGet('cbt_mood_log', []) || [];
+    log.push({ ts: ts || Date.now(), emo: hit.emo, v: hit.v });
+    window.Storage._safeSet('cbt_mood_log', log.slice(-800));
+  },
+
+  // 기존 사용자 마이그레이션: 로그가 비어 있으면 현재 대화에서 한 번 채워넣는다
+  _backfillMoodLog() {
+    if (!window.Storage || this._backfilled) return;
+    this._backfilled = true;
+    const log = window.Storage._safeGet('cbt_mood_log', []) || [];
+    if (log.length > 0) return;
+    const msgs = (window.Storage.getMessages() || []).filter(m => m.role === 'user' && m.text && m.timestamp);
+    msgs.forEach(m => this.logMood(m.text, new Date(m.timestamp).getTime()));
+  },
+
+  // 오늘의 감정 흐름 — 영속 감정 로그를 시간순으로 그린다.
+  // 위쪽일수록 편안한 감정, 아래쪽일수록 힘든 감정. (대화를 지워도 유지)
   renderTodayMoodChart() {
     const container = document.getElementById('today-mood-chart');
     if (!container) return;
 
+    this._backfillMoodLog();
     const todayStr = new Date().toISOString().split('T')[0];
-    const msgs = ((window.Storage && window.Storage.getMessages()) || [])
-      .filter(m => m.role === 'user' && m.text && m.timestamp && new Date(m.timestamp).toISOString().split('T')[0] === todayStr);
-
-    // 감정 키워드가 실제로 있는 메시지만 사용 (없는 메시지는 흐름에 넣지 않는다)
-    const RULES = [
-      { emo: '기쁨',   v: 5,   c: '#5fa986', keys: ['기뻐', '기쁘', '좋아', '좋았', '행복', '즐거', '신나', '최고', '설레', '재밌', '재미있'] },
-      { emo: '편안',   v: 4,   c: '#7fc29b', keys: ['편안', '안심', '평화', '괜찮', '나아졌', '가벼워', '후련'] },
-      { emo: '뿌듯',   v: 4.5, c: '#8fae5f', keys: ['뿌듯', '해냈', '성공', '완성', '칭찬'] },
-      { emo: '불안',   v: 2,   c: '#c98a5a', keys: ['불안', '걱정', '긴장', '두렵', '무섭', '떨려', '초조'] },
-      { emo: '우울',   v: 1.5, c: '#7b6fa8', keys: ['우울', '슬프', '슬퍼', '눈물', '울었', '서럽', '허무', '공허', '힘들', '지쳤', '지친'] },
-      { emo: '분노',   v: 1.5, c: '#c96a5a', keys: ['화나', '화가', '짜증', '열받', '분노', '억울', '빡치'] },
-      { emo: '외로움', v: 2,   c: '#7ba0b8', keys: ['외로', '혼자', '고독', '쓸쓸'] },
-      { emo: '좌절',   v: 1.5, c: '#a8836f', keys: ['좌절', '실패', '포기', '망했', '망쳤', '답답', '절망', '무기력'] }
-    ];
-    const points = [];
-    msgs.slice(-20).forEach(m => {
-      const t = m.text.replace(/\s+/g, '');
-      const hit = RULES.find(r => r.keys.some(k => t.includes(k)));
-      if (!hit) return;
-      const d = new Date(m.timestamp);
-      points.push({ time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), emo: hit.emo, v: hit.v, c: hit.c });
-    });
+    const colorOf = emo => (this.MOOD_RULES.find(r => r.emo === emo) || {}).c || 'var(--text-muted)';
+    const points = ((window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [])
+      .filter(p => p.ts && new Date(p.ts).toISOString().split('T')[0] === todayStr)
+      .map(p => {
+        const d = new Date(p.ts);
+        return { time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), emo: p.emo, v: p.v, c: colorOf(p.emo) };
+      });
 
     if (points.length < 2) {
-      container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem 0; margin: 0;">${
-        msgs.length === 0
-          ? '오늘 나눈 대화가 아직 없어요. 대화하면 감정 흐름이 이곳에 그려져요.'
-          : '감정이 드러난 대화가 아직 부족해요. 지금 기분을 이야기해보면 흐름이 그려져요.'
-      }</p>`;
+      container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem 0; margin: 0;">오늘 나눈 감정 이야기가 아직 적어요. 지금 기분을 이야기해보면 흐름이 그려져요.</p>`;
       return;
     }
 
@@ -595,16 +613,23 @@ ${recent}`;
     
     const msgs = (window.Storage && window.Storage.getMessages()) || [];
     const userMsgs = msgs.filter(m => m.role === 'user').length;
-    const storedSessions = (window.Storage && window.Storage.getTotalSessions()) || 0;
     const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
     const stats = (window.Storage && window.Storage.getDistortionStats()) || {};
-    const isOnlyMock = records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_')) && userMsgs === 0;
+
+    // 총 대화 = 영속 누적 카운터. 대화를 지워도 줄지 않는다.
+    // (마이그레이션: 기존 사용자는 현재 대화 수로 최소값을 맞춰준다)
+    let totalChats = (window.Storage && window.Storage._safeGet('cbt_total_chats', 0)) || 0;
+    if (userMsgs > totalChats) {
+      totalChats = userMsgs;
+      if (window.Storage) window.Storage._safeSet('cbt_total_chats', totalChats);
+    }
+    const isOnlyMock = records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_')) && totalChats === 0;
 
     const uniqueTypes = Object.keys(stats).filter(k => stats[k] > 0).length;
     const streak = (window.Storage && window.Storage.getStreak()) || 0;
 
     if (elSessions) {
-      this._animateCounter(elSessions, isOnlyMock ? 11 : (userMsgs || storedSessions || 0));
+      this._animateCounter(elSessions, isOnlyMock ? 11 : totalChats);
     }
     
     if (elRecords) {
@@ -638,9 +663,19 @@ ${recent}`;
 
       let score = null;
 
+      // 0. 영속 감정 로그 (대화를 지워도 남는 하루 평균) — 최우선
+      const dayPoints = ((window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [])
+        .filter(p => p.ts && new Date(p.ts).toISOString().split('T')[0] === dateStr);
+      if (dayPoints.length > 0) {
+        const avg = dayPoints.reduce((s, p) => s + p.v, 0) / dayPoints.length;
+        score = Math.max(1, Math.min(5, Math.round(avg)));
+      }
+
       // 1. 저장된 명시적 기분 기록 확인
-      const entry = moodEntries.find(e => e.date && e.date.startsWith(dateStr));
-      if (entry) score = entry.score;
+      if (!score) {
+        const entry = moodEntries.find(e => e.date && e.date.startsWith(dateStr));
+        if (entry) score = entry.score;
+      }
 
       // 2. 해당 날짜 사고 기록지 감정 점수 계산
       if (!score) {
