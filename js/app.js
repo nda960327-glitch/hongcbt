@@ -332,6 +332,7 @@
     }
     if (tabName === 'dashboard') {
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
+      if (window.Growth) window.Growth.renderNightList();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {

@@ -201,6 +201,11 @@
           <span class="home-tool__t">마음 안정</span>
           <span class="home-tool__d">호흡·그라운딩</span>
         </button>
+        <button class="home-tool" onclick="window.Growth && window.Growth.startNight()">
+          <span class="home-tool__ico" data-icon="moon" data-icon-size="24"></span>
+          <span class="home-tool__t">하루 정리</span>
+          <span class="home-tool__d">3분 회고</span>
+        </button>
       </div>
 
       <!-- 광고 및 제휴 콘텐츠 섹션 -->
@@ -415,6 +420,16 @@
             </span>
             <span style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem; flex-shrink: 0; box-shadow: var(--shadow-sm);">›</span>
           </button>
+        </div>
+
+        <!-- 지난 밤들 (하루 정리 아카이브) -->
+        <div id="night-journal-card" class="dash-card glass-card hidden" style="grid-column: 1 / -1;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">🌙 지난 밤들</h3>
+            <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="window.Growth && window.Growth.startNight()">오늘 정리하기</button>
+          </div>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">자기 전 우렁이와 함께 정리한 하루들이에요.</p>
+          <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
         </div>
 
         <div class="dash-card glass-card" style="grid-column: 1 / -1;">

@@ -4,21 +4,22 @@
 // ============================================================================
 window.Growth = {
   BADGES: [
-    { id: 'first_chat', emoji: '🐌', name: '첫 만남',       desc: '우렁이와 첫 대화',        check: s => s.chats >= 1 },
-    { id: 'chat50',     emoji: '💬', name: '단골 손님',     desc: '대화 50회',               check: s => s.chats >= 50 },
-    { id: 'chat200',    emoji: '🗣️', name: '속마음 단짝',   desc: '대화 200회',              check: s => s.chats >= 200 },
-    { id: 'streak3',    emoji: '🌱', name: '사흘의 새싹',   desc: '3일 연속 방문',           check: s => s.streak >= 3 },
-    { id: 'streak7',    emoji: '🔥', name: '일주일 불꽃',   desc: '7일 연속 방문',           check: s => s.streak >= 7 },
-    { id: 'streak30',   emoji: '🏆', name: '한 달의 마음',  desc: '30일 연속 방문',          check: s => s.streak >= 30 },
-    { id: 'record5',    emoji: '📝', name: '마음 기록가',   desc: '사고 기록 5개',           check: s => s.records >= 5 },
-    { id: 'mood30',     emoji: '🌈', name: '감정 관찰자',   desc: '기분 기록 30개',          check: s => s.moods >= 30 },
-    { id: 'breath10',   emoji: '🫧', name: '숨 고르기 달인', desc: '호흡 연습 10회',          check: s => s.breaths >= 10 },
-    { id: 'night7',     emoji: '🌙', name: '굿나잇 요정',   desc: '하루 정리 7회',           check: s => s.nights >= 7 }
+    { id: 'first_chat', emoji: '🐌', name: '첫 만남',       desc: '우렁이와 첫 대화',   metric: 'chats',   goal: 1 },
+    { id: 'chat50',     emoji: '💬', name: '단골 손님',     desc: '대화 50회',          metric: 'chats',   goal: 50 },
+    { id: 'chat200',    emoji: '🗣️', name: '속마음 단짝',   desc: '대화 200회',         metric: 'chats',   goal: 200 },
+    { id: 'streak3',    emoji: '🌱', name: '사흘의 새싹',   desc: '3일 연속 방문',      metric: 'streak',  goal: 3 },
+    { id: 'streak7',    emoji: '🔥', name: '일주일 불꽃',   desc: '7일 연속 방문',      metric: 'streak',  goal: 7 },
+    { id: 'streak30',   emoji: '🏆', name: '한 달의 마음',  desc: '30일 연속 방문',     metric: 'streak',  goal: 30 },
+    { id: 'record5',    emoji: '📝', name: '마음 기록가',   desc: '사고 기록 5개',      metric: 'records', goal: 5 },
+    { id: 'mood30',     emoji: '🌈', name: '감정 관찰자',   desc: '기분 기록 30개',     metric: 'moods',   goal: 30 },
+    { id: 'breath10',   emoji: '🫧', name: '숨 고르기 달인', desc: '호흡 연습 10회',     metric: 'breaths', goal: 10 },
+    { id: 'night7',     emoji: '🌙', name: '굿나잇 요정',   desc: '하루 정리 7회',      metric: 'nights',  goal: 7 }
   ],
 
   init() {
     this.renderStreakChip();
     this.maybeShowNightCard();
+    this.renderNightList();
     this.checkAwards(true); // 조용히(토스트 없이) 초기 동기화
   },
 
@@ -42,16 +43,17 @@ window.Growth = {
   checkAwards(silent) {
     const earned = window.Storage._safeGet('cbt_badges', {}) || {};
     const s = this.stats();
-    let newly = null;
+    const newly = [];
     this.BADGES.forEach(b => {
-      if (!earned[b.id] && b.check(s)) {
+      if (!earned[b.id] && s[b.metric] >= b.goal) {
         earned[b.id] = Date.now();
-        newly = b;
+        newly.push(b);
       }
     });
     window.Storage._safeSet('cbt_badges', earned);
-    if (newly && !silent && window.App && window.App.showRecordToast) {
-      window.App.showRecordToast(`${newly.emoji} 뱃지 획득! '${newly.name}'`);
+    if (newly.length && !silent && window.App && window.App.showRecordToast) {
+      const label = newly.map(b => `${b.emoji} '${b.name}'`).join(', ');
+      window.App.showRecordToast(newly.length === 1 ? `${label} 뱃지 획득!` : `뱃지 ${newly.length}개 획득! ${label}`);
       if (window.App.playNotify) window.App.playNotify();
     }
     this.renderStreakChip();
@@ -74,12 +76,18 @@ window.Growth = {
     const el = document.getElementById('badge-grid');
     if (!el) return;
     const earned = window.Storage._safeGet('cbt_badges', {}) || {};
+    const s = this.stats();
     el.innerHTML = this.BADGES.map(b => {
       const has = !!earned[b.id];
-      return `<div title="${b.desc}" style="text-align: center; padding: 0.6rem 0.2rem; border-radius: 12px; background: ${has ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'}; border: 1px solid ${has ? 'color-mix(in srgb, var(--accent-primary) 35%, transparent)' : 'var(--glass-border)'}; ${has ? '' : 'opacity: 0.45; filter: grayscale(1);'}">
-        <div style="font-size: 1.5rem;">${b.emoji}</div>
+      const cur = Math.min(s[b.metric] || 0, b.goal);
+      return `<div title="${b.desc}" style="text-align: center; padding: 0.6rem 0.2rem; border-radius: 12px; background: ${has ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'}; border: 1px solid ${has ? 'color-mix(in srgb, var(--accent-primary) 35%, transparent)' : 'var(--glass-border)'}; ${has ? '' : 'opacity: 0.55;'}">
+        <div style="font-size: 1.5rem; ${has ? '' : 'filter: grayscale(1); opacity: 0.6;'}">${b.emoji}</div>
         <div style="font-size: 0.66rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;">${b.name}</div>
         <div style="font-size: 0.58rem; color: var(--text-muted);">${b.desc}</div>
+        ${has ? '' : `<div style="margin-top: 0.3rem;">
+          <div style="height: 4px; border-radius: 99px; background: var(--glass-border); overflow: hidden;"><div style="height: 100%; width: ${Math.round(cur / b.goal * 100)}%; background: var(--accent-primary); border-radius: 99px;"></div></div>
+          <div style="font-size: 0.56rem; color: var(--text-muted); margin-top: 0.15rem;">${cur}/${b.goal}</div>
+        </div>`}
       </div>`;
     }).join('');
   },
@@ -87,22 +95,53 @@ window.Growth = {
   // ==========================================================================
   //  야간 루틴 — "오늘 하루 정리" (저녁 8시~새벽 2시에 홈에서 권유)
   // ==========================================================================
+  // '밤'의 소속 날짜: 새벽(~06시)에 쓴 정리는 전날 밤으로 친다.
+  // 새벽 1시에 정리해도 그날 저녁 8시에 카드가 또 뜨지 않도록.
+  _nightKey(ts) {
+    return new Date((ts || Date.now()) - 6 * 3600 * 1000).toLocaleDateString('sv-CA');
+  },
+
   maybeShowNightCard() {
     const card = document.getElementById('night-card');
     if (!card) return;
     const h = new Date().getHours();
     const isNight = h >= 20 || h < 2;
-    const today = new Date().toLocaleDateString('sv-CA');
-    const doneToday = (window.Storage._safeGet('cbt_night_journal', []) || [])
-      .some(j => new Date(j.ts).toLocaleDateString('sv-CA') === today);
-    const dismissed = window.Storage._safeGet('cbt_night_dismiss', '') === today;
-    card.classList.toggle('hidden', !isNight || doneToday || dismissed);
+    const key = this._nightKey();
+    const doneTonight = (window.Storage._safeGet('cbt_night_journal', []) || [])
+      .some(j => this._nightKey(j.ts) === key);
+    const dismissed = window.Storage._safeGet('cbt_night_dismiss', '') === key;
+    card.classList.toggle('hidden', !isNight || doneTonight || dismissed);
   },
 
   dismissNightToday() {
-    window.Storage._safeSet('cbt_night_dismiss', new Date().toLocaleDateString('sv-CA'));
+    window.Storage._safeSet('cbt_night_dismiss', this._nightKey());
     this.maybeShowNightCard();
     if (window.App && window.App.showRecordToast) window.App.showRecordToast('🌙 오늘은 푹 쉬어요. 내일 밤 다시 물어볼게요');
+  },
+
+  // 대시보드 '지난 밤들' — 하루 정리 아카이브
+  MOOD_EMOJI: { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢' },
+
+  renderNightList() {
+    const card = document.getElementById('night-journal-card');
+    const list = document.getElementById('night-journal-list');
+    if (!card || !list) return;
+    const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
+    card.classList.toggle('hidden', journal.length === 0);
+    if (journal.length === 0) return;
+    list.innerHTML = journal.slice(0, 14).map(j => {
+      const d = new Date(j.ts);
+      const dateStr = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : '🌙';
+      return `<div style="padding: 0.7rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
+        <div style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">
+          <span style="font-size: 1.1rem;">${emoji}</span>${dateStr} 밤
+        </div>
+        ${j.moment ? `<p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">${esc(j.moment)}</p>` : ''}
+        ${j.note ? `<p style="margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">💬 나에게: ${esc(j.note)}</p>` : ''}
+      </div>`;
+    }).join('');
   },
 
   startNight() {
@@ -177,6 +216,20 @@ window.Growth = {
     journal.unshift({ ts: Date.now(), ...this._night });
     window.Storage._safeSet('cbt_night_journal', journal.slice(0, 60));
     if (window.Storage.markDayActive) window.Storage.markDayActive();
+    this.renderNightList();
+
+    // 챗봇 우렁이의 장기기억에도 남긴다 — 다음 대화에서 "어제 산책 좋았다며?"가 가능하도록.
+    // (다음 대화의 기억 정리 AI가 이 줄을 자연스럽게 사례 기록에 녹여넣는다)
+    try {
+      const m = this._night;
+      const dateStr = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' });
+      const line = `\n[하루정리 ${dateStr}] 기분: ${m.mood ? m.mood.emo : '미기록'}` +
+        (m.moment ? ` / 남은 순간: ${m.moment}` : '') +
+        (m.note ? ` / 스스로에게: ${m.note}` : '');
+      let prev = window.Storage.getUserMemory() || '';
+      if (prev.length + line.length > 6000) prev = prev.slice(0, 6000 - line.length); // 상한 초과 시 새 줄이 잘리지 않게
+      window.Storage.setUserMemory(prev + line);
+    } catch (e) {}
 
     // 우렁이의 굿나잇 한마디 (AI, 실패 시 기본 문구)
     let goodnight = '오늘의 이야기, 우렁이가 잘 안아 두었어요.\n내일의 당신은 조금 더 가벼울 거예요. 잘 자요.';
