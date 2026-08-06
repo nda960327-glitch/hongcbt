@@ -20,7 +20,8 @@ window.CallTalk = {
 
   start(personaId) {
     if (this._active) return;
-    if (window.Subscription && !window.Subscription.guard()) return;
+    // 보이스톡은 체험·구독 전용 (무료 플랜은 페이월 안내)
+    if (window.Subscription && !window.Subscription.guardCall()) return;
     if (!window.Wallet || window.Wallet.balance() < this.RATE) {
       alert(`보이스톡은 30초당 ${this.RATE}캐시가 사용돼요.\n잔액이 부족합니다. 마이페이지에서 캐시를 충전해주세요.`);
       if (window.App) window.App.switchTab('mypage');

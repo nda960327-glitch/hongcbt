@@ -1,8 +1,9 @@
-﻿const CACHE_NAME = 'cbt-app-v4';
+﻿const CACHE_NAME = 'cbt-app-v5';
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
+  './js/icons.js',
   './js/storage.js',
   './js/memory-vault.js',
   './js/personas.js',
@@ -17,10 +18,25 @@ const ASSETS = [
   './js/chatbot.js',
   './js/marketplace.js',
   './js/booking.js',
+  './js/thought-record.js',
+  './js/growth.js',
+  './js/dashboard.js',
+  './js/learn.js',
   './js/app.js',
   './manifest.json',
   './icon.svg'
 ];
+
+// 알림 탭 → 앱(챗봇 화면) 열기
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
+    })
+  );
+});
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

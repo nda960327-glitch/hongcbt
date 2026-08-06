@@ -30,7 +30,7 @@
 
   --text-primary: #f0e9de;
   --text-secondary: #bdb1a1;
-  --text-muted: #8c8072;
+  --text-muted: #9a8e80; /* 대비 5.3:1 — 흐릿해서 안 읽히던 문제 보정 */
 
   --success: #7fc29b;
   --warning: #e8b04b;
@@ -81,7 +81,7 @@
 
   --text-primary: #362f28;
   --text-secondary: #6b6055;
-  --text-muted: #a99c8c;
+  --text-muted: #7f7264; /* 기존 #a99c8c는 대비 2.5:1로 거의 안 보였음 → 4.6:1 */
 
   --success: #4f8a6b;
   --warning: #c98a2b;
@@ -124,6 +124,11 @@
 [data-theme="light"] .message.user .message-bubble {
   color: #ffffff;
 }
+
+/* 오버레이(하루정리·사고기록 위저드) placeholder — 배경색을 따라가게 */
+#night-overlay textarea::placeholder { color: #f0ead9; opacity: 0.6; }
+#tr-wizard textarea::placeholder,
+#tr-wizard input::placeholder { color: var(--text-muted); opacity: 0.9; }
 
 /* Light-theme inputs / textareas */
 [data-theme="light"] textarea,

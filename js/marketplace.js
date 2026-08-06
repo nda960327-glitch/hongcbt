@@ -187,7 +187,7 @@
     const filterAvailable = document.getElementById('counselor-available-now') ? document.getElementById('counselor-available-now').checked : false;
 
     // 각 상담사의 사용자 위치로부터의 거리(km) 실시간 계산
-    let filtered = this.counselors.map(c => {
+    let filtered = this.all().map(c => {
       const dist = this.calcDistance(this.userLat, this.userLng, c.lat, c.lng);
       return { ...c, distance: dist };
     });
@@ -212,7 +212,7 @@
           </div>
           <div class="cc-info">
             <div class="cc-name-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.3rem;">
-              <h3 style="margin: 0; font-size: 1.05rem;">${c.name}</h3>
+              <h3 style="margin: 0; font-size: 1.05rem;">${c.name}${c.isNew ? ' <span style="background: #e8590c22; color: #e8590c; font-size: 0.66rem; font-weight: 800; padding: 0.14rem 0.45rem; border-radius: 999px; vertical-align: middle;">NEW</span>' : ''}</h3>
               <div style="display: flex; align-items: center; gap: 0.35rem;">
                 <span class="cc-distance-badge" style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.76rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">📍 ${c.distance} km</span>
                 ${c.isAvailableNow ? '<span class="cc-badge">상담가능</span>' : ''}
@@ -242,8 +242,14 @@
     `).join('');
   },
 
+  // 기본 상담사 + 입점 승인된 상담사(cbt_custom_counselors) 합본
+  all() {
+    const customs = (window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [];
+    return customs.concat(this.counselors);
+  },
+
   getCounselor(id) {
-    return this.counselors.find(c => c.id === id);
+    return this.all().find(c => c.id === id);
   },
 
   openProfile(id) {

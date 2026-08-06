@@ -329,6 +329,7 @@
 
     if (tabName === 'chat') {
       this.updateSessionUI();
+      this._setNavBadge('chat', false); // 확인했으니 미확인 표시 제거
     }
     if (tabName === 'dashboard') {
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
@@ -359,8 +360,8 @@
   _replyTimer: null,
 
   async sendMessage() {
-    // 구독 관문: 7일 체험이 끝났고 미구독이면 안내 후 차단
-    if (window.Subscription && !window.Subscription.guard()) return;
+    // 구독 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+    if (window.Subscription && !window.Subscription.guardChat()) return;
 
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
@@ -375,6 +376,8 @@
       window.Storage.incrementSessions();
       window.Storage.markDayActive();
     }
+    // 무료 플랜이면 오늘 사용 횟수 차감
+    if (window.Subscription && !window.Subscription.hasAccess()) window.Subscription.bumpChat();
 
     // Display user message
     this.displayMessage({ role: 'user', text: text });
@@ -429,6 +432,10 @@
           const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
           window.Voice.speak(response.text, personaId);
         }
+        // 앱이 백그라운드거나 다른 탭을 보고 있으면 놓치지 않게 알림
+        const pName = window.Personas ? window.Personas.getActive().name : '우렁의사';
+        if (document.hidden) this.notify(pName, response.text);
+        if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
       }
       
       if (response.crisis) {
@@ -770,6 +777,22 @@
     this._setNavBadge('dashboard', true);
   },
 
+  // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
+  notify(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true };
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg && reg.showNotification) reg.showNotification(title, opts);
+          else new Notification(title, opts);
+        }).catch(() => { try { new Notification(title, opts); } catch (e) {} });
+        return;
+      }
+      new Notification(title, opts);
+    } catch (e) {}
+  },
+
   _setNavBadge(tab, on) {
     const nav = document.querySelector(`.nav-item[data-tab="${tab}"]`);
     if (!nav) return;
@@ -920,9 +943,8 @@ ${memory || '(없음)'}`;
       window.Storage.saveMessage(msg);
       this.playNotify(); // 알림음 + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(persona.name, { body: text, icon: 'icon.png', vibrate: [120, 60, 120] }); } catch (e) {}
-      }
+      this.notify(persona.name, text); // 시스템 알림 (백그라운드에서도 도착)
+      if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
     } catch (e) {}
   },
 
@@ -1128,17 +1150,66 @@ ${memory || '(없음)'}`;
     const el = document.getElementById('my-counselor-apps');
     if (!el) return;
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
-    el.innerHTML = apps.map(a => `
+    el.innerHTML = apps.map(a => {
+      const approved = a.status === 'approved';
+      return `
       <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
           <div style="min-width: 0;">
             <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
             <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
           </div>
-          <span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>
+          ${approved
+            ? '<span style="flex-shrink: 0; background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">입점 완료</span>'
+            : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>'}
         </div>
-        <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; margin-top: 0.55rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
-      </div>`).join('');
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
+          <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
+          ${approved
+            ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>`
+            : `<button class="btn-primary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.approveCounselorApp('${a.id}')">✅ 입점 승인 (관리자 데모)</button>`}
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  // 관리자 승인 (데모) — 실서비스에서는 백엔드 관리자 콘솔에서 검수 후 승인한다.
+  // 승인되면 신청 정보가 실제 상담사 카드로 변환되어 '상담사 매칭' 탭에 노출된다.
+  approveCounselorApp(appId) {
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    const a = apps.find(x => x.id === appId);
+    if (!a || a.status === 'approved') return;
+    if (!confirm(`[관리자 데모]\n'${a.name}' 님의 자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?\n\n실서비스에서는 운영팀 관리자 콘솔에서 서류 검토 후 승인됩니다.`)) return;
+    a.status = 'approved';
+    window.Storage._safeSet('cbt_counselor_apps', apps);
+    // 매칭 탭에 노출될 상담사 카드 생성
+    const customs = window.Storage._safeGet('cbt_custom_counselors', []) || [];
+    customs.unshift({
+      id: 'cu_' + Date.now(),
+      name: `${a.name} ${/전문의/.test(a.license) ? '전문의' : '상담사'}`,
+      hospital: a.hospital,
+      tel: a.tel || '',
+      safeTel: '0507-14' + String(Math.floor(Math.random() * 90) + 10) + '-' + String(Math.floor(Math.random() * 9000) + 1000),
+      callRate: 700,
+      lat: 37.5665 + (Math.random() - 0.5) * 0.05,
+      lng: 126.9780 + (Math.random() - 0.5) * 0.05,
+      rating: 5.0,
+      reviews: 0,
+      tags: ['신규 입점', a.license],
+      price: a.price || 40000,
+      avatar: Math.floor(Math.random() * 3),
+      isAvailableNow: true,
+      isNew: true,
+      career: [
+        `현) ${a.hospital}`,
+        a.license + (a.career ? ` · 경력 ${a.career}년` : ''),
+        ...(a.intro ? [a.intro] : [])
+      ],
+      reviewsList: []
+    });
+    window.Storage._safeSet('cbt_custom_counselors', customs);
+    this.renderCounselorApps();
+    alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
   },
 
   // === 상담사 가능 시간 설정 (요일 × 시간 토글) ===

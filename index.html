@@ -84,12 +84,12 @@
   <div id="sub-paywall-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card" style="max-width: 360px; text-align: center;">
       <span id="sub-paywall-sticker" style="display: inline-block; line-height: 0;"></span>
-      <h2 style="margin: 0.6rem 0 0.4rem;">일주일 무료 체험이 끝났어요</h2>
-      <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.4rem;">우렁이는 당신과 나눈 이야기를 전부 기억한 채 기다리고 있어요.<br>구독하면 대화가 끊긴 적 없던 것처럼 이어집니다.</p>
-      <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent-primary); margin: 0.6rem 0 1rem;"><span id="sub-paywall-price">월 9,900원</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">· AI 상담 무제한</span></p>
+      <h2 id="sub-paywall-title" style="margin: 0.6rem 0 0.4rem;">일주일 무료 체험이 끝났어요</h2>
+      <p id="sub-paywall-desc" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.4rem;">우렁이는 당신과 나눈 이야기를 전부 기억한 채 기다리고 있어요.<br>구독하면 대화가 끊긴 적 없던 것처럼 이어집니다.</p>
+      <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent-primary); margin: 0.6rem 0 1rem;"><span id="sub-paywall-price">월 9,900원</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">· 무제한 대화 + 보이스톡</span></p>
       <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.Subscription.subscribe()">구독하고 대화 이어가기</button>
       <button class="btn-secondary" style="width: 100%;" onclick="document.getElementById('sub-paywall-modal').classList.add('hidden')">나중에</button>
-      <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.7rem 0 0;">기록·기억·사고기록지는 구독하지 않아도 언제든 볼 수 있어요.</p>
+      <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.7rem 0 0;">구독하지 않아도 매일 무료 대화 30회와 기록·기억·사고기록지는 계속 이용할 수 있어요.</p>
     </div>
   </div>
 
@@ -137,8 +137,8 @@
         <button onclick="window.Growth && window.Growth.startNight()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 1rem 1.1rem; cursor: pointer;">
           <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
           <span style="flex: 1; min-width: 0; text-align: left;">
-            <strong style="display: block; font-size: 0.98rem;">🌙 오늘 하루, 정리하고 잘까요?</strong>
-            <span style="font-size: 0.78rem; opacity: 0.8;">자기 전 딱 3분, 우렁이가 오늘을 같이 돌아봐드려요</span>
+            <strong style="display: block; font-size: 0.98rem; color: #ffffff;">🌙 오늘 하루, 정리하고 잘까요?</strong>
+            <span style="font-size: 0.8rem; color: #ded6c3;">자기 전 딱 3분, 우렁이가 오늘을 같이 돌아봐드려요</span>
           </span>
           <span style="width: 30px; height: 30px; border-radius: 50%; background: #f0ead9; color: #232f3b; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">›</span>
         </button>

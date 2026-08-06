@@ -155,9 +155,9 @@ window.Growth = {
       if (old) old.remove();
       const ov = document.createElement('div');
       ov.id = 'night-overlay';
-      ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #f0ead9; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
+      ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #faf6ec; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
       ov.innerHTML = `<div style="width: 100%; max-width: 320px; text-align: center;">${inner}</div>
-        <button onclick="document.getElementById('night-overlay').remove()" style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.6; padding: 0.3rem;">✕</button>`;
+        <button onclick="document.getElementById('night-overlay').remove()" style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.8; padding: 0.3rem;">✕</button>`;
       document.body.appendChild(ov);
     };
     const nextBtn = (label, fn) => `<button id="ng-next" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.1rem;">${label}</button>`;
@@ -165,17 +165,17 @@ window.Growth = {
     if (n === 1) {
       wrap(`
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 110) : '🌙'}</span>
-        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem;">오늘 하루도 살아냈네요</h2>
-        <p style="font-size: 0.86rem; opacity: 0.85; line-height: 1.6;">자기 전에 딱 3분,<br>우렁이랑 오늘을 같이 정리하고 자요.</p>
+        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem; color: #ffffff;">오늘 하루도 살아냈네요</h2>
+        <p style="font-size: 0.92rem; color: #e9e2d2; line-height: 1.65;">자기 전에 딱 3분,<br>우렁이랑 오늘을 같이 정리하고 자요.</p>
         ${nextBtn('좋아, 시작할게')}`);
       document.getElementById('ng-next').addEventListener('click', () => this._nightStep(2));
     } else if (n === 2) {
       wrap(`
-        <p style="font-size: 0.75rem; opacity: 0.6; margin: 0 0 0.6rem;">1 / 3</p>
-        <h2 style="margin: 0 0 1rem; font-size: 1.2rem;">오늘 하루, 전체적으로 어땠어요?</h2>
+        <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">1 / 3</p>
+        <h2 style="margin: 0 0 1rem; font-size: 1.2rem; color: #ffffff;">오늘 하루, 전체적으로 어땠어요?</h2>
         <div style="display: flex; justify-content: space-between; gap: 0.3rem;">
           ${[['😄', 5, '기쁨'], ['🙂', 4, '편안'], ['😐', 3, '보통'], ['😟', 2, '불안'], ['😢', 1.5, '우울']].map(([e, v, emo]) =>
-            `<button data-v="${v}" data-emo="${emo}" class="ng-mood" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.8rem; padding: 0.5rem 0; border-radius: 14px; cursor: pointer; background: rgba(255,255,255,0.08);">${e}</button>`).join('')}
+            `<button data-v="${v}" data-emo="${emo}" class="ng-mood" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.8rem; padding: 0.5rem 0; border-radius: 14px; cursor: pointer; background: rgba(255,255,255,0.14);">${e}</button>`).join('')}
         </div>`);
       document.querySelectorAll('.ng-mood').forEach(b => b.addEventListener('click', () => {
         this._night.mood = { v: parseFloat(b.dataset.v), emo: b.dataset.emo };
@@ -186,22 +186,22 @@ window.Growth = {
       }));
     } else if (n === 3) {
       wrap(`
-        <p style="font-size: 0.75rem; opacity: 0.6; margin: 0 0 0.6rem;">2 / 3</p>
-        <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem;">오늘 가장 마음에 남는 순간은?</h2>
-        <p style="font-size: 0.78rem; opacity: 0.7; margin: 0 0 0.8rem;">좋았든 힘들었든, 한 장면이면 충분해요.</p>
-        <textarea id="ng-moment" rows="3" placeholder="예: 점심에 동료가 건넨 말 한마디…" style="width: 100%; box-sizing: border-box; padding: 0.8rem; border-radius: 12px; border: none; background: rgba(255,255,255,0.1); color: #f0ead9; outline: none; resize: none; font-size: 0.9rem;"></textarea>
+        <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">2 / 3</p>
+        <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem; color: #ffffff;">오늘 가장 마음에 남는 순간은?</h2>
+        <p style="font-size: 0.85rem; color: #ded6c3; margin: 0 0 0.8rem;">좋았든 힘들었든, 한 장면이면 충분해요.</p>
+        <textarea id="ng-moment" rows="3" placeholder="예: 점심에 동료가 건넨 말 한마디…" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;"></textarea>
         ${nextBtn('다음 ›')}
-        <button onclick="window.Growth._nightStep(4)" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.6rem; font-size: 0.78rem; opacity: 0.6; cursor: pointer;">건너뛰기</button>`);
+        <button onclick="window.Growth._nightStep(4)" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.6rem; font-size: 0.82rem; color: #cfc7b4; cursor: pointer;">건너뛰기</button>`);
       document.getElementById('ng-next').addEventListener('click', () => {
         this._night.moment = document.getElementById('ng-moment').value.trim();
         this._nightStep(4);
       });
     } else if (n === 4) {
       wrap(`
-        <p style="font-size: 0.75rem; opacity: 0.6; margin: 0 0 0.6rem;">3 / 3</p>
-        <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem;">오늘의 나에게 한마디</h2>
-        <p style="font-size: 0.78rem; opacity: 0.7; margin: 0 0 0.8rem;">칭찬도, 위로도, 잔소리도 좋아요.</p>
-        <textarea id="ng-note" rows="3" placeholder="예: 오늘도 버텨줘서 고마워" style="width: 100%; box-sizing: border-box; padding: 0.8rem; border-radius: 12px; border: none; background: rgba(255,255,255,0.1); color: #f0ead9; outline: none; resize: none; font-size: 0.9rem;"></textarea>
+        <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">3 / 3</p>
+        <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem; color: #ffffff;">오늘의 나에게 한마디</h2>
+        <p style="font-size: 0.85rem; color: #ded6c3; margin: 0 0 0.8rem;">칭찬도, 위로도, 잔소리도 좋아요.</p>
+        <textarea id="ng-note" rows="3" placeholder="예: 오늘도 버텨줘서 고마워" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;"></textarea>
         ${nextBtn('하루 정리 끝내기')}`);
       document.getElementById('ng-next').addEventListener('click', () => {
         this._night.note = document.getElementById('ng-note').value.trim();
@@ -254,14 +254,14 @@ window.Growth = {
     if (old) old.remove();
     const ov = document.createElement('div');
     ov.id = 'night-overlay';
-    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #f0ead9; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #faf6ec; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
     ov.innerHTML = `
       <div style="width: 100%; max-width: 320px; text-align: center;">
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('love', 110) : '💤'}</span>
-        <h2 style="margin: 0.8rem 0 0.5rem; font-size: 1.25rem;">오늘 하루 정리 완료</h2>
-        <p style="font-size: 0.9rem; opacity: 0.92; line-height: 1.7; white-space: pre-line;">${goodnight}</p>
+        <h2 style="margin: 0.8rem 0 0.5rem; font-size: 1.25rem; color: #ffffff;">오늘 하루 정리 완료</h2>
+        <p style="font-size: 0.95rem; color: #f3edde; line-height: 1.75; white-space: pre-line;">${goodnight}</p>
         <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards();" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 🌙</button>
-        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.8rem; opacity: 0.7; cursor: pointer;">🫧 4·7·8 호흡하면서 잠들기</button>
+        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;">🫧 4·7·8 호흡하면서 잠들기</button>
       </div>`;
     document.body.appendChild(ov);
   }
