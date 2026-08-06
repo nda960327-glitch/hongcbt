@@ -31,10 +31,43 @@ window.Dashboard = {
   },
   
   refresh() {
+    this.updateSampleBadges();
     this.updateStats();
     this.renderMoodChart();
     this.renderDistortionChart();
     this.renderChatInsights();
+  },
+
+  updateSampleBadges() {
+    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    const isOnlyMock = records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'));
+    
+    // Header Subtitle Update
+    const subtitleEl = document.querySelector('#tab-dashboard .tab-subtitle');
+    if (subtitleEl) {
+      if (isOnlyMock) {
+        subtitleEl.innerHTML = `감정 변화 추이와 인지왜곡 통합 리포트 <span style="background: color-mix(in srgb, var(--accent-primary) 18%, var(--bg-tertiary)); color: var(--accent-primary); font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); margin-left: 0.3rem;">샘플 데이터</span>`;
+      } else {
+        subtitleEl.textContent = '감정 변화 추이와 인지왜곡 통합 리포트';
+      }
+    }
+
+    // Card titles sample badges update
+    const cardHeaders = document.querySelectorAll('#tab-dashboard .dash-card h3');
+    cardHeaders.forEach(h3 => {
+      const existingBadge = h3.querySelector('.dash-sample-badge');
+      if (isOnlyMock) {
+        if (!existingBadge) {
+          const badge = document.createElement('span');
+          badge.className = 'dash-sample-badge';
+          badge.style.cssText = 'font-size: 0.72rem; font-weight: 700; background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.12rem 0.45rem; border-radius: 4px; color: var(--text-muted); margin-left: 0.4rem; vertical-align: middle;';
+          badge.textContent = '샘플';
+          h3.appendChild(badge);
+        }
+      } else {
+        if (existingBadge) existingBadge.remove();
+      }
+    });
   },
 
   renderChatInsights() {
