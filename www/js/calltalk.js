@@ -31,6 +31,8 @@ window.CallTalk = {
 
     const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사', tagline: '' };
     this._active = true;
+    this._human = false;
+    this._rate = this.RATE;
     this._startTs = Date.now();
     this._spent = 0;
 
@@ -63,13 +65,83 @@ window.CallTalk = {
 
   _bill() {
     if (!this._active) return;
-    if (!window.Wallet.spend(this.RATE, `보이스톡 (30초)`)) {
+    const rate = (this._rate != null) ? this._rate : this.RATE;
+    if (rate <= 0) return; // 회기권 통화는 과금 없음
+    if (!window.Wallet.spend(rate, `보이스톡 (30초)`)) {
       this.end('잔액이 모두 사용되어 통화를 종료했어요.');
       return;
     }
-    this._spent += this.RATE;
+    this._spent += rate;
     const el = document.getElementById('call-spent');
-    if (el) el.textContent = `${this._spent.toLocaleString()}캐시 사용 중 · 30초당 ${this.RATE}`;
+    if (el) el.textContent = `${this._spent.toLocaleString()}캐시 사용 중 · 30초당 ${rate}`;
+  },
+
+  // ==========================================================================
+  //  인간 상담사 통화방 — 050 안심번호 연결 + 30초당 실시간 과금
+  //  (실번호는 서로 공개되지 않는다. 인앱 VoIP는 서버 연동 후 교체 지점)
+  // ==========================================================================
+  startHuman(counselorId, opts = {}) {
+    if (this._active) return;
+    const c = window.Marketplace.getCounselor(counselorId);
+    if (!c) return;
+    const prepaid = !!opts.prepaid;
+    this._rate = prepaid ? 0 : (c.callRate || 700);
+
+    if (!prepaid && (!window.Wallet || window.Wallet.balance() < this._rate * 2)) {
+      alert(`바로상담은 30초당 ${(c.callRate || 700).toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
+      if (window.App) window.App.switchTab('mypage');
+      return;
+    }
+
+    this._active = true;
+    this._human = true;
+    this._startTs = Date.now();
+    this._spent = 0;
+
+    // 통화 기록
+    const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
+    logs.unshift({ ts: Date.now(), counselorId: c.id, name: c.name, safeTel: c.safeTel, mode: prepaid ? '회기권' : '초당결제' });
+    window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
+
+    this._renderHumanOverlay(c, prepaid);
+    if (window.App && window.App.ringStart) {
+      window.App.ringStart();
+      setTimeout(() => { if (window.App.ringStop) window.App.ringStop(); this._setStatus('전화 연결 버튼을 눌러주세요'); }, 2400);
+    }
+    this._clockTimer = setInterval(() => this._updateClock(), 1000);
+    if (!prepaid) {
+      this._bill();
+      this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
+    }
+  },
+
+  dialSafe(safeTel) {
+    this._setStatus('안심번호로 연결 중…');
+    window.location.href = 'tel:' + String(safeTel || '').replace(/-/g, '');
+  },
+
+  _renderHumanOverlay(c, prepaid) {
+    const old = document.getElementById('call-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'call-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: linear-gradient(180deg, #2e4237 0%, #1d2c24 100%); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3rem 1.5rem 2.5rem; color: #f2ede4;';
+    ov.innerHTML = `
+      <div style="text-align: center;">
+        <div id="call-status" style="font-size: 0.85rem; opacity: 0.8;">연결 중…</div>
+        <div id="call-clock" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.3rem;">00:00</div>
+      </div>
+      <div style="text-align: center; width: 100%;">
+        <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;">👩‍⚕️</div>
+        <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
+        <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
+        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${(c.callRate || 700).toLocaleString()}`}</p>
+        <button onclick="window.CallTalk.dialSafe('${c.safeTel}')" style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);">📞 안심번호로 전화 연결</button>
+        <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 260px; line-height: 1.5;">050 안심번호로 연결되어 <b>서로의 실제 번호는 공개되지 않아요.</b> 통화를 마치면 아래 종료 버튼으로 정산을 끝내주세요.</p>
+      </div>
+      <button onclick="window.CallTalk.end()" style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);">📞</button>
+      <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
+    document.body.appendChild(ov);
   },
 
   _updateClock() {
@@ -145,6 +217,8 @@ window.CallTalk = {
   end(reason) {
     if (!this._active) return;
     this._active = false;
+    this._human = false;
+    this._rate = null;
     if (window.App && window.App.ringStop) window.App.ringStop();
     clearInterval(this._billTimer);
     clearInterval(this._clockTimer);

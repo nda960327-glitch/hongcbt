@@ -3,7 +3,32 @@
   typingIndicatorElement: null,
   deferredPrompt: null,
   
+  // === 소셜 로그인 (카카오/구글/네이버) ===
+  // 실서비스 연동 지점: 각 provider의 OAuth SDK 호출로 이 함수 내부만 교체하면 된다.
+  // (카카오 JS SDK / Google Identity / 네이버 아이디로그인 — 각각 앱 키 등록 필요, ROADMAP 참고)
+  socialLogin(provider) {
+    const names = { kakao: '카카오', naver: '네이버', google: '구글', guest: '게스트' };
+    window.Storage._safeSet('cbt_auth', { provider, name: names[provider] + ' 사용자', ts: Date.now() });
+    const sc = document.getElementById('login-screen');
+    if (sc) sc.classList.add('hidden');
+    if (provider !== 'guest') {
+      alert(`${names[provider]} 계정으로 시작합니다!\n(정식 출시 시 실제 ${names[provider]} 로그인으로 연결돼요)`);
+    }
+  },
+
+  logout() {
+    if (!confirm('로그아웃할까요? (기기의 대화·기억은 그대로 남아요)')) return;
+    localStorage.removeItem('cbt_auth');
+    location.reload();
+  },
+
   init() {
+    // 0. 로그인 게이트: 계정 없으면 로그인 화면부터
+    if (!window.Storage._safeGet('cbt_auth', null)) {
+      const sc = document.getElementById('login-screen');
+      if (sc) sc.classList.remove('hidden');
+    }
+
     // 1. Check first visit
     if (window.Storage.isFirstVisit()) {
       this.showDisclaimerModal();
@@ -961,6 +986,35 @@ ${memory || '(없음)'}`;
     }
   },
 
+  // AI 요약 리포트를 상담사에게 전달
+  // ① 예약한 상담사의 채팅방에 첨부 (상담 시작 시 함께 확인)
+  // ② 카톡/문자 공유로 즉시 직접 전달도 가능
+  sendReportToCounselor(report) {
+    const full = (report.title ? report.title + '\n\n' : '') + report.body;
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const target = bookings.find(b => b.counselorId);
+
+    if (target) {
+      const key = 'cbt_hchat_' + target.counselorId;
+      const msgs = window.Storage._safeGet(key, []) || [];
+      msgs.push({ role: 'me', text: `📊 [AI 상담 요약 리포트]\n\n${full}`, ts: Date.now() });
+      msgs.push({ role: 'sys', text: `✅ 리포트가 ${target.name}님 채팅방에 전달됐어요.\n상담이 시작되면 상담사님이 이 리포트를 먼저 읽고 대화를 준비합니다.`, ts: Date.now() });
+      window.Storage._safeSet(key, msgs.slice(-200));
+      this.openHumanChat(target.counselorId);
+      // 즉시 직접 전달 옵션
+      setTimeout(() => {
+        if (confirm('카카오톡·문자로도 상담사님께 바로 보낼까요?')) {
+          if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
+          else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다. 메신저에 붙여넣어 전달하세요.'));
+        }
+      }, 600);
+    } else {
+      alert('아직 예약된 상담사가 없어요.\n공유하기로 직접 전달하거나, 상담사 매칭에서 예약 후 전송해주세요.');
+      if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
+      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다.'));
+    }
+  },
+
   // 리뷰 작성 → 저장 (완료된 상담)
   writeReview(bookingId) {
     const rating = parseInt(prompt('별점을 남겨주세요 (1~5)', '5'), 10);
@@ -1129,31 +1183,14 @@ ${memory || '(없음)'}`;
   // ==========================================================================
   startHumanCall(counselorId) {
     const c = window.Marketplace.getCounselor(counselorId);
-    if (!c) return;
+    if (!c || !window.CallTalk) return;
+    // 예약 시간 전후 1시간 안이면 회기권 통화(추가 과금 없음), 아니면 30초당 실시간 과금
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
-    const hasPaid = bookings.some(b => b.counselorId === c.id);
-
-    if (!hasPaid) {
-      if (!confirm(`${c.name}님과의 보이스톡 상담\n30분 상담권 ${c.price.toLocaleString()}캐시 결제 후 연결됩니다.\n진행할까요?`)) return;
-      if (!window.Wallet.spend(c.price, `${c.name} 보이스톡 상담권`)) {
-        alert(`잔액이 부족해요. (필요: ${c.price.toLocaleString()}캐시)\n마이페이지에서 충전해주세요.`);
-        this.switchTab('mypage');
-        return;
-      }
-      bookings.unshift({ id: 'bk_' + Date.now(), counselorId: c.id, name: c.name, hospital: c.hospital, price: c.price, time: '보이스톡 상담', whenTs: Date.now(), ts: Date.now() });
-      window.Storage._safeSet('cbt_bookings', bookings.slice(0, 50));
+    const prepaid = bookings.some(b => b.counselorId === c.id && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
+    if (!prepaid) {
+      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${(c.callRate || 700).toLocaleString()}캐시가 실시간 차감됩니다.\n연결할까요?`)) return;
     }
-
-    // 통화 기록 + 연결음 후 전화 연결 (실제 음성 통화)
-    const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
-    logs.unshift({ ts: Date.now(), counselorId: c.id, name: c.name, tel: c.tel });
-    window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
-
-    this.ringStart();
-    setTimeout(() => {
-      this.ringStop();
-      window.location.href = 'tel:' + String(c.tel || '').replace(/-/g, '');
-    }, 1300);
+    window.CallTalk.startHuman(c.id, { prepaid });
   },
 
   openHumanChat(counselorId) {

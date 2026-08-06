@@ -65,6 +65,20 @@
     </div>
   </div>
 
+  <!-- 로그인 (카카오·구글·네이버) -->
+  <div id="login-screen" class="hidden" style="position: fixed; inset: 0; z-index: 10002; background: var(--bg-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1.6rem; max-width: 480px; margin: 0 auto;">
+    <span data-sticker="joy" data-sticker-size="120" style="line-height: 0;"></span>
+    <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">우렁의사</h1>
+    <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 2rem; text-align: center;">당신을 기억하는 AI 마음 주치의</p>
+    <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.6rem;">
+      <button onclick="window.App.socialLogin('kakao')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;">💬 카카오로 시작하기</button>
+      <button onclick="window.App.socialLogin('naver')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #03C75A; color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer;">N 네이버로 시작하기</button>
+      <button onclick="window.App.socialLogin('google')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #fff; color: #3c4043; font-weight: 700; font-size: 0.95rem; border: 1.5px solid #dadce0; cursor: pointer;">G 구글로 시작하기</button>
+      <button onclick="window.App.socialLogin('guest')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.7rem; color: var(--text-muted); font-size: 0.82rem; cursor: pointer;">로그인 없이 둘러보기 ›</button>
+    </div>
+    <p style="font-size: 0.68rem; color: var(--text-muted); margin-top: 1.6rem; text-align: center;">로그인하면 기기를 바꿔도 우렁이의 기억이 이어져요.<br>대화 내용은 이 기기에만 저장됩니다.</p>
+  </div>
+
   <!-- 구독 안내 (7일 체험 종료 후) -->
   <div id="sub-paywall-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card" style="max-width: 360px; text-align: center;">
@@ -198,6 +212,17 @@
             display: none;
           }
         </style>
+      </div>
+      <!-- 상담사 입점 안내 (홈 하단) -->
+      <div style="padding: 0 1.25rem 1.5rem;">
+        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
+          <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
+          <div style="flex: 1; min-width: 0;">
+            <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
+            <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
+          </div>
+          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
+        </div>
       </div>
     </section>
 
@@ -437,16 +462,6 @@
       <div id="counselors-list" style="padding: 0 1.25rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
         <!-- Counselor cards inserted dynamically -->
       </div>
-      <div style="padding: 0 1.25rem 1.5rem;">
-        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
-          <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
-          <div style="flex: 1; min-width: 0;">
-            <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
-            <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
-          </div>
-          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
-        </div>
-      </div>
     </section>
 
     <!-- 상담사 등록 신청 모달 -->
@@ -625,6 +640,15 @@
                 <option value="male">남성 목소리</option>
               </select>
             </div>
+          </div>
+
+          <!-- 로그아웃 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">계정</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">로그아웃해도 기기의 기록·기억은 남아요.</span>
+            </div>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.logout()">로그아웃</button>
           </div>
 
           <!-- 언어 설정 -->

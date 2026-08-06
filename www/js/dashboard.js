@@ -302,9 +302,7 @@ ${recent}`;
         detailBtn.textContent = open ? '상세보기' : '접기';
       });
       div.querySelector('.rep-share').addEventListener('click', () => {
-        const full = (r.title ? r.title + '\n\n' : '') + r.body;
-        if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약', text: full }).catch(() => {});
-        else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다. 상담사에게 붙여넣어 전달하세요.'));
+        if (window.App && window.App.sendReportToCounselor) window.App.sendReportToCounselor(r);
       });
       div.querySelector('.rep-del').addEventListener('click', () => this.deleteReport(r.id));
       list.appendChild(div);

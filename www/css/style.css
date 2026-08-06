@@ -1371,3 +1371,10 @@ body.kb-open .tab-content { padding-bottom: 8px; }
 
 /* 하단 내비 라벨: 잘리는 대신 축소 */
 .bottom-nav .nav-item span:last-child { font-size: clamp(0.55rem, 2.6vw, 0.72rem); white-space: nowrap; }
+
+/* 상담사 카드 버튼: 3개(프로필·채팅·통화) 한 줄 + 예약하기 전체 폭 */
+.cc-actions { width: 100%; display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; }
+.cc-actions .cc-btn { width: 100%; box-sizing: border-box; text-align: center; padding: 0.5rem 0.2rem; font-size: 0.8rem; white-space: nowrap; }
+.cc-actions .btn-primary { grid-column: 1 / -1; padding: 0.6rem 0.2rem; font-size: 0.9rem; }
+.cc-bottom { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.cc-price { flex-direction: row !important; justify-content: space-between; align-items: baseline; }
