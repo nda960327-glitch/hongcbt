@@ -45,15 +45,99 @@ window.Missions = {
     return (s && s.date === this._today()) ? s : null;
   },
 
-  // 오늘의 미션 (없으면 새로 뽑기 — 최근 7일에 나온 미션은 피한다)
+  // ==========================================================================
+  //  사용자 맞춤 선택
+  //  ① 온보딩 고민 → 카테고리 가중치 (우울→움직임·즐거움 / 대인관계→연결 …)
+  //  ② 최근 3일 기분 → 가라앉았으면 아주 작은(light) 미션 우선
+  //  ③ AI가 장기기억을 읽고 그 사람만의 미션을 생성 (실패 시 ①②로 폴백)
+  // ==========================================================================
+  CONCERN_CATS: {
+    dep: ['움직임', '즐거움'],      // 우울·무기력 → 행동활성화의 정석
+    anx: ['마음'],                  // 불안 → 호흡·현재에 닻내리기
+    stress: ['즐거움', '돌봄'],
+    rel: ['연결'],
+    self: ['연결', '마음'],         // 자존감 → 자기칭찬·인정
+    sleep: ['돌봄'],
+    vent: ['마음', '즐거움'],
+    talk: []
+  },
+  // 기분이 많이 가라앉은 날엔 문턱이 낮은 미션부터
+  LIGHT: ['water', 'bed', 'breath3', 'window', 'tea', 'stretch', 'praise', 'sunlight'],
+
+  _recentMoodAvg() {
+    const from = Date.now() - 3 * 86400000;
+    const log = (window.Storage._safeGet('cbt_mood_log', []) || []).filter(m => m.ts >= from);
+    return log.length ? log.reduce((s, m) => s + (m.v || 3), 0) / log.length : null;
+  },
+
+  _pickWeighted() {
+    const recent = (window.Storage._safeGet('cbt_mission_log', []) || []).slice(0, 7).map(m => m.id);
+    const pool = this.POOL.filter(m => !recent.includes(m.id));
+    const cand = pool.length ? pool : this.POOL;
+    const concerns = window.Storage._safeGet('cbt_user_concerns', []) || [];
+    const likedCats = new Set(concerns.flatMap(c => this.CONCERN_CATS[c] || []));
+    const avg = this._recentMoodAvg();
+    const weights = cand.map(m => {
+      let w = 1;
+      if (likedCats.has(m.cat)) w += 2;                       // 고민에 맞는 카테고리
+      if (avg != null && avg < 2.6 && this.LIGHT.includes(m.id)) w += 2; // 가라앉은 날 → 아주 작은 것
+      if (avg != null && avg >= 3.6 && (m.cat === '움직임' || m.cat === '연결')) w += 1; // 컨디션 좋은 날 → 활동적
+      return w;
+    });
+    let roll = Math.random() * weights.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < cand.length; i++) { roll -= weights[i]; if (roll <= 0) return cand[i]; }
+    return cand[cand.length - 1];
+  },
+
+  // AI 맞춤 미션: 장기기억·고민·기분을 읽고 '그 사람의 오늘'에 맞는 제안 생성
+  async _personalizeWithAI() {
+    try {
+      if (!window.LLM) return;
+      const memory = (window.Storage.getUserMemory() || '').slice(0, 1500);
+      if (!memory) return; // 아직 아는 게 없으면 풀 미션으로 충분
+      const s = this.state();
+      if (!s || s.done || s.rerolled || s.custom) return;
+      const concerns = (window.Storage._safeGet('cbt_user_concerns', []) || []).join(', ');
+      const avg = this._recentMoodAvg();
+      const res = await window.LLM._chatCompletion({
+        model: window.LLM.MODEL,
+        messages: [{ role: 'user', content: `당신은 상담사 '우렁이'입니다. 이 사람을 위한 '오늘의 아주 작은 행동 미션' 1개를 만드세요.
+[장기기억]\n${memory}\n[온보딩 고민] ${concerns || '(없음)'}\n[최근 3일 기분 평균] ${avg ? avg.toFixed(1) + '/5' : '기록 없음'}
+
+규칙:
+- 이 사람의 실제 이야기(반려동물, 취미, 최근 고민 등)와 이어지면 최고. 기억에 없으면 일반 미션.
+- 10분 안에 끝나는 아주 작은 행동. 기분이 낮으면(3 미만) 더 작게.
+- 부담·죄책감 주는 표현 금지, 다정한 제안 톤, 15~45자.
+- JSON만 출력: {"emoji":"이모지1개","text":"미션 문장"}` }],
+        temperature: 0.8,
+        max_tokens: 100
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const raw = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+      const m = raw.match(/\{[\s\S]*\}/);
+      if (!m) return;
+      const obj = JSON.parse(m[0]);
+      if (!obj.text || obj.text.length < 5) return;
+      const cur = this.state();
+      if (!cur || cur.done || cur.rerolled) return; // 그 사이 완료·교체했으면 유지
+      cur.custom = { emoji: (obj.emoji || '🌱').slice(0, 4), text: String(obj.text).slice(0, 60) };
+      window.Storage._safeSet('cbt_daily_mission', cur);
+      this.renderCard();
+    } catch (e) {}
+  },
+
+  // 오늘의 미션 (없으면 맞춤 가중치로 뽑고, AI 맞춤 생성을 비동기로 시도)
   todayMission() {
     let s = this.state();
     if (!s) {
-      const recent = (window.Storage._safeGet('cbt_mission_log', []) || []).slice(0, 7).map(m => m.id);
-      const pool = this.POOL.filter(m => !recent.includes(m.id));
-      const pick = (pool.length ? pool : this.POOL)[Math.floor(Math.random() * (pool.length ? pool.length : this.POOL.length))];
+      const pick = this._pickWeighted();
       s = { date: this._today(), id: pick.id, done: false, rerolled: false };
       window.Storage._safeSet('cbt_daily_mission', s);
+      setTimeout(() => this._personalizeWithAI(), 800); // 우렁이가 더 좋은 미션을 떠올리면 교체
+    }
+    if (s.custom) {
+      return { id: s.id, emoji: s.custom.emoji, text: s.custom.text, cat: '우렁이 맞춤', custom: true, done: s.done, rerolled: s.rerolled };
     }
     return { ...this.POOL.find(m => m.id === s.id), done: s.done, rerolled: s.rerolled };
   },
@@ -69,7 +153,7 @@ window.Missions = {
     s.ts = Date.now();
     window.Storage._safeSet('cbt_daily_mission', s);
     const log = window.Storage._safeGet('cbt_mission_log', []) || [];
-    log.unshift({ id: s.id, ts: Date.now(), done: true });
+    log.unshift({ id: s.id, ts: Date.now(), done: true, text: s.custom ? s.custom.text : undefined });
     window.Storage._safeSet('cbt_mission_log', log.slice(0, 200));
     window.Storage.markDayActive();
     this.renderCard();
@@ -85,7 +169,7 @@ window.Missions = {
     if (window.Growth) window.Growth.checkAwards();
   },
 
-  // 하루 1회, 완료 전에만 다른 미션으로 교체
+  // 하루 1회, 완료 전에만 다른 미션으로 교체 (맞춤 미션도 해제)
   reroll() {
     const s = this.state();
     if (!s || s.done || s.rerolled) return;
@@ -93,6 +177,7 @@ window.Missions = {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     s.id = pick.id;
     s.rerolled = true;
+    delete s.custom;
     window.Storage._safeSet('cbt_daily_mission', s);
     this.renderCard();
   },

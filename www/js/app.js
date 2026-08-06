@@ -1129,6 +1129,20 @@ ${memory || '(없음)'}`;
     const packs = window.Storage._safeGet('cbt_shared_packs', {}) || {};
     packs[bookingId] = { ts: Date.now(), counselor: b.name, text }; // 원문 보관 — 상담사 수신함(콘솔)에서 열람
     window.Storage._safeSet('cbt_shared_packs', packs);
+    // 서버 수신함으로도 전송 — 상담사는 /counselor.html 에서 열람 (오프라인이면 조용히 생략)
+    try {
+      fetch('/api/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          counselorId: b.counselorId || '',
+          counselorName: b.name,
+          bookingId,
+          clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
+          text
+        })
+      }).catch(() => {});
+    } catch (e) {}
     const ovEl = document.getElementById('share-pack-overlay');
     if (ovEl) ovEl.remove();
     this.renderMyBookings();

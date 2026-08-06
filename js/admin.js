@@ -178,7 +178,8 @@ window.Admin = {
         </div>
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">📥 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(상담사 수신함 데모)</span></h3>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">📥 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(이 기기 기록)</span></h3>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="/counselor.html" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 열람 코드 1234</p>
           ${(() => {
             const packs = Object.entries(S._safeGet('cbt_shared_packs', {}) || {});
             if (!packs.length) return '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 0.6rem 0 1rem;">아직 전달된 자료가 없습니다.<br><span style="font-size: 0.72rem;">내담자가 예약 카드에서 \'상담 자료 보내기\'로 동의·전달하면 여기 쌓여요.</span></p>';

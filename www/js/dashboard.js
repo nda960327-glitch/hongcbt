@@ -223,7 +223,7 @@
             </div>`).join('')}
           ${missions.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🎯 해낸 미션</p>
-            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => esc(missionName(m.id))).join('<br>')}</div>` : ''}
+            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => esc(m.text ? `🌱 ${m.text}` : missionName(m.id))).join('<br>')}</div>` : ''}
           ${records.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">📝 사고 기록 ${records.length}건</p>
             ${records.map(r => `<div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">"${esc((r.thought || '').slice(0, 60))}"${r.alternative ? `<br><span style="color: var(--accent-primary);">→ ${esc(r.alternative.slice(0, 60))}</span>` : ''}</div>`).join('')}
