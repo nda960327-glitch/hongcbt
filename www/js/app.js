@@ -99,6 +99,8 @@ window.App = {
     const disclaimerAccept = document.getElementById('disclaimer-accept');
     if (disclaimerAccept) disclaimerAccept.addEventListener('click', () => {
       document.getElementById('disclaimer-modal').classList.add('hidden');
+      // 이용 안내를 확인한 다음, 상담사를 고른 적 없으면 이어서 선택하게 한다
+      this.maybeForcePersonaChoice();
     });
     
     const apiModalCancel = document.getElementById('api-modal-cancel');
@@ -112,13 +114,16 @@ window.App = {
     if (window.Marketplace) window.Marketplace.init();
     this.updateSessionUI();
 
-    // 6. Initialize Chatbot
+    // 6. Initialize Chat
     const messages = window.Storage.getMessages();
     if (messages && messages.length > 0) {
       this.loadExistingMessages();
-    } else {
-      const welcomeMessages = window.Chatbot.init();
-      this.displayBotResponses(welcomeMessages);
+    }
+
+    // 상담사를 아직 고른 적 없으면 선택부터 (첫 인사는 선택한 상담사가 한다)
+    const needsChoice = this.maybeForcePersonaChoice();
+    if (!needsChoice && (!messages || messages.length === 0)) {
+      this._showPersonaGreeting(window.Personas ? window.Personas.getActive().id : 'woorung');
     }
     
     // 7. Mark day as active
@@ -469,11 +474,17 @@ window.App = {
     if (tagline) tagline.textContent = p.tagline;
   },
 
-  showPersonaModal() {
+  showPersonaModal(force = false) {
     if (!window.Personas) return;
     const modal = document.getElementById('persona-modal');
     const listEl = document.getElementById('persona-card-list');
     if (!modal || !listEl) return;
+
+    // 온보딩(강제 선택) 모드: 닫기 없이 반드시 한 명을 고르게 한다
+    const closeBtn = document.getElementById('persona-modal-close');
+    if (closeBtn) closeBtn.style.display = force ? 'none' : '';
+    const titleEl = modal.querySelector('h2');
+    if (titleEl) titleEl.textContent = force ? '함께할 AI 상담사를 골라주세요' : 'AI 상담사 선택';
 
     const activeId = window.Personas.getActive().id;
     listEl.innerHTML = '';
@@ -500,25 +511,44 @@ window.App = {
     modal.classList.remove('hidden');
   },
 
+  // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
+  personaGreetings: {
+    woorung: '안녕하세요, 우렁의사예요. 지금부터 제가 함께할게요. 편하게 이야기해요. 오늘 마음은 어떠세요?',
+    haru: '안녕! 나 햇님이야. 마음에 그늘진 생각이 있으면 보여줘, 같이 햇볕에 말려보자. 요즘 어떤 생각이 자꾸 맴돌아?',
+    dalnim: '…안녕하세요, 달님이에요. 여기서는 좋은 사람인 척 안 해도 돼요. 못난 마음, 미운 마음까지 전부 쏟아내도 괜찮아요. 다 받아줄게요.',
+    sonamu: '반갑습니다, 소나무입니다. 잠시 숨 한 번 고르고… 천천히 시작해볼까요. 요즘 마음은 어떤가요?'
+  },
+
+  _showPersonaGreeting(id) {
+    const msg = { role: 'bot', text: this.personaGreetings[id] || this.personaGreetings.woorung, timestamp: new Date().toISOString() };
+    this.displayMessage(msg);
+    window.Storage.saveMessage(msg);
+  },
+
   selectPersona(id) {
     if (!window.Personas) return;
+    const isFirstChoice = !window.Personas.hasChosen();
     const prev = window.Personas.getActive().id;
     window.Personas.setActive(id);
     this.renderPersonaBar();
     const modal = document.getElementById('persona-modal');
     if (modal) modal.classList.add('hidden');
-    if (prev === id) return;
+    const closeBtn = document.getElementById('persona-modal-close');
+    if (closeBtn) closeBtn.style.display = '';   // 강제 선택 모드 해제
 
-    // 새 상담사의 첫 인사 (성격이 바로 느껴지도록)
-    const greetings = {
-      woorung: '안녕하세요, 우렁의사예요. 이어서 제가 함께할게요. 편하게 이야기해요.',
-      haru: '안녕! 나 햇님이야. 마음에 그늘진 생각이 있으면 보여줘, 같이 햇볕에 말려보자. 요즘 어떤 생각이 자꾸 맴돌아?',
-      dalnim: '…안녕하세요, 달님이에요. 여기서는 좋은 사람인 척 안 해도 돼요. 못난 마음, 미운 마음까지 전부 쏟아내도 괜찮아요. 다 받아줄게요.',
-      sonamu: '반갑습니다, 소나무입니다. 잠시 숨 한 번 고르고… 천천히 시작해볼까요.'
-    };
-    const msg = { role: 'bot', text: greetings[id] || greetings.woorung, timestamp: new Date().toISOString() };
-    this.displayMessage(msg);
-    window.Storage.saveMessage(msg);
+    // 처음 고르는 경우엔 같은 상담사여도 인사해야 한다
+    if (!isFirstChoice && prev === id) return;
+    this._showPersonaGreeting(id);
+  },
+
+  // 첫 진입 온보딩: 상담사를 고른 적이 없으면 선택부터 하게 한다
+  maybeForcePersonaChoice() {
+    if (!window.Personas || window.Personas.hasChosen()) return false;
+    const disclaimer = document.getElementById('disclaimer-modal');
+    // 이용 안내 모달이 떠 있으면, 안내 확인 후에 이어서 뜨도록 미룬다
+    if (disclaimer && !disclaimer.classList.contains('hidden')) return true;
+    this.showPersonaModal(true);
+    return true;
   },
 
   resetChat() {
@@ -532,9 +562,9 @@ window.App = {
       const container = document.getElementById('chat-messages');
       if (container) container.innerHTML = '';
       this.clearQuickReplies();
-      
-      const welcomeMessages = window.Chatbot.init();
-      this.displayBotResponses(welcomeMessages);
+
+      // 현재 상담사가 자기 목소리로 다시 인사한다
+      this._showPersonaGreeting(window.Personas ? window.Personas.getActive().id : 'woorung');
     }
   },
   

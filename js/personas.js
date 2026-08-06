@@ -72,6 +72,11 @@ window.Personas = {
     return this.get(id);
   },
 
+  // 사용자가 직접 상담사를 고른 적이 있는가 (첫 진입 온보딩 판별용)
+  hasChosen() {
+    return !!(window.Storage && window.Storage._safeGet('cbt_active_persona', null));
+  },
+
   setActive(id) {
     if (window.Storage) window.Storage._safeSet('cbt_active_persona', id);
   },
