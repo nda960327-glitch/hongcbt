@@ -130,6 +130,9 @@
     }
     if (window.I18N) { window.I18N.apply(); window.I18N.observe(); }
 
+    // 4.43 구독 (7일 체험 → 월 구독)
+    if (window.Subscription) window.Subscription.init();
+
     // 4.45 먼저 말 걸기(체크인) 설정 + 스케줄러
     this.initCheckins();
 
@@ -306,6 +309,7 @@
     }
     if (tabName === 'mypage') {
       if (window.Wallet) window.Wallet.renderCard();
+      if (window.Subscription) window.Subscription.renderCard();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -326,6 +330,9 @@
   _replyTimer: null,
 
   async sendMessage() {
+    // 구독 관문: 7일 체험이 끝났고 미구독이면 안내 후 차단
+    if (window.Subscription && !window.Subscription.guard()) return;
+
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
     if (!text) return;
@@ -842,6 +849,8 @@
 
   async _sendCheckin() {
     if (!window.LLM || !window.Storage) return;
+    // 구독/체험이 아닐 땐 먼저 말 걸기도 조용히 쉰다
+    if (window.Subscription && !window.Subscription.hasAccess()) return;
     // 사용자가 방금까지 대화 중이었다면 끼어들지 않는다
     const msgs = window.Storage.getMessages() || [];
     const last = msgs[msgs.length - 1];

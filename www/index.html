@@ -65,6 +65,19 @@
     </div>
   </div>
 
+  <!-- 구독 안내 (7일 체험 종료 후) -->
+  <div id="sub-paywall-modal" class="modal-overlay hidden">
+    <div class="modal-content glass-card" style="max-width: 360px; text-align: center;">
+      <span id="sub-paywall-sticker" style="display: inline-block; line-height: 0;"></span>
+      <h2 style="margin: 0.6rem 0 0.4rem;">일주일 무료 체험이 끝났어요</h2>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.4rem;">우렁이는 당신과 나눈 이야기를 전부 기억한 채 기다리고 있어요.<br>구독하면 대화가 끊긴 적 없던 것처럼 이어집니다.</p>
+      <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent-primary); margin: 0.6rem 0 1rem;"><span id="sub-paywall-price">월 9,900원</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">· AI 상담 무제한</span></p>
+      <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.Subscription.subscribe()">구독하고 대화 이어가기</button>
+      <button class="btn-secondary" style="width: 100%;" onclick="document.getElementById('sub-paywall-modal').classList.add('hidden')">나중에</button>
+      <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.7rem 0 0;">기록·기억·사고기록지는 구독하지 않아도 언제든 볼 수 있어요.</p>
+    </div>
+  </div>
+
   <!-- App Container -->
   <div id="app-container">
     <!-- Header -->
@@ -198,6 +211,7 @@
           <span id="persona-bar-tagline" style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">다정하고 능청스러운 동네 주치의</span>
         </div>
         <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; display: flex; align-items: center; gap: 0.25rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="14"></span><span id="tts-text">소리 끔</span></button>
+        <span id="sub-badge" style="flex: 0 0 auto; font-size: 0.66rem; font-weight: 800; padding: 0.2rem 0.5rem; border-radius: 999px; white-space: nowrap;"></span>
         <button id="btn-voice-call" title="보이스톡 (30초당 150캐시)" onclick="window.CallTalk && window.CallTalk.start(window.Personas.getActive().id)" style="width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; border: none; background: var(--accent-primary); color: #fff; font-size: 1rem; cursor: pointer; box-shadow: var(--shadow-sm);">📞</button>
         <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.75rem; white-space: nowrap;">바꾸기</button>
         <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; white-space: nowrap;">초기화</button>
@@ -467,6 +481,12 @@
         <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
       </div>
       
+      <!-- 구독 관리 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
+        <h3 style="margin: 0 0 0.6rem 0;">🌱 우렁의사 구독</h3>
+        <div id="sub-card-body"></div>
+      </div>
+
       <!-- 우렁 캐시 지갑 -->
       <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
         <h3 style="margin: 0 0 0.6rem 0;">💰 우렁 캐시</h3>
@@ -804,6 +824,7 @@
   <script defer src="js/stickers.js"></script>
   <script defer src="js/i18n.js"></script>
   <script defer src="js/wallet.js"></script>
+  <script defer src="js/subscription.js"></script>
   <script defer src="js/calltalk.js"></script>
   <script defer src="js/voice.js"></script>
   <script defer src="js/llm.js"></script>

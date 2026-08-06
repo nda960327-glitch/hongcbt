@@ -9,6 +9,7 @@ const ASSETS = [
   './js/stickers.js',
   './js/i18n.js',
   './js/wallet.js',
+  './js/subscription.js',
   './js/calltalk.js',
   './js/voice.js',
   './js/llm.js',
