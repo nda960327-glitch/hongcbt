@@ -11,6 +11,7 @@ const ASSETS = [
   './js/wallet.js',
   './js/subscription.js',
   './js/calltalk.js',
+  './js/calm.js',
   './js/voice.js',
   './js/llm.js',
   './js/chatbot.js',

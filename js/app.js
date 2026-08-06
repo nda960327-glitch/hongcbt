@@ -986,6 +986,93 @@ ${memory || '(없음)'}`;
     }
   },
 
+  // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
+  quickMood(v, emo, emoji) {
+    const log = window.Storage._safeGet('cbt_mood_log', []) || [];
+    log.push({ ts: Date.now(), emo, v });
+    window.Storage._safeSet('cbt_mood_log', log.slice(-800));
+    // 우렁이 반응 토스트
+    const reactions = {
+      '기쁨': ['우로록! 좋은 날이네 ✨', '오늘 기분 최고구나!'],
+      '편안': ['잔잔한 하루, 좋다 🍃', '평온함 기록 완료!'],
+      '보통': ['그런 날도 있지. 기록해뒀어', '무난한 하루도 소중해'],
+      '불안': ['마음이 조마조마하구나. 호흡 한 번 어때?', '불안할 땐 우렁이한테 말해줘'],
+      '우울': ['마음이 무겁구나… 우렁이가 있어', '힘든 마음, 잘 기록해뒀어']
+    };
+    const msgs = reactions[emo] || ['기록했어!'];
+    this.showRecordToast(`${emoji} ${msgs[Math.floor(Math.random() * msgs.length)]}`);
+    // 선택 강조
+    document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
+    const btn = [...document.querySelectorAll('#quick-mood-row button')].find(b => b.textContent === emoji);
+    if (btn) btn.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
+    if (window.Dashboard) { window.Dashboard.renderTodayMoodChart(); }
+    // 힘든 감정이면 안정 도구 권유
+    if (v <= 2 && window.Calm && Math.random() < 0.7) {
+      setTimeout(() => {
+        if (confirm('마음이 힘든 것 같아요.\n우렁이와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
+      }, 900);
+    }
+  },
+
+  // === 대화 검색 ===
+  openChatSearch() {
+    const old = document.getElementById('chat-search-overlay');
+    if (old) { old.remove(); return; }
+    const ov = document.createElement('div');
+    ov.id = 'chat-search-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: var(--bg-primary); display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;';
+    ov.innerHTML = `
+      <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
+        <button id="cs-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;">✕</button>
+        <input id="cs-input" placeholder="대화 내용 검색 (예: 발표, 칵테일바)" style="flex: 1; min-width: 0; padding: 0.6rem 0.9rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+      </div>
+      <div id="cs-results" style="flex: 1; overflow-y: auto; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.5rem;">
+        <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">우렁이와 나눈 모든 대화에서 찾아드려요.</p>
+      </div>`;
+    document.body.appendChild(ov);
+    document.getElementById('cs-close').addEventListener('click', () => ov.remove());
+    const input = document.getElementById('cs-input');
+    input.focus();
+
+    const doSearch = () => {
+      const q = input.value.trim();
+      const box = document.getElementById('cs-results');
+      if (q.length < 1) { box.innerHTML = ''; return; }
+      const msgs = (window.Storage.getMessages() || []);
+      const hits = [];
+      msgs.forEach((m, idx) => { if (m.text && m.text.includes(q)) hits.push({ m, idx }); });
+      if (hits.length === 0) {
+        box.innerHTML = `<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">'${q}'에 대한 대화를 찾지 못했어요.</p>`;
+        return;
+      }
+      box.innerHTML = hits.slice(-60).reverse().map(h => {
+        const t = h.m.timestamp ? new Date(h.m.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+        const preview = h.m.text.length > 70 ? h.m.text.slice(0, 70) + '…' : h.m.text;
+        const marked = preview.split(q).join(`<b style="color: var(--accent-primary);">${q}</b>`);
+        return `<button data-idx="${h.idx}" class="cs-hit" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: left; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.85rem; cursor: pointer;">
+          <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 0.2rem;">${h.m.role === 'user' ? '나' : '상담사'} · ${t}</div>
+          <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.45;">${marked}</div>
+        </button>`;
+      }).join('');
+      box.querySelectorAll('.cs-hit').forEach(btn => btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        ov.remove();
+        this.switchTab('chat', true);
+        // 해당 메시지로 스크롤 + 하이라이트 (메시지 DOM 순서 = 저장 순서)
+        const nodes = document.querySelectorAll('#chat-messages .message');
+        const target = nodes[idx];
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const bubble = target.querySelector('.message-bubble') || target;
+          const orig = bubble.style.boxShadow;
+          bubble.style.boxShadow = '0 0 0 3px var(--accent-primary)';
+          setTimeout(() => { bubble.style.boxShadow = orig; }, 2200);
+        }
+      }));
+    };
+    input.addEventListener('input', doSearch);
+  },
+
   // AI 요약 리포트를 상담사에게 전달
   // ① 예약한 상담사의 채팅방에 첨부 (상담 시작 시 함께 확인)
   // ② 카톡/문자 공유로 즉시 직접 전달도 가능

@@ -31,6 +31,7 @@
         <a href="tel:15770199" class="crisis-btn"><span class="crisis-icon" data-icon="hospital" data-icon-size="22"></span>정신건강위기상담<span class="crisis-number">1577-0199</span></a>
         <a href="tel:109" class="crisis-btn"><span class="crisis-icon" data-icon="heart" data-icon-size="22"></span>생명의전화<span class="crisis-number">109</span></a>
       </div>
+      <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="document.getElementById('crisis-modal').classList.add('hidden'); window.Calm && window.Calm.startBreath('478');">🫧 지금 마음 가라앉히기 (호흡)</button>
       <button id="crisis-close" class="btn-secondary">대화 계속하기</button>
       <p class="crisis-disclaimer">이 앱은 전문 상담을 대체하지 않습니다</p>
     </div>
@@ -115,6 +116,18 @@
         <p class="tab-subtitle">나와 잘 맞는 상담사를 선택하고 대화를 시작해보세요</p>
       </div>
 
+      <!-- 원탭 기분 체크인 -->
+      <div class="glass-card" style="margin: 0 1.25rem 1rem; padding: 0.9rem 1rem;">
+        <p style="margin: 0 0 0.55rem; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">지금 마음은 어때요?</p>
+        <div id="quick-mood-row" style="display: flex; justify-content: space-between; gap: 0.3rem;">
+          <button onclick="window.App.quickMood(5,'기쁨','😄')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😄</button>
+          <button onclick="window.App.quickMood(4,'편안','🙂')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">🙂</button>
+          <button onclick="window.App.quickMood(3,'보통','😐')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😐</button>
+          <button onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😟</button>
+          <button onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😢</button>
+        </div>
+      </div>
+
       <!-- 2개 핵심 매칭 배너 (동일한 프리미엄 디자인 카드) -->
       <div class="home-banner-card home-banner-card--ai" onclick="window.App.switchTab('chat')">
         <div class="home-banner-card__art" data-art="heroChat"></div>
@@ -166,6 +179,11 @@
           <span class="home-tool__ico" data-icon="dashboard" data-icon-size="24"></span>
           <span class="home-tool__t">마음 대시보드</span>
           <span class="home-tool__d">감정 추적</span>
+        </button>
+        <button class="home-tool" onclick="window.Calm && window.Calm.openMenu()">
+          <span class="home-tool__ico" data-icon="heart" data-icon-size="24"></span>
+          <span class="home-tool__t">마음 안정</span>
+          <span class="home-tool__d">호흡·그라운딩</span>
         </button>
       </div>
 
@@ -244,6 +262,7 @@
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem;">
           <span id="sub-badge" style="flex: 0 0 auto; font-size: 0.64rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap;"></span>
           <span style="flex: 1 1 auto;"></span>
+          <button id="btn-chat-search" class="btn-secondary" title="대화 검색" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem;" onclick="window.App.openChatSearch()">🔍</button>
           <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem; display: flex; align-items: center; gap: 0.22rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="13"></span><span id="tts-text">소리 끔</span></button>
           <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.6rem; white-space: nowrap;">바꾸기</button>
           <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem; white-space: nowrap;">초기화</button>
@@ -884,6 +903,7 @@
   <script defer src="js/wallet.js"></script>
   <script defer src="js/subscription.js"></script>
   <script defer src="js/calltalk.js"></script>
+  <script defer src="js/calm.js"></script>
   <script defer src="js/voice.js"></script>
   <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>
