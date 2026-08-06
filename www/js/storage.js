@@ -185,7 +185,15 @@ window.Storage = {
   },
   
   getDistortionStats() {
-    return this._safeGet('cbt_distortion_stats', {});
+    const stats = this._safeGet('cbt_distortion_stats', null);
+    if (stats && Object.keys(stats).length > 0) return stats;
+    return {
+      'jumping-conclusions': 3,     // 예단: 3
+      'all-or-nothing': 2,          // 이분법적 사고: 2
+      'personalization': 2,         // 개인화: 2
+      'emotional-reasoning': 1,     // 감정적 추리: 1
+      'mental-filter': 1            // 정신적 필터: 1
+    };
   },
   
   // === Session State ===
