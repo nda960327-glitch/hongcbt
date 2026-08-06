@@ -356,12 +356,19 @@
         <h2><span class="h-ico" data-icon="counselor" data-icon-size="24"></span>상담사 매칭</h2>
         <p class="tab-subtitle">검증된 병원 소속 상담사들과 함께하세요</p>
       </div>
-      <div style="padding: 0 1.25rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.6rem;">
-        <select id="counselor-sort" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.5rem; font-size: 0.9rem; outline: none;" onchange="window.Marketplace.renderCounselors()">
-          <option value="rating">별점 높은 순</option>
-          <option value="reviews">리뷰 많은 순</option>
-          <option value="price_low">낮은 가격순</option>
-        </select>
+      <div style="padding: 0 1.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.6rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <select id="counselor-sort" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.5rem 0.6rem; font-size: 0.88rem; outline: none;" onchange="window.Marketplace.handleSortChange()">
+            <option value="distance">📍 내 거리 가까운 순</option>
+            <option value="rating">별점 높은 순</option>
+            <option value="reviews">리뷰 많은 순</option>
+            <option value="price_low">낮은 가격순</option>
+          </select>
+          <button id="btn-gps-location" class="btn-secondary" style="width: auto; padding: 0.45rem 0.7rem; font-size: 0.8rem; display: flex; align-items: center; gap: 0.35rem; border-radius: 8px;" onclick="window.Marketplace.requestUserLocation()">
+            <span class="h-ico" data-icon="location" data-icon-size="14"></span>
+            <span id="gps-status-text">내 위치 동기화</span>
+          </button>
+        </div>
         <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-primary);">
           <input type="checkbox" id="counselor-available-now" onchange="window.Marketplace.renderCounselors()" style="accent-color: #10b981;">
           지금 바로 상담 가능
