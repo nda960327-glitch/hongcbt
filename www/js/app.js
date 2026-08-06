@@ -435,17 +435,35 @@ window.App = {
     if (tagline) tagline.textContent = p.tagline;
   },
 
-  showPersonaModal(force = false) {
-    if (!window.Personas) return;
+  updateLastActiveTime() {
+    if (window.Storage) {
+      window.Storage._safeSet('cbt_last_active_time', Date.now());
+    }
+  },
+
+  checkInactivityAndPrompt(customTitle = null) {
+    const lastActive = window.Storage ? window.Storage._safeGet('cbt_last_active_time', 0) : 0;
+    const elapsedMinutes = lastActive ? (Date.now() - lastActive) / (1000 * 60) : 999;
+    
+    // 10분 이상 지났거나 대화 내역이 비어있는 경우 상담사 선택 모달 출력
+    if (elapsedMinutes >= 10) {
+      const title = customTitle || (lastActive ? '다시 오셨군요! 오늘 마음을 나눌 AI 상담사를 선택해주세요' : '대화할 AI 상담사 선택');
+      this.showPersonaModal(false, title);
+      return true;
+    }
+    return false;
+  },
+
+  showPersonaModal(force = false, customTitle = null) {
     const modal = document.getElementById('persona-modal');
     const listEl = document.getElementById('persona-card-list');
-    if (!modal || !listEl) return;
+    if (!modal || !listEl || !window.Personas) return;
 
     // 온보딩(강제 선택) 모드: 닫기 없이 반드시 한 명을 고르게 한다
     const closeBtn = document.getElementById('persona-modal-close');
     if (closeBtn) closeBtn.style.display = force ? 'none' : '';
     const titleEl = modal.querySelector('h2');
-    if (titleEl) titleEl.textContent = force ? '함께할 AI 상담사를 골라주세요' : '대화할 AI 상담사 선택';
+    if (titleEl) titleEl.textContent = customTitle || (force ? '함께할 AI 상담사를 골라주세요' : '대화할 AI 상담사 선택');
 
     // 아직 한 번도 고른 적 없으면(온보딩) '현재 상담사' 표시를 하지 않는다
     const activeId = window.Personas.hasChosen() ? window.Personas.getActive().id : null;
@@ -504,12 +522,16 @@ window.App = {
     const modal = document.getElementById('persona-modal');
     if (modal) modal.classList.add('hidden');
     const closeBtn = document.getElementById('persona-modal-close');
-    if (closeBtn) closeBtn.style.display = '';   // 강제 선택 모드 해제
+    if (closeBtn) closeBtn.style.display = '';
+
+    // 활성 시간 갱신
+    this.updateLastActiveTime();
 
     // 챗봇 탭으로 화면 전환 (선택 후 바로 입장)
     this.switchTab('chat', true);
 
-    if (isFirstChoice || prev !== id) {
+    const messages = window.Storage ? window.Storage.getMessages() : [];
+    if (isFirstChoice || prev !== id || !messages || messages.length === 0) {
       this._showPersonaGreeting(id);
     }
   },
@@ -526,18 +548,13 @@ window.App = {
 
   resetChat() {
     if (confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
-      // 대화(메시지)만 지운다. cbt_user_memory(장기기억)는 사용자가 기억 삭제를
-      // 명시적으로 요청하지 않는 한 절대 건드리지 않는다 — 채팅을 비워도
-      // 우렁의사는 이 사람을 계속 기억해야 한다.
       window.Storage.clearMessages();
       window.Storage.clearSessionState();
       window.Chatbot.reset();
       const container = document.getElementById('chat-messages');
       if (container) container.innerHTML = '';
-      this.clearQuickReplies();
-
-      // 현재 상담사가 자기 목소리로 다시 인사한다
-      this._showPersonaGreeting(window.Personas ? window.Personas.getActive().id : 'woorung');
+      // 대화 종료 후 새 상담사 선택 모달 출력
+      this.showPersonaModal(false, '대화가 종료되었습니다. 새 대화를 시작할 AI 상담사를 선택하세요');
     }
   },
   
