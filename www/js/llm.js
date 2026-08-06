@@ -167,29 +167,48 @@ window.LLM = {
 자살·자해·타해·심각한 위기 신호가 감지되면, 절대 평가하거나 서두르지 말고 먼저 온전히 곁에 있어주세요. 그리고 응답 어딘가에 '위험감지'라는 단어를 포함시켜 시스템이 안전 안내(자살예방상담 1393, 정신건강상담 1577-0199)를 띄우도록 하세요. 위기 순간엔 유머·기법 설명을 멈추고, 오직 안전과 연결에 집중합니다.
 
 ============================================================
-[5] 장기기억 사용법
+[5] 상담 세션의 시작과 마무리
+============================================================
+대화는 '세션' 단위로 흘러갑니다. 오래 자리를 비웠다 돌아오면 새 세션이 시작됩니다.
+
+· 새 세션 시작: [세션 안내]가 있으면 새로 만난 것처럼 반갑게 인사하고, 장기기억을 활용해 지난 이야기의 후속을 자연스럽게 물어보세요. ("어, 왔네! 저번에 말한 면접은 어떻게 됐어?")
+· 마무리 감지: 사용자가 대화를 끝내려는 신호를 보내면(예: "고마워", "잘자", "이만 갈게", "나중에 또 올게", "덕분에 좀 나아졌어") 길게 붙잡지 말고 짧고 따뜻하게 인사하세요.
+· 마무리 인사를 할 때는 응답 맨 끝에 [세션끝] 이라는 표식을 붙이세요. 사용자에게는 보이지 않으며, 시스템이 이 세션을 정리하는 데 씁니다.
+· 이번 세션에서 구체적인 상황·생각·감정을 함께 다뤘다면, 마무리 인사에 "오늘 얘기는 내가 기록장에 정리해둘게" 같은 한마디를 자연스럽게 넣으세요. 실제로 시스템이 정리합니다. 가벼운 수다만 했다면 이 말은 하지 마세요.
+· 절대 먼저 대화를 끊지 마세요. 마무리는 언제나 사용자의 신호가 먼저입니다.
+
+============================================================
+[6] 장기기억 사용법
 ============================================================
 아래 [장기기억]은 당신이 이 사람과 쌓아온 모든 것의 요약입니다 — 이름, 살아온 이야기, 관계, 반복되는 주제, 잘 통했던 접근, 둘만의 농담, 중요한 날짜, 지난번 숙제까지. 매 대화에서 이걸 진짜 기억처럼 자연스럽게 꺼내 쓰세요. 단, 감시하듯 "기록을 보니…" 라고 하지 말고, 그냥 아는 사람이 기억하듯 말하세요. 기억에 없는 건 지어내지 말고 물어보세요.`,
 
   // --------------------------------------------------------------------------
   //  실행 시 조립되는 시스템 프롬프트 (장기기억 + 오늘 날짜 주입)
   // --------------------------------------------------------------------------
-  _buildSystemPrompt() {
+  _buildSystemPrompt(sessionNote) {
     const memory = (window.Storage && window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
-    let today = '';
-    try { today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }); } catch (e) {}
+    let nowStr = '';
+    try {
+      const d = new Date();
+      const h = d.getHours();
+      const part = h < 5 ? '새벽' : h < 9 ? '아침' : h < 12 ? '오전' : h < 18 ? '한낮/오후' : h < 21 ? '저녁' : '밤';
+      nowStr = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
+        + ' ' + d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+        + ` — 지금은 ${part}입니다`;
+    } catch (e) {}
 
     let prompt = this.CORE_PROMPT;
-    if (today) prompt += `\n\n[오늘 날짜] ${today}`;
+    if (nowStr) prompt += `\n\n[현재 시각] ${nowStr}\n반드시 지금 시각에 맞게 말하세요. 한낮에 "잘 자", "좋은 꿈 꿔", 아침에 "저녁 먹었어?" 같은 엇박자는 즉시 AI 티가 납니다. 사용자가 지쳐 보여도 낮이면 낮잠·휴식·산책을 권하지, 밤 인사를 하지 마세요. 밤 인사는 실제로 밤이거나 사용자가 자러 간다고 할 때만.`;
+    if (sessionNote) prompt += `\n\n${sessionNote}`;
     prompt += `\n\n[장기기억]\n` + (memory && memory.trim()
       ? memory.trim()
       : "(아직 이 사람에 대해 아는 것이 없습니다. 이번 대화에서 이름과 이야기를 자연스럽게 알아가세요. 처음 만난 것처럼, 그러나 반갑게.)");
     return prompt;
   },
 
-  _buildMessages() {
+  _buildMessages(sessionNote) {
     const history = (window.Storage && window.Storage.getMessages()) || [];
-    const messages = [{ role: "system", content: this._buildSystemPrompt() }];
+    const messages = [{ role: "system", content: this._buildSystemPrompt(sessionNote) }];
     const recent = history.slice(-this.HISTORY_WINDOW);
     recent.forEach(msg => {
       if (msg.role === 'user') messages.push({ role: "user", content: msg.text });
@@ -201,8 +220,27 @@ window.LLM = {
   // --------------------------------------------------------------------------
   //  메인: 응답 생성
   // --------------------------------------------------------------------------
+  SESSION_GAP_MS: 3 * 60 * 60 * 1000,   // 3시간 넘게 자리를 비우면 새 세션
+
   async generateResponse(userText) {
-    const messages = this._buildMessages();
+    // --- 세션 경계 판정 ---
+    const history = (window.Storage && window.Storage.getMessages()) || [];
+    let meta = (window.Storage && window.Storage.getSessionMeta()) || { startIndex: 0, lastAt: 0 };
+    let sessionNote = "";
+    const now = Date.now();
+
+    if (meta.lastAt && now - meta.lastAt > this.SESSION_GAP_MS) {
+      // 지난 세션을 조용히 정리(기록 가치가 있으면 사고 기록 생성)하고 새 세션 시작
+      this._finalizeSession(history.slice(meta.startIndex, Math.max(meta.startIndex, history.length - 1)));
+      meta.startIndex = Math.max(0, history.length - 1);
+      const hours = Math.round((now - meta.lastAt) / 3600000);
+      const away = hours >= 48 ? `${Math.round(hours / 24)}일` : `${hours}시간`;
+      sessionNote = `[세션 안내] 사용자가 약 ${away} 만에 다시 찾아왔습니다. 새로운 대화의 시작입니다. 반갑게 맞아주고, 장기기억을 활용해 지난 이야기의 후속을 자연스럽게 이어가세요.`;
+    }
+    meta.lastAt = now;
+    if (window.Storage) window.Storage.setSessionMeta(meta);
+
+    const messages = this._buildMessages(sessionNote);
 
     try {
       const response = await this._chatCompletion({
@@ -236,8 +274,24 @@ window.LLM = {
         botText = botText.replace(/위험감지/g, "").trim();
       }
 
+      // 세션 마무리 마커 (사용자가 인사하고 떠나는 흐름)
+      let sessionEnd = false;
+      if (botText.includes("[세션끝]")) {
+        sessionEnd = true;
+        botText = botText.replace(/\[세션끝\]/g, "").trim();
+      }
+
       // 장기기억 비동기 갱신 (사용자를 기다리게 하지 않음)
       this._updateMemory(userText, botText.replace(/\s*\|\|\|\s*/g, " "));
+
+      // 세션이 끝났으면: 이번 세션 대화를 사고 기록으로 정리하고 다음 세션 경계를 잡는다
+      if (sessionEnd && window.Storage) {
+        const full = window.Storage.getMessages() || [];
+        this._finalizeSession(full.slice(meta.startIndex));
+        meta.startIndex = full.length; // 다음 세션은 여기부터 (마무리 인사 몇 개가 섞여도 무해)
+        meta.lastAt = 0;               // 다음 메시지는 무조건 새 세션
+        window.Storage.setSessionMeta(meta);
+      }
 
       // ||| 구분자로 나눠 사람이 연달아 보내는 것 같은 짧은 말풍선들로 반환
       let parts = botText.split(/\s*\|\|\|\s*/).map(s => s.trim()).filter(Boolean);
@@ -288,6 +342,72 @@ window.LLM = {
       return "지금 이용자가 많아서 잠깐 순서를 기다려야 해요.\n1~2분 뒤에 다시 말 걸어주시겠어요?";
     }
     return "지금 AI에 연결하지 못하고 있어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.\n\n많이 힘든 상태라면 기다리지 마시고 꼭 도움을 받아요.\n· 자살예방상담전화 1393 (24시간)\n· 정신건강상담전화 1577-0199";
+  },
+
+  // --------------------------------------------------------------------------
+  //  세션 정리 — 끝난 세션의 대화를 읽고, 기록할 가치가 있으면 사고 기록을
+  //  자동 작성해 '기록' 탭에 저장한다. (비동기, 실패해도 대화에 영향 없음)
+  // --------------------------------------------------------------------------
+  async _finalizeSession(sessionMsgs) {
+    try {
+      if (!window.Storage || !Array.isArray(sessionMsgs) || sessionMsgs.length < 4) return;
+
+      const transcript = sessionMsgs.map(m =>
+        `${m.role === 'user' ? '내담자' : '우렁의사'}: ${m.text}`
+      ).join("\n");
+
+      const prompt = `당신은 심리상담 세션을 CBT 사고 기록지로 정리하는 임상 기록 담당자입니다.
+아래 대화를 읽고, 사고 기록으로 남길 가치가 있는지 먼저 판단하세요.
+구체적인 상황과 그때의 생각·감정이 다뤄졌다면 가치가 있습니다. 가벼운 잡담·인사만 있었다면 없습니다.
+
+반드시 아래 형식의 JSON만 출력하세요. 설명·마크다운 금지.
+{
+  "worth": true 또는 false,
+  "situation": "언제 어디서 무슨 일이 있었는지 한두 문장 (내담자 입장에서)",
+  "thought": "그때 떠오른 자동적 사고, 내담자가 말한 표현을 살려서",
+  "emotions": [{"name": "감정이름", "intensity": 0~100 숫자}],
+  "distortions": ["해당하는 것만: all-or-nothing, overgeneralization, mental-filter, disqualifying-positive, jumping-conclusions, magnification-minimization, emotional-reasoning, should-statements, personalization, labeling"],
+  "alternative": "대화에서 함께 찾은 대안적·균형 잡힌 생각 (없으면 빈 문자열)",
+  "newEmotions": "대화 후 감정 변화 요약 문자열 (예: '불안 40%, 안도 30%', 없으면 빈 문자열)"
+}
+worth가 false면 다른 필드는 비워도 됩니다.
+
+[세션 대화]
+${transcript}`;
+
+      const res = await this._chatCompletion({
+        model: this.MEMORY_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.1,
+        max_tokens: 500
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      let text = ((data.choices && data.choices[0] && data.choices[0].message.content) || "").trim();
+      text = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
+
+      const rec = JSON.parse(text);
+      if (!rec || rec.worth !== true || !rec.situation) return;
+
+      const VALID = ["all-or-nothing","overgeneralization","mental-filter","disqualifying-positive","jumping-conclusions","magnification-minimization","emotional-reasoning","should-statements","personalization","labeling"];
+      const distortions = (Array.isArray(rec.distortions) ? rec.distortions : []).filter(d => VALID.includes(d));
+
+      window.Storage.saveThoughtRecord({
+        situation: String(rec.situation || ""),
+        thought: String(rec.thought || ""),
+        emotions: (Array.isArray(rec.emotions) ? rec.emotions : [])
+          .filter(e => e && e.name)
+          .map(e => ({ name: String(e.name), intensity: Math.max(0, Math.min(100, Number(e.intensity) || 50)) })),
+        distortions: distortions,
+        alternative: String(rec.alternative || ""),
+        newEmotions: String(rec.newEmotions || ""),
+        source: "chat"   // 챗봇이 자동 정리한 기록임을 표시
+      });
+      distortions.forEach(d => window.Storage.incrementDistortion(d));
+      console.log("세션 사고 기록 저장 완료");
+    } catch (e) {
+      console.warn("세션 기록 생략:", e);
+    }
   },
 
   // --------------------------------------------------------------------------

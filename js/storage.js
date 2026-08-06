@@ -78,6 +78,15 @@ window.Storage = {
     localStorage.removeItem('cbt_user_memory');
   },
 
+  // === 상담 세션 경계 (자동 사고 기록의 단위) ===
+  getSessionMeta() {
+    return this._safeGet('cbt_session_meta', null);
+  },
+
+  setSessionMeta(meta) {
+    this._safeSet('cbt_session_meta', meta);
+  },
+
   // === Chat Messages ===
   saveMessage(message) {
     const messages = this.getMessages();
