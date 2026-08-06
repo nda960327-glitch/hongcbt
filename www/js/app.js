@@ -185,7 +185,11 @@ window.App = {
     });
   },
   
-  switchTab(tabName) {
+  switchTab(tabName, skipModal = false) {
+    if (tabName === 'chat' && !skipModal) {
+      this.showPersonaModal(false);
+      return;
+    }
     this.currentTab = tabName;
     
     // Update nav active state
@@ -441,7 +445,7 @@ window.App = {
     const closeBtn = document.getElementById('persona-modal-close');
     if (closeBtn) closeBtn.style.display = force ? 'none' : '';
     const titleEl = modal.querySelector('h2');
-    if (titleEl) titleEl.textContent = force ? '함께할 AI 상담사를 골라주세요' : 'AI 상담사 선택';
+    if (titleEl) titleEl.textContent = force ? '함께할 AI 상담사를 골라주세요' : '대화할 AI 상담사 선택';
 
     // 아직 한 번도 고른 적 없으면(온보딩) '현재 상담사' 표시를 하지 않는다
     const activeId = window.Personas.hasChosen() ? window.Personas.getActive().id : null;
@@ -449,20 +453,26 @@ window.App = {
     window.Personas.list.forEach(p => {
       const card = document.createElement('div');
       const isActive = p.id === activeId;
-      card.style.cssText = `border: 2px solid ${isActive ? p.color : 'var(--glass-border)'}; border-radius: 14px; padding: 0.9rem; cursor: pointer; background: ${isActive ? `color-mix(in srgb, ${p.color} 8%, var(--bg-secondary))` : 'var(--bg-secondary)'};`;
+      card.style.cssText = `border: 2px solid ${isActive ? p.color : 'var(--glass-border)'}; border-radius: 14px; padding: 0.95rem; cursor: pointer; background: ${isActive ? `color-mix(in srgb, ${p.color} 10%, var(--bg-secondary))` : 'var(--bg-secondary)'}; transition: all 0.2s ease; box-shadow: var(--shadow-sm);`;
       card.innerHTML = `
         <div style="display: flex; gap: 0.8rem; align-items: center;">
           <span style="flex-shrink: 0;">${window.Personas.avatarSvg(p.id, 52)}</span>
           <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 800; font-size: 1rem; color: var(--text-primary);">${p.name}${isActive ? ' <span style="font-size:0.7rem; color:' + p.color + ';">● 현재 상담사</span>' : ''}</div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">${p.tagline}</div>
-            <div style="margin-top: 0.3rem; display: flex; gap: 0.3rem; flex-wrap: wrap;">
+            <div style="font-weight: 800; font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
+              <span>${p.name}</span>
+              ${isActive ? `<span style="font-size:0.72rem; background: color-mix(in srgb, ${p.color} 20%, transparent); color: ${p.color}; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700;">● 현재 활성 상담사</span>` : ''}
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;">${p.tagline}</div>
+            <div style="margin-top: 0.35rem; display: flex; gap: 0.3rem; flex-wrap: wrap;">
               ${p.tags.map(t => `<span style="font-size: 0.66rem; background: color-mix(in srgb, ${p.color} 15%, transparent); color: ${p.color}; padding: 0.12rem 0.42rem; border-radius: 999px; font-weight: 700;">${t}</span>`).join('')}
             </div>
           </div>
         </div>
-        <p style="margin: 0.6rem 0 0.2rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45;">${p.desc}</p>
-        <p style="margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--text-muted);"><b>이런 분께:</b> ${p.fit}</p>`;
+        <p style="margin: 0.65rem 0 0.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">${p.desc}</p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px dashed var(--glass-border);">
+          <span style="font-size: 0.74rem; color: var(--text-muted); flex: 1; padding-right: 0.5rem;"><b>추천:</b> ${p.fit}</span>
+          <button class="btn-primary" style="font-size: 0.76rem; padding: 0.35rem 0.85rem; border-radius: var(--radius-full); width: auto; flex-shrink: 0; background: ${p.color}; border: none;">${isActive ? '대화 계속하기 ›' : '상담사 선택 ›'}</button>
+        </div>`;
       card.addEventListener('click', () => this.selectPersona(p.id));
       listEl.appendChild(card);
     });
@@ -488,7 +498,7 @@ window.App = {
   selectPersona(id) {
     if (!window.Personas) return;
     const isFirstChoice = !window.Personas.hasChosen();
-    const prev = window.Personas.getActive().id;
+    const prev = window.Personas.getActive() ? window.Personas.getActive().id : null;
     window.Personas.setActive(id);
     this.renderPersonaBar();
     const modal = document.getElementById('persona-modal');
@@ -496,9 +506,12 @@ window.App = {
     const closeBtn = document.getElementById('persona-modal-close');
     if (closeBtn) closeBtn.style.display = '';   // 강제 선택 모드 해제
 
-    // 처음 고르는 경우엔 같은 상담사여도 인사해야 한다
-    if (!isFirstChoice && prev === id) return;
-    this._showPersonaGreeting(id);
+    // 챗봇 탭으로 화면 전환 (선택 후 바로 입장)
+    this.switchTab('chat', true);
+
+    if (isFirstChoice || prev !== id) {
+      this._showPersonaGreeting(id);
+    }
   },
 
   // 첫 진입 온보딩: 상담사를 고른 적이 없으면 선택부터 하게 한다
