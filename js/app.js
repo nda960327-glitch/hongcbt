@@ -208,6 +208,7 @@
     if (window.ThoughtRecord) window.ThoughtRecord.init();
     if (window.Dashboard) window.Dashboard.init();
     if (window.Learn) window.Learn.init();
+    if (window.Growth) window.Growth.init();
     if (window.Personas) window.Personas.renderHomeQuickSelect();
     
     // 9. PWA Install Logic
@@ -307,6 +308,10 @@
     if (tabName === 'home' && window.Personas) {
       window.Personas.renderHomeQuickSelect();
     }
+    if (tabName === 'home' && window.Growth) {
+      window.Growth.maybeShowNightCard();
+      window.Growth.renderStreakChip();
+    }
     if (tabName === 'counselors' && window.Marketplace) {
       window.Marketplace.renderCounselors();
     }
@@ -332,6 +337,7 @@
     if (tabName === 'mypage') {
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
+      if (window.Growth) window.Growth.renderBadgeCard();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -375,6 +381,7 @@
 
     // 영속 통계: 총 대화 카운터 + 감정 로그 (대화를 초기화해도 남는다)
     window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
+    if (window.Growth) window.Growth.checkAwards();
     if (window.Dashboard && window.Dashboard.logMood) window.Dashboard.logMood(text);
 
     // Show typing indicator
@@ -991,6 +998,8 @@ ${memory || '(없음)'}`;
     const log = window.Storage._safeGet('cbt_mood_log', []) || [];
     log.push({ ts: Date.now(), emo, v });
     window.Storage._safeSet('cbt_mood_log', log.slice(-800));
+    window.Storage.markDayActive();
+    if (window.Growth) window.Growth.checkAwards();
     // 우렁이 반응 토스트
     const reactions = {
       '기쁨': ['우로록! 좋은 날이네 ✨', '오늘 기분 최고구나!'],

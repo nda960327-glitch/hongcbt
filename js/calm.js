@@ -63,6 +63,8 @@ window.Calm = {
             this._cycles++;
             const cy = document.getElementById('calm-cycles');
             if (cy) cy.textContent = `${this._cycles}번째 호흡 완료 · 편해질 때까지 계속해요`;
+            // 호흡 1사이클을 끝까지 마쳤을 때만 연습 1회로 집계 (뱃지용)
+            if (this._cycles === 1 && window.Growth) window.Growth.bumpBreath();
           }
           runPhase();
         } else {
@@ -103,6 +105,7 @@ window.Calm = {
   },
 
   _finish() {
+    if (window.Growth) window.Growth.bumpBreath();
     this._overlay(`
       <div style="text-align: center; max-width: 300px;">
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('proud', 110) : ''}</span>

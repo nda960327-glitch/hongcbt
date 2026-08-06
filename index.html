@@ -118,7 +118,10 @@
 
       <!-- 원탭 기분 체크인 -->
       <div class="glass-card" style="margin: 0 1.25rem 1rem; padding: 0.9rem 1rem;">
-        <p style="margin: 0 0 0.55rem; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">지금 마음은 어때요?</p>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.55rem;">
+          <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">지금 마음은 어때요?</p>
+          <span id="streak-chip" onclick="window.App.switchTab('mypage')" style="display: none; font-size: 0.72rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.18rem 0.55rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></span>
+        </div>
         <div id="quick-mood-row" style="display: flex; justify-content: space-between; gap: 0.3rem;">
           <button onclick="window.App.quickMood(5,'기쁨','😄')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😄</button>
           <button onclick="window.App.quickMood(4,'편안','🙂')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">🙂</button>
@@ -126,6 +129,19 @@
           <button onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😟</button>
           <button onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; text-align: center; font-size: 1.65rem; padding: 0.35rem 0; border-radius: 12px; cursor: pointer;">😢</button>
         </div>
+      </div>
+
+      <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
+      <div id="night-card" class="hidden" style="margin: 0 1.25rem 1rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
+        <button onclick="window.Growth && window.Growth.dismissNightToday()" title="오늘은 그냥 잘래요" style="all: unset; position: absolute; top: 0.5rem; right: 0.75rem; font-size: 1rem; opacity: 0.55; cursor: pointer; padding: 0.25rem; z-index: 1;">✕</button>
+        <button onclick="window.Growth && window.Growth.startNight()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 1rem 1.1rem; cursor: pointer;">
+          <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
+          <span style="flex: 1; min-width: 0; text-align: left;">
+            <strong style="display: block; font-size: 0.98rem;">🌙 오늘 하루, 정리하고 잘까요?</strong>
+            <span style="font-size: 0.78rem; opacity: 0.8;">자기 전 딱 3분, 우렁이가 오늘을 같이 돌아봐드려요</span>
+          </span>
+          <span style="width: 30px; height: 30px; border-radius: 50%; background: #f0ead9; color: #232f3b; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">›</span>
+        </button>
       </div>
 
       <!-- 2개 핵심 매칭 배너 (동일한 프리미엄 디자인 카드) -->
@@ -564,6 +580,16 @@
         <p style="margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--text-muted);">캐시는 상담 예약 결제와 보이스톡(30초당 150캐시)에 사용돼요.</p>
       </div>
 
+      <!-- 꾸준함 & 뱃지 (성장 시스템) -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;">
+          <h3 style="margin: 0;">🏅 나의 꾸준함</h3>
+          <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
+        </div>
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.3rem 0 0.85rem;">우렁이와 함께한 발자국이 뱃지로 쌓여요. 매일 들러 체크인만 해도 스트릭이 이어집니다.</p>
+        <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
+      </div>
+
       <!-- 내 이름(별명) 설정 -->
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
         <h3 style="margin-top:0;">내 이름(별명)</h3>
@@ -910,6 +936,7 @@
   <script defer src="js/marketplace.js"></script>
   <script defer src="js/booking.js"></script>
   <script defer src="js/thought-record.js"></script>
+  <script defer src="js/growth.js"></script>
   <script defer src="js/dashboard.js"></script>
   <script defer src="js/learn.js"></script>
   <script defer src="js/app.js"></script>
