@@ -1470,29 +1470,13 @@ ${memory || '(없음)'}`;
     if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
   },
 
-  // 알림 시그니처: 우렁이가 "우렁!" 하고 귀엽게 외친다 (+ 진동)
-  // 음성합성 미지원/실패 시 기존 알림음으로 폴백.
+  // 알림 시그니처: '우-렁!' 리듬의 귀여운 방울 알림음 + 진동 (TTS 없음)
   playWoorung() {
-    // 진동 먼저: 우-렁! 리듬
     if (navigator.vibrate) { try { navigator.vibrate([90, 50, 160]); } catch (e) {} }
-    try {
-      if ('speechSynthesis' in window) {
-        const u = new SpeechSynthesisUtterance('우렁!');
-        u.lang = 'ko-KR';
-        u.pitch = 1.9;  // 한껏 귀엽게
-        u.rate = 1.15;
-        u.volume = 1;
-        const vs = window.speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('ko'));
-        const pick = vs.find(v => /female|여성|yuna|heami|sunhi|sora/i.test(v.name)) || vs[0];
-        if (pick) u.voice = pick;
-        u.onerror = () => this.playNotify();
-        window.speechSynthesis.speak(u);
-        // 짧은 방울 소리도 함께 (목소리만 있으면 심심하니까)
-        this._tone(1174, 0.12, 0, 0.06);
-        return;
-      }
-    } catch (e) {}
-    this.playNotify();
+    // 낮게 '우' → 높게 통통 '렁!' 튀는 3음 차임
+    this._tone(659, 0.10, 0);          // 우
+    this._tone(988, 0.10, 0.11);       // 렁
+    this._tone(1319, 0.20, 0.22);      // ! (통-)
   },
 
   // 전화 연결음(뚜루루): 1초 울리고 2초 쉬는 표준 링백톤
