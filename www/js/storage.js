@@ -185,15 +185,17 @@ window.Storage = {
   },
   
   getDistortionStats() {
-    const stats = this._safeGet('cbt_distortion_stats', null);
-    if (stats && Object.keys(stats).length > 0) return stats;
-    return {
-      'jumping-conclusions': 3,     // 예단: 3
-      'all-or-nothing': 2,          // 이분법적 사고: 2
-      'personalization': 2,         // 개인화: 2
-      'emotional-reasoning': 1,     // 감정적 추리: 1
-      'mental-filter': 1            // 정신적 필터: 1
-    };
+    return this._safeGet('cbt_distortion_stats', {});
+  },
+
+  clearAllData() {
+    try {
+      localStorage.clear();
+      return true;
+    } catch (e) {
+      console.error('Error clearing localStorage', e);
+      return false;
+    }
   },
   
   // === Session State ===

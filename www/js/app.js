@@ -557,6 +557,20 @@ window.App = {
       this.showPersonaModal(false, '대화가 종료되었습니다. 새 대화를 시작할 AI 상담사를 선택하세요');
     }
   },
+
+  resetAllAppData() {
+    if (confirm('🚨 정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
+      if (confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?')) {
+        if (window.Storage && window.Storage.clearAllData) {
+          window.Storage.clearAllData();
+        } else {
+          localStorage.clear();
+        }
+        alert('앱의 모든 데이터가 성공적으로 초기화되었습니다.');
+        window.location.reload();
+      }
+    }
+  },
   
   loadExistingMessages() {
     const messages = window.Storage.getMessages() || [];

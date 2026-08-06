@@ -419,6 +419,59 @@
         </div>
       </div>
 
+      <!-- 앱 설정 & 데이터 관리 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.25rem;">
+        <h3 style="margin-top:0; display: flex; align-items: center; gap: 0.4rem; color: var(--text-primary);">
+          <span class="h-ico" data-icon="settings" data-icon-size="20"></span> 앱 설정 및 데이터 관리
+        </h3>
+
+        <div style="display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem;">
+          <!-- 1. 다크 / 라이트 테마 설정 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">화면 테마 설정</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">다크 모드와 라이트 모드를 전환합니다.</span>
+            </div>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleTheme()">테마 변경 🌙</button>
+          </div>
+
+          <!-- 2. 음성(TTS) 읽기 설정 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">음성(TTS) 읽어주기</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">AI 상담사의 답변을 음성으로 들려줍니다.</span>
+            </div>
+            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+              <input type="checkbox" id="setting-tts-toggle" checked onchange="window.Voice && window.Voice.setMuted(!this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
+            </label>
+          </div>
+
+          <!-- 3. 대화 내역만 비우기 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">채팅 대화 내역 비우기</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">진행 중인 챗봇 대화 메시지만 삭제합니다.</span>
+            </div>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.resetChat()">대화 비우기</button>
+          </div>
+
+          <!-- 4. 앱 전체 초기화 (DANGER ZONE) -->
+          <div style="padding: 0.95rem; background: color-mix(in srgb, #ef4444 10%, var(--bg-tertiary)); border-radius: 10px; border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+              <strong style="font-size: 0.92rem; color: #ef4444; display: flex; align-items: center; gap: 0.35rem;">
+                ⚠️ 전체 앱 데이터 초기화
+              </strong>
+            </div>
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.8rem 0; line-height: 1.4;">
+              대화 내역, 사고 기록지, 기분 통계, 장기기억, 예약 정보 등 <strong>앱의 모든 데이터가 완전히 삭제되고 초기 상태로 리셋</strong>됩니다.
+            </p>
+            <button class="btn-primary" style="background: #ef4444; border: none; font-size: 0.85rem; padding: 0.55rem 1rem; border-radius: 8px; width: 100%; font-weight: 700; color: #fff;" onclick="window.App.resetAllAppData()">
+              🗑️ 앱 모든 데이터 초기화하기
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- CBT 대화 요약 리포트 -->
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
         <h3 style="margin-top:0;">CBT 요약 리포트</h3>

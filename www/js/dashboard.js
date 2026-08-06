@@ -236,7 +236,7 @@ window.Dashboard = {
     const streak = (window.Storage && window.Storage.getStreak()) || 0;
 
     if (elSessions) {
-      this._animateCounter(elSessions, userMsgs || storedSessions || 11);
+      this._animateCounter(elSessions, userMsgs || storedSessions);
     }
     
     if (elRecords) {
@@ -244,11 +244,11 @@ window.Dashboard = {
     }
     
     if (elStreak) {
-      this._animateCounter(elStreak, streak || 5);
+      this._animateCounter(elStreak, streak);
     }
     
     if (elDistortions) {
-      this._animateCounter(elDistortions, uniqueTypes || 5);
+      this._animateCounter(elDistortions, uniqueTypes);
     }
   },
 
@@ -258,7 +258,6 @@ window.Dashboard = {
     const moodEntries = (window.Storage && window.Storage.getMoodEntries(30)) || [];
     const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
     const messages = (window.Storage && window.Storage.getMessages()) || [];
-    const defaultBaseline = [3, 2, 4, 3, 4, 3, 5];
 
     for (let i = 6; i >= 0; i--) {
       const d = new Date(today);
@@ -291,12 +290,9 @@ window.Dashboard = {
         if (hasMsg) score = 3;
       }
 
-      // 4. 감정 흐름 차트의 연속성과 자연스러운 대시보드 뷰를 위한 기본값 지정
-      if (!score) {
-        score = defaultBaseline[6 - i];
+      if (score) {
+        result.push({ score, label, dateStr });
       }
-
-      result.push({ score, label, dateStr });
     }
     return result;
   },
