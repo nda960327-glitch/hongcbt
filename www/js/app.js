@@ -41,6 +41,26 @@ window.App = {
     if (btnReset) {
       btnReset.addEventListener('click', () => this.resetChat());
     }
+
+    // 4.1 기억 금고 (암호화 백업/복원)
+    const btnMemExport = document.getElementById('btn-memory-export');
+    if (btnMemExport) {
+      btnMemExport.addEventListener('click', () => {
+        if (window.MemoryVault && window.MemoryVault.exportEncrypted()) {
+          alert('우렁의사의 기억이 봉인된 파일로 저장되었습니다.');
+        }
+      });
+    }
+    const btnMemImport = document.getElementById('btn-memory-import');
+    const memFileInput = document.getElementById('memory-import-file');
+    if (btnMemImport && memFileInput) {
+      btnMemImport.addEventListener('click', () => memFileInput.click());
+      memFileInput.addEventListener('change', (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (f && window.MemoryVault) window.MemoryVault.importEncrypted(f);
+        memFileInput.value = '';
+      });
+    }
     
     // 4.5 Theme toggle
     this.initTheme();
@@ -428,7 +448,10 @@ window.App = {
   },
   
   resetChat() {
-    if (confirm('모든 대화 내용이 삭제됩니다. 계속하시겠습니까?')) {
+    if (confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
+      // 대화(메시지)만 지운다. cbt_user_memory(장기기억)는 사용자가 기억 삭제를
+      // 명시적으로 요청하지 않는 한 절대 건드리지 않는다 — 채팅을 비워도
+      // 우렁의사는 이 사람을 계속 기억해야 한다.
       window.Storage.clearMessages();
       window.Storage.clearSessionState();
       window.Chatbot.reset();
