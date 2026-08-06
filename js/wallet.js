@@ -18,14 +18,25 @@ window.Wallet = {
     window.Storage._safeSet('cbt_cash_history', h.slice(0, 200));
   },
 
+  // 충전 패키지 — 많이 충전할수록 보너스 캐시를 더 얹어준다
+  PACKAGES: [
+    { pay: 5000,   bonus: 0,     label: '5천' },
+    { pay: 10000,  bonus: 300,   label: '1만' },   // +3%
+    { pay: 30000,  bonus: 1500,  label: '3만' },   // +5%
+    { pay: 50000,  bonus: 3500,  label: '5만' },   // +7%
+    { pay: 100000, bonus: 10000, label: '10만' }   // +10%
+  ],
+
   // 충전 — 실제 서비스에서는 이 함수 안이 Google Play Billing / PG 호출로 바뀐다
-  charge(amount) {
-    if (!amount || amount <= 0) return false;
-    if (!confirm(`${amount.toLocaleString()}캐시를 충전할까요?\n(현재는 테스트 충전 — 스토어 결제 연동 전)`)) return false;
-    const bal = this.balance() + amount;
+  charge(pay, bonus = 0) {
+    if (!pay || pay <= 0) return false;
+    const total = pay + bonus;
+    if (!confirm(`${pay.toLocaleString()}원을 결제하고 ${total.toLocaleString()}캐시를 받을까요?${bonus ? `\n🎁 보너스 +${bonus.toLocaleString()}캐시 포함!` : ''}\n(현재는 테스트 충전 — 스토어 결제 연동 전)`)) return false;
+    const bal = this.balance() + total;
     window.Storage._safeSet('cbt_cash', bal);
-    this._record('charge', amount, '캐시 충전', bal);
+    this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
     this.renderCard();
+    if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`🎁 보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
     return true;
   },
 
@@ -57,9 +68,13 @@ window.Wallet = {
         <span style="font-size: 0.85rem; color: var(--text-muted);">보유 캐시</span>
         <strong style="font-size: 1.5rem; color: var(--accent-primary);">${bal.toLocaleString()}<span style="font-size: 0.85rem;"> 캐시</span></strong>
       </div>
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; margin-bottom: 0.6rem;">
-        ${[5000, 10000, 30000, 50000].map(a =>
-          `<button class="btn-secondary" style="width: 100%; font-size: 0.76rem; padding: 0.45rem 0.2rem;" onclick="window.Wallet.charge(${a})">+${(a / 10000 >= 1 ? (a / 10000) + '만' : (a / 1000) + '천')}</button>`
+      <p style="margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--text-muted);">충전 금액이 클수록 보너스 캐시가 커져요 🎁</p>
+      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; margin-bottom: 0.6rem;">
+        ${this.PACKAGES.map(p =>
+          `<button class="btn-secondary" style="width: 100%; font-size: 0.76rem; padding: 0.45rem 0.15rem; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; ${p.bonus ? 'border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);' : ''}" onclick="window.Wallet.charge(${p.pay}, ${p.bonus})">
+            <b>+${p.label}</b>
+            <span style="font-size: 0.62rem; font-weight: 800; color: ${p.bonus ? 'var(--accent-primary)' : 'var(--text-muted)'};">${p.bonus ? `+${Math.round(p.bonus / p.pay * 100)}%` : '기본'}</span>
+          </button>`
         ).join('')}
       </div>
       <button class="btn-secondary" style="width: 100%; font-size: 0.78rem; padding: 0.4rem;" onclick="document.getElementById('wallet-history').classList.toggle('hidden')">충전·사용 내역 보기</button>
