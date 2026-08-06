@@ -124,9 +124,13 @@ window.Admin = {
       return `
       <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
-          <strong style="font-size: 0.9rem; color: var(--text-primary);">${a.name} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.76rem;">· ${a.license}${a.career ? ` · 경력 ${a.career}년` : ''}</span></strong>
+          <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
+            ${a.photo ? `<img src="${a.photo}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : ''}
+            <strong style="font-size: 0.9rem; color: var(--text-primary);">${a.name} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.76rem;">· ${a.license}${a.career ? ` · 경력 ${a.career}년` : ''}</span></strong>
+          </div>
           ${chip}
         </div>
+        ${(a.tags && a.tags.length) ? `<div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem;">${a.tags.map(t => `<span style="font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.12rem 0.5rem; border-radius: 999px;">${t}</span>`).join('')}</div>` : ''}
         <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.5;">
           🏥 ${a.hospital}<br>
           📍 ${a.addr || '(주소 미입력)'}${a.tel ? `<br>☎️ ${a.tel}` : ''}<br>

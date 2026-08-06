@@ -208,7 +208,7 @@
       <div class="glass-card counselor-card">
         <div class="cc-top">
           <div class="counselor-avatar">
-            ${window.Icons ? window.Icons.art.avatar(c.avatar, 72) : ''}
+            ${c.photo ? `<img src="${c.photo}" alt="${c.name}" style="width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">` : (window.Icons ? window.Icons.art.avatar(c.avatar, 72) : '')}
           </div>
           <div class="cc-info">
             <div class="cc-name-row" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.3rem;">
@@ -264,7 +264,7 @@
     content.innerHTML = `
       <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
         <div class="counselor-avatar counselor-avatar--lg">
-          ${window.Icons ? window.Icons.art.avatar(counselor.avatar, 96) : ''}
+          ${counselor.photo ? `<img src="${counselor.photo}" alt="${counselor.name}" style="width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">` : (window.Icons ? window.Icons.art.avatar(counselor.avatar, 96) : '')}
         </div>
         <div>
           <h2 style="margin: 0;">${counselor.name}</h2>

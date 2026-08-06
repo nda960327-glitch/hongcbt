@@ -214,6 +214,7 @@
     if (window.Learn) window.Learn.init();
     if (window.Growth) window.Growth.init();
     if (window.Missions) window.Missions.renderCard();
+    this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     if (window.Weekly) window.Weekly.maybeNudge();
     // 기존 사용자(이미 상담사 선택함)는 온보딩을 건너뛴 것으로 처리
     if (window.Onboard && window.Personas && window.Personas.hasChosen()) {
@@ -1336,7 +1337,8 @@ ${memory || '(없음)'}`;
       lng: 126.9780 + (Math.random() - 0.5) * 0.05,
       rating: 5.0,
       reviews: 0,
-      tags: ['신규 입점', a.license],
+      tags: (a.tags && a.tags.length) ? a.tags : [a.license], // 상담사가 고른 전문분야 그대로
+      photo: a.photo || null,                                   // 직접 등록한 프로필 사진
       price: a.price || 40000,
       avatar: Math.floor(Math.random() * 3),
       isAvailableNow: true,
@@ -1415,6 +1417,62 @@ ${memory || '(없음)'}`;
     document.head.appendChild(s);
   },
 
+  // === 상담사 등록: 전문분야 칩 + 프로필 사진 ===
+  CREG_TAGS: ['우울증', '불안장애', '공황장애', '스트레스', '번아웃', '대인관계', '가족상담', '부부상담', '트라우마', '자존감', '수면 문제', '중독', '청소년', 'ADHD'],
+  _cregPhoto: null,
+
+  initCregForm() {
+    const box = document.getElementById('creg-tags');
+    if (box && !box.children.length) {
+      box.innerHTML = this.CREG_TAGS.map(t =>
+        `<button type="button" data-tag="${t}" style="all: unset; box-sizing: border-box; padding: 0.35rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1.5px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary);">${t}</button>`).join('');
+      box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        const on = b.dataset.on === '1';
+        if (!on && box.querySelectorAll('button[data-on="1"]').length >= 3) {
+          this.showRecordToast('전문분야는 3개까지 선택할 수 있어요');
+          return;
+        }
+        b.dataset.on = on ? '0' : '1';
+        b.style.borderColor = on ? 'var(--glass-border)' : 'var(--accent-primary)';
+        b.style.background = on ? 'var(--bg-tertiary)' : 'color-mix(in srgb, var(--accent-primary) 14%, transparent)';
+        b.style.color = on ? 'var(--text-primary)' : 'var(--accent-primary)';
+      }));
+    }
+    const file = document.getElementById('creg-photo-file');
+    if (file && !file.dataset.bound) {
+      file.dataset.bound = '1';
+      file.addEventListener('change', () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          // 256px 정사각으로 다운스케일 → localStorage 부담 최소화
+          const c = document.createElement('canvas');
+          const s = Math.min(img.width, img.height);
+          c.width = c.height = 256;
+          c.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
+          this._cregPhoto = c.toDataURL('image/jpeg', 0.82);
+          const pv = document.getElementById('creg-photo-preview');
+          if (pv) pv.innerHTML = `<img src="${this._cregPhoto}" style="width: 100%; height: 100%; object-fit: cover;">`;
+          const rm = document.getElementById('creg-photo-remove');
+          if (rm) rm.classList.remove('hidden');
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+    }
+  },
+
+  clearCregPhoto() {
+    this._cregPhoto = null;
+    const pv = document.getElementById('creg-photo-preview');
+    if (pv) pv.innerHTML = '📷';
+    const rm = document.getElementById('creg-photo-remove');
+    if (rm) rm.classList.add('hidden');
+    const file = document.getElementById('creg-photo-file');
+    if (file) file.value = '';
+  },
+
   submitCounselorReg() {
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
     const name = v('creg-name'), license = v('creg-license'), price = v('creg-price');
@@ -1423,17 +1481,21 @@ ${memory || '(없음)'}`;
       alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
       return;
     }
+    const tags = [...document.querySelectorAll('#creg-tags button[data-on="1"]')].map(b => b.dataset.tag);
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     apps.unshift({
       id: 'ca_' + Date.now(), ts: Date.now(), status: 'pending',
       name, license,
       career: v('creg-career'), price: parseInt(price, 10), intro: v('creg-intro'),
-      hospital, addr: (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: v('creg-hosp-tel')
+      hospital, addr: (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: v('creg-hosp-tel'),
+      tags, photo: this._cregPhoto || null
     });
     window.Storage._safeSet('cbt_counselor_apps', apps.slice(0, 10));
     document.getElementById('counselor-reg-modal').classList.add('hidden');
     ['creg-name','creg-license','creg-career','creg-price','creg-intro','creg-hosp-name','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    document.querySelectorAll('#creg-tags button[data-on="1"]').forEach(b => b.click());
+    this.clearCregPhoto();
     alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
     this.renderCounselorApps();
     this.switchTab('mypage');
