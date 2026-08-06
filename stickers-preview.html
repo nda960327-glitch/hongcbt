@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>우렁이 스티커 시안</title>
+<style>
+  body { margin: 0; font-family: 'Noto Sans KR', sans-serif; background: #FBF3E7; color: #4a3f33; padding: 1.5rem; }
+  h1 { text-align: center; font-size: 1.3rem; margin: 0.4rem 0 0.2rem; }
+  p.sub { text-align: center; font-size: 0.82rem; color: #93826d; margin: 0 0 1.4rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; max-width: 560px; margin: 0 auto; }
+  .cell { background: #fff; border: 2px solid #EAD9BE; border-radius: 18px; padding: 1rem 0.5rem 0.8rem; text-align: center; box-shadow: 0 4px 12px rgba(180,140,90,0.12); }
+  .cell .label { font-weight: 800; font-size: 0.95rem; margin-top: 0.4rem; }
+  .cell .use { font-size: 0.72rem; color: #93826d; margin-top: 0.15rem; }
+</style>
+</head>
+<body>
+  <h1>🐌 우렁이 스티커 시안 (치이카와 st.)</h1>
+  <p class="sub">앱 내장 SVG · 전부 움직임 · 네트워크/토큰 불필요</p>
+  <div class="grid" id="grid"></div>
+  <script src="js/stickers.js"></script>
+  <script>
+    const uses = { joy: '축하·좋은 소식', surprise: '헐, 진짜?', empathy: '끄덕끄덕 들어줄 때', sad: '같이 슬퍼할 때', love: '응원과 애정', cheer: '화이팅!' };
+    const grid = document.getElementById('grid');
+    window.Stickers.list.forEach(name => {
+      const div = document.createElement('div');
+      div.className = 'cell';
+      div.innerHTML = window.Stickers.svg(name, 120)
+        + `<div class="label">${window.Stickers.labels[name]}</div><div class="use">${uses[name]}</div>`;
+      grid.appendChild(div);
+    });
+  </script>
+</body>
+</html>

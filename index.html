@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -57,7 +57,11 @@
       <h2 style="margin-top: 0;">AI 상담사 선택</h2>
       <p style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 1rem;">상담사마다 성격과 상담 스타일이 달라요. 지금 마음에 맞는 상담사를 골라보세요. 나눈 이야기와 기억은 모든 상담사가 함께 이어받습니다.</p>
       <div id="persona-card-list" style="display: flex; flex-direction: column; gap: 0.8rem;"></div>
-      <button id="persona-modal-close" class="btn-secondary" style="width: 100%; margin-top: 1rem;">닫기</button>
+      <label style="display: flex; align-items: center; gap: 0.45rem; margin-top: 0.9rem; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none;">
+        <input type="checkbox" id="persona-dont-ask" checked style="accent-color: var(--accent-primary); width: 16px; height: 16px;">
+        다시 묻지 않기 (챗봇을 열 때 이 창을 자동으로 띄우지 않아요. 바꾸고 싶을 땐 상단 [바꾸기] 버튼)
+      </label>
+      <button id="persona-modal-close" class="btn-secondary" style="width: 100%; margin-top: 0.7rem;">닫기</button>
     </div>
   </div>
 
@@ -71,9 +75,7 @@
           <h1 class="app-title">우렁의사</h1>
         </div>
         <div class="header-right">
-          <button id="btn-fullscreen" class="header-btn" title="전체화면"><span data-icon="fullscreen" data-icon-size="20"></span></button>
-          <button id="btn-theme" class="header-btn" title="테마 변경"><span data-icon="moon" data-icon-size="20"></span></button>
-          <button id="btn-reset" class="header-btn" title="대화 초기화"><span data-icon="reset" data-icon-size="20"></span></button>
+          <!-- 전체화면·테마는 마이페이지 설정으로, 대화 초기화는 챗봇 화면으로 이동 -->
         </div>
       </div>
     </header>
@@ -197,6 +199,7 @@
         </div>
         <button id="btn-tts-toggle" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; display: flex; align-items: center; gap: 0.25rem;"><span id="tts-icon" class="h-ico" data-icon="volume-off" data-icon-size="14"></span><span id="tts-text">소리 끔</span></button>
         <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.75rem; white-space: nowrap;">바꾸기</button>
+        <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.74rem; padding: 0.34rem 0.6rem; white-space: nowrap;">초기화</button>
       </div>
       <div id="chat-messages" class="chat-messages">
         <!-- Messages will be inserted dynamically -->
@@ -225,7 +228,7 @@
         <button id="btn-new-record" class="btn-primary btn-sm" style="width: auto; padding: 0.45rem 0.9rem; border-radius: var(--radius-full); font-size: 0.82rem; font-weight: 700;">+ 새 기록</button>
       </div>
       <div id="record-empty" class="empty-state">
-        <div class="empty-icon" data-art="sprout"></div>
+        <div class="empty-icon" data-sticker="empathy" data-sticker-size="104"></div>
         <p>아직 사고 기록이 없습니다</p>
         <p class="empty-sub">대화 중 자동으로 생성되거나, 직접 작성할 수 있습니다</p>
       </div>
@@ -294,14 +297,13 @@
           <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
           <p class="tab-subtitle" style="margin-top: 0.3rem;">감정 변화 추이와 인지왜곡 통합 리포트</p>
         </div>
-        <button class="btn-primary" style="font-size: 0.82rem; font-weight: 700; padding: 0.48rem 0.95rem; display: inline-flex; align-items: center; gap: 0.4rem; width: auto; border-radius: var(--radius-full); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent); flex-shrink: 0; cursor: pointer; border: none; white-space: nowrap;" onclick="window.App.switchTab('record')">
-          <span class="h-ico" data-icon="record" data-icon-size="16"></span>
-          <span>사고 기록지 📝</span>
-        </button>
+        <!-- 사고 기록지 진입은 아래 우렁이 카드에서 -->
       </div>
       <div class="dashboard-grid">
         <div class="dash-card glass-card">
-          <h3>이번 주 감정 흐름</h3>
+          <h3>오늘의 감정 흐름</h3>
+          <div id="today-mood-chart" class="chart-container" style="min-height: 70px;"></div>
+          <h3 style="margin-top: 1.1rem;">이번 주 감정 흐름</h3>
           <div id="mood-chart" class="chart-container"></div>
         </div>
         <div class="dash-card glass-card">
@@ -312,11 +314,25 @@
           <h3>활동 요약</h3>
           <div id="stats-summary" class="stats-grid">
             <div class="stat-item"><span class="stat-value" id="stat-sessions">0</span><span class="stat-label">총 대화</span></div>
-            <div class="stat-item" style="cursor: pointer; transition: transform 0.2s;" onclick="window.App.switchTab('record')" title="사고 기록지로 이동"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록 ›</span></div>
+            <div class="stat-item"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록</span></div>
             <div class="stat-item"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">연속 일수</span></div>
             <div class="stat-item"><span class="stat-value" id="stat-distortions">0</span><span class="stat-label">발견한 왜곡</span></div>
           </div>
         </div>
+
+        <!-- 사고 기록지 바로가기 -->
+        <div style="grid-column: 1 / -1; border-radius: 18px; overflow: hidden; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)) 0%, var(--bg-secondary) 65%); box-shadow: var(--shadow-sm);">
+          <button onclick="window.App.switchTab('record')" style="all: unset; display: flex; align-items: center; gap: 0.9rem; padding: 0.85rem 1.1rem; width: 100%; box-sizing: border-box; cursor: pointer; transition: transform 0.12s;"
+                  onmousedown="this.style.transform='scale(0.985)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">
+            <span data-sticker="proud" data-sticker-size="58" style="line-height: 0; flex-shrink: 0;"></span>
+            <span style="flex: 1; min-width: 0;">
+              <strong style="display: block; font-size: 1rem; color: var(--text-primary);">사고 기록지</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">우렁이가 대화에서 정리해둔 마음 기록 보러가기</span>
+            </span>
+            <span style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem; flex-shrink: 0; box-shadow: var(--shadow-sm);">›</span>
+          </button>
+        </div>
+
         <div class="dash-card glass-card" style="grid-column: 1 / -1;">
           <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
             <div>
@@ -324,18 +340,22 @@
                 <span class="h-ico" data-icon="sparkle" data-icon-size="20"></span> AI 상담 요약 리포트
               </h3>
               <p style="margin: 0.25rem 0 0 0; font-size: 0.82rem; color: var(--text-muted);">
-                챗봇과의 대화를 요약하여 상담사에게 전달할 수 있습니다.
+                AI가 최근 대화를 읽고 핵심만 요약해드립니다.
               </p>
             </div>
             <button id="btn-generate-summary" onclick="window.Dashboard.generateDailySummary()" class="btn-primary-sm" style="padding: 0.55rem 1rem; border-radius: var(--radius-full); font-size: 0.83rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; background: var(--accent-primary); color: #fff; border: none; box-shadow: var(--shadow-sm); transition: transform 0.15s, opacity 0.15s;">
               ✨ + 오늘의 대화 요약 생성하기
             </button>
           </div>
+          <!-- 맨 위: 최신 전체 요약 -->
           <div id="chat-insights-content" style="margin-top: 0.8rem;"></div>
+          <!-- 그 아래: 지난 리포트 목록 (최근 10개까지만 보관) -->
+          <div id="report-list" style="display: flex; flex-direction: column; gap: 0.8rem; margin-top: 0.9rem;"></div>
+          <p id="report-list-note" class="hidden" style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; text-align: center;">리포트는 최근 10개까지 보관되며 오래된 것부터 자동 정리돼요.<br>정리된 리포트의 이야기도 우렁이의 기억에는 모두 남아있으니 걱정 마세요.</p>
         </div>
       </div>
       <div id="dashboard-empty" class="empty-state hidden">
-        <div class="empty-icon" data-art="sprout"></div>
+        <div class="empty-icon" data-sticker="surprise" data-sticker-size="104"></div>
         <p>아직 데이터가 충분하지 않습니다</p>
         <p class="empty-sub">대화를 시작하면 감정 변화를 추적할 수 있습니다</p>
       </div>
@@ -402,9 +422,23 @@
         <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
       </div>
       
+      <!-- 내 이름(별명) 설정 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
+        <h3 style="margin-top:0;">내 이름(별명)</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.7rem;">AI 상담사들이 당신을 이 이름으로 기억하고 불러드려요.</p>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="user-name-input" maxlength="12" placeholder="예: 민지, 곰돌이"
+            style="flex: 1; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
+          <button id="btn-save-name" class="btn-primary" style="width: auto; padding: 0.55rem 1rem; font-size: 0.85rem;">저장</button>
+        </div>
+      </div>
+
       <!-- 예약된 상담 내역 -->
       <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <h3 style="margin-top:0;">나의 상담 내역</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="margin: 0;">나의 상담 내역</h3>
+          <button id="btn-booking-history" class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="document.getElementById('booking-history-full').classList.toggle('hidden'); this.textContent = document.getElementById('booking-history-full').classList.contains('hidden') ? '전체 내역 보기' : '접기';">전체 내역 보기</button>
+        </div>
         <!-- 예약 예시 (Mock Data) -->
         <div onclick="openBookingInfo('1029384')" style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent); border-radius: 12px; padding: 1rem; margin-top: 1rem; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
@@ -417,16 +451,57 @@
             <span class="h-ico" data-icon="calendar" data-icon-size="18"></span>2026년 8월 5일 (수) 오후 2:00
           </div>
         </div>
+
+        <!-- 전체 내역 (완료된 상담 포함) -->
+        <div id="booking-history-full" class="hidden" style="margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem;">
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1027311</span>
+            </div>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>박서연 임상심리전문가</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">서울 마음숲 심리상담센터 · 2026년 7월 22일 (수) 오후 5:00</p>
+            <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
+              <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="alert('리뷰 작성 화면은 준비 중이에요. 소중한 후기는 곧 남기실 수 있어요!')">⭐ 리뷰 남기기</button>
+              <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="alert('같은 상담사로 재예약을 도와드릴게요! (상담사 매칭 탭에서 예약해주세요)')">다시 예약</button>
+            </div>
+          </div>
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1025190</span>
+            </div>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>김유진 심리상담사</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">연세 마음가득 정신건강의학과 · 2026년 7월 8일 (수) 오후 2:00</p>
+            <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
+              <span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ 5.0 리뷰 작성 완료</span>
+            </div>
+          </div>
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem; opacity: 0.75;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="background: #b5651d; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 취소</span>
+              <span style="font-size: 0.8rem; color: var(--text-muted);">예약번호: 1023077</span>
+            </div>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>이도현 상담심리사</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">한결 심리상담연구소 · 2026년 6월 30일 (화) 오전 11:00</p>
+          </div>
+        </div>
       </div>
 
-      <!-- 우렁의사의 기억 (암호화 백업) -->
-      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <h3 style="margin-top:0;"><span class="h-ico" data-icon="gem" data-icon-size="18"></span> 우렁의사의 기억</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">우렁의사가 당신과 쌓아온 모든 기억(장기기억·대화·기록)을 하나의 봉인된 파일로 보관할 수 있습니다.</p>
-        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1rem;">파일은 암호화되어 내용을 열어볼 수 없으며, 복원할 때만 우렁의사가 다시 읽을 수 있습니다. 대화를 초기화해도 우렁의사의 기억은 지워지지 않습니다.</p>
+      <!-- 우렁이의 기억 (백업/복원) -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
+        <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;">
+          <span data-sticker="love" data-sticker-size="52" style="flex-shrink: 0; line-height: 0;"></span>
+          <div>
+            <h3 style="margin: 0;">우렁이의 기억</h3>
+            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">걱정 마세요, 우렁이는 당신을 잊지 않아요.</p>
+          </div>
+        </div>
+        <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.6;">대화를 지워도, 앱을 껐다 켜도, 리포트가 오래되어 정리돼도 — 당신과 나눈 이야기는 전부 우렁이의 기억 속에 그대로 있어요.</p>
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.55;">다만 <b>휴대폰을 바꾸거나 앱을 완전히 삭제할 때</b>를 대비해, 기억을 파일 하나로 간직해둘 수 있어요. 새 폰에서 이 파일을 불러오면 우렁이는 당신을 처음처럼이 아니라 <b>어제처럼</b> 기억해냅니다. 파일은 봉인되어 우렁이만 읽을 수 있어요.</p>
         <div style="display: flex; gap: 0.5rem;">
-          <button id="btn-memory-export" class="btn-primary" style="flex: 1;">기억 내려받기</button>
-          <button id="btn-memory-import" class="btn-secondary" style="flex: 1;">기억 복원하기</button>
+          <button id="btn-memory-export" class="btn-primary" style="flex: 1;">기억 간직하기 (백업)</button>
+          <button id="btn-memory-import" class="btn-secondary" style="flex: 1;">기억 불러오기 (복원)</button>
           <input type="file" id="memory-import-file" accept=".wrmem" style="display: none;">
         </div>
       </div>
@@ -447,24 +522,65 @@
             <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleTheme()">테마 변경 🌙</button>
           </div>
 
-          <!-- 2. 음성(TTS) 읽기 설정 -->
+          <!-- 2. 전체화면 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
-              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">음성(TTS) 읽어주기</strong>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">AI 상담사의 답변을 음성으로 들려줍니다.</span>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">전체화면 보기</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">화면을 꽉 채워 몰입해서 사용합니다.</span>
             </div>
-            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
-              <input type="checkbox" id="setting-tts-toggle" checked onchange="window.Voice && window.Voice.setMuted(!this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
-            </label>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleFullscreen()">전체화면 ⛶</button>
           </div>
 
-          <!-- 3. 대화 내역만 비우기 -->
+          <!-- 3. 음성(TTS) 설정 -->
+          <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">음성(TTS) 읽어주기</strong>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">AI 상담사의 답변을 음성으로 들려줍니다.</span>
+              </div>
+              <input type="checkbox" id="setting-tts-toggle" checked onchange="window.Voice && window.Voice.setMuted(!this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.7rem; padding-top: 0.7rem; border-top: 1px dashed var(--glass-border);">
+              <span style="font-size: 0.84rem; color: var(--text-primary); font-weight: 600;">목소리</span>
+              <select id="setting-tts-gender" onchange="window.Voice && window.Voice.setGender(this.value)" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.84rem; outline: none;">
+                <option value="female">여성 목소리</option>
+                <option value="male">남성 목소리</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 언어 설정 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
-              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">채팅 대화 내역 비우기</strong>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">진행 중인 챗봇 대화 메시지만 삭제합니다.</span>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">언어 / Language / 言語</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">챗봇 대화·위트가 선택한 언어로 바뀝니다.</span>
             </div>
-            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.resetChat()">대화 비우기</button>
+            <select id="setting-lang" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.4rem 0.6rem; font-size: 0.86rem; outline: none;">
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
+
+          <!-- 4. 먼저 말 걸기 (체크인) -->
+          <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">상담사가 먼저 말 걸기</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.6rem;">지난 대화를 기억하고 친구처럼 먼저 안부를 물어요. ("우울한 건 좀 괜찮아?", "강아지랑 산책 갔다왔어?") 알림과 채팅으로 도착합니다.</span>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+              <select id="setting-checkin-count" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.84rem; outline: none;">
+                <option value="0">안 함</option>
+                <option value="1">하루 1번</option>
+                <option value="2">하루 2번</option>
+                <option value="3">하루 3번</option>
+                <option value="5" selected>하루 5번</option>
+              </select>
+              <select id="setting-checkin-mode" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.84rem; outline: none;">
+                <option value="random" selected>랜덤 시간 (9시~21시)</option>
+                <option value="fixed">정해진 시간</option>
+              </select>
+              <input type="text" id="setting-checkin-times" placeholder="예: 09:30, 20:00" class="hidden" style="flex: 1; min-width: 130px; padding: 0.35rem 0.6rem; border-radius: 8px; background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.84rem;">
+            </div>
+            <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0;">※ 앱(브라우저)이 켜져 있거나 백그라운드에 있을 때 도착해요.</p>
           </div>
 
           <!-- 4. 앱 전체 초기화 (DANGER ZONE) -->
@@ -484,71 +600,11 @@
         </div>
       </div>
 
-      <!-- CBT 대화 요약 리포트 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <h3 style="margin-top:0;">CBT 요약 리포트</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">챗봇과의 대화를 요약하여 상담사에게 전달할 수 있습니다.</p>
-        
-        <button class="btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="generateMockReport()">+ 오늘의 대화 요약 생성하기</button>
-
-        <div id="report-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
-          <!-- 리포트 1 (Mock Data) -->
-          <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 28일 작성</div>
-            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="record" data-icon-size="17"></span>[주요 감정: 불안, 무기력] 주간 대화 요약</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-              - <strong>주요 인지왜곡:</strong> 재앙화, 독심술<br>
-              - <strong>상황 요약:</strong> 발표 중 실수할 것이라는 극심한 불안감 호소.<br>
-            </p>
-            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/28')">상세보기</button>
-              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
-            </div>
-          </div>
-
-          <!-- 리포트 2 (Mock Data) -->
-          <div style="background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-secondary);">
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">2026년 7월 15일 작성</div>
-            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="record" data-icon-size="17"></span>[주요 감정: 분노, 우울] 주간 대화 요약</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-              - <strong>주요 인지왜곡:</strong> 흑백논리, 당위적 진술<br>
-              - <strong>상황 요약:</strong> 직장 동료와의 갈등으로 인한 스트레스.<br>
-            </p>
-            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('7/15')">상세보기</button>
-              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- CBT 요약 리포트는 대시보드 하단으로 이동했습니다 -->
     </section>
 
     <script>
-      function generateMockReport() {
-        const list = document.getElementById('report-list');
-        const now = new Date();
-        const dateString = now.getFullYear() + '년 ' + (now.getMonth()+1) + '월 ' + now.getDate() + '일 작성';
-        
-        const newReport = document.createElement('div');
-        newReport.style = "background: var(--bg-tertiary); border-radius: 8px; padding: 1rem; border-left: 4px solid var(--accent-primary); animation: slideIn 0.3s ease-out;";
-        newReport.innerHTML = `
-            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.3rem;">${dateString}</div>
-            <h4 class="card-head" style="margin: 0 0 0.5rem 0;"><span class="h-ico" data-icon="sparkle" data-icon-size="17"></span>[새로운 리포트] 오늘의 대화 요약</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
-              - <strong>주요 감정:</strong> 스트레스, 피로감<br>
-              - <strong>상황 요약:</strong> 오늘 하루의 복잡한 감정을 챗봇과 나누며 정리를 시도함.<br>
-              - <strong>인사이트:</strong> 완벽주의적 성향(해야만 한다)이 스트레스를 가중시키고 있음을 인지함.
-            </p>
-            <div style="margin-top: 0.8rem; display: flex; gap: 0.5rem;">
-              <button class="btn-secondary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem;" onclick="openReportDetail('today')">상세보기</button>
-              <button class="btn-primary" style="font-size: 0.75rem; padding: 0.3rem 0.6rem; background: var(--success-color, #10b981);" onclick="alert('상담사에게 전송되었습니다.')">상담사에게 전송</button>
-            </div>
-        `;
-
-        list.insertBefore(newReport, list.firstChild);
-        alert('오늘의 챗봇 대화를 기반으로 요약 리포트가 생성되었습니다!');
-      }
-
+      // 리포트 생성은 window.Dashboard.generateMyReport()가 실제 AI로 수행한다.
       function openReportDetail(id) {
         const modal = document.getElementById('report-detail-modal');
         if (modal) modal.classList.remove('hidden');
@@ -634,7 +690,7 @@
     <!-- Global PWA Install Modal -->
     <div id="global-install-modal" class="modal-overlay hidden" style="z-index: 9999;">
       <div class="modal-content glass-card" style="text-align: center;">
-        <div style="font-size: 3.5rem; margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite;">🐌</div>
+        <div style="margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite; display: flex; justify-content: center;"><span data-sticker="cheer" data-sticker-size="92"></span></div>
         <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">우렁의사 앱 다운로드</h2>
         <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
           바탕화면에 우렁의사를 설치하고<br>언제든 빠르게 마음을 돌보세요!
@@ -744,23 +800,23 @@
     <nav id="bottom-nav" class="bottom-nav glass-nav">
       <button class="nav-item" data-tab="home">
         <span class="nav-ico" data-icon="home" data-icon-size="23"></span>
-        <span>홈</span>
+        <span data-i18n="nav.home">홈</span>
       </button>
       <button class="nav-item active" data-tab="chat">
         <span class="nav-ico" data-icon="chat" data-icon-size="23"></span>
-        <span>챗봇</span>
+        <span data-i18n="nav.chat">챗봇</span>
       </button>
       <button class="nav-item" data-tab="counselors">
         <span class="nav-ico" data-icon="counselor" data-icon-size="23"></span>
-        <span>상담사 매칭</span>
+        <span data-i18n="nav.counselors">상담사 매칭</span>
       </button>
       <button class="nav-item" data-tab="dashboard">
         <span class="nav-ico" data-icon="dashboard" data-icon-size="23"></span>
-        <span>대시보드</span>
+        <span data-i18n="nav.dashboard">대시보드</span>
       </button>
       <button class="nav-item" data-tab="mypage">
         <span class="nav-ico" data-icon="user" data-icon-size="23"></span>
-        <span>마이</span>
+        <span data-i18n="nav.my">마이</span>
       </button>
     </nav>
   </div>
@@ -770,6 +826,8 @@
   <script defer src="js/storage.js"></script>
   <script defer src="js/memory-vault.js"></script>
   <script defer src="js/personas.js"></script>
+  <script defer src="js/stickers.js"></script>
+  <script defer src="js/i18n.js"></script>
   <script defer src="js/voice.js"></script>
   <script defer src="js/llm.js"></script>
   <script defer src="js/chatbot.js"></script>

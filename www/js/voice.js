@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  우렁의사 음성 대화 (Voice STT + TTS)
 //  - STT: Web Speech API (SpeechRecognition / webkitSpeechRecognition)
 //  - TTS: Web Speech API (SpeechSynthesisUtterance)
@@ -19,7 +19,7 @@ window.Voice = {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       this.recognition = new SpeechRecognition();
-      this.recognition.lang = 'ko-KR';
+      this.recognition.lang = ({ en: 'en-US', ja: 'ja-JP' })[(window.Storage && window.Storage._safeGet('cbt_lang', 'ko')) || 'ko'] || 'ko-KR';
       this.recognition.continuous = false;
       this.recognition.interimResults = true;
 
@@ -69,12 +69,19 @@ window.Voice = {
     // 4. UI 이벤트 바인딩
     this._bindUi();
     this.updateTtsToggleUi();
+
+    // 5. 마이페이지 설정 UI와 동기화
+    const settingToggle = document.getElementById('setting-tts-toggle');
+    if (settingToggle) settingToggle.checked = this.isTtsEnabled;
+    const genderSel = document.getElementById('setting-tts-gender');
+    if (genderSel) genderSel.value = this.getGender();
   },
 
   _loadVoices() {
     if (!this.synth) return;
     const voices = this.synth.getVoices();
-    this.selectedVoice = voices.find(v => v.lang === 'ko-KR' || v.lang === 'ko_KR') || voices.find(v => v.lang.startsWith('ko')) || null;
+    const L = ({ en: 'en', ja: 'ja' })[(window.Storage && window.Storage._safeGet('cbt_lang', 'ko')) || 'ko'] || 'ko';
+    this.selectedVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(L)) || null;
   },
 
   _bindUi() {
@@ -124,9 +131,9 @@ window.Voice = {
     }
     if (input) {
       if (listening) {
-        input.placeholder = '듣고 있어요… 편하게 말씀하세요';
+        input.placeholder = window.I18N ? window.I18N.t('듣고 있어요… 편하게 말씀하세요') : '듣고 있어요… 편하게 말씀하세요';
       } else {
-        input.placeholder = '마음속 이야기를 편하게 적어주세요...';
+        input.placeholder = window.I18N ? window.I18N.t('마음속 이야기를 편하게 적어주세요...') : '마음속 이야기를 편하게 적어주세요...';
       }
     }
   },
@@ -148,65 +155,172 @@ window.Voice = {
     if (this.isTtsEnabled) {
       ttsBtn.style.borderColor = 'var(--accent-primary)';
       ttsBtn.style.color = 'var(--accent-primary)';
-      if (iconSpan) iconSpan.setAttribute('data-icon', 'volume-2');
       if (textSpan) textSpan.textContent = '소리 켬';
     } else {
       ttsBtn.style.borderColor = 'var(--glass-border)';
       ttsBtn.style.color = 'var(--text-muted)';
-      if (iconSpan) iconSpan.setAttribute('data-icon', 'volume-off');
       if (textSpan) textSpan.textContent = '소리 끔';
     }
-    if (window.Icons) window.Icons.renderAll();
+    // 아이콘 갱신: Icons.svg가 있으면 사용, 없거나 실패하면 이모지로 폴백.
+    // (예전 코드는 존재하지 않는 Icons.renderAll()을 불러 앱 초기화 전체를 죽였다)
+    if (iconSpan) {
+      let svg = '';
+      try {
+        if (window.Icons && typeof window.Icons.svg === 'function') {
+          svg = window.Icons.svg(this.isTtsEnabled ? 'volume-2' : 'volume-off', { size: 14 }) || '';
+        }
+      } catch (e) { svg = ''; }
+      iconSpan.innerHTML = svg || (this.isTtsEnabled ? '🔊' : '🔇');
+    }
   },
 
+  // ==========================================================================
+  //  TTS: OpenAI 음성 모델(사람 같은 목소리) 우선, 실패 시 브라우저 내장으로 폴백.
+  //  말풍선들은 큐에 쌓여 순서대로 '끝까지' 재생된다 — 중간에 자르지 않는다.
+  // ==========================================================================
+  _ttsQueue: [],
+  _ttsPlaying: false,
+  _audioEl: null,
+
   speak(text, personaId = 'woorung') {
-    if (!this.isTtsEnabled || !this.synth) return;
-    this.stopSpeaking();
+    if (!this.isTtsEnabled) return;
 
-    let clean = text
-      .replace(/\|\|\|/g, " ")
-      .replace(/\[세션끝\]/g, "")
-      .replace(/\[세션안내\]/g, "")
-      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, "")
+    const clean = String(text || '')
+      .replace(/\|\|\|/g, ' ')
+      .replace(/\[세션끝\]/g, '')
+      .replace(/\[세션안내\]/g, '')
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+      .replace(/ㅋㅋ+|ㅎㅎ+/g, ' ')
+      .replace(/ㅠㅠ+|ㅜㅜ+/g, '')
+      .replace(/[─│*_#>`~]+/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
-
     if (!clean) return;
 
-    // 음성 대화 핑퐁 템포 유지: 장문 답장이 오더라도 음성은 첫 2문장(최대 90자)까지만 짤막하게 대화체로 읽는다
-    const sents = clean.match(/[^.!?…]+[.!?…]*/g) || [clean];
-    if (sents.length > 2) {
-      clean = sents.slice(0, 2).join(" ").trim();
+    this._ttsQueue.push({ text: clean, personaId });
+    this._drainTts();
+  },
+
+  async _drainTts() {
+    if (this._ttsPlaying) return;
+    const item = this._ttsQueue.shift();
+    if (!item) return;
+    this._ttsPlaying = true;
+    try {
+      await this._speakOpenAI(item.text, item.personaId);
+    } catch (e) {
+      // 네트워크·프록시 문제 시 브라우저 내장 목소리로라도 끝까지 읽는다
+      try { await this._speakBrowser(item.text, item.personaId); } catch (e2) {}
     }
-    if (clean.length > 90) {
-      clean = clean.substring(0, 90).trim();
+    this._ttsPlaying = false;
+    this._drainTts();
+  },
+
+  // 설정: 소리 켬/끔, 목소리 성별
+  setMuted(muted) {
+    this.isTtsEnabled = !muted;
+    if (window.Storage) window.Storage._safeSet('cbt_tts_enabled', this.isTtsEnabled);
+    if (muted) this.stopSpeaking();
+    this.updateTtsToggleUi();
+  },
+
+  getGender() {
+    return (window.Storage && window.Storage._safeGet('cbt_tts_gender', 'female')) || 'female';
+  },
+
+  setGender(g) {
+    if (window.Storage) window.Storage._safeSet('cbt_tts_gender', g === 'male' ? 'male' : 'female');
+  },
+
+  // 상담사별 OpenAI 목소리와 말하는 결 (여성/남성 세트)
+  _openaiVoiceFor(personaId) {
+    const female = {
+      woorung: { voice: 'coral',   speed: 1.0,  instructions: '따뜻하고 다정한 한국어 상담사 톤으로, 자연스럽고 편안하게 말하세요.' },
+      haru:    { voice: 'nova',    speed: 1.04, instructions: '밝고 경쾌한 한국어로, 친한 친구처럼 생기 있게 말하세요.' },
+      dalnim:  { voice: 'shimmer', speed: 0.9,  instructions: '아주 부드럽고 조용한 한국어로, 다정하게 위로하듯 천천히 말하세요.' },
+      sonamu:  { voice: 'sage',    speed: 0.92, instructions: '차분한 한국어로, 명상 안내자처럼 느긋하게 말하세요.' }
+    };
+    const male = {
+      woorung: { voice: 'alloy',   speed: 1.0,  instructions: '따뜻하고 다정한 한국어 남성 상담사 톤으로, 자연스럽고 편안하게 말하세요.' },
+      haru:    { voice: 'echo',    speed: 1.04, instructions: '밝고 경쾌한 한국어로, 친한 친구처럼 생기 있게 말하세요.' },
+      dalnim:  { voice: 'ash',     speed: 0.9,  instructions: '아주 부드럽고 조용한 한국어로, 다정하게 위로하듯 천천히 말하세요.' },
+      sonamu:  { voice: 'onyx',    speed: 0.92, instructions: '낮고 차분한 한국어로, 명상 안내자처럼 느긋하게 말하세요.' }
+    };
+    const set = this.getGender() === 'male' ? male : female;
+    return set[personaId] || set.woorung;
+  },
+
+  async _speakOpenAI(text, personaId) {
+    const cfg = this._openaiVoiceFor(personaId);
+    const payload = {
+      model: 'gpt-4o-mini-tts',
+      voice: cfg.voice,
+      input: text,
+      speed: cfg.speed,
+      instructions: cfg.instructions,
+      response_format: 'mp3'
+    };
+
+    // 1) 동일 출처 서버 프록시
+    let res = null;
+    try {
+      res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) { res = null; }
+
+    // 2) 프록시가 없으면(APK 등) OpenAI 직접 호출
+    if (!res || !res.ok || !((res.headers.get('content-type') || '').includes('audio'))) {
+      const key = window.LLM && window.LLM._getApiKey ? window.LLM._getApiKey() : null;
+      if (!key) throw new Error('no-key');
+      res = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('tts-http-' + res.status);
     }
 
-    const utter = new SpeechSynthesisUtterance(clean);
-    if (this.selectedVoice) utter.voice = this.selectedVoice;
-    utter.lang = 'ko-KR';
+    const blob = await res.blob();
+    if (!blob || blob.size < 200) throw new Error('tts-empty');
 
-    switch (personaId) {
-      case 'haru': // 햇님이
-        utter.pitch = 1.25;
-        utter.rate = 1.05;
-        break;
-      case 'dalnim': // 달님
-        utter.pitch = 0.85;
-        utter.rate = 0.88;
-        break;
-      case 'sonamu': // 소나무
-        utter.pitch = 0.92;
-        utter.rate = 0.85;
-        break;
-      default: // 우렁의사
-        utter.pitch = 1.0;
-        utter.rate = 1.0;
-    }
+    await new Promise((resolve, reject) => {
+      if (!this._audioEl) this._audioEl = new Audio();
+      const a = this._audioEl;
+      a.src = URL.createObjectURL(blob);
+      a.onended = () => { try { URL.revokeObjectURL(a.src); } catch (e) {} resolve(); };
+      a.onerror = () => reject(new Error('audio-play'));
+      a.play().catch(reject);
+    });
+  },
 
-    this.synth.speak(utter);
+  _speakBrowser(text, personaId) {
+    return new Promise((resolve) => {
+      if (!this.synth) return resolve();
+      const utter = new SpeechSynthesisUtterance(text);
+      if (this.selectedVoice) utter.voice = this.selectedVoice;
+      utter.lang = ({ en: 'en-US', ja: 'ja-JP' })[(window.Storage && window.Storage._safeGet('cbt_lang', 'ko')) || 'ko'] || 'ko-KR';
+      const tone = ({
+        haru:   { pitch: 1.25, rate: 1.05 },
+        dalnim: { pitch: 0.85, rate: 0.88 },
+        sonamu: { pitch: 0.92, rate: 0.85 }
+      })[personaId] || { pitch: 1.0, rate: 1.0 };
+      utter.pitch = tone.pitch;
+      utter.rate = tone.rate;
+      utter.onend = resolve;
+      utter.onerror = resolve;
+      this.synth.speak(utter);
+    });
   },
 
   stopSpeaking() {
+    this._ttsQueue = [];
+    this._ttsPlaying = false;
+    if (this._audioEl) {
+      try { this._audioEl.pause(); this._audioEl.src = ''; } catch (e) {}
+    }
     if (this.synth && this.synth.speaking) {
       this.synth.cancel();
     }

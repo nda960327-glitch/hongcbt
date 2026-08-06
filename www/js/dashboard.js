@@ -34,6 +34,8 @@ window.Dashboard = {
     this.updateSampleBadges();
     this.updateStats();
     this.renderMoodChart();
+    this.renderTodayMoodChart();
+    this.renderMyReports();
     this.renderDistortionChart();
     this.renderChatInsights();
   },
@@ -74,7 +76,7 @@ window.Dashboard = {
     this.renderSummaryReportCard();
   },
 
-  generateDailySummary() {
+  async generateDailySummary() {
     const container = document.getElementById('chat-insights-content');
     const btn = document.getElementById('btn-generate-summary');
     if (!container) return;
@@ -100,70 +102,87 @@ window.Dashboard = {
       </div>
     `;
 
-    setTimeout(() => {
-      const persona = window.Personas ? window.Personas.getActive() : { name: '우렁의사', id: 'woorung', role: 'CBT·DBT 전문 AI' };
-      const memory = window.Storage ? window.Storage.getUserMemory() : '';
-      const messages = (window.Storage && window.Storage.getMessages()) || [];
-      const userMsgs = messages.filter(m => m.role === 'user');
-      const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
-      const distortionStats = (window.Storage && window.Storage.getDistortionStats()) || {};
+    // 진짜 AI 요약: 최근 대화를 모델이 직접 읽고 요약한다 (템플릿 조합 아님)
+    try {
+      const raw = await this._generateAiSummaryText();
+      // 첫 줄 = "[주요 감정: ...] 제목", 나머지 = 본문
+      const lines = raw.split('\n');
+      const title = (lines[0] || '').trim();
+      const body = lines.slice(1).join('\n').trim() || raw;
 
       const now = new Date();
-      const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
-      const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-
-      let chiefComplaint = '일상 업무, 인지적 왜곡 및 대인관계 스트레스 탐색';
-      if (userMsgs.length > 0) {
-        const lastUserMsg = userMsgs[userMsgs.length - 1].content;
-        chiefComplaint = `최근 내담자 발언: "${lastUserMsg.length > 60 ? lastUserMsg.slice(0, 60) + '...' : lastUserMsg}" (총 ${userMsgs.length}회 대화 진행)`;
-      } else if (thoughtRecords.length > 0) {
-        chiefComplaint = `사고기록지 기반 주요 호소: "${thoughtRecords[0].situation || '일상적 스트레스 고민'}"`;
-      }
-
-      const distKeys = Object.keys(distortionStats).filter(k => distortionStats[k] > 0);
-      const distNames = {
-        'jumping-conclusions': '예단(지레짐작)',
-        'all-or-nothing': '이분법적 사고(흑백논리)',
-        'personalization': '개인화(자책)',
-        'overgeneralization': '과잉일반화',
-        'mental-filter': '정신적 필터',
-        'emotional-reasoning': '감정적 추리',
-        'should-statements': '당위적 명령'
-      };
-      let distortionText = distKeys.length > 0 
-        ? distKeys.map(k => `${distNames[k] || k} (${distortionStats[k]}회)`).join(', ')
-        : '지레짐작(예단) 및 과잉일반화 경향성 탐지';
-
-      let clinicalNote = '';
-      if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
-        clinicalNote = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' / ');
-      } else {
-        clinicalNote = '내담자는 CBT 인지 재구성 기법을 적용하여 상황과 인지왜곡을 분리 파악 중이며, 대안적 사고 탐색에 긍정적인 수용도를 보임.';
-      }
-
-      const summaryObj = {
-        date: `${dateStr} ${timeStr}`,
-        persona: `${persona.name} (${persona.role || 'CBT 전문 AI'})`,
-        chiefComplaint,
-        distortionText,
-        clinicalNote
-      };
+      const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })
+        + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+      const summaryObj = { date: dateStr, title, body };
 
       if (window.Storage && window.Storage.saveSummaryReport) {
         window.Storage.saveSummaryReport(summaryObj);
       }
+      // 지난 리포트 목록에도 쌓는다 (최대 10개 — 무한정 길어지지 않게 자동 정리)
+      const reports = (window.Storage._safeGet('cbt_my_reports', []) || []);
+      reports.unshift({ id: 'rep_' + Date.now(), date: dateStr, title, body });
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 10));
 
       this.updateSampleBadges();
       this.updateStats();
-      this.renderMoodChart();
-      this.renderDistortionChart();
       this.renderSummaryReportCard(summaryObj);
+      this.renderMyReports();
+    } catch (e) {
+      container.innerHTML = `
+        <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 1.1rem; text-align: center;">
+          <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">${
+            e && e.message === 'NO_CHAT'
+              ? '요약할 대화가 아직 없어요. 챗봇과 이야기를 나눈 뒤 다시 시도해주세요.'
+              : 'AI 요약 생성에 실패했어요. 네트워크를 확인하고 다시 시도해주세요.'
+          }</p>
+        </div>`;
+    }
 
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '✨ 요약 다시 생성하기';
-      }
-    }, 400);
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '✨ 요약 다시 생성하기';
+    }
+  },
+
+  // 최근 대화 → AI 요약 본문 (대시보드·마이페이지 리포트가 공용으로 사용)
+  async _generateAiSummaryText() {
+    const messages = (window.Storage && window.Storage.getMessages()) || [];
+    const userCount = messages.filter(m => m.role === 'user').length;
+    if (userCount < 2 || !window.LLM) throw new Error('NO_CHAT');
+
+    const recent = messages.slice(-40).map(m => `${m.role === 'user' ? '나' : '상담사'}: ${m.text}`).join('\n');
+    const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
+
+    const prompt = `아래는 심리상담 앱에서 나눈 최근 대화입니다. 사용자 본인이 나중에 다시 읽어볼 'AI 상담 요약 리포트'를 한국어로 작성하세요.
+
+첫 줄은 반드시 이 형식의 제목: [주요 감정: 감정1, 감정2] 한 줄 제목
+그 다음 줄부터 본문 (각 항목 1~2문장, 마크다운 기호 없이 아래 제목 그대로):
+· 오늘 나눈 이야기: ...
+· 주요 감정: ...
+· 발견한 생각 패턴: 관찰된 인지왜곡이 있으면 이름과 함께 구체적으로
+· 좋아지고 있는 것: 이전과 비교해 나아지고 있는 점을 세밀하게 (참고 기록의 흐름 활용, 없으면 솔직하게)
+· 다뤄볼 점: 앞으로 고쳐가거나 살펴보면 좋을 부분을 구체적으로
+· 한 줄 정리: ...
+
+따뜻하되 담백하게, 사용자에게 말하듯 쓰세요. 과장이나 진단은 금지. 전체 450자 이내.
+
+[참고 기록]
+${memory || '(없음)'}
+
+[최근 대화]
+${recent}`;
+
+    const res = await window.LLM._chatCompletion({
+      model: window.LLM.MEMORY_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      max_tokens: 500
+    });
+    if (!res.ok) throw new Error('API');
+    const data = await res.json();
+    const text = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+    if (!text) throw new Error('API');
+    return text;
   },
 
   renderSummaryReportCard(report) {
@@ -177,52 +196,37 @@ window.Dashboard = {
     if (!report) {
       container.innerHTML = `
         <div style="background: rgba(127,194,155,0.08); border: 1px dashed var(--accent-primary); border-radius: 12px; padding: 1.2rem; text-align: center;">
-          <p style="margin: 0 0 0.4rem 0; font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">아직 생성된 요약 리포트가 없습니다.</p>
-          <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">상단의 <strong>[+ 오늘의 대화 요약 생성하기]</strong> 버튼을 누르시면 오프라인 전문 상담사에 전달 가능한 AI 요약 리포트가 즉시 작성됩니다.</p>
+          <p style="margin: 0 0 0.4rem 0; font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">아직 생성된 요약이 없습니다.</p>
+          <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">상단의 <strong>[+ 오늘의 대화 요약 생성하기]</strong>를 누르면 AI가 최근 대화를 읽고 요약해드려요.</p>
         </div>
       `;
       return;
     }
 
+    // 요약 본문: 새 형식(body) 우선, 예전 형식(항목별)은 이어붙여 호환
+    const body = report.body
+      || [report.chiefComplaint, report.distortionText, report.clinicalNote].filter(Boolean).join('\n');
+
     container.innerHTML = `
-      <div id="summary-report-card" style="background: var(--bg-secondary); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent); border-radius: 14px; padding: 1.15rem; position: relative; box-shadow: var(--shadow-sm);">
-        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.6rem; margin-bottom: 0.85rem;">
-          <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-primary); display: flex; align-items: center; gap: 0.4rem;">
-            📋 AI 상담 요약 리포트 (상담사 전달용)
-          </div>
+      <div id="summary-report-card" style="background: var(--bg-secondary); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent); border-radius: 14px; padding: 1.15rem; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.6rem; margin-bottom: 0.8rem;">
+          <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-primary);">✨ AI 상담 요약</div>
           <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${report.date || ''}</span>
         </div>
-
-        <div style="font-size: 0.84rem; line-height: 1.6; color: var(--text-primary);">
-          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
-            <strong style="color: var(--accent-primary);">👤 담당 AI 상담사:</strong> ${report.persona}
-          </div>
-          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
-            <strong style="color: var(--text-primary);">💬 내담자 주요 고민 & 주제:</strong><br>
-            <span style="color: var(--text-secondary);">${report.chiefComplaint}</span>
-          </div>
-          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
-            <strong style="color: var(--text-primary);">🧠 관찰된 인지왜곡 패턴:</strong><br>
-            <span style="color: var(--text-secondary);">${report.distortionText}</span>
-          </div>
-          <div style="margin-bottom: 0.75rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px; border-left: 3px solid var(--accent-primary);">
-            <strong style="color: var(--text-primary);">💡 오프라인 상담사 참고용 임상 요약:</strong><br>
-            <span style="color: var(--text-secondary);">${report.clinicalNote}</span>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.85rem; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
-          <button onclick="window.Dashboard.copySummaryReport()" class="btn-secondary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">📋 요약 복사하기</button>
-          <button onclick="window.Dashboard.shareSummaryReport()" class="btn-primary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; background: var(--accent-primary); color: #fff; border: none; cursor: pointer; font-weight: 700;">📤 상담사에게 전달 공유</button>
+        ${report.title ? `<h4 style="margin: 0 0 0.55rem 0; font-size: 0.97rem; color: var(--text-primary); line-height: 1.4;">${report.title}</h4>` : ''}
+        <div id="summary-report-body" data-raw="" style="margin: 0;">${this._formatReportRows(body).join('')}</div>
+        <div style="display: flex; justify-content: flex-end; margin-top: 0.85rem; border-top: 1px solid var(--glass-border); padding-top: 0.7rem;">
+          <button onclick="window.Dashboard.copySummaryReport()" class="btn-secondary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">📋 복사하기</button>
         </div>
       </div>
     `;
   },
 
   copySummaryReport() {
+    const bodyEl = document.getElementById('summary-report-body');
     const card = document.getElementById('summary-report-card');
-    if (!card) return;
-    const text = card.innerText.replace(/📋 요약 복사하기|📤 상담사에게 전달 공유/g, '').trim();
+    if (!bodyEl && !card) return;
+    const text = (bodyEl ? bodyEl.innerText : card.innerText.replace(/📋 복사하기|✨ AI 상담 요약/g, '')).trim();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
         if (window.App && window.App.showToast) {
@@ -233,6 +237,108 @@ window.Dashboard = {
       });
     } else {
       alert('📋 요약 리포트 내용:\n\n' + text);
+    }
+  },
+
+  // === 마이페이지 CBT 요약 리포트 (실제 AI 생성 + 샘플 자동 정리) ===
+  getMyReports() {
+    return (window.Storage && window.Storage._safeGet('cbt_my_reports', [])) || [];
+  },
+
+  // "· 라벨: 내용" 형식의 본문을 읽기 좋은 행들로 변환
+  _formatReportRows(body) {
+    return String(body || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const m = l.match(/^[·•-]\s*([^:：]{1,14})[:：]\s*(.*)$/);
+      if (m) {
+        return `<div style="margin: 0.45rem 0;">
+          <span style="display: inline-block; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 11%, transparent); padding: 0.12rem 0.55rem; border-radius: 999px; margin-bottom: 0.2rem;">${m[1].trim()}</span>
+          <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55;">${m[2].trim()}</div>
+        </div>`;
+      }
+      return `<div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.55; margin: 0.3rem 0;">${l}</div>`;
+    });
+  },
+
+  deleteReport(id) {
+    if (!confirm('이 리포트를 삭제할까요?\n(이야기 자체는 우렁이의 기억에 그대로 남아있어요)')) return;
+    const reports = this.getMyReports().filter(r => r.id !== id);
+    window.Storage._safeSet('cbt_my_reports', reports);
+    this.renderMyReports();
+  },
+
+  renderMyReports() {
+    const list = document.getElementById('report-list');
+    if (!list) return;
+    const reports = this.getMyReports();
+    const note = document.getElementById('report-list-note');
+    if (note) note.classList.toggle('hidden', reports.length === 0);
+    list.innerHTML = '';
+
+    reports.forEach(r => {
+      const rows = this._formatReportRows(r.body);
+      const div = document.createElement('div');
+      div.style.cssText = 'background: var(--bg-tertiary); border-radius: 12px; padding: 1rem; border-left: 4px solid var(--accent-primary); position: relative;';
+      div.innerHTML = `
+        <button class="rep-del" title="리포트 삭제" style="position: absolute; top: 0.6rem; right: 0.6rem; background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem;">✕</button>
+        <div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.3rem; padding-right: 1.6rem;">${r.date} 작성
+          <span style="background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); font-size: 0.66rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.3rem;">AI 생성</span>
+        </div>
+        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.94rem; color: var(--text-primary); line-height: 1.4;"></h4>
+        <div class="rep-rows-head"></div>
+        <div class="rep-rows-rest" style="display: none;"></div>
+        <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
+          <button class="btn-secondary rep-detail" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto;">상세보기</button>
+          <button class="btn-primary rep-share" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto; background: var(--success-color, #10b981); border: none;">상담사에게 전송</button>
+        </div>`;
+      div.querySelector('h4').textContent = r.title || 'AI 상담 요약';
+      div.querySelector('.rep-rows-head').innerHTML = rows.slice(0, 2).join('');
+      div.querySelector('.rep-rows-rest').innerHTML = rows.slice(2).join('');
+      const rest = div.querySelector('.rep-rows-rest');
+      const detailBtn = div.querySelector('.rep-detail');
+      if (rows.length <= 2) detailBtn.style.display = 'none';
+      detailBtn.addEventListener('click', () => {
+        const open = rest.style.display !== 'none';
+        rest.style.display = open ? 'none' : 'block';
+        detailBtn.textContent = open ? '상세보기' : '접기';
+      });
+      div.querySelector('.rep-share').addEventListener('click', () => {
+        const full = (r.title ? r.title + '\n\n' : '') + r.body;
+        if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약', text: full }).catch(() => {});
+        else if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다. 상담사에게 붙여넣어 전달하세요.'));
+      });
+      div.querySelector('.rep-del').addEventListener('click', () => this.deleteReport(r.id));
+      list.appendChild(div);
+    });
+  },
+
+  // 다른 모듈에서 부르는 별칭
+  renderReports() { this.renderMyReports(); },
+
+  async generateMyReport() {
+    const list = document.getElementById('report-list');
+    if (!list) return;
+    const loading = document.createElement('div');
+    loading.style.cssText = 'background: var(--bg-tertiary); border: 1px dashed var(--accent-primary); border-radius: 8px; padding: 1rem; text-align: center; font-size: 0.85rem; color: var(--text-primary);';
+    loading.textContent = '⏳ AI가 최근 대화를 읽고 요약하는 중...';
+    list.insertBefore(loading, list.firstChild);
+
+    try {
+      const body = await this._generateAiSummaryText();
+      const now = new Date();
+      const reports = this.getMyReports();
+      reports.unshift({
+        id: 'rep_' + Date.now(),
+        date: now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+          + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        body
+      });
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 20));
+      this.renderMyReports();
+    } catch (e) {
+      loading.remove();
+      alert(e && e.message === 'NO_CHAT'
+        ? '요약할 대화가 아직 없어요. 챗봇과 이야기를 나눈 뒤 다시 시도해주세요.'
+        : 'AI 요약 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
     }
   },
 
@@ -250,6 +356,71 @@ window.Dashboard = {
     }
   },
   
+  // 오늘의 감정 흐름 — 감정이 실제로 드러난 메시지만 골라 시간순으로 그린다.
+  // 위쪽일수록 편안한 감정, 아래쪽일수록 힘든 감정.
+  renderTodayMoodChart() {
+    const container = document.getElementById('today-mood-chart');
+    if (!container) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const msgs = ((window.Storage && window.Storage.getMessages()) || [])
+      .filter(m => m.role === 'user' && m.text && m.timestamp && new Date(m.timestamp).toISOString().split('T')[0] === todayStr);
+
+    // 감정 키워드가 실제로 있는 메시지만 사용 (없는 메시지는 흐름에 넣지 않는다)
+    const RULES = [
+      { emo: '기쁨',   v: 5,   c: '#5fa986', keys: ['기뻐', '기쁘', '좋아', '좋았', '행복', '즐거', '신나', '최고', '설레', '재밌', '재미있'] },
+      { emo: '편안',   v: 4,   c: '#7fc29b', keys: ['편안', '안심', '평화', '괜찮', '나아졌', '가벼워', '후련'] },
+      { emo: '뿌듯',   v: 4.5, c: '#8fae5f', keys: ['뿌듯', '해냈', '성공', '완성', '칭찬'] },
+      { emo: '불안',   v: 2,   c: '#c98a5a', keys: ['불안', '걱정', '긴장', '두렵', '무섭', '떨려', '초조'] },
+      { emo: '우울',   v: 1.5, c: '#7b6fa8', keys: ['우울', '슬프', '슬퍼', '눈물', '울었', '서럽', '허무', '공허', '힘들', '지쳤', '지친'] },
+      { emo: '분노',   v: 1.5, c: '#c96a5a', keys: ['화나', '화가', '짜증', '열받', '분노', '억울', '빡치'] },
+      { emo: '외로움', v: 2,   c: '#7ba0b8', keys: ['외로', '혼자', '고독', '쓸쓸'] },
+      { emo: '좌절',   v: 1.5, c: '#a8836f', keys: ['좌절', '실패', '포기', '망했', '망쳤', '답답', '절망', '무기력'] }
+    ];
+    const points = [];
+    msgs.slice(-20).forEach(m => {
+      const t = m.text.replace(/\s+/g, '');
+      const hit = RULES.find(r => r.keys.some(k => t.includes(k)));
+      if (!hit) return;
+      const d = new Date(m.timestamp);
+      points.push({ time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'), emo: hit.emo, v: hit.v, c: hit.c });
+    });
+
+    if (points.length < 2) {
+      container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem 0; margin: 0;">${
+        msgs.length === 0
+          ? '오늘 나눈 대화가 아직 없어요. 대화하면 감정 흐름이 이곳에 그려져요.'
+          : '감정이 드러난 대화가 아직 부족해요. 지금 기분을 이야기해보면 흐름이 그려져요.'
+      }</p>`;
+      return;
+    }
+
+    const shown = points.slice(-10);
+    const W = 320, H = 76, padL = 44, padR = 12, padY = 12;
+    const step = (W - padL - padR) / (shown.length - 1);
+    const y = v => H - padY - ((v - 1) / 4) * (H - padY * 2);
+    let path = '';
+    shown.forEach((p, i) => { path += (i === 0 ? 'M' : 'L') + (padL + i * step) + ' ' + y(p.v) + ' '; });
+
+    // 사용된 감정 범례 (중복 제거)
+    const legend = [...new Map(shown.map(p => [p.emo, p.c])).entries()]
+      .map(([emo, c]) => `<span style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.7rem; color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block;"></span>${emo}</span>`)
+      .join('');
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H + 16}" style="width: 100%; height: auto; display: block;">
+        <text x="4" y="${y(4.6)}" font-size="9" fill="var(--text-muted)">🙂 편안</text>
+        <text x="4" y="${y(1.3)}" font-size="9" fill="var(--text-muted)">☁️ 힘듦</text>
+        <line x1="${padL - 6}" y1="${y(3)}" x2="${W - padR}" y2="${y(3)}" stroke="var(--glass-border)" stroke-width="1" stroke-dasharray="3 3"/>
+        <path d="${path}" fill="none" stroke="color-mix(in srgb, var(--accent-primary) 45%, transparent)" stroke-width="2" stroke-linecap="round"/>
+        ${shown.map((p, i) => `
+          <circle cx="${padL + i * step}" cy="${y(p.v)}" r="4.2" fill="${p.c}"><title>${p.time} · ${p.emo}</title></circle>
+          <text x="${padL + i * step}" y="${H + 12}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${p.time}</text>
+        `).join('')}
+      </svg>
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.3rem; justify-content: center;">${legend}</div>`;
+  },
+
   renderMoodChart() {
     const container = document.getElementById('mood-chart');
     if (!container) return;

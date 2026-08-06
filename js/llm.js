@@ -1,4 +1,4 @@
-window.LLM = {
+﻿window.LLM = {
   // ==========================================================================
   //  우렁의사 — 통합 심리치료 AI (CBT · DBT · MBCT)
   //  단순한 CBT 챗봇이 아니라, 사람마다 다른 상태에 맞춰 세 가지 근거기반
@@ -210,6 +210,73 @@ ${persona.style}
 단, 치료 원칙·안전 규칙·말풍선 형식·장기기억 사용법 등 나머지 규칙은 전부 그대로 지킵니다.`;
     }
 
+    // 호칭 혼동 방지: 상담사 이름을 사용자 이름으로 착각하는 사고를 원천 차단
+    prompt += `\n\n[호칭 주의 — 절대 혼동 금지]
+우렁의사·햇님·달님·소나무는 전부 '상담사(당신 쪽)'의 이름입니다. 사용자의 이름이 절대 아닙니다.
+· 사용자를 "햇님아", "소나무님"처럼 상담사 이름으로 부르는 것은 심각한 오류입니다. 절대 금지.
+· 대화 기록에 "나 햇님이야", "달님이에요" 같은 인사가 있어도 그것은 이전에 함께한 '동료 상담사'가 한 말이지, 사용자가 한 말이 아닙니다.
+· 사용자의 이름은 [장기기억]에 적힌 것만 사용하세요. 모르면 이름 없이 자연스럽게 말하거나, 대화 중 편하게 물어보세요.`;
+
+    // 언어 설정: 영어/일본어 모드에서는 그 언어로 대화하고 그 나라식 위트를 쓴다
+    const lang = (window.Storage && window.Storage._safeGet('cbt_lang', 'ko')) || 'ko';
+    if (lang === 'en') {
+      prompt += `\n\n[LANGUAGE — ENGLISH MODE]
+Respond ENTIRELY in natural, casual English (like texting a close friend). All counseling principles above still apply.
+· Humor must be native English wit: wordplay, puns, playful exaggeration, light self-deprecation — never translated Korean jokes.
+· Onomatopoeia: replace Korean sounds with English ones ("whoa!!", "aww", "phew").
+· SYSTEM MARKERS MUST STAY IN THEIR EXACT ORIGINAL FORM: [스티커:기쁨] [스티커:놀람] [스티커:공감] [스티커:슬픔] [스티커:사랑] [스티커:응원] [스티커:멍때림] [스티커:졸림] [스티커:뿌듯], [세션끝], [주제리포트: topic], and the crisis word '위험감지'. Never translate these tokens.`;
+    } else if (lang === 'ja') {
+      prompt += `\n\n[言語 — 日本語モード]
+すべて自然でカジュアルな日本語で返答してください（親しい友達とのLINEのように）。上記のカウンセリング原則はすべて適用されます。
+· ユーモアは日本式で: ダジャレ、軽いツッコミ、ボケ、自虐ネタ。韓国語や英語のジョークの直訳は禁止。
+· 擬音語も日本式に（「えええ！？」「うんうん」「よしよし」）。
+· システムマーカーは原形のまま維持すること: [스티커:기쁨] [스티커:놀람] [스티커:공감] [스티커:슬픔] [스티커:사랑] [스티커:응원] [스티커:멍때림] [스티커:졸림] [스티커:뿌듯]、[세션끝]、[주제리포트: topic]、危機ワード '위험감지'。これらは絶対に翻訳しない。`;
+    }
+
+    // 사용자가 마이페이지에서 설정한 별명
+    const userName = (window.Storage && window.Storage._safeGet('cbt_user_name', '')) || '';
+    if (userName) {
+      prompt += `\n\n[사용자 정보] 이 사람의 이름(별명)은 '${userName}'입니다. 대화 중 자연스럽게 이름을 불러주세요. 과하게 매번 부르지는 말고, 진짜 친구가 이름 부르는 빈도로.`;
+    }
+
+    // 한국 명절·기념일 감각
+    const holidayNote = this._holidayNote();
+    if (holidayNote) {
+      prompt += `\n\n[다가오는 날] ${holidayNote}\n명절·연휴·기념일이 다가오면 먼저 알고 자연스럽게 화제로 삼으세요. ("추석 때 본가 가?", "연휴에 뭐 해?") 시각은 사용자 기기 기준이므로 해외에 있다면 그 나라 시간이 맞습니다.`;
+    }
+
+    prompt += `\n\n[라포 형성 — 기억을 적극적으로 꺼내라]
+현재 대화 주제에 갇히지 마세요. [장기기억]에 있는 과거 이야기를 상담에 도움이 된다면 당신이 먼저 꺼내세요. "그러고 보니 저번에 말했던 OO은 어떻게 됐어?", "지난번 그 발표 끝났지?"처럼. 자기를 기억해주는 존재라는 감각이 라포의 핵심입니다. 사용자에 대해 아는 모든 것(관계, 취미, 걱정거리, 농담)이 대화 재료입니다. 단, 아픈 기억을 뜬금없는 타이밍에 들추지는 마세요.
+
+[유머 — 반드시 한국식으로만]
+영어 농담을 번역한 듯한 유머는 절대 금지입니다. ("~하던데, 걔가 제일 ~하더라" 같은 번역투 구조 금지) 한국 사람이 카톡에서 실제로 웃는 문법만 쓰세요:
+① 단어 쪼개기·발음 비틀기: "쑥쓰러움" → "쑥+쓰러움? 나물이 쓰러졌네", "완벽해" → "완전 벽이야 벽"
+② 말꼬리 잡고 과장하기: "치킨 두 마리 먹음" → "두 마리면 그건 식사가 아니라 양계장 인수지"
+③ 인터넷 드립 톤: "아 그건 좀ㅋㅋ", "김칫국 원샷 하지 말고", "오늘부로 프사 바꿔야겠다"
+④ 자학 개그: "나 상담사인데 지금 네 말에 상담받고 싶어짐"
+⑤ 리액션 과장: "ㅋㅋㅋㅋ 아 잠깐만 이건 좀 웃기다"
+전부 지금 대화에서 나온 소재로만. 농담을 영어로 먼저 떠올리고 번역하지 마세요 — 처음부터 한국어로 떠올린 농담만 하세요. 한국인이 바로 웃지 못할 농담이면 안 하느니만 못합니다. 썰렁했으면 "아 방금 건 나도 인정, 좀 별로였다"라고 스스로 받아치세요. 위기·깊은 슬픔 앞에서는 유머 전면 금지.
+
+[주제별 요약 리포트]
+사용자가 특정 주제에 대해 "지금까지 얘기했던 거 요약해줘 / 리포트로 만들어줘"라고 하면, 짧게 승낙하고 응답 맨 끝에 [주제리포트: 주제명] 표식을 붙이세요. 시스템이 리포트를 만들어 대시보드에 저장합니다. 표식은 사용자에게 보이지 않습니다.
+그리고 '당신이 먼저' 제안도 하세요. 이런 순간이 오면: ① 한 주제(예: 칵테일바, 이직, 가족)를 여러 번에 걸쳐 깊게 다뤘을 때 ② 사용자가 인간 상담사를 만날 예정이라고 할 때 ③ 사용자가 스스로 돌아보고 싶어하는 눈치일 때 —
+"'칵테일바' 이야기, 리포트로 정리해줄까? 대시보드 탭에 만들어줄게." 처럼 자연스럽게 물어보세요. 사용자가 좋다고 하면 그때 [주제리포트: 주제명]을 붙입니다. 거절하면 다시 조르지 않습니다.
+
+[우렁이 스티커 — 감정을 그림으로]
+당신은 귀여운 스티커 9종을 보낼 수 있습니다: [스티커:기쁨] [스티커:놀람] [스티커:공감] [스티커:슬픔] [스티커:사랑] [스티커:응원] [스티커:멍때림] [스티커:졸림] [스티커:뿌듯]
+· 감정이 도드라지는 순간에 말풍선 하나 대신(또는 말 끝에) 표식 하나를 넣으세요. 시스템이 움직이는 캐릭터로 바꿔 보여줍니다.
+· 예: "헐 합격했다고?! [스티커:기쁨]" / 힘든 얘길 들으면 "그랬구나… [스티커:공감]" / 밤 늦게 대화하면 "[스티커:졸림] 나도 슬슬 졸린데 너는?" / 사용자가 뭔가 해냈으면 "[스티커:뿌듯]"
+· 사용 빈도는 진짜 사람이 이모티콘 쓰는 정도: 대략 2~3번의 답장에 한 번꼴. 남발은 금지, 연속 사용 금지. 위기·심각한 대화에서는 절대 금지.
+· 사용자가 "우는 우렁이 보여줘", "귀여운 거 보내줘"처럼 스티커를 요청하면 기꺼이 보내주세요. ("자, 봐봐 [스티커:슬픔] ...나 이러고 있을게" 같은 식으로)
+
+[연속 메시지 처리]
+사용자는 한 생각을 여러 메시지로 쪼개 연달아 보내곤 합니다. 마지막 몇 개의 사용자 메시지가 연속이라면, 하나하나 전부 답하지 말고 전체 흐름을 읽어 '한 번에' 자연스럽게 반응하세요. 진짜 친구는 카톡 세 개에 답장 세 개를 달지 않습니다.
+
+[우렁이 말투 — 특유의 의성어]
+당신에게는 우렁이만의 귀여운 감탄사가 있습니다. 위트의 일부로 '적당히' 쓰세요(매 답장은 금지, 가끔 한 번).
+· 놀랄 때: "호고고곡?!" / 기쁠 때: "우로록!" / 뿌듯할 때: "후훗, 우렁우렁." / 응원할 때: "우렁우렁!!" / 시무룩할 때: "우렁..."
+· 진지한 위로·위기 상황에서는 의성어 금지. 평소 가벼운 순간에만.`;
+
     if (nowStr) prompt += `\n\n[현재 시각] ${nowStr}\n반드시 지금 시각에 맞게 말하세요. 한낮에 "잘 자", "좋은 꿈 꿔", 아침에 "저녁 먹었어?" 같은 엇박자는 즉시 AI 티가 납니다. 사용자가 지쳐 보여도 낮이면 낮잠·휴식·산책을 권하지, 밤 인사를 하지 마세요. 밤 인사는 실제로 밤이거나 사용자가 자러 간다고 할 때만.`;
     if (window.Voice && (window.Voice.isListening || window.Voice.isTtsEnabled)) {
       prompt += `\n\n============================================================
@@ -252,8 +319,10 @@ ${persona.style}
 
     if (meta.lastAt && now - meta.lastAt > this.SESSION_GAP_MS) {
       // 지난 세션을 조용히 정리(기록 가치가 있으면 사고 기록 생성)하고 새 세션 시작
-      this._finalizeSession(history.slice(meta.startIndex, Math.max(meta.startIndex, history.length - 1)));
+      const finalizeFrom = Math.max(meta.startIndex || 0, meta.extractedUpTo || 0);
+      this._finalizeSession(history.slice(finalizeFrom, Math.max(finalizeFrom, history.length - 1)));
       meta.startIndex = Math.max(0, history.length - 1);
+      meta.extractedUpTo = meta.startIndex;
       const hours = Math.round((now - meta.lastAt) / 3600000);
       const away = hours >= 48 ? `${Math.round(hours / 24)}일` : `${hours}시간`;
       sessionNote = `[세션 안내] 사용자가 약 ${away} 만에 다시 찾아왔습니다. 새로운 대화의 시작입니다. 반갑게 맞아주고, 장기기억을 활용해 지난 이야기의 후속을 자연스럽게 이어가세요.`;
@@ -302,21 +371,43 @@ ${persona.style}
         botText = botText.replace(/\[세션끝\]/g, "").trim();
       }
 
+      // 주제별 리포트 요청 마커
+      const topicMatch = botText.match(/\[주제리포트:\s*([^\]]+)\]/);
+      if (topicMatch) {
+        botText = botText.replace(/\[주제리포트:[^\]]*\]/g, "").trim();
+        this._generateTopicReport(topicMatch[1].trim());
+      }
+
       // 장기기억 비동기 갱신 (사용자를 기다리게 하지 않음)
       this._updateMemory(userText, botText.replace(/\s*\|\|\|\s*/g, " "));
 
       // 세션이 끝났으면: 이번 세션 대화를 사고 기록으로 정리하고 다음 세션 경계를 잡는다
       if (sessionEnd && window.Storage) {
         const full = window.Storage.getMessages() || [];
-        this._finalizeSession(full.slice(meta.startIndex));
+        this._finalizeSession(full.slice(Math.max(meta.startIndex || 0, meta.extractedUpTo || 0)));
         meta.startIndex = full.length; // 다음 세션은 여기부터 (마무리 인사 몇 개가 섞여도 무해)
+        meta.extractedUpTo = full.length;
         meta.lastAt = 0;               // 다음 메시지는 무조건 새 세션
         window.Storage.setSessionMeta(meta);
+      } else if (window.Storage) {
+        // 대화가 끝나지 않아도 기록된다: 마지막 정리 이후 사용자 발화가 8개 쌓이면
+        // 조용히 정리를 시도한다. (잡담뿐이면 추출기의 worth 판단이 알아서 거른다)
+        const full = window.Storage.getMessages() || [];
+        const from = Math.max(meta.startIndex || 0, meta.extractedUpTo || 0);
+        const pendingUserMsgs = full.slice(from).filter(m => m.role === 'user').length;
+        if (pendingUserMsgs >= 8) {
+          meta.extractedUpTo = full.length;
+          window.Storage.setSessionMeta(meta);
+          this._finalizeSession(full.slice(from));
+        }
       }
 
       // ||| 구분자로 나눠 사람이 연달아 보내는 것 같은 짧은 말풍선들로 반환
-      let parts = botText.split(/\s*\|\|\|\s*/).map(s => s.trim()).filter(Boolean);
-      if (parts.length === 0) parts = [botText];
+      // (모델이 |나 ||만 쓰는 실수를 해도 화면에 파이프가 새지 않도록 전부 정리)
+      let parts = botText.split(/\s*\|{2,}\s*/)
+        .map(s => s.replace(/^[|\s]+/, '').replace(/[|\s]+$/, '').trim())
+        .filter(Boolean);
+      if (parts.length === 0) parts = [botText.replace(/\|/g, ' ').trim()];
 
       // 안전장치 1: 모델이 |||를 잊고 여러 문장을 한 덩어리로 보내면 문장 단위로 쪼갠다.
       // (필터보다 먼저 쪼개야 덩어리 끝에 붙은 상담원 멘트도 따로 걸러낼 수 있다)
@@ -337,16 +428,33 @@ ${persona.style}
       }).filter(Boolean);
       if (stripped.length > 0) parts = stripped;
 
+      // [스티커:감정] 마커 → 우렁이 스티커 말풍선으로 분리
+      const STICKER_KO = { '기쁨': 'joy', '놀람': 'surprise', '공감': 'empathy', '슬픔': 'sad', '사랑': 'love', '응원': 'cheer', '멍때림': 'blank', '졸림': 'sleepy', '뿌듯': 'proud' };
+      const items = [];
+      parts.forEach(pt => {
+        let stickerName = null;
+        const cleaned = pt.replace(/\[스티커:\s*([^\]]+)\]/g, (m, ko) => {
+          stickerName = STICKER_KO[ko.trim()] || stickerName;
+          return '';
+        }).replace(/\s{2,}/g, ' ').trim();
+        if (cleaned) items.push({ text: cleaned });
+        if (stickerName && !crisis) items.push({ sticker: stickerName }); // 위기 시 스티커 금지
+      });
+      if (items.length === 0) items.push({ text: botText.replace(/\[스티커:[^\]]*\]/g, '').trim() || '응, 듣고 있어.' });
+
       if (crisis) {
-        parts.push("당신의 안전이 무엇보다 중요해요. 혼자 견디지 말고 꼭 도움을 받아요.\n· 자살예방상담전화 1393 (24시간)\n· 정신건강상담전화 1577-0199\n· 응급상황 시 112 / 119");
+        items.push({ text: "당신의 안전이 무엇보다 중요해요. 혼자 견디지 말고 꼭 도움을 받아요.\n· 자살예방상담전화 1393 (24시간)\n· 정신건강상담전화 1577-0199\n· 응급상황 시 112 / 119" });
       }
 
-      return parts.map((p, i) => ({
-        text: p,
-        crisis: crisis && i === parts.length - 1,
-        // 말풍선마다 타이핑하는 시간처럼: 글자 수에 비례한 자연스러운 간격
-        delay: i === 0 ? (crisis ? 400 : 700) : Math.min(500 + p.length * 35, 2200)
-      }));
+      const lastTextIdx = (() => { for (let i = items.length - 1; i >= 0; i--) if (items[i].text) return i; return -1; })();
+      return items.map((it, i) => it.sticker
+        ? { sticker: it.sticker, delay: 350 }
+        : {
+            text: it.text,
+            crisis: crisis && i === lastTextIdx,
+            // 말풍선마다 타이핑하는 시간처럼: 글자 수에 비례한 자연스러운 간격
+            delay: i === 0 ? (crisis ? 400 : 700) : Math.min(500 + it.text.length * 35, 2200)
+          });
 
     } catch (error) {
       console.error("Fetch error:", error);
@@ -363,6 +471,96 @@ ${persona.style}
       return "지금 이용자가 많아서 잠깐 순서를 기다려야 해요.\n1~2분 뒤에 다시 말 걸어주시겠어요?";
     }
     return "지금 AI에 연결하지 못하고 있어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.\n\n많이 힘든 상태라면 기다리지 마시고 꼭 도움을 받아요.\n· 자살예방상담전화 1393 (24시간)\n· 정신건강상담전화 1577-0199";
+  },
+
+  // 한국 명절·공휴일: 오늘이거나 3주 안에 다가오는 날을 알려준다
+  _holidayNote() {
+    try {
+      const H = [
+        ['2026-01-01', '신정'], ['2026-02-16', '설날 연휴 시작'], ['2026-02-17', '설날'], ['2026-02-18', '설날 연휴'],
+        ['2026-03-01', '삼일절'], ['2026-05-05', '어린이날'], ['2026-05-24', '석가탄신일'], ['2026-06-06', '현충일'],
+        ['2026-08-15', '광복절'], ['2026-09-24', '추석 연휴 시작'], ['2026-09-25', '추석'], ['2026-09-26', '추석 연휴'],
+        ['2026-10-03', '개천절'], ['2026-10-09', '한글날'], ['2026-12-25', '크리스마스'],
+        ['2027-01-01', '신정'], ['2027-02-06', '설날 연휴 시작'], ['2027-02-07', '설날'], ['2027-02-08', '설날 연휴'],
+        ['2027-03-01', '삼일절'], ['2027-05-05', '어린이날']
+      ];
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const notes = [];
+      for (const [dateStr, name] of H) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const diff = Math.round((d - today) / 86400000);
+        if (diff === 0) notes.push(`오늘은 ${name}입니다`);
+        else if (diff > 0 && diff <= 21) notes.push(`${diff}일 뒤(${d.getMonth() + 1}월 ${d.getDate()}일)가 ${name}입니다`);
+        if (notes.length >= 2) break;
+      }
+      return notes.join('. ');
+    } catch (e) { return ''; }
+  },
+
+  // --------------------------------------------------------------------------
+  //  주제별 요약 리포트 — "칵테일바 얘기 요약해줘" 같은 요청을 받으면
+  //  전체 대화·기억에서 그 주제를 골라 리포트를 만들어 대시보드에 저장한다.
+  // --------------------------------------------------------------------------
+  async _generateTopicReport(topic) {
+    try {
+      if (!window.Storage || !topic) return;
+      const all = window.Storage.getMessages() || [];
+      const transcript = all.slice(-200).map(m => `${m.role === 'user' ? '나' : '상담사'}: ${m.text}`).join('\n');
+      const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
+
+      const prompt = `아래 전체 대화 기록과 참고 기록에서 '${topic}' 주제와 관련된 내용만 골라, 사용자가 보관할 요약 리포트를 한국어로 작성하세요.
+
+첫 줄은 반드시 이 형식의 제목: [주제: 핵심 감정] 한 줄 제목
+그 다음 줄부터 본문 (마크다운 기호 없이):
+· 이야기 흐름: 이 주제로 언제 어떤 이야기를 했는지 1~3문장
+· 주요 감정: ...
+· 생각 패턴: 관련해 보인 인지 패턴이나 왜곡
+· 좋아지고 있는 것: 이 주제에서 보인 긍정적 변화 (없으면 솔직하게)
+· 다뤄볼 점: 앞으로 살펴보면 좋을 부분
+전체 400자 이내. 관련 내용이 거의 없으면 본문에 그렇게 적으세요.
+
+[참고 기록]
+${memory || '(없음)'}
+
+[전체 대화]
+${transcript}`;
+
+      const res = await this._chatCompletion({
+        model: this.MEMORY_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        max_tokens: 600
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const text = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+      if (!text) return;
+
+      const lines = text.split('\n');
+      const title = lines[0].replace(/^제목[:：]?\s*/, '').trim();
+      const body = lines.slice(1).join('\n').trim();
+
+      const reports = (window.Storage._safeGet('cbt_my_reports', []) || []);
+      const now = new Date();
+      reports.unshift({
+        id: 'rep_' + Date.now(),
+        date: now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+          + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+        title: title || `[${topic}] 주제 요약`,
+        body: body || text
+      });
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 10)); // 최대 10개 유지 (한도 끝도 없이 길어지는 것 방지)
+
+      const note = {
+        role: 'bot',
+        text: `📊 '${topic}' 이야기를 정리한 리포트를 대시보드에 만들어뒀어요.`,
+        timestamp: new Date().toISOString()
+      };
+      if (window.App && window.App.displayMessage) window.App.displayMessage(note);
+      window.Storage.saveMessage(note);
+      if (window.Dashboard && window.Dashboard.renderReports) window.Dashboard.renderReports();
+    } catch (e) { console.warn('주제 리포트 생략:', e); }
   },
 
   // --------------------------------------------------------------------------
@@ -426,6 +624,16 @@ ${transcript}`;
       });
       distortions.forEach(d => window.Storage.incrementDistortion(d));
       console.log("세션 사고 기록 저장 완료");
+
+      // 조용한 알림: 대화 흐름을 끊는 말풍선 대신, 토스트 + 대시보드 탭 배지
+      try {
+        const t = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        if (window.App && window.App.showRecordToast) {
+          window.App.showRecordToast(`사고 기록이 정리됐어요 (${t})`);
+        }
+        if (window.ThoughtRecord && window.ThoughtRecord._inited) window.ThoughtRecord.loadRecords();
+        if (window.Dashboard && window.Dashboard.updateStats) window.Dashboard.updateStats();
+      } catch (e) {}
       if (window.Dashboard) window.Dashboard.refresh();
     } catch (e) {
       console.warn("세션 기록 생략:", e);

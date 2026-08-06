@@ -205,6 +205,7 @@ window.ThoughtRecord = {
         <span class="record-date">
           ${dateStr}
           ${isMock ? '<span style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-muted); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">샘플</span>' : ''}
+          ${record.source === 'chat' ? '<span style="background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">AI 자동 기록</span>' : ''}
         </span>
         <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
       </div>

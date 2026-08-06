@@ -1,4 +1,4 @@
-window.App = {
+﻿window.App = {
   currentTab: 'chat',
   typingIndicatorElement: null,
   deferredPrompt: null,
@@ -68,10 +68,55 @@ window.App = {
     if (btnPersona) btnPersona.addEventListener('click', () => this.showPersonaModal());
     const personaClose = document.getElementById('persona-modal-close');
     if (personaClose) personaClose.addEventListener('click', () => {
+      this._savePersonaDontAsk();
       const m = document.getElementById('persona-modal');
       if (m) m.classList.add('hidden');
+      // 한 번도 안 골랐는데 닫으면 우렁의사를 기본으로 확정 (다시 강제로 띄우지 않기 위해)
+      if (window.Personas && !window.Personas.hasChosen()) {
+        window.Personas.setActive('woorung');
+        this.renderPersonaBar();
+        if ((window.Storage.getMessages() || []).length === 0) this._showPersonaGreeting('woorung');
+      }
     });
     
+    // 4.25 우렁이 스티커 하이드레이션 (빈 화면·설치 팝업 등 data-sticker 요소)
+    if (window.Stickers) {
+      document.querySelectorAll('[data-sticker]').forEach(el => {
+        el.innerHTML = window.Stickers.svg(
+          el.getAttribute('data-sticker'),
+          parseInt(el.getAttribute('data-sticker-size') || '96', 10)
+        );
+      });
+    }
+
+    // 4.3 챗봇 화면의 대화 초기화 버튼
+    const btnChatReset = document.getElementById('btn-chat-reset');
+    if (btnChatReset) btnChatReset.addEventListener('click', () => this.resetChat());
+
+    // 4.4 내 이름(별명) 설정
+    const nameInput = document.getElementById('user-name-input');
+    const nameSave = document.getElementById('btn-save-name');
+    if (nameInput) nameInput.value = window.Storage._safeGet('cbt_user_name', '');
+    if (nameSave && nameInput) nameSave.addEventListener('click', () => {
+      const v = nameInput.value.trim();
+      window.Storage._safeSet('cbt_user_name', v);
+      alert(v ? `이제 상담사들이 '${v}'(이)라고 기억하고 불러드릴게요!` : '이름이 지워졌어요.');
+    });
+
+    // 4.42 언어 설정 (한국어/English/日本語)
+    const langSel = document.getElementById('setting-lang');
+    if (langSel) {
+      langSel.value = window.Storage._safeGet('cbt_lang', 'ko');
+      langSel.addEventListener('change', () => {
+        window.Storage._safeSet('cbt_lang', langSel.value);
+        location.reload(); // UI·음성 인식·챗봇 언어를 한 번에 새로 적용
+      });
+    }
+    if (window.I18N) { window.I18N.apply(); window.I18N.observe(); }
+
+    // 4.45 먼저 말 걸기(체크인) 설정 + 스케줄러
+    this.initCheckins();
+
     // 4.5 Theme toggle
     this.initTheme();
     const btnTheme = document.getElementById('btn-theme');
@@ -187,8 +232,19 @@ window.App = {
   
   switchTab(tabName, skipModal = false) {
     if (tabName === 'chat' && !skipModal) {
-      this.showPersonaModal(false);
-      return;
+      const chosen = window.Personas && window.Personas.hasChosen();
+      const optedOut = window.Storage && window.Storage._safeGet('cbt_persona_reprompt_off', false);
+      if (!chosen) {
+        // 아직 한 번도 안 골랐으면 반드시 선택
+        this.showPersonaModal(true);
+        return;
+      }
+      if (!optedOut) {
+        // '다시 묻지 않기'를 안 한 사용자에게만 물어본다
+        this.showPersonaModal(false);
+        return;
+      }
+      // 다시 묻지 않기 선택함 → 바로 채팅으로
     }
     this.currentTab = tabName;
     
@@ -225,54 +281,65 @@ window.App = {
     if (tabName === 'chat') {
       this.updateSessionUI();
     }
+    if (tabName === 'dashboard') {
+      if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
+      this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
+    }
   },
   
   updateSessionUI() {
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
     if (inputEl) {
-      inputEl.placeholder = '마음속 이야기를 편하게 적어주세요...';
+      const ph = '마음속 이야기를 편하게 적어주세요...';
+      inputEl.placeholder = window.I18N ? window.I18N.t(ph) : ph;
       inputEl.disabled = false;
     }
     if (sendBtn) sendBtn.disabled = false;
   },
   
+  _replySeq: 0,      // 연속 채팅 배치: 최신 요청만 유효
+  _replyTimer: null,
+
   async sendMessage() {
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
     if (!text) return;
-    
+
     // Clear input
     inputEl.value = '';
     this.autoResizeTextarea();
     this.clearQuickReplies();
-    
+
     if (window.Storage) {
       window.Storage.incrementSessions();
       window.Storage.markDayActive();
     }
-    
+
     // Display user message
     this.displayMessage({ role: 'user', text: text });
     window.Storage.saveMessage({ role: 'user', text: text, timestamp: new Date().toISOString() });
-    
+
     // Show typing indicator
     this.showTypingIndicator();
-    
-    // Process through Chatbot or LLM
-    // Simulating slight processing delay
-    setTimeout(async () => {
+
+    // 연속 채팅 배치: 사람은 메시지를 쪼개 보내니까, 마지막 메시지 후 잠깐
+    // 기다렸다가 '한 번만' 답한다. 새 메시지가 오면 이전 예약·응답은 폐기.
+    const seq = ++this._replySeq;
+    clearTimeout(this._replyTimer);
+    this._replyTimer = setTimeout(async () => {
       let responses;
       if (window.LLM) {
-        // Free and Pro modes both use the AI. Free is limited to 30 messages; Pro is unlimited.
         responses = await window.LLM.generateResponse(text);
       } else {
-        // Fallback to the offline chatbot only if the AI module fails to load.
         responses = window.Chatbot.processInput(text);
       }
+      // 응답을 기다리는 동안 사용자가 또 보냈으면 이 응답은 버린다
+      // (새 요청이 전체 맥락을 담아 다시 답한다 — 타이핑 표시는 그쪽이 이어받음)
+      if (seq !== this._replySeq) return;
       this.removeTypingIndicator();
       await this.displayBotResponses(responses);
-    }, 500);
+    }, 1100);
   },
   
   async displayBotResponses(responses) {
@@ -286,11 +353,17 @@ window.App = {
         this.removeTypingIndicator();
       }
       
-      this.displayMessage({ role: 'bot', text: response.text });
-      window.Storage.saveMessage({ role: 'bot', text: response.text, timestamp: new Date().toISOString() });
-      if (window.Voice) {
-        const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
-        window.Voice.speak(response.text, personaId);
+      if (response.sticker) {
+        // 우렁이 스티커 말풍선 (음성 없음)
+        this.displayMessage({ role: 'bot', sticker: response.sticker });
+        window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, text: '', timestamp: new Date().toISOString() });
+      } else {
+        this.displayMessage({ role: 'bot', text: response.text });
+        window.Storage.saveMessage({ role: 'bot', text: response.text, timestamp: new Date().toISOString() });
+        if (window.Voice) {
+          const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
+          window.Voice.speak(response.text, personaId);
+        }
       }
       
       if (response.crisis) {
@@ -312,30 +385,45 @@ window.App = {
   displayMessage(msg) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    
+
     const time = new Date(msg.timestamp || new Date()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
+
     const wrapper = document.createElement('div');
     wrapper.className = `message ${msg.role}`;
-    
+
+    // 우렁이 스티커 메시지: 말풍선 없이 캐릭터만 폴짝
+    if (msg.sticker && window.Stickers) {
+      wrapper.classList.add('sticker-msg');
+      wrapper.innerHTML = `
+        <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
+        <div style="background: none; border: none; box-shadow: none; padding: 0;">
+          ${window.Stickers.svg(msg.sticker, 108)}
+          <span class="message-time" style="display: block; text-align: center;">${time}</span>
+        </div>
+      `;
+      container.appendChild(wrapper);
+      this.scrollToBottom();
+      return;
+    }
+
     let html = '';
     if (msg.role === 'bot') {
       html = `
         <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
         <div class="message-bubble">
-          <p>${msg.text.replace(/\n/g, '<br>')}</p>
+          <p>${(msg.text || '').replace(/\n/g, '<br>')}</p>
           <span class="message-time">${time}</span>
         </div>
       `;
     } else {
       html = `
         <div class="message-bubble">
-          <p>${msg.text.replace(/\n/g, '<br>')}</p>
+          <p>${(msg.text || '').replace(/\n/g, '<br>')}</p>
           <span class="message-time">${time}</span>
         </div>
       `;
     }
-    
+
     wrapper.innerHTML = html;
     container.appendChild(wrapper);
     this.scrollToBottom();
@@ -344,11 +432,25 @@ window.App = {
   showTypingIndicator() {
     const container = document.getElementById('chat-messages');
     if (!container) return;
-    
+
+    // 이미 떠 있으면 새로 만들지 않는다 (연타 시 유령 로딩이 쌓이는 것 방지)
+    const existing = document.getElementById('typing-indicator');
+    if (existing) {
+      this.typingIndicatorElement = existing;
+      this.scrollToBottom();
+      return existing;
+    }
+
     const wrapper = document.createElement('div');
     wrapper.className = 'message bot typing-indicator-wrapper';
     wrapper.id = 'typing-indicator';
-    wrapper.innerHTML = `
+    // 꼬물꼬물 우렁이가 입력 중 — 흰 말풍선 안에 넣어 배경에 묻히지 않게
+    wrapper.innerHTML = window.Stickers ? `
+      <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
+      <div class="message-bubble" style="padding: 0.35rem 0.7rem; line-height: 0; display: inline-flex; align-items: center;">
+        ${window.Stickers.typing(40)}
+      </div>
+    ` : `
       <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
       <div class="message-bubble">
         <div class="typing-indicator">
@@ -363,10 +465,9 @@ window.App = {
   },
   
   removeTypingIndicator() {
-    if (this.typingIndicatorElement) {
-      this.typingIndicatorElement.remove();
-      this.typingIndicatorElement = null;
-    }
+    // 어떤 경로로 생겼든 전부 제거 (유령 로딩 방지)
+    document.querySelectorAll('#typing-indicator, .typing-indicator-wrapper').forEach(el => el.remove());
+    this.typingIndicatorElement = null;
   },
   
   displayQuickReplies(replies) {
@@ -441,10 +542,20 @@ window.App = {
     }
   },
 
+  // "다시 묻지 않기" 체크 상태를 저장한다 (닫기·선택 어느 쪽으로 나가든)
+  _savePersonaDontAsk() {
+    const cb = document.getElementById('persona-dont-ask');
+    if (cb && cb.checked && window.Storage) {
+      window.Storage._safeSet('cbt_persona_reprompt_off', true);
+    }
+  },
+
   checkInactivityAndPrompt(customTitle = null) {
+    // 사용자가 '다시 묻지 않기'를 선택했으면 자동으로 띄우지 않는다
+    if (window.Storage && window.Storage._safeGet('cbt_persona_reprompt_off', false)) return false;
     const lastActive = window.Storage ? window.Storage._safeGet('cbt_last_active_time', 0) : 0;
     const elapsedMinutes = lastActive ? (Date.now() - lastActive) / (1000 * 60) : 999;
-    
+
     // 10분 이상 지났거나 대화 내역이 비어있는 경우 상담사 선택 모달 출력
     if (elapsedMinutes >= 10) {
       const title = customTitle || (lastActive ? '다시 오셨군요! 오늘 마음을 나눌 AI 상담사를 선택해주세요' : '대화할 AI 상담사 선택');
@@ -505,8 +616,26 @@ window.App = {
     sonamu: '반갑습니다, 소나무입니다. 잠시 숨 한 번 고르고… 천천히 시작해볼까요. 요즘 마음은 어떤가요?'
   },
 
+  // 영어/일본어 모드용 첫 인사
+  personaGreetingsAlt: {
+    en: {
+      woorung: "Hi, I'm Dr. Woorung! I'll be right here with you. How's your heart today?",
+      haru: "Hey! I'm Haetnim ☀️ Got any gloomy thoughts? Let's dry them out in the sun together.",
+      dalnim: "...Hello, I'm Dalnim. You don't have to be 'fine' here. Pour it all out — I'll hold every bit of it.",
+      sonamu: "Welcome, I'm Sonamu. Take one slow breath... and let's begin, gently."
+    },
+    ja: {
+      woorung: "こんにちは、ウロン先生です。今日の心はどうですか？ゆっくり話しましょう。",
+      haru: "やっほー！ヘッニムだよ☀️ 心にかかった曇り、一緒にお日さまに当てて乾かそう。",
+      dalnim: "…こんにちは、タルニムです。ここではいい人のふりをしなくて大丈夫。全部、受け止めますよ。",
+      sonamu: "ようこそ、ソナムです。ひと呼吸おいて…ゆっくり始めましょうか。"
+    }
+  },
+
   _showPersonaGreeting(id) {
-    const text = this.personaGreetings[id] || this.personaGreetings.woorung;
+    const L = window.Storage._safeGet('cbt_lang', 'ko');
+    const text = (L !== 'ko' && this.personaGreetingsAlt[L] && this.personaGreetingsAlt[L][id])
+      || this.personaGreetings[id] || this.personaGreetings.woorung;
     const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
     this.displayMessage(msg);
     window.Storage.saveMessage(msg);
@@ -515,6 +644,7 @@ window.App = {
 
   selectPersona(id) {
     if (!window.Personas) return;
+    this._savePersonaDontAsk();
     const isFirstChoice = !window.Personas.hasChosen();
     const prev = window.Personas.getActive() ? window.Personas.getActive().id : null;
     window.Personas.setActive(id);
@@ -546,6 +676,188 @@ window.App = {
     return true;
   },
 
+  // renderPersonaBar의 별칭 (홈 화면 빠른 선택에서 이 이름으로 호출됨)
+  updatePersonaBar() {
+    this.renderPersonaBar();
+  },
+
+  // ==========================================================================
+  //  조용한 알림 — 사고 기록 등이 생기면 대화를 끊지 않고 토스트 + 탭 배지로
+  // ==========================================================================
+  showRecordToast(text) {
+    let toast = document.getElementById('record-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'record-toast';
+      toast.style.cssText = 'position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-90px); z-index: 10000; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,0.16); border-radius: 999px; padding: 0.55rem 1.05rem; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: transform 0.35s ease; max-width: 90vw; white-space: nowrap;';
+      toast.addEventListener('click', () => {
+        this.switchTab('dashboard');
+        toast.style.transform = 'translateX(-50%) translateY(-90px)';
+      });
+      document.body.appendChild(toast);
+    }
+    const miniSticker = window.Stickers ? window.Stickers.svg('joy', 30) : '📝';
+    toast.innerHTML = `<span style="line-height:0; flex-shrink:0;">${miniSticker}</span> <span></span> <span style="color: var(--accent-primary); font-weight: 800;">대시보드 ›</span>`;
+    toast.querySelectorAll('span')[1].textContent = text;
+    requestAnimationFrame(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; });
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(-90px)'; }, 5000);
+    this._setNavBadge('dashboard', true);
+  },
+
+  _setNavBadge(tab, on) {
+    const nav = document.querySelector(`.nav-item[data-tab="${tab}"]`);
+    if (!nav) return;
+    let dot = nav.querySelector('.nav-badge-dot');
+    if (on && !dot) {
+      dot = document.createElement('span');
+      dot.className = 'nav-badge-dot';
+      dot.style.cssText = 'position: absolute; top: 5px; right: 24%; width: 8px; height: 8px; border-radius: 50%; background: #e05d5d;';
+      nav.style.position = 'relative';
+      nav.appendChild(dot);
+    } else if (!on && dot) {
+      dot.remove();
+    }
+  },
+
+  // ==========================================================================
+  //  먼저 말 걸기 (체크인) — 상담사가 친구처럼 먼저 안부를 묻는다
+  // ==========================================================================
+  initCheckins() {
+    const cnt = window.Storage._safeGet('cbt_checkin_count', 5);
+    const mode = window.Storage._safeGet('cbt_checkin_mode', 'random');
+    const times = window.Storage._safeGet('cbt_checkin_times', '');
+    const selCnt = document.getElementById('setting-checkin-count');
+    const selMode = document.getElementById('setting-checkin-mode');
+    const inpTimes = document.getElementById('setting-checkin-times');
+
+    if (selCnt) {
+      selCnt.value = String(cnt);
+      selCnt.addEventListener('change', () => {
+        window.Storage._safeSet('cbt_checkin_count', parseInt(selCnt.value, 10) || 0);
+        window.Storage._safeSet('cbt_checkin_slots_date', ''); // 슬롯 재계산
+      });
+    }
+    if (selMode) {
+      selMode.value = mode;
+      if (inpTimes) inpTimes.classList.toggle('hidden', mode !== 'fixed');
+      selMode.addEventListener('change', () => {
+        window.Storage._safeSet('cbt_checkin_mode', selMode.value);
+        if (inpTimes) inpTimes.classList.toggle('hidden', selMode.value !== 'fixed');
+        window.Storage._safeSet('cbt_checkin_slots_date', '');
+      });
+    }
+    if (inpTimes) {
+      inpTimes.value = times;
+      inpTimes.addEventListener('change', () => {
+        window.Storage._safeSet('cbt_checkin_times', inpTimes.value);
+        window.Storage._safeSet('cbt_checkin_slots_date', '');
+      });
+    }
+
+    // 알림 권한 요청 (기능이 켜져 있을 때만, 조용히)
+    if (cnt > 0 && 'Notification' in window && Notification.permission === 'default') {
+      setTimeout(() => { try { Notification.requestPermission(); } catch (e) {} }, 3000);
+    }
+
+    this._checkinTick();
+    setInterval(() => this._checkinTick(), 60 * 1000);
+  },
+
+  // 오늘의 말 걸기 시간표 (랜덤이면 9~21시 사이에서 매일 새로 뽑는다)
+  _todayCheckinSlots() {
+    const cnt = window.Storage._safeGet('cbt_checkin_count', 5);
+    if (!cnt) return [];
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (window.Storage._safeGet('cbt_checkin_slots_date', '') !== todayStr) {
+      let slots = [];
+      if (window.Storage._safeGet('cbt_checkin_mode', 'random') === 'fixed') {
+        slots = String(window.Storage._safeGet('cbt_checkin_times', ''))
+          .split(',').map(s => s.trim()).filter(s => /^\d{1,2}:\d{2}$/.test(s)).slice(0, cnt);
+      }
+      if (slots.length === 0) {
+        const set = new Set();
+        let guard = 0;
+        while (set.size < cnt && guard++ < 100) {
+          const h = 9 + Math.floor(Math.random() * 12);
+          const m = Math.floor(Math.random() * 60);
+          set.add(String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'));
+        }
+        slots = [...set].sort();
+      }
+      window.Storage._safeSet('cbt_checkin_slots_date', todayStr);
+      window.Storage._safeSet('cbt_checkin_slots', slots);
+      window.Storage._safeSet('cbt_checkin_fired', []);
+    }
+    return window.Storage._safeGet('cbt_checkin_slots', []);
+  },
+
+  async _checkinTick() {
+    try {
+      const slots = this._todayCheckinSlots();
+      if (!slots.length) return;
+      const fired = window.Storage._safeGet('cbt_checkin_fired', []);
+      const now = new Date();
+      const nowMin = now.getHours() * 60 + now.getMinutes();
+      const due = slots.find(s => {
+        if (fired.includes(s)) return false;
+        const parts = s.split(':');
+        const t = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+        return nowMin >= t && nowMin - t <= 90; // 슬롯 후 90분 안에 앱을 열면 전달
+      });
+      if (!due) return;
+      fired.push(due);
+      window.Storage._safeSet('cbt_checkin_fired', fired);
+      await this._sendCheckin();
+    } catch (e) {}
+  },
+
+  async _sendCheckin() {
+    if (!window.LLM || !window.Storage) return;
+    // 사용자가 방금까지 대화 중이었다면 끼어들지 않는다
+    const msgs = window.Storage.getMessages() || [];
+    const last = msgs[msgs.length - 1];
+    if (last && Date.now() - new Date(last.timestamp).getTime() < 10 * 60 * 1000) return;
+
+    const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
+    const persona = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사' };
+    const userName = window.Storage._safeGet('cbt_user_name', '');
+
+    const prompt = `당신은 상담사 '${persona.name}'입니다. 지금 사용자에게 '당신이 먼저' 안부 메시지를 보내는 상황입니다.
+[장기기억] 속 과거 대화 내용을 바탕으로, 진짜 친구가 먼저 카톡 보내듯 짧게 1~2문장으로 말을 거세요.
+최고의 안부는 그 사람의 삶을 기억하는 안부입니다:
+· 감정의 후속: "우울한 건 좀 괜찮아?", "어제보다 마음 좀 가벼워?"
+· 일상의 후속: "강아지랑 산책 갔다왔어?", "그 시그니처 칵테일은 완성됐어?"
+· 그냥 친구처럼: "뭐해?", "밥은 먹었어?"
+기억에 쓸 만한 것이 없으면 지금 시간대에 맞는 가벼운 안부만. 상담원 멘트 금지, 이모지 최대 1개. 메시지 본문만 출력하세요.
+${(() => { const L = window.Storage._safeGet('cbt_lang', 'ko'); return L === 'en' ? 'Write the message in casual, natural English.' : L === 'ja' ? 'メッセージは自然でカジュアルな日本語で書いてください。' : ''; })()}
+${userName ? `사용자 이름: ${userName}` : ''}
+[현재 시각] ${new Date().toLocaleString('ko-KR')}
+[장기기억]
+${memory || '(없음)'}`;
+
+    try {
+      const res = await window.LLM._chatCompletion({
+        model: window.LLM.MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.8,
+        max_tokens: 150
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const text = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim().replace(/^"|"$/g, '');
+      if (!text) return;
+
+      const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
+      this.displayMessage(msg);
+      window.Storage.saveMessage(msg);
+      if (window.Voice) window.Voice.speak(text, persona.id);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification(persona.name, { body: text, icon: 'icon.png' }); } catch (e) {}
+      }
+    } catch (e) {}
+  },
+
   resetChat() {
     if (confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
       window.Storage.clearMessages();
@@ -553,8 +865,13 @@ window.App = {
       window.Chatbot.reset();
       const container = document.getElementById('chat-messages');
       if (container) container.innerHTML = '';
-      // 대화 종료 후 새 상담사 선택 모달 출력
-      this.showPersonaModal(false, '대화가 종료되었습니다. 새 대화를 시작할 AI 상담사를 선택하세요');
+      // '다시 묻지 않기'를 선택한 사용자에게는 모달 대신 현재 상담사가 바로 인사
+      const optedOut = window.Storage && window.Storage._safeGet('cbt_persona_reprompt_off', false);
+      if (optedOut && window.Personas && window.Personas.hasChosen()) {
+        this._showPersonaGreeting(window.Personas.getActive().id);
+      } else {
+        this.showPersonaModal(false, '대화가 종료되었습니다. 새 대화를 시작할 AI 상담사를 선택하세요');
+      }
     }
   },
 
