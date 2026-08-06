@@ -217,9 +217,12 @@
 
     <!-- THOUGHT RECORD TAB -->
     <section id="tab-record" class="tab-content">
-      <div class="tab-header">
-        <h2><span class="h-ico" data-icon="record" data-icon-size="24"></span>사고 기록</h2>
-        <button id="btn-new-record" class="btn-primary btn-sm">+ 새 기록</button>
+      <div class="tab-header" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <button class="btn-secondary" style="width: auto; padding: 0.38rem 0.75rem; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 600;" onclick="window.App.switchTab('dashboard')">‹ 대시보드</button>
+          <h2 style="margin: 0; font-size: 1.2rem;"><span class="h-ico" data-icon="record" data-icon-size="22"></span>사고 기록지</h2>
+        </div>
+        <button id="btn-new-record" class="btn-primary btn-sm" style="width: auto; padding: 0.45rem 0.9rem; border-radius: var(--radius-full); font-size: 0.82rem; font-weight: 700;">+ 새 기록</button>
       </div>
       <div id="record-empty" class="empty-state">
         <div class="empty-icon" data-art="sprout"></div>
@@ -286,13 +289,14 @@
 
     <!-- DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-content">
-      <div class="tab-header" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+      <div class="tab-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; padding-bottom: 0.25rem;">
         <div>
-          <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
+          <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
+          <p class="tab-subtitle" style="margin-top: 0.3rem;">감정 변화 추이와 인지왜곡 통합 리포트</p>
         </div>
-        <button class="btn-primary" style="font-size: 0.82rem; padding: 0.42rem 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; width: auto; border-radius: var(--radius-full); box-shadow: var(--shadow-sm); flex-shrink: 0;" onclick="window.App.switchTab('record')">
+        <button class="btn-primary" style="font-size: 0.82rem; font-weight: 700; padding: 0.48rem 0.95rem; display: inline-flex; align-items: center; gap: 0.4rem; width: auto; border-radius: var(--radius-full); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-primary) 30%, transparent); flex-shrink: 0; cursor: pointer; border: none; white-space: nowrap;" onclick="window.App.switchTab('record')">
           <span class="h-ico" data-icon="record" data-icon-size="16"></span>
-          <span>사고 기록지</span>
+          <span>사고 기록지 📝</span>
         </button>
       </div>
       <div class="dashboard-grid">
@@ -308,7 +312,7 @@
           <h3>활동 요약</h3>
           <div id="stats-summary" class="stats-grid">
             <div class="stat-item"><span class="stat-value" id="stat-sessions">0</span><span class="stat-label">총 대화</span></div>
-            <div class="stat-item"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록</span></div>
+            <div class="stat-item" style="cursor: pointer; transition: transform 0.2s;" onclick="window.App.switchTab('record')" title="사고 기록지로 이동"><span class="stat-value" id="stat-records">0</span><span class="stat-label">사고 기록 ›</span></div>
             <div class="stat-item"><span class="stat-value" id="stat-streak">0</span><span class="stat-label">연속 일수</span></div>
             <div class="stat-item"><span class="stat-value" id="stat-distortions">0</span><span class="stat-label">발견한 왜곡</span></div>
           </div>
