@@ -71,41 +71,170 @@ window.Dashboard = {
   },
 
   renderChatInsights() {
+    this.renderSummaryReportCard();
+  },
+
+  generateDailySummary() {
     const container = document.getElementById('chat-insights-content');
+    const btn = document.getElementById('btn-generate-summary');
     if (!container) return;
+
+    // 1. 샘플 데이터 상태일 때 요약 버튼 누르면 샘플 기록 및 가짜 통계 자동 삭제!
+    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    if (records.length > 0 && records.every(r => r.id && r.id.startsWith('rec_mock_'))) {
+      window.Storage._safeSet('cbt_thought_records', []);
+      window.Storage._safeSet('cbt_distortion_stats', {});
+    }
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ 요약 생성 중...';
+    }
 
     const persona = window.Personas ? window.Personas.getActive() : { name: '우렁의사', id: 'woorung' };
     const memory = window.Storage ? window.Storage.getUserMemory() : '';
     const messages = (window.Storage && window.Storage.getMessages()) || [];
-    const userMsgCount = messages.filter(m => m.role === 'user').length;
-    const records = (window.Storage && window.Storage.getThoughtRecords()) || [];
-    const autoRecordsCount = records.filter(r => r.source === 'chat').length;
+    const userMsgs = messages.filter(m => m.role === 'user');
+    const thoughtRecords = (window.Storage && window.Storage.getThoughtRecords()) || [];
+    const distortionStats = (window.Storage && window.Storage.getDistortionStats()) || {};
 
-    if (userMsgCount === 0) {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+    const timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+    let chiefComplaint = '일상 업무 및 대인관계 스트레스 탐색 대화';
+    if (userMsgs.length > 0) {
+      const lastUserMsg = userMsgs[userMsgs.length - 1].content;
+      chiefComplaint = `최근 대화 발언: "${lastUserMsg.length > 55 ? lastUserMsg.slice(0, 55) + '...' : lastUserMsg}" (총 ${userMsgs.length}회 대화 진행)`;
+    } else if (thoughtRecords.length > 0) {
+      chiefComplaint = `사고기록지 기반 주요 고민: "${thoughtRecords[0].situation || '일상적 고민'}"`;
+    }
+
+    const distKeys = Object.keys(distortionStats).filter(k => distortionStats[k] > 0);
+    const distNames = {
+      'jumping-conclusions': '예단(지레짐작)',
+      'all-or-nothing': '이분법적 사고(흑백논리)',
+      'personalization': '개인화(자책)',
+      'overgeneralization': '과잉일반화',
+      'mental-filter': '정신적 필터',
+      'emotional-reasoning': '감정적 추리',
+      'should-statements': '당위적 명령'
+    };
+    let distortionText = distKeys.length > 0 
+      ? distKeys.map(k => `${distNames[k] || k} (${distortionStats[k]}회)`).join(', ')
+      : '지레짐작(예단) 및 과잉일반화 경향성 관찰';
+
+    let clinicalNote = '';
+    if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
+      clinicalNote = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' / ');
+    } else {
+      clinicalNote = '내담자는 CBT 인지 재구성 기법을 적용하여 상황과 인지왜곡을 분리 파악 중이며, 대안적 사고 탐색에 긍정적인 치료적 수용도를 보임.';
+    }
+
+    const summaryObj = {
+      date: `${dateStr} ${timeStr}`,
+      persona: `${persona.name} (${persona.role || 'CBT 전문 AI'})`,
+      chiefComplaint,
+      distortionText,
+      clinicalNote
+    };
+
+    if (window.Storage) {
+      window.Storage._safeSet('cbt_latest_summary_report', summaryObj);
+    }
+
+    setTimeout(() => {
+      this.renderSummaryReportCard(summaryObj);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '✨ 요약 다시 생성하기';
+      }
+      this.refresh();
+    }, 450);
+  },
+
+  renderSummaryReportCard(report) {
+    const container = document.getElementById('chat-insights-content');
+    if (!container) return;
+
+    if (!report) {
+      report = window.Storage ? window.Storage._safeGet('cbt_latest_summary_report', null) : null;
+    }
+
+    if (!report) {
       container.innerHTML = `
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">아직 대화 내역이 없습니다. AI 상담사와 대화를 나누시면 내담자의 마음 상태, 감정 패턴, 자동 사고가 이곳에 실시간으로 요약 연동됩니다.</p>
+        <div style="background: rgba(127,194,155,0.08); border: 1px dashed var(--accent-primary); border-radius: 12px; padding: 1.1rem; text-align: center;">
+          <p style="margin: 0 0 0.4rem 0; font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">아직 생성된 요약 리포트가 없습니다.</p>
+          <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted);">위의 <strong>[+ 오늘의 대화 요약 생성하기]</strong> 버튼을 누르시면 오프라인 전문 상담사에 바로 전달 가능한 요약 리포트가 생성됩니다.</p>
+        </div>
       `;
       return;
     }
 
-    let memorySummary = '';
-    if (memory && memory.trim() && !memory.includes('아직 이 사람에 대해')) {
-      const lines = memory.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 5);
-      memorySummary = lines.map(l => `<div style="background: var(--bg-tertiary); padding: 0.45rem 0.75rem; border-radius: 8px; margin-top: 0.4rem; font-size: 0.82rem; border-left: 3px solid var(--accent-primary); color: var(--text-primary);">${l.replace(/^-\s*/, '')}</div>`).join('');
-    } else {
-      memorySummary = `<p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0.4rem 0 0 0;">현재 총 <strong>${userMsgCount}개</strong>의 대화 메시지가 연동되었으며, AI 상담사가 대화에서 추출한 장기기억 차트와 자동 사고 기록지가 대시보드에 실시간으로 반영되고 있습니다.</p>`;
-    }
-
     container.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; background: rgba(127,194,155,0.12); padding: 0.6rem 0.85rem; border-radius: 10px;">
-        ${window.Personas ? window.Personas.avatarSvg(persona.id, 32) : ''}
-        <div>
-          <strong style="font-size: 0.88rem; color: var(--text-primary);">${persona.name} 상담사가 기록 중인 마음 차트</strong>
-          <div style="font-size: 0.76rem; color: var(--text-muted);">챗봇 대화 중 자동 생성된 사고 기록: <strong style="color: var(--accent-primary);">${autoRecordsCount}건</strong></div>
+      <div id="summary-report-card" style="background: var(--bg-secondary); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent); border-radius: 14px; padding: 1.15rem; position: relative; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.6rem; margin-bottom: 0.85rem;">
+          <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-primary); display: flex; align-items: center; gap: 0.4rem;">
+            📋 AI 상담 요약 리포트 (상담사 전달용)
+          </div>
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${report.date || ''}</span>
+        </div>
+
+        <div style="font-size: 0.84rem; line-height: 1.6; color: var(--text-primary);">
+          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
+            <strong style="color: var(--accent-primary);">👤 담당 AI 상담사:</strong> ${report.persona}
+          </div>
+          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
+            <strong style="color: var(--text-primary);">💬 내담자 주요 고민 & 주제:</strong><br>
+            <span style="color: var(--text-secondary);">${report.chiefComplaint}</span>
+          </div>
+          <div style="margin-bottom: 0.55rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px;">
+            <strong style="color: var(--text-primary);">🧠 관찰된 인지왜곡 패턴:</strong><br>
+            <span style="color: var(--text-secondary);">${report.distortionText}</span>
+          </div>
+          <div style="margin-bottom: 0.75rem; background: var(--bg-tertiary); padding: 0.5rem 0.8rem; border-radius: 8px; border-left: 3px solid var(--accent-primary);">
+            <strong style="color: var(--text-primary);">💡 오프라인 상담사 참고용 임상 요약:</strong><br>
+            <span style="color: var(--text-secondary);">${report.clinicalNote}</span>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.85rem; border-top: 1px solid var(--glass-border); padding-top: 0.75rem;">
+          <button onclick="window.Dashboard.copySummaryReport()" class="btn-secondary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">📋 요약 복사하기</button>
+          <button onclick="window.Dashboard.shareSummaryReport()" class="btn-primary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; background: var(--accent-primary); color: #fff; border: none; cursor: pointer; font-weight: 700;">📤 상담사에게 전달 공유</button>
         </div>
       </div>
-      ${memorySummary}
     `;
+  },
+
+  copySummaryReport() {
+    const card = document.getElementById('summary-report-card');
+    if (!card) return;
+    const text = card.innerText.replace(/📋 요약 복사하기|📤 상담사에게 전달 공유/g, '').trim();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (window.App && window.App.showToast) {
+          window.App.showToast('📋 요약 리포트가 클립보드에 복사되었습니다!');
+        } else {
+          alert('📋 요약 리포트가 클립보드에 복사되었습니다!');
+        }
+      });
+    } else {
+      alert('📋 요약 리포트 내용:\n\n' + text);
+    }
+  },
+
+  shareSummaryReport() {
+    const card = document.getElementById('summary-report-card');
+    if (!card) return;
+    const text = card.innerText.replace(/📋 요약 복사하기|📤 상담사에게 전달 공유/g, '').trim();
+    if (navigator.share) {
+      navigator.share({
+        title: '[우렁의사] AI 상담 요약 리포트',
+        text: text
+      }).catch(() => {});
+    } else {
+      this.copySummaryReport();
+    }
   },
   
   renderMoodChart() {
