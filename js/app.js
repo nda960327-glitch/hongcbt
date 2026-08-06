@@ -122,6 +122,7 @@ window.App = {
     if (window.ThoughtRecord) window.ThoughtRecord.init();
     if (window.Dashboard) window.Dashboard.init();
     if (window.Learn) window.Learn.init();
+    if (window.Personas) window.Personas.renderHomeQuickSelect();
     
     // 9. PWA Install Logic
     this.initPWA();
@@ -202,6 +203,9 @@ window.App = {
     if (activeTab) activeTab.scrollTop = 0;
 
     // Trigger tab-specific refresh
+    if (tabName === 'home' && window.Personas) {
+      window.Personas.renderHomeQuickSelect();
+    }
     if (tabName === 'counselors' && window.Marketplace) {
       window.Marketplace.renderCounselors();
     }
@@ -216,9 +220,6 @@ window.App = {
     }
     if (tabName === 'chat') {
       this.updateSessionUI();
-    }
-    if (tabName === 'dashboard' && window.Dashboard) {
-      window.Dashboard.refresh();
     }
   },
   

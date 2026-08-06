@@ -1049,39 +1049,73 @@ textarea:focus { border-color: var(--accent-primary); }
   color: var(--accent-primary);
 }
 
-/* ========== HOME 히어로 배너 (재구성) ========== */
-.home-banner {
-  margin: 0.25rem 1.25rem 1.1rem;
+/* ========== HOME 매칭 배너 카드 (AI & 전문 상담사 일관 디자인) ========== */
+.home-banner-card {
+  margin: 0 1.25rem 1rem;
   border-radius: var(--radius-lg);
-  background: var(--gradient-primary);
-  color: #fff;
-  padding: 1.25rem;
+  padding: 1.1rem 1.2rem;
   display: flex;
   align-items: center;
   gap: 1rem;
   cursor: pointer;
-  box-shadow: var(--shadow-glow);
-  transition: transform var(--transition-fast);
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
-/* 홈·마이 카드 공통 간격 (인라인 margin 정리) */
-#tab-home > .glass-card,
-#tab-mypage > .glass-card { margin: 0 1.25rem 1.1rem !important; }
-.home-banner:hover { transform: translateY(-2px); }
-.home-banner__art {
-  width: 96px; height: 84px; flex-shrink: 0;
+.home-banner-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-primary);
+}
+.home-banner-card--ai {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)), var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+.home-banner-card--human {
+  background: linear-gradient(135deg, color-mix(in srgb, #3b82f6 8%, var(--bg-secondary)), var(--bg-secondary));
+}
+.home-banner-card__art {
+  width: 72px; height: 68px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
-.home-banner__body { flex: 1; min-width: 0; }
-.home-banner__body h3 { color: #fff; font-size: 1.15rem; margin: 0; }
-.home-banner__body p { color: rgba(255,255,255,0.9); font-size: 0.85rem; margin: 0.35rem 0 0; }
-.home-banner__count {
+.home-banner-card__body { flex: 1; min-width: 0; }
+.home-banner-card__tag {
   display: inline-block;
-  margin-top: 0.75rem;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  background: rgba(255,255,255,0.22);
-  padding: 0.28rem 0.7rem;
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+  padding: 0.15rem 0.5rem;
   border-radius: var(--radius-full);
+  margin-bottom: 0.3rem;
+}
+.home-banner-card__tag--human {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.12);
+}
+.home-banner-card__title {
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+.home-banner-card__desc {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin: 0.25rem 0 0.6rem;
+  line-height: 1.35;
+}
+.home-banner-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+.home-banner-card__btn--human {
+  color: #2563eb;
 }
 
 /* 홈 — 내 마음 도구 3분할 */

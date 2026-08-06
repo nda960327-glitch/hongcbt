@@ -121,5 +121,30 @@ window.Personas = {
       <circle cx="24" cy="24" r="15" fill="#fdf6ec"/>
       ${face}
     </svg>`;
+  },
+
+  renderHomeQuickSelect() {
+    const container = document.getElementById('home-persona-list');
+    if (!container) return;
+
+    const active = this.getActive();
+    container.innerHTML = this.list.map(p => {
+      const isActive = p.id === active.id;
+      return `
+        <div onclick="window.Personas.selectPersona('${p.id}')" style="cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.45rem 0.2rem; border-radius: 12px; background: ${isActive ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-tertiary)'}; border: ${isActive ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)'}; transition: all 0.2s ease;">
+          ${this.avatarSvg(p.id, 38)}
+          <span style="font-size: 0.78rem; font-weight: ${isActive ? '700' : '600'}; color: ${isActive ? 'var(--accent-primary)' : 'var(--text-primary)'};">${p.name}</span>
+        </div>
+      `;
+    }).join('');
+  },
+
+  selectPersona(id) {
+    this.setActive(id);
+    this.renderHomeQuickSelect();
+    if (window.App) {
+      window.App.updatePersonaBar();
+      window.App.switchTab('chat');
+    }
   }
 };
