@@ -1284,6 +1284,12 @@ ${memory || '(없음)'}`;
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     el.innerHTML = apps.map(a => {
       const approved = a.status === 'approved';
+      const rejected = a.status === 'rejected';
+      const chip = approved
+        ? '<span style="flex-shrink: 0; background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">입점 완료</span>'
+        : rejected
+          ? '<span style="flex-shrink: 0; background: #e05d5d22; color: #c14a4a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">반려됨</span>'
+          : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>';
       return `
       <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
@@ -1291,15 +1297,13 @@ ${memory || '(없음)'}`;
             <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
             <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
           </div>
-          ${approved
-            ? '<span style="flex-shrink: 0; background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">입점 완료</span>'
-            : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>'}
+          ${chip}
         </div>
+        ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
+        ${!rejected ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
           <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
-          ${approved
-            ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>`
-            : `<button class="btn-primary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.approveCounselorApp('${a.id}')">✅ 입점 승인 (관리자 데모)</button>`}
+          ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
         </div>
       </div>`;
     }).join('');

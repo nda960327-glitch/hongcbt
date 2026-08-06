@@ -1,0 +1,153 @@
+// ============================================================================
+//  운영자 콘솔 (데모 백오피스)
+//  실서비스에서는 별도 웹 어드민 + 서버로 분리될 화면. 지금은 시연·검수용으로
+//  앱 안에서 상담사 입점 심사(승인/반려), 입점 관리, 핵심 지표를 보여준다.
+//  진입: 마이페이지 하단 '운영자 콘솔' → 코드 입력 (기본 1234 — 아래 PASS 수정)
+// ============================================================================
+window.Admin = {
+  PASS: '1234',
+
+  open() {
+    const code = prompt('운영자 코드를 입력하세요');
+    if (code === null) return;
+    if (code !== this.PASS) { alert('코드가 올바르지 않습니다.'); return; }
+    this._render();
+  },
+
+  close() {
+    const ov = document.getElementById('admin-overlay');
+    if (ov) ov.remove();
+  },
+
+  _apps() { return window.Storage._safeGet('cbt_counselor_apps', []) || []; },
+  _customs() { return window.Storage._safeGet('cbt_custom_counselors', []) || []; },
+
+  // 승인: 신청 → 매칭 탭 상담사 카드로 (app.js의 승인 로직 재사용, confirm은 여기서)
+  approve(appId) {
+    const apps = this._apps();
+    const a = apps.find(x => x.id === appId);
+    if (!a) return;
+    if (!confirm(`'${a.name}' (${a.license})\n소속: ${a.hospital}\n\n자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?`)) return;
+    const origConfirm = window.confirm, origAlert = window.alert;
+    window.confirm = () => true; window.alert = () => {};
+    try { window.App.approveCounselorApp(appId); } finally { window.confirm = origConfirm; window.alert = origAlert; }
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast(`✅ '${a.name}' 입점 승인 완료`);
+    this._render();
+  },
+
+  reject(appId) {
+    const apps = this._apps();
+    const a = apps.find(x => x.id === appId);
+    if (!a || a.status === 'approved') return;
+    const reason = prompt(`'${a.name}' 신청을 반려합니다.\n반려 사유를 입력하세요 (신청자에게 표시됩니다):`, '자격 서류 확인이 필요합니다');
+    if (reason === null) return;
+    a.status = 'rejected';
+    a.rejectReason = reason.trim() || '요건 미충족';
+    window.Storage._safeSet('cbt_counselor_apps', apps);
+    if (window.App && window.App.renderCounselorApps) window.App.renderCounselorApps();
+    this._render();
+  },
+
+  // 입점 상담사 노출 중단 (기본 제공 상담사는 제외, 입점분만)
+  delist(counselorId) {
+    const customs = this._customs();
+    const c = customs.find(x => x.id === counselorId);
+    if (!c) return;
+    if (!confirm(`'${c.name}' 상담사의 매칭 탭 노출을 중단할까요?`)) return;
+    window.Storage._safeSet('cbt_custom_counselors', customs.filter(x => x.id !== counselorId));
+    if (window.Marketplace) window.Marketplace.renderCounselors();
+    this._render();
+  },
+
+  _render() {
+    this.close();
+    const S = window.Storage;
+    const apps = this._apps();
+    const customs = this._customs();
+    const pending = apps.filter(a => !a.status || a.status === 'pending');
+    const bookings = S._safeGet('cbt_bookings', []) || [];
+
+    const stat = (label, v) => `
+      <div style="flex: 1; min-width: 90px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.5rem; text-align: center;">
+        <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-primary);">${v}</div>
+        <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem;">${label}</div>
+      </div>`;
+
+    const appCard = (a) => {
+      const approved = a.status === 'approved';
+      const rejected = a.status === 'rejected';
+      const chip = approved
+        ? '<span style="background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">승인됨</span>'
+        : rejected
+          ? '<span style="background: #e05d5d22; color: #c14a4a; font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">반려됨</span>'
+          : '<span style="background: #f5c74e33; color: #b98a1a; font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">심사 대기</span>';
+      return `
+      <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
+          <strong style="font-size: 0.9rem; color: var(--text-primary);">${a.name} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.76rem;">· ${a.license}${a.career ? ` · 경력 ${a.career}년` : ''}</span></strong>
+          ${chip}
+        </div>
+        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.5;">
+          🏥 ${a.hospital}<br>
+          📍 ${a.addr || '(주소 미입력)'}${a.tel ? `<br>☎️ ${a.tel}` : ''}<br>
+          💰 30분 ${(a.price || 0).toLocaleString()}원 · 신청일 ${new Date(a.ts).toLocaleDateString('ko-KR')}
+          ${a.intro ? `<br>💬 ${a.intro}` : ''}
+          ${rejected && a.rejectReason ? `<br><span style="color: #c14a4a;">반려 사유: ${a.rejectReason}</span>` : ''}
+        </div>
+        ${(!approved && !rejected) ? `
+          <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
+            <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem;" onclick="window.Admin.approve('${a.id}')">✅ 승인</button>
+            <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem; color: #c14a4a;" onclick="window.Admin.reject('${a.id}')">반려</button>
+          </div>` : ''}
+      </div>`;
+    };
+
+    const ov = document.createElement('div');
+    ov.id = 'admin-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10006; background: var(--bg-primary); overflow-y: auto; max-width: 480px; margin: 0 auto;';
+    ov.innerHTML = `
+      <div style="position: sticky; top: 0; z-index: 1; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border); padding: 0.85rem 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
+        <strong style="font-size: 1rem; color: var(--text-primary);">🛠️ 운영자 콘솔</strong>
+        <span style="font-size: 0.66rem; font-weight: 700; color: #b98a1a; background: #f5c74e33; padding: 0.15rem 0.5rem; border-radius: 999px;">데모 · 실서비스는 별도 어드민</span>
+        <span style="flex: 1;"></span>
+        <button onclick="window.Admin.close()" style="all: unset; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+      </div>
+      <div style="padding: 1rem 1.1rem 2rem; display: flex; flex-direction: column; gap: 1.2rem;">
+
+        <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">📊 핵심 지표</h3>
+          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+            ${stat('심사 대기', pending.length)}
+            ${stat('입점 상담사', customs.length)}
+            ${stat('예약 건수', bookings.length)}
+            ${stat('누적 대화', (S._safeGet('cbt_total_chats', 0) || 0).toLocaleString())}
+            ${stat('기분 체크인', ((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString())}
+          </div>
+          <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.5rem 0 0;">※ 서버가 없는 데모라 이 기기의 데이터만 집계됩니다.</p>
+        </div>
+
+        <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">🗂️ 상담사 입점 심사 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${apps.length}건)</span></h3>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            ${apps.length ? apps.map(appCard).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">접수된 신청이 없습니다.</p>'}
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">👩‍⚕️ 입점 상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${customs.length}명)</span></h3>
+          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+            ${customs.length ? customs.map(c => `
+              <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
+                <div style="flex: 1; min-width: 0;">
+                  <strong style="font-size: 0.86rem; color: var(--text-primary);">${c.name}</strong>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${c.price.toLocaleString()}원</div>
+                </div>
+                <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">노출 중단</button>
+              </div>`).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">입점 승인된 상담사가 없습니다.</p>'}
+          </div>
+        </div>
+
+      </div>`;
+    document.body.appendChild(ov);
+  }
+};

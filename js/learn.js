@@ -200,7 +200,7 @@ window.Learn = {
             <p>${dist.counter}</p>
           </div>
         </div>
-        <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="document.getElementById('distortion-detail-modal').classList.add('hidden'); document.querySelector('.quiz-section').scrollIntoView({behavior:'smooth'});">퀴즈로 확인해보기</button>
+        <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="document.getElementById('distortion-detail-modal').classList.add('hidden')">알겠어요</button>
       </div>
     `;
 
