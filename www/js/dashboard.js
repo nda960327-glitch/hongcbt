@@ -395,30 +395,51 @@ ${recent}`;
       return;
     }
 
-    const shown = points.slice(-10);
-    const W = 320, H = 76, padL = 44, padR = 12, padY = 12;
+    const EMOJI = { '기쁨': '😄', '편안': '😌', '뿌듯': '😎', '불안': '😰', '우울': '😢', '분노': '😤', '외로움': '🥺', '좌절': '😮‍💨' };
+    const shown = points.slice(-8);
+    const W = 340, H = 120, padL = 16, padR = 16, padT = 26, padB = 30;
+    const innerH = H - padT - padB;
     const step = (W - padL - padR) / (shown.length - 1);
-    const y = v => H - padY - ((v - 1) / 4) * (H - padY * 2);
-    let path = '';
-    shown.forEach((p, i) => { path += (i === 0 ? 'M' : 'L') + (padL + i * step) + ' ' + y(p.v) + ' '; });
+    const y = v => padT + innerH - ((v - 1) / 4) * innerH;
+    const pts = shown.map((p, i) => ({ x: padL + i * step, y: y(p.v) }));
+    const linePath = this._createSmoothPath ? this._createSmoothPath(pts)
+      : pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
+    const areaPath = `${linePath} L ${pts[pts.length - 1].x},${H - padB} L ${pts[0].x},${H - padB} Z`;
 
-    // 사용된 감정 범례 (중복 제거)
-    const legend = [...new Map(shown.map(p => [p.emo, p.c])).entries()]
-      .map(([emo, c]) => `<span style="display:inline-flex; align-items:center; gap:0.25rem; font-size:0.7rem; color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:${c};display:inline-block;"></span>${emo}</span>`)
-      .join('');
+    // 하루를 한 줄로: 시작점과 끝점을 비교해 요약
+    const first = shown[0], last = shown[shown.length - 1];
+    let summary;
+    if (last.v - first.v >= 1) summary = '아래에서 위로, 마음이 올라온 하루예요 ☀️';
+    else if (first.v - last.v >= 1) summary = '마음이 조금 가라앉았네요. 우렁이가 곁에 있을게요 🌙';
+    else if (last.v >= 3.5) summary = '오늘은 대체로 편안하게 흘러갔어요 🍃';
+    else summary = '오늘은 마음이 묵직한 편이었어요. 잘 버텨냈어요 ☁️';
 
     container.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H + 16}" style="width: 100%; height: auto; display: block;">
-        <text x="4" y="${y(4.6)}" font-size="9" fill="var(--text-muted)">🙂 편안</text>
-        <text x="4" y="${y(1.3)}" font-size="9" fill="var(--text-muted)">☁️ 힘듦</text>
-        <line x1="${padL - 6}" y1="${y(3)}" x2="${W - padR}" y2="${y(3)}" stroke="var(--glass-border)" stroke-width="1" stroke-dasharray="3 3"/>
-        <path d="${path}" fill="none" stroke="color-mix(in srgb, var(--accent-primary) 45%, transparent)" stroke-width="2" stroke-linecap="round"/>
+      <div style="width: 100%; flex: 1 1 100%;">
+      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block;">
+        <defs>
+          <linearGradient id="todayMoodArea" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#7fc29b" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#7fc29b" stop-opacity="0.02"/>
+          </linearGradient>
+        </defs>
+        <!-- 위 = 편안한 영역, 아래 = 힘든 영역 (은은한 배경 띠) -->
+        <rect x="0" y="${padT - 8}" width="${W}" height="${innerH / 2 + 8}" rx="10" fill="#7fc29b" opacity="0.07"/>
+        <rect x="0" y="${padT + innerH / 2}" width="${W}" height="${innerH / 2 + 8}" rx="10" fill="#7b6fa8" opacity="0.06"/>
+        <text x="${W - 8}" y="${padT + 2}" text-anchor="end" font-size="9" fill="#6f9e7e" font-weight="700">편안 🙂</text>
+        <text x="${W - 8}" y="${H - padB + 1}" text-anchor="end" font-size="9" fill="#8a7fae" font-weight="700">힘듦 ☁️</text>
+
+        <path d="${areaPath}" fill="url(#todayMoodArea)"/>
+        <path d="${linePath}" fill="none" stroke="var(--accent-primary)" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>
+
         ${shown.map((p, i) => `
-          <circle cx="${padL + i * step}" cy="${y(p.v)}" r="4.2" fill="${p.c}"><title>${p.time} · ${p.emo}</title></circle>
-          <text x="${padL + i * step}" y="${H + 12}" text-anchor="middle" font-size="8" fill="var(--text-muted)">${p.time}</text>
+          <circle cx="${pts[i].x}" cy="${pts[i].y}" r="10" fill="var(--bg-secondary)" stroke="${p.c}" stroke-width="2.2"/>
+          <text x="${pts[i].x}" y="${pts[i].y + 4}" text-anchor="middle" font-size="11">${EMOJI[p.emo] || '🙂'}<title>${p.time} · ${p.emo}</title></text>
+          <text x="${pts[i].x}" y="${H - padB + 14}" text-anchor="middle" font-size="8.5" fill="var(--text-muted)">${p.time}</text>
         `).join('')}
       </svg>
-      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.3rem; justify-content: center;">${legend}</div>`;
+      <p style="margin: 0.45rem 0 0; text-align: center; font-size: 0.8rem; color: var(--text-secondary); font-weight: 600;">${summary}</p>
+      </div>`;
   },
 
   renderMoodChart() {
