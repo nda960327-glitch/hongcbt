@@ -4,8 +4,8 @@
 //  사용: window.Stickers.svg('joy', 96)
 // ============================================================================
 window.Stickers = {
-  list: ['joy', 'surprise', 'empathy', 'sad', 'love', 'cheer', 'blank', 'sleepy', 'proud'],
-  labels: { joy: '기쁨', surprise: '놀람', empathy: '공감', sad: '슬픔', love: '사랑', cheer: '응원', blank: '멍때림', sleepy: '졸림', proud: '뿌듯' },
+  list: ['joy', 'surprise', 'empathy', 'sad', 'love', 'cheer', 'blank', 'sleepy', 'proud', 'think', 'detective', 'teacher', 'aha', 'oops'],
+  labels: { joy: '기쁨', surprise: '놀람', empathy: '공감', sad: '슬픔', love: '사랑', cheer: '응원', blank: '멍때림', sleepy: '졸림', proud: '뿌듯', think: '골똘', detective: '탐정', teacher: '선생님', aha: '깨달음', oops: '머쓱' },
 
   // 채팅 타이핑 인디케이터: 꼬물꼬물 미니 우렁이 + 점 세 개
   typing(size = 44) {
@@ -211,6 +211,95 @@ window.Stickers = {
           <path d="M66 103 q4 2 8 0" fill="none" stroke="#3F352A" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>`)
         + `<g class="${p}-sp" style="transform-origin:22px 30px"><path d="M22 23 l2.2 4.6 4.6 2.2 -4.6 2.2 -2.2 4.6 -2.2 -4.6 -4.6 -2.2 4.6 -2.2z" fill="#F5C74E"/></g>
            <g class="${p}-sp2" style="transform-origin:124px 58px"><path d="M124 52 l1.8 3.8 3.8 1.8 -3.8 1.8 -1.8 3.8 -1.8 -3.8 -3.8 -1.8 3.8 -1.8z" fill="#F5C74E"/></g>`);
+
+      // ── 골똘: 위를 흘겨보는 점눈 + 오므린 입 + 둥둥 물음표 ─────────────
+      case 'think': return wrap(`
+        .${p}-body{animation:${p}-tilt 2.6s ease-in-out infinite;transform-origin:70px 115px}
+        .${p}-q1{animation:${p}-pop 2s ease-out infinite}
+        .${p}-q2{animation:${p}-pop 2s ease-out 1s infinite}
+        @keyframes ${p}-tilt{0%,100%{transform:rotate(-2.5deg)}50%{transform:rotate(1.5deg)}}
+        @keyframes ${p}-pop{0%{transform:translateY(0) scale(0.6);opacity:0}30%{opacity:1}100%{transform:translateY(-14px) scale(1.05);opacity:0}}`,
+        this._base(p, `
+          <circle cx="50" cy="84" r="2.8" fill="#3F352A"/>
+          <circle cx="86" cy="84" r="2.8" fill="#3F352A"/>
+          <ellipse cx="70" cy="99" rx="3" ry="2.4" fill="none" stroke="#3F352A" stroke-width="2.4"/>
+          <path d="M44 77 q4 -3 8 -1 M80 77 q4 -3 8 -1" fill="none" stroke="#3F352A" stroke-width="2" stroke-linecap="round" opacity="0.55"/>`)
+        + `<g class="${p}-q1"><text x="104" y="34" font-size="20" font-weight="900" fill="#B7A38B" font-family="sans-serif" transform="rotate(10 104 34)">?</text></g>
+           <g class="${p}-q2"><text x="118" y="46" font-size="15" font-weight="900" fill="#CBB89D" font-family="sans-serif" transform="rotate(-8 118 46)">?</text></g>`);
+
+      // ── 탐정: 사냥모자 + 돋보기 든 팔 + 예리한(하찮은) 눈 ──────────────
+      case 'detective': return wrap(`
+        .${p}-body{animation:${p}-sniff 1.4s ease-in-out infinite}
+        .${p}-armR{animation:${p}-scan 2.2s ease-in-out infinite;transform-origin:112px 90px}
+        @keyframes ${p}-sniff{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+        @keyframes ${p}-scan{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-14deg)}}`,
+        this._base(p, `
+          <path d="M45 80 l11 2 M95 80 l-11 2" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round"/>
+          <circle cx="52" cy="88" r="2.6" fill="#3F352A"/>
+          <circle cx="87" cy="88" r="2.6" fill="#3F352A"/>
+          <path d="M64 99 q6 3.5 12 0" fill="none" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round"/>
+          <!-- 사냥모자 (하찮게 작음) -->
+          <path d="M46 58 q24 -14 48 -1 q-2 -8 -10 -11 q3 -4 1 -7 q-15 -6 -30 0 q-2 3 1 7 q-8 3 -10 12z" fill="#C9A876" stroke="#8A6F55" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M58 47 q12 -4 24 0" fill="none" stroke="#8A6F55" stroke-width="1.8" opacity="0.6"/>`, true)
+        + `<!-- 돋보기 -->
+           <g class="${p}-armR" style="transform-origin:112px 90px">
+             <line x1="116" y1="84" x2="124" y2="72" stroke="#8A6F55" stroke-width="4" stroke-linecap="round"/>
+             <circle cx="129" cy="63" r="11" fill="rgba(190,220,240,0.35)" stroke="#8A6F55" stroke-width="3.2"/>
+             <path d="M124 58 q3 -3 7 -1" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+           </g>`);
+
+      // ── 선생님: 동그란 안경 + 지시봉 + 또랑또랑 설명 입 ────────────────
+      case 'teacher': return wrap(`
+        .${p}-body{animation:${p}-talk 1.1s ease-in-out infinite;transform-origin:70px 118px}
+        .${p}-armR{animation:${p}-point 1.6s ease-in-out infinite;transform-origin:112px 90px}
+        @keyframes ${p}-talk{0%,100%{transform:rotate(0deg)}50%{transform:rotate(1.5deg)}}
+        @keyframes ${p}-point{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-10deg)}}`,
+        this._base(p, `
+          <!-- 동그란 안경 -->
+          <circle cx="52" cy="86" r="8.5" fill="rgba(255,255,255,0.5)" stroke="#8A6F55" stroke-width="2.4"/>
+          <circle cx="88" cy="86" r="8.5" fill="rgba(255,255,255,0.5)" stroke="#8A6F55" stroke-width="2.4"/>
+          <line x1="60.5" y1="86" x2="79.5" y2="86" stroke="#8A6F55" stroke-width="2.4"/>
+          <circle cx="52" cy="86" r="2.4" fill="#3F352A"/>
+          <circle cx="88" cy="86" r="2.4" fill="#3F352A"/>
+          <ellipse cx="70" cy="100" rx="4.5" ry="3.6" fill="#C97B72" stroke="#3F352A" stroke-width="2.2"/>`, true)
+        + `<!-- 지시봉 -->
+           <g class="${p}-armR" style="transform-origin:112px 90px">
+             <line x1="116" y1="82" x2="132" y2="52" stroke="#B07C4F" stroke-width="4" stroke-linecap="round"/>
+             <circle cx="132" cy="52" r="3" fill="#E2794F"/>
+           </g>`);
+
+      // ── 깨달음: 반짝 뜬 눈 + 아! 입 + 머리 위 전구 ─────────────────────
+      case 'aha': return wrap(`
+        .${p}-body{animation:${p}-jump 1.3s ease-in-out infinite}
+        .${p}-bulb{animation:${p}-glow 1.3s ease-in-out infinite;transform-origin:70px 26px}
+        @keyframes ${p}-jump{0%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}55%{transform:translateY(0)}}
+        @keyframes ${p}-glow{0%,100%{transform:scale(1);opacity:0.85}30%{transform:scale(1.18);opacity:1}}`,
+        this._base(p, `
+          <circle cx="52" cy="86" r="4.6" fill="#fff" stroke="#3F352A" stroke-width="2.4"/>
+          <circle cx="53" cy="85" r="2" fill="#3F352A"/>
+          <circle cx="88" cy="86" r="4.6" fill="#fff" stroke="#3F352A" stroke-width="2.4"/>
+          <circle cx="89" cy="85" r="2" fill="#3F352A"/>
+          <ellipse cx="70" cy="100" rx="4.6" ry="5.4" fill="#C97B72" stroke="#3F352A" stroke-width="2.4"/>`)
+        + `<g class="${p}-bulb">
+             <circle cx="70" cy="22" r="9" fill="#FBE59B" stroke="#D9A93C" stroke-width="2.6"/>
+             <path d="M66 31 h8 M67 35 h6" stroke="#D9A93C" stroke-width="2.2" stroke-linecap="round"/>
+             <path d="M56 10 l4 4 M84 10 l-4 4 M70 4 v6" stroke="#F5C74E" stroke-width="2.6" stroke-linecap="round"/>
+           </g>`);
+
+      // ── 머쓱: 뱅글 눈 + 물결 입 + 큰 식은땀 + 발그레 ───────────────────
+      case 'oops': return wrap(`
+        .${p}-body{animation:${p}-wob 0.9s ease-in-out infinite;transform-origin:70px 115px}
+        .${p}-sweat{animation:${p}-drip 1.5s ease-in infinite}
+        @keyframes ${p}-wob{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg)}}
+        @keyframes ${p}-drip{0%{transform:translateY(0);opacity:0}25%{opacity:1}85%{transform:translateY(11px);opacity:1}100%{transform:translateY(14px);opacity:0}}`,
+        this._base(p, `
+          <path d="M47 83 q5 5 10 0 q-5 -5 -10 0" fill="none" stroke="#3F352A" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M83 83 q5 5 10 0 q-5 -5 -10 0" fill="none" stroke="#3F352A" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M58 99 q4 -3.5 8 0 q4 3.5 8 0 q4 -3.5 8 0" fill="none" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="42" cy="96" r="9.5" fill="#F9BCA4" opacity="0.95"/>
+          <circle cx="98" cy="96" r="9.5" fill="#F9BCA4" opacity="0.95"/>`)
+        + `<g class="${p}-sweat"><path d="M114 62 q4.5 7 0 10 q-4.5 -3 0 -10" fill="#A9CDEC"/></g>
+           <g class="${p}-sweat" style="animation-delay:0.6s"><path d="M26 70 q3.6 5.5 0 8 q-3.6 -2.5 0 -8" fill="#A9CDEC"/></g>`);
 
       default:
         return this.svg('joy', size);
