@@ -149,8 +149,8 @@
       const avg = arr ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
       const isToday = key === todayStr;
       const isFuture = key > todayStr;
-      cells += `<div onclick="${avg != null ? `window.App.showRecordToast('${key.slice(5).replace('-', '/')} · ${emoFor(avg)} 평균 ${avg.toFixed(1)}점 (${arr.length}회 기록)')` : ''}"
-        style="aspect-ratio: 1; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; cursor: ${avg != null ? 'pointer' : 'default'};
+      cells += `<div onclick="${!isFuture ? `window.Dashboard.openDayDetail('${key}')` : ''}"
+        style="aspect-ratio: 1; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; cursor: ${!isFuture ? 'pointer' : 'default'};
         ${avg != null ? `background: ${colorFor(avg)}; color: #fff;` : `background: var(--bg-tertiary); color: var(--text-muted); ${isFuture ? 'opacity: 0.35;' : ''}`}
         ${isToday ? 'outline: 2px solid var(--accent-primary); outline-offset: 1.5px;' : ''}">${d}</div>`;
     }
@@ -171,8 +171,66 @@
       <div style="display: flex; align-items: center; justify-content: center; gap: 0.35rem; margin-top: 0.7rem; font-size: 0.66rem; color: var(--text-muted);">
         힘든 날
         ${['#cf6b60', '#dd9a62', '#e0c36b', '#8fbf7f', '#4f8a6b'].map(c => `<span style="width: 13px; height: 13px; border-radius: 4px; background: ${c};"></span>`).join('')}
-        좋은 날 · 칸을 누르면 상세
+        좋은 날 · 날짜를 누르면 그날의 일기가 열려요
       </div>`;
+  },
+
+  // 날짜 탭 → 그날의 나: 기분 체크인·하루정리·미션·사고기록을 한 장으로
+  openDayDetail(key) {
+    const S = window.Storage;
+    const dayStart = new Date(key + 'T00:00:00').getTime();
+    const dayEnd = dayStart + 86400000;
+    const inDay = ts => ts >= dayStart && ts < dayEnd;
+    const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+    const moods = (S._safeGet('cbt_mood_log', []) || []).filter(m => inDay(m.ts));
+    const nights = (S._safeGet('cbt_night_journal', []) || []).filter(j => inDay(j.ts));
+    const missions = (S._safeGet('cbt_mission_log', []) || []).filter(m => m.done && inDay(m.ts));
+    const records = (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && inDay(new Date(r.date).getTime()));
+    const MOOD_EMOJI = { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢', '뿌듯': '😊', '분노': '😠', '외로움': '🥲', '좌절': '😞' };
+    const missionName = id => { const m = (window.Missions && window.Missions.POOL.find(x => x.id === id)); return m ? `${m.emoji} ${m.text}` : ''; };
+    const hasAny = moods.length || nights.length || missions.length || records.length;
+    const dateStr = new Date(dayStart).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+
+    const old = document.getElementById('day-detail-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'day-detail-overlay';
+    ov.className = 'modal-overlay';
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 380px; max-height: 80vh; overflow-y: auto; text-align: left;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
+          <h2 style="margin: 0; font-size: 1.1rem;">📖 ${dateStr}의 나</h2>
+          <button class="close-btn" onclick="document.getElementById('day-detail-overlay').remove()">✕</button>
+        </div>
+        ${!hasAny ? `
+          <div style="text-align: center; padding: 0.6rem 0 1rem;">
+            <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('blank', 90) : ''}</span>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.6rem 0 0;">이 날은 남긴 기록이 없어요.<br>기록이 없던 날도, 살아낸 하루예요.</p>
+          </div>` : `
+          ${moods.length ? `
+            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🫶 감정 체크인</p>
+            <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.9rem;">
+              ${moods.map(m => `<span style="font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.25rem 0.6rem;">${MOOD_EMOJI[m.emo] || '🙂'} ${esc(m.emo)} <span style="color: var(--text-muted); font-size: 0.68rem;">${new Date(m.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span></span>`).join('')}
+            </div>` : ''}
+          ${nights.map(j => `
+            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🌙 하루 정리 <span style="font-weight: 600;">(${new Date(j.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 취침)</span></p>
+            <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6;">
+              ${j.mood ? `그날의 기분: ${MOOD_EMOJI[j.mood.emo] || ''} ${esc(j.mood.emo)}<br>` : ''}
+              ${j.moment ? `남은 순간: ${esc(j.moment)}<br>` : ''}
+              ${j.note ? `나에게: ${esc(j.note)}` : ''}
+            </div>`).join('')}
+          ${missions.length ? `
+            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🎯 해낸 미션</p>
+            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => esc(missionName(m.id))).join('<br>')}</div>` : ''}
+          ${records.length ? `
+            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">📝 사고 기록 ${records.length}건</p>
+            ${records.map(r => `<div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">"${esc((r.thought || '').slice(0, 60))}"${r.alternative ? `<br><span style="color: var(--accent-primary);">→ ${esc(r.alternative.slice(0, 60))}</span>` : ''}</div>`).join('')}
+            <button class="btn-secondary" style="width: 100%; font-size: 0.8rem; margin-top: 0.2rem;" onclick="document.getElementById('day-detail-overlay').remove(); window.App.switchTab('record');">사고 기록지 전체 보기 ›</button>` : ''}
+        `}
+      </div>`;
+    document.body.appendChild(ov);
   },
 
   updateSampleBadges() {

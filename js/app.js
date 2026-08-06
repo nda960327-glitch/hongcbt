@@ -447,7 +447,7 @@
         }
         // 앱이 백그라운드거나 다른 탭을 보고 있으면 놓치지 않게 알림
         const pName = window.Personas ? window.Personas.getActive().name : '우렁의사';
-        if (document.hidden) this.notify(pName, response.text);
+        if (document.hidden) { this.notify(pName, response.text); this.playWoorung(); }
         if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
       }
       
@@ -970,7 +970,7 @@ ${memory || '(없음)'}`;
       const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
       this.displayMessage(msg);
       window.Storage.saveMessage(msg);
-      this.playNotify(); // 알림음 + 진동
+      this.playWoorung(); // "우렁!" + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
       this.notify(persona.name, text); // 시스템 알림 (백그라운드에서도 도착)
       if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
@@ -1468,6 +1468,31 @@ ${memory || '(없음)'}`;
     this._tone(880, 0.14, 0);
     this._tone(1174, 0.18, 0.16);
     if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+  },
+
+  // 알림 시그니처: 우렁이가 "우렁!" 하고 귀엽게 외친다 (+ 진동)
+  // 음성합성 미지원/실패 시 기존 알림음으로 폴백.
+  playWoorung() {
+    // 진동 먼저: 우-렁! 리듬
+    if (navigator.vibrate) { try { navigator.vibrate([90, 50, 160]); } catch (e) {} }
+    try {
+      if ('speechSynthesis' in window) {
+        const u = new SpeechSynthesisUtterance('우렁!');
+        u.lang = 'ko-KR';
+        u.pitch = 1.9;  // 한껏 귀엽게
+        u.rate = 1.15;
+        u.volume = 1;
+        const vs = window.speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('ko'));
+        const pick = vs.find(v => /female|여성|yuna|heami|sunhi|sora/i.test(v.name)) || vs[0];
+        if (pick) u.voice = pick;
+        u.onerror = () => this.playNotify();
+        window.speechSynthesis.speak(u);
+        // 짧은 방울 소리도 함께 (목소리만 있으면 심심하니까)
+        this._tone(1174, 0.12, 0, 0.06);
+        return;
+      }
+    } catch (e) {}
+    this.playNotify();
   },
 
   // 전화 연결음(뚜루루): 1초 울리고 2초 쉬는 표준 링백톤
