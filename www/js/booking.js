@@ -180,7 +180,7 @@ window.Booking = {
     const formattedDate = `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일 (${dow}) ${this.selTime}`;
 
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
-    bookings.unshift({
+    const booking = {
       id: 'bk_' + Date.now(),
       counselorId: counselor.id,
       name: counselor.name,
@@ -190,8 +190,22 @@ window.Booking = {
       whenTs: dateObj.getTime(),
       status: 'confirmed',
       ts: Date.now()
-    });
+    };
+    bookings.unshift(booking);
     window.Storage._safeSet('cbt_bookings', bookings.slice(0, 50));
+
+    // 서버 예약 장부에도 기록 — 상담사 페이지(/counselor.html) 일정에 뜬다
+    try {
+      fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: booking.id, counselorId: counselor.id, counselorName: counselor.name,
+          clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
+          time: formattedDate, whenTs: booking.whenTs, price: counselor.price
+        })
+      }).catch(() => {});
+    } catch (e) {}
 
     alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
 

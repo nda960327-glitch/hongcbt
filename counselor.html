@@ -58,6 +58,9 @@
         <button class="btn ghost" onclick="load()">새로고침</button>
         <button class="btn ghost" onclick="logout()">잠그기</button>
       </div>
+      <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">📅 예약 일정</h2>
+      <div id="schedule"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">📥 받은 상담 자료</h2>
       <div id="list"></div>
     </div>
   </div>
@@ -86,6 +89,32 @@
       const r = await fetch('/api/inbox?code=' + encodeURIComponent(CODE));
       if (!r.ok) { logout(); return; }
       show(await r.json());
+      loadSchedule();
+    }
+
+    async function loadSchedule() {
+      const r = await fetch('/api/bookings?code=' + encodeURIComponent(CODE)).catch(() => null);
+      const el = document.getElementById('schedule');
+      if (!r || !r.ok) { el.innerHTML = ''; return; }
+      const data = await r.json();
+      const items = (data.items || []).sort((a, b) => a.whenTs - b.whenTs);
+      const now = Date.now();
+      if (!items.length) {
+        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">예약이 없습니다. 내담자가 앱에서 예약하면 여기에 실시간으로 표시돼요.</div>';
+        return;
+      }
+      el.innerHTML = items.map(b => {
+        const cancelled = b.status === 'cancelled';
+        const past = b.whenTs <= now;
+        const soon = !cancelled && !past && (b.whenTs - now) < 3600000;
+        return `<div class="card" style="${cancelled ? 'opacity: 0.55;' : ''} ${soon ? 'border-color: var(--accent);' : ''}">
+          <div class="item-head" style="cursor: default;">
+            <strong style="${cancelled ? 'text-decoration: line-through;' : ''}">${esc(b.clientName)} 님 ${cancelled ? '' : '· 30분 상담'}</strong>
+            ${cancelled ? '<span class="badge-read">취소됨</span>' : past ? '<span class="badge-read">완료</span>' : soon ? '<span class="badge-new">곧 시작</span>' : '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">확정</span>'}
+          </div>
+          <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시 결제</p>
+        </div>`;
+      }).join('');
     }
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }

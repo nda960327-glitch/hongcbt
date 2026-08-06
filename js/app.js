@@ -912,6 +912,7 @@
 
   async _checkinTick() {
     try {
+      this._bookingReminderTick(); // 예약 30분 전 알림도 같은 틱에서
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
       const fired = window.Storage._safeGet('cbt_checkin_fired', []);
@@ -988,9 +989,9 @@ ${memory || '(없음)'}`;
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
     const now = Date.now();
-    // 예약 시간이 지났으면 '상담 완료'로 분류 (whenTs 없던 과거 데이터는 예정으로)
-    const upcoming = bookings.filter(b => !b.whenTs || b.whenTs > now);
-    const past = bookings.filter(b => b.whenTs && b.whenTs <= now);
+    // 예약 시간이 지났으면 '상담 완료', 취소된 건 지난 내역으로 분류
+    const upcoming = bookings.filter(b => b.status !== 'cancelled' && (!b.whenTs || b.whenTs > now));
+    const past = bookings.filter(b => b.status === 'cancelled' || (b.whenTs && b.whenTs <= now));
 
     if (bookings.length === 0) {
       upEl.innerHTML = `
@@ -1019,6 +1020,7 @@ ${memory || '(없음)'}`;
           <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openHumanChat('${b.counselorId}')">💬 채팅</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ? '📎 자료 전달됨 ✓' : '📎 상담 자료 보내기'}</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem; color: #c14a4a;" onclick="window.App.cancelBooking('${b.id}')">예약 취소</button>
         </div>
       </div>`).join('')
       || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
@@ -1028,18 +1030,23 @@ ${memory || '(없음)'}`;
         ? `<p style="margin: 0; font-size: 0.8rem; color: var(--text-muted); text-align: center;">완료된 상담이 아직 없어요.</p>`
         : past.map(b => {
           const rv = reviews[b.id];
+          const cancelled = b.status === 'cancelled';
           return `
-          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
+          <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem; ${cancelled ? 'opacity: 0.75;' : ''}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
-              <span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>
+              ${cancelled
+                ? '<span style="background: #e05d5d22; color: #c14a4a; border: 1px solid #e05d5d44; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">취소됨</span>'
+                : '<span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>'}
               <span style="font-size: 0.78rem; color: var(--text-muted);">${b.time}</span>
             </div>
             <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
             <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              ${rv
-                ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
-                : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
+              ${cancelled
+                ? `<span style="font-size: 0.78rem; color: var(--text-muted);">환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
+                : rv
+                  ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
+                  : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
               <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.switchTab('counselors')">다시 예약</button>
             </div>
           </div>`;
@@ -1158,6 +1165,46 @@ ${memory || '(없음)'}`;
     } else {
       fallbackShow();
     }
+  },
+
+  // 예약 취소 — 안내문 그대로: 24시간 전 전액 환불, 이후 50%, 시작 후 불가
+  cancelBooking(bookingId) {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b || b.status === 'cancelled') return;
+    const now = Date.now();
+    if (b.whenTs && b.whenTs <= now) { alert('이미 시작된 상담은 취소할 수 없어요.'); return; }
+    const hoursLeft = b.whenTs ? (b.whenTs - now) / 3600000 : 999;
+    const refundRate = hoursLeft >= 24 ? 1 : 0.5;
+    const refund = Math.round(b.price * refundRate);
+    if (!confirm(`${b.name}님과의 예약을 취소할까요?\n[${b.time}]\n\n${hoursLeft >= 24 ? '상담 24시간 전이라 전액 환불돼요.' : '상담 24시간 이내라 50%만 환불돼요.'}\n환불 예정: ${refund.toLocaleString()}캐시`)) return;
+    b.status = 'cancelled';
+    b.cancelledTs = now;
+    b.refunded = refund;
+    window.Storage._safeSet('cbt_bookings', bookings);
+    if (window.Wallet && refund > 0) window.Wallet.refund(refund, `${b.name} 예약 취소 환불${refundRate < 1 ? ' (50%)' : ''}`);
+    // 서버 장부에도 취소 반영 → 상담사 일정에서 '취소됨' 표시
+    try { fetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
+    this.renderMyBookings();
+    this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
+  },
+
+  // 예약 30분 전 리마인더 (1분 주기 체크인 틱에서 호출)
+  _bookingReminderTick() {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const reminded = window.Storage._safeGet('cbt_booking_reminded', []) || [];
+    const now = Date.now();
+    bookings.forEach(b => {
+      if (b.status === 'cancelled' || !b.whenTs || reminded.includes(b.id)) return;
+      const diff = b.whenTs - now;
+      if (diff > 0 && diff <= 30 * 60000) {
+        reminded.push(b.id);
+        window.Storage._safeSet('cbt_booking_reminded', reminded.slice(-50));
+        this.notify('상담 예약 알림 ⏰', `${b.name}님과의 상담이 30분 뒤에 시작돼요.`);
+        this.playWoorung();
+        this.showRecordToast(`⏰ ${b.name}님과의 상담이 30분 뒤 시작돼요`);
+      }
+    });
   },
 
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===

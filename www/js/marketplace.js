@@ -242,10 +242,27 @@
     `).join('');
   },
 
-  // 기본 상담사 + 입점 승인된 상담사(cbt_custom_counselors) 합본
+  // 기본 상담사 + 입점 상담사 합본, 내가 남긴 리뷰를 별점·후기 목록에 실반영
   all() {
     const customs = (window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [];
-    return customs.concat(this.counselors);
+    const base = customs.concat(this.counselors);
+    const bookings = (window.Storage && window.Storage._safeGet('cbt_bookings', [])) || [];
+    const reviews = (window.Storage && window.Storage._safeGet('cbt_reviews', {})) || {};
+    return base.map(c => {
+      const mine = bookings.filter(b => b.counselorId === c.id && reviews[b.id]).map(b => reviews[b.id]);
+      if (!mine.length) return c;
+      const total = (c.reviews || 0) + mine.length;
+      const rating = (((c.rating || 5) * (c.reviews || 0)) + mine.reduce((s, r) => s + (r.rating || 5), 0)) / total;
+      return {
+        ...c,
+        rating: Math.round(rating * 10) / 10,
+        reviews: total,
+        reviewsList: [
+          ...mine.map(r => ({ author: '나 (실제 이용)', text: r.text || '(별점만 남겼어요)', rating: r.rating })),
+          ...(c.reviewsList || [])
+        ]
+      };
+    });
   },
 
   getCounselor(id) {
