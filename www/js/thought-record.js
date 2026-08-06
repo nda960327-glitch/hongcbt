@@ -60,30 +60,88 @@ window.ThoughtRecord = {
   },
   
   populateMockRecords() {
-    const mock1 = {
-      id: 'rec_mock1',
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(), // 2 days ago
-      situation: '회사에서 내가 낸 아이디어가 반려되었을 때',
-      thought: '내 능력이 부족해서 다들 나를 무시하는구나. 난 이 직장에 어울리지 않아.',
-      emotions: [{ name: '우울함', intensity: 80 }, { name: '불안함', intensity: 70 }],
-      distortions: ['personalization', 'jumping-conclusions'],
-      alternative: '아이디어가 반려된 것은 그저 프로젝트 방향성과 맞지 않았을 뿐이다. 내 능력 전체를 부정당한 것이 아니다.',
-      newEmotions: '우울함 40%, 평온함 30%'
-    };
-    
-    const mock2 = {
-      id: 'rec_mock2',
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 days ago
-      situation: '친구에게 카톡을 보냈는데 3시간 넘게 읽씹 당함',
-      thought: '친구가 나한테 화난 게 틀림없어. 내가 어제 말실수를 한 것 같아.',
-      emotions: [{ name: '불안함', intensity: 90 }],
-      distortions: ['emotional-reasoning', 'jumping-conclusions'],
-      alternative: '단순히 바빠서 확인을 못했거나 알림을 못 봤을 수도 있다. 무조건 나 때문이라고 생각할 근거는 없다.',
-      newEmotions: '불안함 30%, 편안함 50%'
-    };
+    const now = Date.now();
+    const DAY_MS = 1000 * 60 * 60 * 24;
 
-    window.Storage.saveThoughtRecord(mock1);
-    window.Storage.saveThoughtRecord(mock2);
+    const mockRecords = [
+      {
+        id: 'rec_mock_1',
+        date: new Date(now - DAY_MS * 0).toISOString(),
+        situation: '팀장님께 주간 보고서를 제출했을 때, 아무 설명 없이 한숨을 푹 쉬셨음.',
+        thought: '내 보고서가 마음에 안 들어서 날 무능하다고 생각하시는 게 틀림없어. 이번 인사평가 망했다.',
+        emotions: [{ name: '불안함', intensity: 85 }, { name: '위축감', intensity: 75 }],
+        distortions: ['jumping-conclusions', 'personalization'],
+        alternative: '팀장님의 한숨은 피곤함이나 다른 업무 스트레스 때문일 수 있다. 피드백을 직접 받기 전까지 내 멋대로 지레짐작하지 말자.',
+        newEmotions: '불안함 35%, 편안함 65%'
+      },
+      {
+        id: 'rec_mock_2',
+        date: new Date(now - DAY_MS * 1).toISOString(),
+        situation: '자격증 시험 결과가 발표되어 92점으로 합격했으나 수석 1등을 놓쳤을 때',
+        thought: '1등을 못 했으니 결국 완전한 실패자나 다름없어. 완벽하게 해내지 못해서 수치스럽다.',
+        emotions: [{ name: '자책감', intensity: 80 }, { name: '좌절감', intensity: 70 }],
+        distortions: ['all-or-nothing', 'should-statements'],
+        alternative: '92점이라는 점수와 합격 자체도 충분히 값진 결과이다. 성공과 실패 사이에는 무수한 성장의 과정이 존재한다.',
+        newEmotions: '자존감 75%, 성취감 70%'
+      },
+      {
+        id: 'rec_mock_3',
+        date: new Date(now - DAY_MS * 2).toISOString(),
+        situation: '친구 단톡방에 주말 저녁 모임을 제안했는데 몇 시간 동안 아무도 답장이 없을 때',
+        thought: '다들 속으로 날 귀찮아하고 은근히 따돌리려는 게 분명해.',
+        emotions: [{ name: '외로움', intensity: 85 }, { name: '서운함', intensity: 80 }],
+        distortions: ['jumping-conclusions', 'personalization'],
+        alternative: '퇴근 시간대라 다들 바쁘거나 확인을 못했을 뿐이다. 답장이 늦는 것은 내 가치나 인품과 아무 상관이 없다.',
+        newEmotions: '외로움 30%, 편안함 70%'
+      },
+      {
+        id: 'rec_mock_4',
+        date: new Date(now - DAY_MS * 3).toISOString(),
+        situation: '내일 회사 전체 미팅에서 10분간 연사 발표를 앞두고 가슴이 심하게 두근거릴 때',
+        thought: '이렇게 극도로 불안하고 심장이 뛰는 걸 보니 내일 발표 때 말이 막히고 완전히 망할 거야.',
+        emotions: [{ name: '극심한 불안', intensity: 90 }, { name: '중압감', intensity: 85 }],
+        distortions: ['emotional-reasoning', 'magnification-minimization'],
+        alternative: '신체적 긴장감은 중요한 일을 앞둔 정상적인 에너지 활성화 반응일 뿐이다. 불안한 기분이 실패 결과를 의미하진 않는다.',
+        newEmotions: '용기 65%, 평정심 60%'
+      },
+      {
+        id: 'rec_mock_5',
+        date: new Date(now - DAY_MS * 4).toISOString(),
+        situation: '프로젝트 리뷰에서 칭찬 3개와 아쉬운 피드백 1개를 받았을 때',
+        thought: '결국 그 아쉬운 점 하나 때문에 이번 발표와 내 노력은 전부 꽝이 된 거야.',
+        emotions: [{ name: '침울함', intensity: 75 }, { name: '무기력', intensity: 65 }],
+        distortions: ['mental-filter', 'disqualifying-positive'],
+        alternative: '받은 3가지 긍정적 칭찬의 가치도 똑같이 인정하자. 부족한 1가지는 다음 개선을 위한 힌트일 뿐이다.',
+        newEmotions: '자신감 70%, 안도감 60%'
+      },
+      {
+        id: 'rec_mock_6',
+        date: new Date(now - DAY_MS * 5).toISOString(),
+        situation: '새 모임 첫날 사람들과 대화하다 엉뚱한 단어를 말해 잠시 어색한 정적이 흘렀을 때',
+        thought: '난 늘 사교 모임에서 말실수를 하는 사회성 제로인 사람이다.',
+        emotions: [{ name: '부끄러움', intensity: 80 }, { name: '위축감', intensity: 75 }],
+        distortions: ['overgeneralization', 'labeling'],
+        alternative: '단 한 번의 말실수로 나라는 사람 전체를 단정지을 수 없다. 누구나 처음 만난 자리에서는 어색할 수 있다.',
+        newEmotions: '수용 75%, 평온 65%'
+      },
+      {
+        id: 'rec_mock_7',
+        date: new Date(now - DAY_MS * 6).toISOString(),
+        situation: '주말 동안 운동과 독서 계획을 짰으나 몸이 지쳐 하루 종일 늦잠을 잤을 때',
+        thought: '나는 의지력이 빵점이고 평생 이렇게 나태하게 살 게 틀림없어.',
+        emotions: [{ name: '무기력', intensity: 85 }, { name: '죄책감', intensity: 80 }],
+        distortions: ['all-or-nothing', 'overgeneralization'],
+        alternative: '몸이 충분한 휴식을 원했던 것이다. 오늘 하루 쉰 것이 내 전체 삶의 의지력을 결정하지 않는다.',
+        newEmotions: '휴식감 80%, 편안함 70%'
+      }
+    ];
+
+    mockRecords.forEach(rec => {
+      window.Storage.saveThoughtRecord(rec);
+      (rec.distortions || []).forEach(d => {
+        window.Storage.incrementDistortion(d);
+      });
+    });
   },
   
   loadRecords() {
