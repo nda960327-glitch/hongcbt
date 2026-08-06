@@ -37,7 +37,6 @@
     this.renderTodayMoodChart();
     this.renderMoodCalendar();
     this.renderMyReports();
-    this.renderDistortionChart();
     this.renderChatInsights();
     this.renderCareFootprint();
     if (window.Weekly) window.Weekly.renderCard();
