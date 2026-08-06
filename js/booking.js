@@ -26,17 +26,30 @@ window.Booking = {
   // 해당 상담사·날짜의 예약 가능 시간대
   slotsFor(counselorId, dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
-    if (d.getDay() === 0) return []; // 일요일 휴무
-    const base = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00'];
-    const h = this._hash(String(counselorId) + dateStr);
-    let slots = base.filter((_, i) => ((h >> i) & 3) !== 3); // 약 75% 오픈
+    let slots;
+    // 입점 상담사(cu_*)는 본인이 설정한 '상담 가능 시간'을 그대로 사용
+    const avail = window.Storage && window.Storage._safeGet('cbt_my_avail', null);
+    if (String(counselorId).startsWith('cu_') && avail) {
+      slots = [...(avail[d.getDay()] || [])];
+    } else {
+      if (d.getDay() === 0) return []; // 일요일 휴무 (기본 상담사)
+      const base = ['09:00', '10:00', '11:00', '13:00', '14:00', '15:00', '16:00', '17:00', '19:00', '20:00'];
+      const h = this._hash(String(counselorId) + dateStr);
+      slots = base.filter((_, i) => ((h >> i) & 3) !== 3); // 약 75% 오픈 (데모 스케줄)
+    }
+    // 이미 예약된 시간대는 제외 (취소된 예약은 다시 열림)
+    const booked = ((window.Storage && window.Storage._safeGet('cbt_bookings', [])) || [])
+      .filter(b => b.counselorId === counselorId && b.status !== 'cancelled' && b.whenTs &&
+        new Date(b.whenTs).toLocaleDateString('sv-CA') === dateStr)
+      .map(b => { const t = new Date(b.whenTs); return String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0'); });
+    slots = slots.filter(t => !booked.includes(t));
     // 오늘이면 이미 지난 시간 제외 (2시간 여유)
     const today = new Date();
     if (dateStr === today.toLocaleDateString('sv-CA')) {
       const cut = today.getHours() + 2;
       slots = slots.filter(t => parseInt(t, 10) >= cut);
     }
-    return slots;
+    return slots.sort();
   },
 
   openModal(counselorId) {

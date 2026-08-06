@@ -58,8 +58,11 @@
         <button class="btn ghost" onclick="load()">새로고침</button>
         <button class="btn ghost" onclick="logout()">잠그기</button>
       </div>
+      <div id="settlement"></div>
       <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">📅 예약 일정</h2>
       <div id="schedule"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">💬 상담 채팅</h2>
+      <div id="chats"></div>
       <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">📥 받은 상담 자료</h2>
       <div id="list"></div>
     </div>
@@ -90,6 +93,7 @@
       if (!r.ok) { logout(); return; }
       show(await r.json());
       loadSchedule();
+      loadChats();
     }
 
     async function loadSchedule() {
@@ -115,6 +119,87 @@
           <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시 결제</p>
         </div>`;
       }).join('');
+      renderSettlement(items);
+    }
+
+    // 정산: 완료된 상담(취소 제외, 시간 경과)의 45%가 상담사 몫
+    function renderSettlement(items) {
+      const el = document.getElementById('settlement');
+      const now = Date.now();
+      const done = items.filter(b => b.status !== 'cancelled' && b.whenTs <= now);
+      const gross = done.reduce((s, b) => s + (b.price || 0), 0);
+      const mine = Math.round(gross * 0.45);
+      el.innerHTML = `
+        <div class="card" style="background: linear-gradient(135deg, #eef6f0, #ffffff);">
+          <div class="item-head" style="cursor: default;">
+            <strong>💰 정산 현황</strong>
+            <span class="muted">상담사 45% · 병원 45% · 플랫폼 10%</span>
+          </div>
+          <div style="display: flex; gap: 1.2rem; margin-top: 0.6rem; flex-wrap: wrap;">
+            <div><div class="muted">완료 상담</div><strong style="font-size: 1.15rem;">${done.length}건</strong></div>
+            <div><div class="muted">총 결제액</div><strong style="font-size: 1.15rem;">${gross.toLocaleString()}캐시</strong></div>
+            <div><div class="muted">내 정산금 (45%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
+          </div>
+          <button class="btn" style="margin-top: 0.8rem; ${mine ? '' : 'opacity: 0.5; pointer-events: none;'}" onclick="alert('출금 신청이 접수되었습니다. (데모)\\n실서비스에서는 등록 계좌로 정산됩니다.')">출금 신청 (데모)</button>
+        </div>`;
+    }
+
+    // 상담 채팅: 내담자별 스레드 + 답장
+    async function loadChats() {
+      // 답장 작성 중엔 새로고침으로 입력이 날아가지 않게 건너뛴다
+      if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#chats')) return;
+      const r = await fetch('/api/chat-msg?code=' + encodeURIComponent(CODE)).catch(() => null);
+      const el = document.getElementById('chats');
+      if (!r || !r.ok) { el.innerHTML = ''; return; }
+      const items = (await r.json()).items || [];
+      if (!items.length) {
+        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">아직 채팅이 없습니다. 내담자가 앱에서 💬 채팅을 보내면 여기에 표시돼요.</div>';
+        return;
+      }
+      // 내담자+상담사 조합별 스레드
+      const threads = {};
+      items.forEach(m => {
+        const k = m.clientName + '|' + m.counselorId + '|' + m.counselorName;
+        (threads[k] = threads[k] || []).push(m);
+      });
+      const openSet = window.__openThreads = window.__openThreads || new Set();
+      el.innerHTML = Object.entries(threads).map(([k, msgs]) => {
+        const [client, cid, cname] = k.split('|');
+        const last = msgs[msgs.length - 1];
+        const unreplied = last.from === 'client';
+        const open = openSet.has(k);
+        return `<div class="card ${open ? 'open' : ''}" data-thread="${esc(k)}">
+          <div class="item-head" onclick="toggleThread('${esc(k)}')">
+            <strong>${esc(client)} 님</strong>
+            <span class="muted">${new Date(last.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            ${unreplied ? '<span class="badge-new">답장 대기</span>' : '<span class="badge-read">답장함</span>'}
+          </div>
+          <div class="body" style="display: ${open ? 'block' : 'none'};">
+            ${msgs.map(m => `<p style="margin: 0.3rem 0; ${m.from === 'counselor' ? 'text-align: right; color: var(--accent); font-weight: 500;' : ''}">${m.from === 'counselor' ? '나: ' : esc(client) + ': '}${esc(m.text)}</p>`).join('')}
+            <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
+              <input id="reply-${msgs[0].id}" placeholder="답장 입력" style="text-align: left; flex: 1;" onkeydown="if(event.key==='Enter') sendReply('${esc(client)}','${esc(cid)}','${esc(cname)}','reply-${msgs[0].id}')">
+              <button class="btn" style="width: auto; margin: 0; padding: 0.6rem 1rem;" onclick="sendReply('${esc(client)}','${esc(cid)}','${esc(cname)}','reply-${msgs[0].id}')">전송</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function toggleThread(k) {
+      const set = window.__openThreads = window.__openThreads || new Set();
+      set.has(k) ? set.delete(k) : set.add(k);
+      loadChats();
+    }
+
+    async function sendReply(client, cid, cname, inputId) {
+      const inp = document.getElementById(inputId);
+      const t = (inp.value || '').trim();
+      if (!t) return;
+      await fetch('/api/chat-msg', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counselorId: cid, counselorName: cname, clientName: client, from: 'counselor', text: t, code: CODE })
+      }).catch(() => {});
+      loadChats();
     }
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }

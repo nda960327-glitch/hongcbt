@@ -17,6 +17,28 @@ window.Subscription = {
     }
     this.renderCard();
     this.renderBadge();
+    this._expiryNudge();
+  },
+
+  // 만료 예고 — 당일에야 알게 되지 않도록, 구독 3일 전 / 체험 2일 전부터 하루 한 번 안내
+  _expiryNudge() {
+    const today = new Date().toLocaleDateString('sv-CA');
+    if (window.Storage._safeGet('cbt_sub_nudged', '') === today) return;
+    let msg = null;
+    if (this.isSubscribed()) {
+      const d = Math.ceil((this.subUntil() - Date.now()) / 86400000);
+      if (d <= 3) msg = `구독이 ${d}일 후 만료돼요. 마이페이지에서 연장할 수 있어요`;
+    } else if (this.hasAccess()) {
+      const d = this.trialDaysLeft();
+      if (d <= 2) msg = `무료 체험이 ${d}일 남았어요. 이후엔 매일 30회 무료 대화로 전환돼요`;
+    }
+    if (msg) {
+      window.Storage._safeSet('cbt_sub_nudged', today);
+      setTimeout(() => {
+        if (window.App && window.App.showRecordToast) window.App.showRecordToast('⏳ ' + msg);
+        if (window.App && window.App.notify) window.App.notify('우렁의사', msg);
+      }, 2500);
+    }
   },
 
   trialEnd() {

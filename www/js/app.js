@@ -1370,10 +1370,103 @@ ${memory || '(없음)'}`;
         ${(approved && a.inboxCode) ? `<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;">🔑 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html" target="_blank" style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>` : ''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
           <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
+          ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.editCounselorProfile('${a.id}')">✏️ 프로필 수정</button>` : ''}
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
         </div>
       </div>`;
     }).join('');
+  },
+
+  // 승인 후 프로필 수정 — 사진·전문분야·상담료·소개를 바꾸면 매칭 카드에 즉시 반영
+  editCounselorProfile(appId) {
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    const a = apps.find(x => x.id === appId);
+    if (!a) return;
+    const old = document.getElementById('cprof-edit-overlay');
+    if (old) old.remove();
+    this._editPhoto = a.photo || null;
+    const ov = document.createElement('div');
+    ov.id = 'cprof-edit-overlay';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 400px; max-height: 86vh; overflow-y: auto;">
+        <h2 style="margin-top: 0;">✏️ 프로필 수정</h2>
+        <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.9rem;">
+          <div id="ce-photo-preview" style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;">${a.photo ? `<img src="${a.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : '📷'}</div>
+          <button type="button" class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="document.getElementById('ce-photo-file').click()">사진 변경</button>
+          <input type="file" id="ce-photo-file" accept="image/*" style="display: none;">
+        </div>
+        <strong style="font-size: 0.85rem; color: var(--text-primary);">전문분야 (최대 3개)</strong>
+        <div id="ce-tags" style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.45rem 0 0.9rem;">
+          ${this.CREG_TAGS.map(t => {
+            const on = (a.tags || []).includes(t);
+            return `<button type="button" data-tag="${t}" data-on="${on ? 1 : 0}" style="all: unset; box-sizing: border-box; padding: 0.35rem 0.7rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: 1.5px solid ${on ? 'var(--accent-primary)' : 'var(--glass-border)'}; background: ${on ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'var(--bg-tertiary)'}; color: ${on ? 'var(--accent-primary)' : 'var(--text-primary)'};">${t}</button>`;
+          }).join('')}
+        </div>
+        <strong style="font-size: 0.85rem; color: var(--text-primary);">30분 상담료</strong>
+        <select id="ce-price" style="width: 100%; margin: 0.4rem 0 0.9rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          ${[30000, 35000, 40000, 45000, 50000, 55000, 60000].map(p => `<option value="${p}" ${a.price === p ? 'selected' : ''}>${p.toLocaleString()}원</option>`).join('')}
+        </select>
+        <strong style="font-size: 0.85rem; color: var(--text-primary);">자기소개</strong>
+        <textarea id="ce-intro" rows="2" style="width: 100%; box-sizing: border-box; margin-top: 0.4rem; padding: 0.6rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; resize: vertical;">${(a.intro || '').replace(/</g, '&lt;')}</textarea>
+        <div class="form-actions" style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+          <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('cprof-edit-overlay').remove()">취소</button>
+          <button class="btn-primary" style="flex: 1;" onclick="window.App.saveCounselorProfile('${appId}')">저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    // 태그 토글 (최대 3개)
+    ov.querySelectorAll('#ce-tags button').forEach(b => b.addEventListener('click', () => {
+      const on = b.dataset.on === '1';
+      if (!on && ov.querySelectorAll('#ce-tags button[data-on="1"]').length >= 3) { this.showRecordToast('전문분야는 3개까지예요'); return; }
+      b.dataset.on = on ? '0' : '1';
+      b.style.borderColor = on ? 'var(--glass-border)' : 'var(--accent-primary)';
+      b.style.background = on ? 'var(--bg-tertiary)' : 'color-mix(in srgb, var(--accent-primary) 14%, transparent)';
+      b.style.color = on ? 'var(--text-primary)' : 'var(--accent-primary)';
+    }));
+    // 사진 변경 (256px 리사이즈)
+    document.getElementById('ce-photo-file').addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        const s = Math.min(img.width, img.height);
+        cv.width = cv.height = 256;
+        cv.getContext('2d').drawImage(img, (img.width - s) / 2, (img.height - s) / 2, s, s, 0, 0, 256, 256);
+        this._editPhoto = cv.toDataURL('image/jpeg', 0.82);
+        document.getElementById('ce-photo-preview').innerHTML = `<img src="${this._editPhoto}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        URL.revokeObjectURL(img.src);
+      };
+      img.src = URL.createObjectURL(f);
+    });
+  },
+
+  saveCounselorProfile(appId) {
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    const a = apps.find(x => x.id === appId);
+    if (!a) return;
+    const tags = [...document.querySelectorAll('#ce-tags button[data-on="1"]')].map(b => b.dataset.tag);
+    a.tags = tags;
+    a.price = parseInt(document.getElementById('ce-price').value, 10);
+    a.intro = document.getElementById('ce-intro').value.trim();
+    a.photo = this._editPhoto || null;
+    window.Storage._safeSet('cbt_counselor_apps', apps);
+    // 매칭 탭 카드에 즉시 반영
+    const customs = window.Storage._safeGet('cbt_custom_counselors', []) || [];
+    const cu = customs.find(x => x.fromApp === appId);
+    if (cu) {
+      cu.tags = tags.length ? tags : [a.license];
+      cu.price = a.price;
+      cu.photo = a.photo;
+      cu.career = [`현) ${a.hospital}`, a.license + (a.career ? ` · 경력 ${a.career}년` : ''), ...(a.intro ? [a.intro] : [])];
+      window.Storage._safeSet('cbt_custom_counselors', customs);
+    }
+    const ov = document.getElementById('cprof-edit-overlay');
+    if (ov) ov.remove();
+    this.renderCounselorApps();
+    if (window.Marketplace) window.Marketplace.renderCounselors();
+    this.showRecordToast('✏️ 프로필이 수정됐어요. 매칭 카드에 바로 반영됩니다');
   },
 
   // 관리자 승인 (데모) — 실서비스에서는 백엔드 관리자 콘솔에서 검수 후 승인한다.
@@ -1658,11 +1751,36 @@ ${memory || '(없음)'}`;
     const c = window.Marketplace.getCounselor(counselorId);
     if (!c) return;
     const key = 'cbt_hchat_' + c.id;
+    const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
     let msgs = window.Storage._safeGet(key, []) || [];
     if (msgs.length === 0) {
-      msgs.push({ role: 'sys', text: `🙌 ${c.name}님과의 상담 채팅방이 열렸어요.\n남기신 메시지는 상담사님께 전달되며, 접속하시면 답장이 도착합니다.`, ts: Date.now() });
+      msgs.push({ role: 'sys', text: `🙌 ${c.name}님과의 상담 채팅방이 열렸어요.\n남기신 메시지는 상담사님께 전달되며, 답장이 오면 여기에 표시됩니다.`, ts: Date.now() });
       window.Storage._safeSet(key, msgs);
     }
+
+    // 서버 스레드에서 상담사 답장 가져오기 (8초 폴링)
+    const sync = async () => {
+      try {
+        const res = await fetch(`/api/chat-msg?client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(c.id)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const cur = window.Storage._safeGet(key, []) || [];
+        const known = new Set(cur.map(m => m.sid).filter(Boolean));
+        let added = false;
+        (data.items || []).forEach(m => {
+          if (m.from === 'counselor' && !known.has(m.id)) {
+            cur.push({ role: 'them', text: m.text, ts: m.ts, sid: m.id });
+            added = true;
+          }
+        });
+        if (added) {
+          cur.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+          window.Storage._safeSet(key, cur.slice(-200));
+          if (document.getElementById('hchat-overlay')) render();
+          this.playWoorung();
+        }
+      } catch (e) {}
+    };
 
     const old = document.getElementById('hchat-overlay');
     if (old) old.remove();
@@ -1691,11 +1809,17 @@ ${memory || '(없음)'}`;
       box.innerHTML = msgs.map(m => {
         if (m.role === 'sys') return `<div style="align-self: center; background: var(--bg-tertiary); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.78rem; color: var(--text-secondary); white-space: pre-line; max-width: 90%;">${m.text}</div>`;
         const mine = m.role === 'me';
-        return `<div style="align-self: ${mine ? 'flex-end' : 'flex-start'}; background: ${mine ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${mine ? '#fff' : 'var(--text-primary)'}; border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.55rem 0.85rem; font-size: 0.88rem; max-width: 78%; white-space: pre-line;">${m.text}</div>`;
+        return `<div style="align-self: ${mine ? 'flex-end' : 'flex-start'}; background: ${mine ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${mine ? '#fff' : 'var(--text-primary)'}; border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.55rem 0.85rem; font-size: 0.88rem; max-width: 78%; white-space: pre-line;">${(m.text || '').replace(/</g, '&lt;')}${!mine ? `<span style="display: block; font-size: 0.64rem; color: var(--text-muted); margin-top: 0.2rem;">${c.name}</span>` : ''}</div>`;
       }).join('');
       box.scrollTop = box.scrollHeight;
     };
     render();
+    sync();
+    clearInterval(this._hchatPoll);
+    this._hchatPoll = setInterval(() => {
+      if (!document.getElementById('hchat-overlay')) { clearInterval(this._hchatPoll); return; }
+      sync();
+    }, 8000);
 
     const send = () => {
       const inp = document.getElementById('hchat-input');
@@ -1707,12 +1831,20 @@ ${memory || '(없음)'}`;
         msgs.push({ role: 'sys', text: '✅ 메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [📞 통화] 버튼을 이용해주세요.', ts: Date.now() });
       }
       window.Storage._safeSet(key, msgs.slice(-200));
+      // 서버 채팅함으로 전송 → 상담사 페이지(/counselor.html)에 도착
+      try {
+        fetch('/api/chat-msg', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ counselorId: c.id, counselorName: c.name, clientName, from: 'client', text: t })
+        }).catch(() => {});
+      } catch (e) {}
       inp.value = '';
       render();
     };
     document.getElementById('hchat-send').addEventListener('click', send);
     document.getElementById('hchat-input').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
-    document.getElementById('hchat-close').addEventListener('click', () => ov.remove());
+    document.getElementById('hchat-close').addEventListener('click', () => { clearInterval(this._hchatPoll); ov.remove(); });
     document.getElementById('hchat-call').addEventListener('click', () => this.startHumanCall(c.id));
   },
 

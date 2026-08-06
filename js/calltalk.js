@@ -35,6 +35,7 @@ window.CallTalk = {
     this._human = false;
     this._rate = this.RATE;
     this._startTs = Date.now();
+    this._lastTalk = Date.now();
     this._spent = 0;
 
     // 통화 중에는 TTS 강제 사용 (통화니까), 끝나면 원래 설정 복원
@@ -66,6 +67,12 @@ window.CallTalk = {
 
   _bill() {
     if (!this._active) return;
+    // 무발화 자동 종료: 5분간 말이 없으면 끊는다.
+    // 켜둔 채 잠들거나 자리를 비웠을 때 캐시·API 비용이 새는 것을 막는 안전장치.
+    if (!this._human && this._lastTalk && Date.now() - this._lastTalk > 5 * 60000) {
+      this.end('5분 동안 대화가 없어서 우렁이가 조용히 전화를 끊었어요.\n(캐시가 새지 않도록 지켜드렸어요)');
+      return;
+    }
     const rate = (this._rate != null) ? this._rate : this.RATE;
     if (rate <= 0) return; // 회기권 통화는 과금 없음
     if (!window.Wallet.spend(rate, `보이스톡 (30초)`)) {
@@ -194,6 +201,7 @@ window.CallTalk = {
       this._setStatus('생각 중…');
       window.Storage.saveMessage({ role: 'user', text, timestamp: new Date().toISOString() });
       if (window.App) window.App.displayMessage({ role: 'user', text });
+      this._lastTalk = Date.now(); // 실제 발화 시각 — 무발화 자동 종료 기준
       try {
         const res = await window.LLM.generateResponse(text);
         if (!this._active) return;
