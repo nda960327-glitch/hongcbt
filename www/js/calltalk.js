@@ -20,7 +20,8 @@ window.CallTalk = {
 
   start(personaId) {
     if (this._active) return;
-    if (window.Subscription && !window.Subscription.guard()) return;
+    // 보이스톡은 체험·구독 전용 (무료 플랜은 페이월 안내)
+    if (window.Subscription && !window.Subscription.guardCall()) return;
     if (!window.Wallet || window.Wallet.balance() < this.RATE) {
       alert(`보이스톡은 30초당 ${this.RATE}캐시가 사용돼요.\n잔액이 부족합니다. 마이페이지에서 캐시를 충전해주세요.`);
       if (window.App) window.App.switchTab('mypage');
@@ -112,6 +113,22 @@ window.CallTalk = {
     if (!prepaid) {
       this._bill();
       this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
+    } else {
+      // 회기권 = 예약된 30분. 5분 전 안내, 만료 시 동의한 경우에만 초당 과금으로 연장.
+      this._warnTimer = setTimeout(() => { if (this._active) this._setStatus('⏰ 상담 종료 5분 전이에요'); }, 25 * 60000);
+      this._prepaidTimer = setTimeout(() => {
+        if (!this._active) return;
+        const rate = c.callRate || 700;
+        if (confirm(`예약된 30분 상담 시간이 끝났어요.\n계속 통화하면 지금부터 30초당 ${rate.toLocaleString()}캐시가 차감됩니다.\n연장할까요?`)) {
+          this._rate = rate;
+          const el = document.getElementById('call-spent');
+          if (el) el.textContent = `연장 통화 중 · 30초당 ${rate.toLocaleString()}캐시`;
+          this._bill();
+          this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
+        } else {
+          this.end('예약된 30분 상담이 완료되었습니다. 수고하셨어요!');
+        }
+      }, 30 * 60000);
     }
   },
 
@@ -135,7 +152,7 @@ window.CallTalk = {
         <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;">👩‍⚕️</div>
         <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
         <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
-        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${(c.callRate || 700).toLocaleString()}`}</p>
+        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${(c.callRate || 700).toLocaleString()}`}</p>
         <button onclick="window.CallTalk.dialSafe('${c.safeTel}')" style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);">📞 안심번호로 전화 연결</button>
         <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 260px; line-height: 1.5;">050 안심번호로 연결되어 <b>서로의 실제 번호는 공개되지 않아요.</b> 통화를 마치면 아래 종료 버튼으로 정산을 끝내주세요.</p>
       </div>
@@ -222,6 +239,8 @@ window.CallTalk = {
     if (window.App && window.App.ringStop) window.App.ringStop();
     clearInterval(this._billTimer);
     clearInterval(this._clockTimer);
+    clearTimeout(this._prepaidTimer);
+    clearTimeout(this._warnTimer);
     try { if (this._rec) this._rec.abort(); } catch (e) {}
     if (window.Voice) {
       window.Voice.stopSpeaking();

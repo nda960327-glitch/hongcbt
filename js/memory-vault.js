@@ -68,7 +68,14 @@ window.MemoryVault = {
       badges: window.Storage._safeGet("cbt_badges", {}),
       breathCount: window.Storage._safeGet("cbt_breath_count", 0),
       totalChats: window.Storage._safeGet("cbt_total_chats", 0),
-      userName: window.Storage._safeGet("cbt_user_name", "")
+      userName: window.Storage._safeGet("cbt_user_name", ""),
+      missionLog: window.Storage._safeGet("cbt_mission_log", []),        // 행동 미션 기록
+      weeklyLetters: window.Storage._safeGet("cbt_weekly_letters", []),  // 주간 편지
+      quizBest: window.Storage._safeGet("cbt_quiz_best", null),
+      shields: window.Storage._safeGet("cbt_streak_shields", 0),         // 스트릭 보호권
+      activePersona: window.Storage._safeGet("cbt_active_persona", null),
+      onboardDone: window.Storage._safeGet("cbt_onboard_done", false),
+      concerns: window.Storage._safeGet("cbt_user_concerns", [])
     };
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
@@ -113,6 +120,13 @@ window.MemoryVault = {
     if (data.breathCount !== undefined) window.Storage._safeSet("cbt_breath_count", data.breathCount);
     if (data.totalChats !== undefined) window.Storage._safeSet("cbt_total_chats", data.totalChats);
     if (data.userName) window.Storage._safeSet("cbt_user_name", data.userName);
+    if (Array.isArray(data.missionLog)) window.Storage._safeSet("cbt_mission_log", data.missionLog);
+    if (Array.isArray(data.weeklyLetters)) window.Storage._safeSet("cbt_weekly_letters", data.weeklyLetters);
+    if (data.quizBest) window.Storage._safeSet("cbt_quiz_best", data.quizBest);
+    if (data.shields !== undefined) window.Storage._safeSet("cbt_streak_shields", data.shields);
+    if (data.activePersona) window.Storage._safeSet("cbt_active_persona", data.activePersona);
+    if (data.onboardDone !== undefined) window.Storage._safeSet("cbt_onboard_done", data.onboardDone);
+    if (Array.isArray(data.concerns)) window.Storage._safeSet("cbt_user_concerns", data.concerns);
     alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;

@@ -30,7 +30,7 @@
 
   --text-primary: #f0e9de;
   --text-secondary: #bdb1a1;
-  --text-muted: #8c8072;
+  --text-muted: #9a8e80; /* 대비 5.3:1 — 흐릿해서 안 읽히던 문제 보정 */
 
   --success: #7fc29b;
   --warning: #e8b04b;
@@ -81,7 +81,7 @@
 
   --text-primary: #362f28;
   --text-secondary: #6b6055;
-  --text-muted: #a99c8c;
+  --text-muted: #7f7264; /* 기존 #a99c8c는 대비 2.5:1로 거의 안 보였음 → 4.6:1 */
 
   --success: #4f8a6b;
   --warning: #c98a2b;
@@ -124,6 +124,22 @@
 [data-theme="light"] .message.user .message-bubble {
   color: #ffffff;
 }
+
+/* ── 어두운 전체화면 오버레이의 글자색 ─────────────────────────────────
+   전역 h·p 규칙이 라이트 테마에서 '어두운 글자색'을 강제해 어두운 오버레이
+   (마음 응급처치·하루정리·수면 사운드·통화)에서 글씨가 아예 안 보였다.
+   오버레이 안에서는 컨테이너에 지정한 밝은 색을 그대로 상속받는다. */
+#calm-overlay h1, #calm-overlay h2, #calm-overlay h3, #calm-overlay p, #calm-overlay strong,
+#night-overlay h1, #night-overlay h2, #night-overlay h3, #night-overlay p, #night-overlay strong,
+#sleep-overlay h1, #sleep-overlay h2, #sleep-overlay h3, #sleep-overlay p, #sleep-overlay strong,
+#call-overlay h1, #call-overlay h2, #call-overlay h3, #call-overlay p, #call-overlay strong {
+  color: inherit;
+}
+
+/* 오버레이(하루정리·사고기록 위저드) placeholder — 배경색을 따라가게 */
+#night-overlay textarea::placeholder { color: #f0ead9; opacity: 0.6; }
+#tr-wizard textarea::placeholder,
+#tr-wizard input::placeholder { color: var(--text-muted); opacity: 0.9; }
 
 /* Light-theme inputs / textareas */
 [data-theme="light"] textarea,
@@ -927,10 +943,103 @@ textarea:focus { border-color: var(--accent-primary); }
 .dist-title { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.25rem; font-family: var(--font-heading); }
 .dist-desc { font-size: 0.72rem; color: var(--text-muted); }
 
-.quiz-section { padding: 1.5rem; margin-top: 0.5rem; }
-.quiz-card { padding: 1.6rem; text-align: center; }
-.quiz-desc { font-size: 0.88rem; margin-bottom: 1.5rem; }
-#quiz-content { margin-bottom: 1.5rem; }
+/* ========== 인지왜곡 학습 리뉴얼 ========== */
+.learn-hero {
+  display: flex; align-items: center; gap: 0.8rem;
+  margin: 0 1.25rem 1.1rem; padding: 1rem 1.1rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)), var(--bg-secondary));
+  border: 1.5px solid color-mix(in srgb, var(--accent-primary) 28%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.learn-hero__bubble strong { display: block; font-size: 0.95rem; color: var(--accent-primary); margin-bottom: 0.25rem; font-family: var(--font-heading); }
+.learn-hero__bubble p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.55; }
+
+.distortion-card { position: relative; overflow: hidden; padding: 1.1rem 0.9rem 0.95rem; }
+.distortion-card::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 4px;
+  background: var(--dc-color, var(--accent-primary));
+}
+.dc-num {
+  position: absolute; top: 0.55rem; right: 0.7rem;
+  font-size: 0.66rem; font-weight: 800; color: var(--text-muted); opacity: 0.6;
+}
+.dc-icon-chip {
+  width: 46px; height: 46px; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.dc-title { font-size: 0.94rem; font-weight: 800; margin: 0.55rem 0 0.2rem; color: var(--text-primary); font-family: var(--font-heading); }
+.dc-brief { font-size: 0.74rem; color: var(--text-muted); margin: 0 0 0.5rem; line-height: 1.4; }
+.dc-more { font-size: 0.72rem; font-weight: 800; }
+
+/* 우렁 선생님 처방 (상세 모달) */
+.detail-woorung { display: flex; align-items: flex-start; gap: 0.6rem; margin-top: 1rem; }
+.detail-woorung__bubble {
+  flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border);
+  border-radius: 4px 16px 16px 16px; padding: 0.8rem 0.95rem;
+}
+.detail-woorung__bubble strong { display: block; font-size: 0.82rem; margin-bottom: 0.3rem; }
+.detail-woorung__bubble p { margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; }
+
+/* 퀴즈 */
+.quiz-section { padding: 0 1.25rem 1.5rem; margin-top: 0.5rem; }
+.quiz-card { padding: 1.3rem; }
+.quiz-intro { text-align: center; }
+.quiz-intro__title { margin: 0.6rem 0 0.3rem; font-size: 1.15rem; color: var(--text-primary); font-family: var(--font-heading); }
+.quiz-intro__desc { margin: 0 0 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6; }
+.quiz-intro__best { margin: 0 0 0.8rem; font-size: 0.8rem; font-weight: 700; color: var(--accent-warm); }
+
+.quiz-progress-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.quiz-progress-label { font-size: 0.78rem; font-weight: 800; color: var(--text-muted); }
+.quiz-score-label { font-size: 0.82rem; font-weight: 800; color: var(--accent-warm); }
+.quiz-progress-bar { height: 7px; border-radius: 99px; background: var(--bg-tertiary); overflow: hidden; margin-bottom: 0.9rem; }
+.quiz-progress-bar > div { height: 100%; border-radius: 99px; background: var(--gradient-primary); transition: width 0.4s ease; }
+
+.quiz-scene { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.9rem; }
+.quiz-question-box {
+  flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border);
+  border-radius: 4px 16px 16px 16px; padding: 0.85rem 1rem; text-align: left;
+}
+.quiz-q-text { margin: 0 0 0.4rem; font-size: 0.92rem; font-weight: 600; color: var(--text-primary); line-height: 1.55; }
+.quiz-q-sub { margin: 0; font-size: 0.76rem; color: var(--text-muted); }
+
+.quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.quiz-option {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.7rem 0.8rem; border-radius: 12px;
+  background: var(--bg-tertiary); border: 1.5px solid var(--glass-border);
+  color: var(--text-primary); font-size: 0.84rem; font-weight: 700;
+  cursor: pointer; text-align: left;
+  transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  font-family: var(--font-main);
+}
+.quiz-option:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--accent-primary); }
+.quiz-option:disabled { cursor: default; opacity: 0.75; }
+.quiz-option.correct {
+  background: color-mix(in srgb, var(--success) 16%, var(--bg-tertiary));
+  border-color: var(--success); color: var(--success); opacity: 1;
+}
+.quiz-option.incorrect {
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg-tertiary));
+  border-color: var(--danger); color: var(--danger); opacity: 1;
+}
+.qo-ico { display: inline-flex; flex-shrink: 0; }
+
+.quiz-feedback { margin-top: 0.9rem; }
+.quiz-feedback__inner {
+  display: flex; align-items: center; gap: 0.6rem; text-align: left;
+  border-radius: 14px; padding: 0.8rem 0.95rem;
+}
+.quiz-feedback__inner.is-correct { background: color-mix(in srgb, var(--success) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); }
+.quiz-feedback__inner.is-wrong { background: color-mix(in srgb, var(--accent-warm) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-warm) 35%, transparent); }
+.quiz-feedback__inner strong { display: block; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.2rem; }
+.quiz-feedback__inner p { margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+
+.quiz-results { text-align: center; }
+.quiz-results__title { margin: 0.6rem 0 0.2rem; font-size: 1.2rem; color: var(--text-primary); font-family: var(--font-heading); }
+.quiz-score-big { font-size: 2.1rem; font-weight: 800; color: var(--accent-primary); }
+.quiz-score-big span { font-size: 1.1rem; color: var(--text-muted); font-weight: 700; }
+.quiz-msg { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 1rem; }
 
 /* ========== EMPTY STATES ========== */
 .empty-state {

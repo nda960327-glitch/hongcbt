@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v5';
+﻿const CACHE_NAME = 'cbt-app-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,11 @@ const ASSETS = [
   './js/booking.js',
   './js/thought-record.js',
   './js/growth.js',
+  './js/missions.js',
+  './js/weekly.js',
+  './js/sleep.js',
+  './js/onboard.js',
+  './js/admin.js',
   './js/dashboard.js',
   './js/learn.js',
   './js/app.js',

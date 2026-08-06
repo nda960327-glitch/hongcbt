@@ -141,173 +141,211 @@ window.Learn = {
   init() {
     if (this._inited) return; this._inited = true;
     this.renderCards();
-    
-    const quizStartBtn = document.getElementById('quiz-start');
-    if (quizStartBtn) quizStartBtn.addEventListener('click', () => this.startQuiz());
-    
+    this.renderQuizIntro();
+
     const detailClose = document.getElementById('detail-close');
     if (detailClose) detailClose.addEventListener('click', () => {
       document.getElementById('distortion-detail-modal').classList.add('hidden');
     });
   },
-  
+
   renderCards() {
     const container = document.getElementById('distortion-cards');
     if (!container) return;
-    
+
     container.innerHTML = '';
-    this.distortions.forEach(dist => {
+    this.distortions.forEach((dist, i) => {
       const card = document.createElement('div');
       card.className = 'distortion-card glass-card';
-      card.style.borderTop = `4px solid ${dist.color}`;
+      card.style.setProperty('--dc-color', dist.color);
       card.innerHTML = `
-        <div class="dc-icon" style="color:${dist.color}">${window.Icons ? window.Icons.svg(this.iconMap[dist.id],{size:28}) : ''}</div>
+        <span class="dc-num">${String(i + 1).padStart(2, '0')}</span>
+        <div class="dc-icon"><span class="dc-icon-chip" style="background:${dist.color}1f; color:${dist.color}">${window.Icons ? window.Icons.svg(this.iconMap[dist.id], { size: 26 }) : ''}</span></div>
         <h3 class="dc-title">${dist.name}</h3>
-        <p class="dc-subtitle">${dist.nameEn}</p>
         <p class="dc-brief">${dist.brief}</p>
+        <span class="dc-more" style="color:${dist.color}">배우기 ›</span>
       `;
       card.addEventListener('click', () => this.showDetail(dist.id));
       container.appendChild(card);
     });
   },
-  
+
   showDetail(id) {
     const dist = this.distortions.find(d => d.id === id);
     if (!dist) return;
-    
+
     const modal = document.getElementById('distortion-detail-modal');
     const content = document.getElementById('detail-content');
-    
+
     content.innerHTML = `
       <div class="detail-header" style="background-color: ${dist.color}20; color: ${dist.color}">
-        <div class="detail-emoji">${window.Icons ? window.Icons.svg(this.iconMap[dist.id],{size:40}) : ''}</div>
+        <div class="detail-emoji">${window.Icons ? window.Icons.svg(this.iconMap[dist.id], { size: 40 }) : ''}</div>
         <h2>${dist.name}</h2>
         <p>${dist.nameEn}</p>
       </div>
       <div class="detail-body">
         <div class="detail-section">
-          <h3 class="card-head">${window.Icons?window.Icons.svg('bulb',{size:18}):''}어떤 왜곡인가요?</h3>
+          <h3 class="card-head">${window.Icons ? window.Icons.svg('bulb', { size: 18 }) : ''}어떤 왜곡인가요?</h3>
           <p>${dist.description}</p>
         </div>
         <div class="detail-section">
-          <h3 class="card-head">${window.Icons?window.Icons.svg('quote',{size:18}):''}예를 들면</h3>
+          <h3 class="card-head">${window.Icons ? window.Icons.svg('quote', { size: 18 }) : ''}예를 들면</h3>
           <p class="detail-example"><i>${dist.example}</i></p>
         </div>
-        <div class="detail-section">
-          <h3 class="card-head">${window.Icons?window.Icons.svg('sparkle',{size:18}):''}이렇게 바꿔봐요</h3>
-          <p class="detail-counter">${dist.counter}</p>
+        <!-- 우렁 선생님의 처방 말풍선 -->
+        <div class="detail-woorung">
+          <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('teacher', 72) : ''}</span>
+          <div class="detail-woorung__bubble">
+            <strong style="color: ${dist.color};">우렁 선생님의 처방</strong>
+            <p>${dist.counter}</p>
+          </div>
         </div>
+        <button class="btn-primary" style="width: 100%; margin-top: 1rem;" onclick="document.getElementById('distortion-detail-modal').classList.add('hidden')">알겠어요</button>
       </div>
     `;
-    
+
     modal.classList.remove('hidden');
   },
-  
+
+  // ==========================================================================
+  //  우렁 탐정 퀴즈
+  // ==========================================================================
+  QUIZ_LEN: 10,
+
+  renderQuizIntro() {
+    const container = document.getElementById('quiz-content');
+    if (!container) return;
+    const best = window.Storage ? (window.Storage._safeGet('cbt_quiz_best', null)) : null;
+    container.innerHTML = `
+      <div class="quiz-intro">
+        <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg('detective', 110) : '🔍'}</span>
+        <h3 class="quiz-intro__title">우렁 탐정의 생각 함정 찾기</h3>
+        <p class="quiz-intro__desc">문장 속에 숨어있는 인지왜곡을 찾아내면<br>내 머릿속 함정도 알아챌 수 있게 돼요.</p>
+        ${best ? `<p class="quiz-intro__best">🏆 최고 기록: ${best.score}/${best.total}</p>` : ''}
+        <button id="quiz-start" class="btn-primary" style="width: 100%;">수사 시작하기 🔍</button>
+      </div>
+    `;
+    document.getElementById('quiz-start').addEventListener('click', () => this.startQuiz());
+  },
+
   startQuiz() {
     this.currentQuizIndex = 0;
     this.quizScore = 0;
-    // Shuffle questions optionally
     this.quizQuestions.sort(() => Math.random() - 0.5);
-    
-    document.getElementById('quiz-start').classList.add('hidden');
     this.renderQuestion();
   },
-  
+
   renderQuestion() {
     const container = document.getElementById('quiz-content');
     if (!container) return;
-    
-    if (this.currentQuizIndex >= 15 || this.currentQuizIndex >= this.quizQuestions.length) {
+
+    const total = Math.min(this.QUIZ_LEN, this.quizQuestions.length);
+    if (this.currentQuizIndex >= total) {
       this.showResults();
       return;
     }
-    
+
     const q = this.quizQuestions[this.currentQuizIndex];
-    
-    // Generate 4 options (1 correct, 3 random incorrect)
+
+    // 보기 4개 (정답 1 + 오답 3)
     const options = [q.answerId];
-    while(options.length < 4) {
+    while (options.length < 4) {
       const randDist = this.distortions[Math.floor(Math.random() * this.distortions.length)].id;
-      if (!options.includes(randDist)) {
-        options.push(randDist);
-      }
+      if (!options.includes(randDist)) options.push(randDist);
     }
     options.sort(() => Math.random() - 0.5);
-    
-    let optionsHtml = options.map(optId => {
+
+    const optionsHtml = options.map(optId => {
       const dist = this.distortions.find(d => d.id === optId);
-      return `<button class="quiz-option" data-id="${optId}"><span class="qo-ico" style="color:${dist.color}">${window.Icons?window.Icons.svg(this.iconMap[optId],{size:18}):''}</span>${dist.name}</button>`;
+      return `<button class="quiz-option" data-id="${optId}"><span class="qo-ico" style="color:${dist.color}">${window.Icons ? window.Icons.svg(this.iconMap[optId], { size: 18 }) : ''}</span><span>${dist.name}</span></button>`;
     }).join('');
-    
+
     container.innerHTML = `
-      <div class="quiz-progress">문제 ${this.currentQuizIndex + 1} / 15</div>
-      <div class="quiz-question-box">
-        <p class="quiz-q-text">${q.text}</p>
-        <p class="quiz-q-sub">이 생각에는 어떤 인지 왜곡이 숨어있을까요?</p>
+      <div class="quiz-progress-row">
+        <span class="quiz-progress-label">사건 ${this.currentQuizIndex + 1} / ${total}</span>
+        <span class="quiz-score-label">⭐ ${this.quizScore}</span>
       </div>
-      <div class="quiz-options">
-        ${optionsHtml}
+      <div class="quiz-progress-bar"><div style="width: ${Math.round(this.currentQuizIndex / total * 100)}%;"></div></div>
+      <div class="quiz-scene">
+        <span class="quiz-scene__char" style="line-height: 0;">${window.Stickers ? window.Stickers.svg('think', 74) : ''}</span>
+        <div class="quiz-question-box">
+          <p class="quiz-q-text">${q.text}</p>
+          <p class="quiz-q-sub">이 생각에 숨어있는 함정은 무엇일까요?</p>
+        </div>
       </div>
+      <div class="quiz-options">${optionsHtml}</div>
       <div id="quiz-feedback" class="quiz-feedback hidden"></div>
     `;
-    
+
     container.querySelectorAll('.quiz-option').forEach(btn => {
-      btn.addEventListener('click', (e) => this.selectAnswer(e.target.dataset.id, q.answerId, q.explanation));
+      btn.addEventListener('click', () => this.selectAnswer(btn.dataset.id, q.answerId, q.explanation));
     });
   },
-  
+
   selectAnswer(selectedId, correctId, explanation) {
     const container = document.getElementById('quiz-content');
     const options = container.querySelectorAll('.quiz-option');
     const feedback = document.getElementById('quiz-feedback');
-    
+
     options.forEach(btn => {
-      btn.disabled = true; // disable all
-      if (btn.dataset.id === correctId) {
-        btn.classList.add('correct');
-      } else if (btn.dataset.id === selectedId) {
-        btn.classList.add('incorrect');
-      }
+      btn.disabled = true;
+      if (btn.dataset.id === correctId) btn.classList.add('correct');
+      else if (btn.dataset.id === selectedId) btn.classList.add('incorrect');
     });
-    
+
     const isCorrect = selectedId === correctId;
     if (isCorrect) this.quizScore++;
-    
+
+    const scoreLabel = container.querySelector('.quiz-score-label');
+    if (scoreLabel) scoreLabel.textContent = `⭐ ${this.quizScore}`;
+
     feedback.innerHTML = `
-      <p class="${isCorrect ? 'text-green-600' : 'text-red-500'} font-bold">
-        ${isCorrect ? '정답입니다!' : '아쉽네요.'}
-      </p>
-      <p>${explanation}</p>
+      <div class="quiz-feedback__inner ${isCorrect ? 'is-correct' : 'is-wrong'}">
+        <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(isCorrect ? 'aha' : 'oops', 64) : ''}</span>
+        <div>
+          <strong>${isCorrect ? '명탐정이에요! 정답 🎉' : '아깝다! 함정에 살짝 걸렸어요'}</strong>
+          <p>${explanation}</p>
+        </div>
+      </div>
+      <button id="quiz-next" class="btn-primary" style="width: 100%; margin-top: 0.7rem;">다음 사건 ›</button>
     `;
     feedback.classList.remove('hidden');
-    
-    setTimeout(() => {
-      this.currentQuizIndex++;
-      this.renderQuestion();
-    }, 3000);
+    feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    const goNext = () => { this.currentQuizIndex++; this.renderQuestion(); };
+    document.getElementById('quiz-next').addEventListener('click', goNext);
   },
-  
+
   showResults() {
     const container = document.getElementById('quiz-content');
-    const total = Math.min(15, this.quizQuestions.length);
+    const total = Math.min(this.QUIZ_LEN, this.quizQuestions.length);
     const score = this.quizScore;
     const pct = score / total;
-    
-    let msg = '';
-    if (pct === 1) msg = '완벽해요!! 인지 왜곡 마스터네요';
-    else if (pct >= 0.7) msg = '훌륭합니다! 인지 왜곡을 아주 잘 이해하고 계세요';
-    else if (pct >= 0.4) msg = '좋습니다! 조금만 더 연습하면 금방 익숙해질 거예요';
-    else msg = '괜찮아요! 인지 왜곡은 처음엔 헷갈릴 수 있어요. 가이드를 다시 한번 읽어볼까요?';
-    
+
+    // 최고 기록 저장
+    if (window.Storage) {
+      const best = window.Storage._safeGet('cbt_quiz_best', null);
+      if (!best || score > best.score) window.Storage._safeSet('cbt_quiz_best', { score, total, ts: Date.now() });
+    }
+
+    let sticker = 'empathy', title = '', msg = '';
+    if (pct === 1) { sticker = 'joy'; title = '완벽한 명탐정!'; msg = '모든 함정을 꿰뚫어봤어요. 이제 내 생각 속 함정도 금방 알아챌 거예요.'; }
+    else if (pct >= 0.7) { sticker = 'proud'; title = '베테랑 탐정'; msg = '인지왜곡을 아주 잘 이해하고 있어요. 실전에서도 이 감각을 기억해요!'; }
+    else if (pct >= 0.4) { sticker = 'cheer'; title = '성장하는 수습 탐정'; msg = '좋아요! 헷갈렸던 함정은 카드를 다시 읽어보면 금방 익숙해져요.'; }
+    else { sticker = 'empathy'; title = '괜찮아요, 첫 수사잖아요'; msg = '함정은 처음엔 누구나 헷갈려요. 우렁 선생님과 카드부터 천천히 다시 볼까요?'; }
+
     container.innerHTML = `
       <div class="quiz-results">
-        <h2>퀴즈 결과</h2>
-        <div class="quiz-score">${score} / ${total}</div>
+        <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg(sticker, 110) : ''}</span>
+        <h2 class="quiz-results__title">${title}</h2>
+        <div class="quiz-score-big">${score}<span> / ${total}</span></div>
+        <div class="quiz-progress-bar" style="margin: 0.4rem 0 0.8rem;"><div style="width: ${Math.round(pct * 100)}%;"></div></div>
         <p class="quiz-msg">${msg}</p>
-        <button id="quiz-retry" class="btn-primary">다시 도전하기</button>
+        <button id="quiz-retry" class="btn-primary" style="width: 100%;">다시 수사하기 🔍</button>
+        <button class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="document.getElementById('distortion-cards').scrollIntoView({behavior:'smooth'}); ">카드 다시 공부하기</button>
       </div>
     `;
-    
+
     document.getElementById('quiz-retry').addEventListener('click', () => this.startQuiz());
   }
 };

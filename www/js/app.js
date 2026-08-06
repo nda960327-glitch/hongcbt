@@ -178,8 +178,12 @@
     const disclaimerAccept = document.getElementById('disclaimer-accept');
     if (disclaimerAccept) disclaimerAccept.addEventListener('click', () => {
       document.getElementById('disclaimer-modal').classList.add('hidden');
-      // 이용 안내를 확인한 다음, 상담사를 고른 적 없으면 이어서 선택하게 한다
-      this.maybeForcePersonaChoice();
+      // 이용 안내 확인 후: 신규 사용자는 온보딩(별명→고민→상담사 추천), 기존 사용자는 상담사 선택
+      if (window.Onboard && window.Onboard.needed() && !(window.Personas && window.Personas.hasChosen())) {
+        window.Onboard.start();
+      } else {
+        this.maybeForcePersonaChoice();
+      }
     });
     
     // 5.5 Init components
@@ -208,6 +212,13 @@
     if (window.ThoughtRecord) window.ThoughtRecord.init();
     if (window.Dashboard) window.Dashboard.init();
     if (window.Learn) window.Learn.init();
+    if (window.Growth) window.Growth.init();
+    if (window.Missions) window.Missions.renderCard();
+    if (window.Weekly) window.Weekly.maybeNudge();
+    // 기존 사용자(이미 상담사 선택함)는 온보딩을 건너뛴 것으로 처리
+    if (window.Onboard && window.Personas && window.Personas.hasChosen()) {
+      window.Storage._safeSet('cbt_onboard_done', true);
+    }
     if (window.Personas) window.Personas.renderHomeQuickSelect();
     
     // 9. PWA Install Logic
@@ -307,6 +318,13 @@
     if (tabName === 'home' && window.Personas) {
       window.Personas.renderHomeQuickSelect();
     }
+    if (tabName === 'home' && window.Growth) {
+      window.Growth.maybeShowNightCard();
+      window.Growth.renderStreakChip();
+    }
+    if (tabName === 'home' && window.Missions) {
+      window.Missions.renderCard();
+    }
     if (tabName === 'counselors' && window.Marketplace) {
       window.Marketplace.renderCounselors();
     }
@@ -324,14 +342,17 @@
 
     if (tabName === 'chat') {
       this.updateSessionUI();
+      this._setNavBadge('chat', false); // 확인했으니 미확인 표시 제거
     }
     if (tabName === 'dashboard') {
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
+      if (window.Growth) window.Growth.renderNightList();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
+      if (window.Growth) window.Growth.renderBadgeCard();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -352,8 +373,8 @@
   _replyTimer: null,
 
   async sendMessage() {
-    // 구독 관문: 7일 체험이 끝났고 미구독이면 안내 후 차단
-    if (window.Subscription && !window.Subscription.guard()) return;
+    // 구독 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+    if (window.Subscription && !window.Subscription.guardChat()) return;
 
     const inputEl = document.getElementById('chat-input');
     const text = inputEl.value.trim();
@@ -368,6 +389,8 @@
       window.Storage.incrementSessions();
       window.Storage.markDayActive();
     }
+    // 무료 플랜이면 오늘 사용 횟수 차감
+    if (window.Subscription && !window.Subscription.hasAccess()) window.Subscription.bumpChat();
 
     // Display user message
     this.displayMessage({ role: 'user', text: text });
@@ -375,6 +398,7 @@
 
     // 영속 통계: 총 대화 카운터 + 감정 로그 (대화를 초기화해도 남는다)
     window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
+    if (window.Growth) window.Growth.checkAwards();
     if (window.Dashboard && window.Dashboard.logMood) window.Dashboard.logMood(text);
 
     // Show typing indicator
@@ -421,6 +445,10 @@
           const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
           window.Voice.speak(response.text, personaId);
         }
+        // 앱이 백그라운드거나 다른 탭을 보고 있으면 놓치지 않게 알림
+        const pName = window.Personas ? window.Personas.getActive().name : '우렁의사';
+        if (document.hidden) { this.notify(pName, response.text); this.playWoorung(); }
+        if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
       }
       
       if (response.crisis) {
@@ -451,10 +479,11 @@
     // 우렁이 스티커 메시지: 말풍선 없이 캐릭터만 폴짝
     if (msg.sticker && window.Stickers) {
       wrapper.classList.add('sticker-msg');
+      const activeP = window.Personas ? window.Personas.getActive() : { id: 'woorung' };
       wrapper.innerHTML = `
-        <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
+        <div class="message-avatar">${window.Personas ? window.Personas.avatarSvg(activeP.id, 34) : (window.Icons ? window.Icons.art.mascot(34) : '')}</div>
         <div style="background: none; border: none; box-shadow: none; padding: 0;">
-          ${window.Stickers.svg(msg.sticker, 108)}
+          ${window.Stickers.svgFor ? window.Stickers.svgFor(activeP.id, msg.sticker, 108) : window.Stickers.svg(msg.sticker, 108)}
           <span class="message-time" style="display: block; text-align: center;">${time}</span>
         </div>
       `;
@@ -762,6 +791,37 @@
     this._setNavBadge('dashboard', true);
   },
 
+  // === 스티커 팝 — 우렁이가 화면 가운데 폴짝 나타났다 사라지는 리액션 ===
+  stickerPop(name, ms = 1400) {
+    if (!window.Stickers) return;
+    const old = document.getElementById('sticker-pop');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.id = 'sticker-pop';
+    el.style.cssText = 'position: fixed; left: 50%; top: 42%; transform: translate(-50%,-50%) scale(0.4); z-index: 10009; pointer-events: none; opacity: 0; transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.25s; line-height: 0; filter: drop-shadow(0 10px 24px rgba(0,0,0,0.25));';
+    const pid = window.Personas ? window.Personas.getActive().id : 'woorung';
+    el.innerHTML = window.Stickers.svgFor ? window.Stickers.svgFor(pid, name, 150) : window.Stickers.svg(name, 150);
+    document.body.appendChild(el);
+    requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translate(-50%,-50%) scale(1)'; });
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-50%) scale(0.7)'; setTimeout(() => el.remove(), 300); }, ms);
+  },
+
+  // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
+  notify(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true };
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg && reg.showNotification) reg.showNotification(title, opts);
+          else new Notification(title, opts);
+        }).catch(() => { try { new Notification(title, opts); } catch (e) {} });
+        return;
+      }
+      new Notification(title, opts);
+    } catch (e) {}
+  },
+
   _setNavBadge(tab, on) {
     const nav = document.querySelector(`.nav-item[data-tab="${tab}"]`);
     if (!nav) return;
@@ -910,11 +970,10 @@ ${memory || '(없음)'}`;
       const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
       this.displayMessage(msg);
       window.Storage.saveMessage(msg);
-      this.playNotify(); // 알림음 + 진동
+      this.playWoorung(); // "우렁!" + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
-      if ('Notification' in window && Notification.permission === 'granted') {
-        try { new Notification(persona.name, { body: text, icon: 'icon.png', vibrate: [120, 60, 120] }); } catch (e) {}
-      }
+      this.notify(persona.name, text); // 시스템 알림 (백그라운드에서도 도착)
+      if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
     } catch (e) {}
   },
 
@@ -958,6 +1017,7 @@ ${memory || '(없음)'}`;
         <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
           <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openHumanChat('${b.counselorId}')">💬 채팅</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ? '📎 자료 전달됨 ✓' : '📎 상담 자료 보내기'}</button>
         </div>
       </div>`).join('')
       || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
@@ -986,11 +1046,112 @@ ${memory || '(없음)'}`;
     }
   },
 
+  // ==========================================================================
+  //  상담 자료 공유 — 예약된 상담사에게 내 기록 요약을 '동의하에' 전달
+  //  (서버 연동 전: 공유 시트/클립보드로 상담사에게 직접 전달할 수 있는 텍스트 생성)
+  // ==========================================================================
+  openSharePack(bookingId) {
+    const b = ((window.Storage._safeGet('cbt_bookings', []) || [])).find(x => x.id === bookingId);
+    if (!b) return;
+    const old = document.getElementById('share-pack-overlay');
+    if (old) old.remove();
+    const records = (window.Storage.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_'));
+    const nights = window.Storage._safeGet('cbt_night_journal', []) || [];
+    const reports = window.Storage._safeGet('cbt_my_reports', []) || [];
+    const ov = document.createElement('div');
+    ov.id = 'share-pack-overlay';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 400px; max-height: 84vh; overflow-y: auto;">
+        <h2 style="margin-top: 0;">📎 상담 자료 보내기</h2>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 0.9rem;"><b>${b.name}</b> 상담사에게 전달할 자료를 골라주세요.<br>동의한 항목만 요약본에 담깁니다.</p>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
+            <input type="checkbox" id="sp-records" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${records.length ? '' : 'disabled'}>
+            📝 사고 기록 최근 ${Math.min(records.length, 5)}건 ${records.length ? '' : '(없음)'}
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
+            <input type="checkbox" id="sp-nights" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${nights.length ? '' : 'disabled'}>
+            🌙 하루 정리 최근 ${Math.min(nights.length, 7)}건 ${nights.length ? '' : '(없음)'}
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
+            <input type="checkbox" id="sp-report" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${reports.length ? '' : 'disabled'}>
+            ✨ AI 상담 요약 리포트 최신 1건 ${reports.length ? '' : '(없음)'}
+          </label>
+          <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
+            <input type="checkbox" id="sp-mood" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;">
+            📊 최근 2주 감정 요약 (평균·자주 나온 감정)
+          </label>
+        </div>
+        <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0.8rem 0;">※ 대화 원문은 전달되지 않아요. 요약본은 공유 창(또는 복사)으로 상담사에게 직접 전달하며, 전달 후에는 상담사의 개인정보 보호 의무 아래 관리됩니다.</p>
+        <div class="form-actions" style="display: flex; gap: 0.5rem;">
+          <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('share-pack-overlay').remove()">취소</button>
+          <button class="btn-primary" style="flex: 1;" onclick="window.App.sendSharePack('${bookingId}')">동의하고 전달</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+
+  sendSharePack(bookingId) {
+    const b = ((window.Storage._safeGet('cbt_bookings', []) || [])).find(x => x.id === bookingId);
+    if (!b) return;
+    const on = id => { const el = document.getElementById(id); return el && el.checked && !el.disabled; };
+    const parts = [`[우렁의사 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
+
+    if (on('sp-mood')) {
+      const from = Date.now() - 14 * 86400000;
+      const log = (window.Storage._safeGet('cbt_mood_log', []) || []).filter(m => m.ts >= from);
+      if (log.length) {
+        const avg = log.reduce((s, m) => s + (m.v || 3), 0) / log.length;
+        const cnt = {};
+        log.forEach(m => { if (m.emo) cnt[m.emo] = (cnt[m.emo] || 0) + 1; });
+        const top = Object.entries(cnt).sort((a, b2) => b2[1] - a[1]).slice(0, 3).map(([e, c]) => `${e} ${c}회`).join(', ');
+        parts.push(`■ 최근 2주 감정\n기록 ${log.length}회 · 평균 ${avg.toFixed(1)}/5\n자주 나온 감정: ${top || '없음'}`);
+      }
+    }
+    if (on('sp-records')) {
+      const records = (window.Storage.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_')).slice(0, 5);
+      parts.push('■ 사고 기록 (상황 → 자동적 사고 → 대안적 사고)\n' + records.map(r =>
+        `· [${new Date(r.date).toLocaleDateString('ko-KR')}] ${r.situation || ''}\n  생각: ${r.thought || ''}\n  대안: ${r.alternative || '(미작성)'}${r.newEmotions ? `\n  감정 변화: ${(r.emotions || []).map(e => `${e.name} ${e.intensity}%`).join(', ')} → ${r.newEmotions}` : ''}`).join('\n'));
+    }
+    if (on('sp-nights')) {
+      const nights = (window.Storage._safeGet('cbt_night_journal', []) || []).slice(0, 7);
+      parts.push('■ 하루 정리 (취침 전 회고)\n' + nights.map(j =>
+        `· [${new Date(j.ts).toLocaleDateString('ko-KR')}] 기분: ${j.mood ? j.mood.emo : '미기록'}${j.moment ? ` / ${j.moment}` : ''}${j.note ? ` / 스스로에게: ${j.note}` : ''}`).join('\n'));
+    }
+    if (on('sp-report')) {
+      const rep = (window.Storage._safeGet('cbt_my_reports', []) || [])[0];
+      if (rep) parts.push(`■ AI 상담 요약 리포트 (${rep.date})\n${(rep.body || '').slice(0, 1200)}`);
+    }
+
+    const text = parts.join('\n\n');
+    const packs = window.Storage._safeGet('cbt_shared_packs', {}) || {};
+    packs[bookingId] = { ts: Date.now(), counselor: b.name, text }; // 원문 보관 — 상담사 수신함(콘솔)에서 열람
+    window.Storage._safeSet('cbt_shared_packs', packs);
+    const ovEl = document.getElementById('share-pack-overlay');
+    if (ovEl) ovEl.remove();
+    this.renderMyBookings();
+
+    const finish = () => this.showRecordToast('📎 상담 자료가 준비됐어요. 상담사에게 전달해주세요');
+    const fallbackShow = () => alert('아래 내용을 복사해 상담사에게 전달해주세요:\n\n' + text.slice(0, 1500));
+    if (navigator.share) {
+      navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).then(finish).catch(() => {
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => this.showRecordToast('📋 자료가 클립보드에 복사됐어요')).catch(fallbackShow);
+      });
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => this.showRecordToast('📋 자료가 클립보드에 복사됐어요 (상담 채팅에 붙여넣기)')).catch(fallbackShow);
+    } else {
+      fallbackShow();
+    }
+  },
+
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
   quickMood(v, emo, emoji) {
     const log = window.Storage._safeGet('cbt_mood_log', []) || [];
     log.push({ ts: Date.now(), emo, v });
     window.Storage._safeSet('cbt_mood_log', log.slice(-800));
+    window.Storage.markDayActive();
+    if (window.Growth) window.Growth.checkAwards();
     // 우렁이 반응 토스트
     const reactions = {
       '기쁨': ['우로록! 좋은 날이네 ✨', '오늘 기분 최고구나!'],
@@ -1001,9 +1162,12 @@ ${memory || '(없음)'}`;
     };
     const msgs = reactions[emo] || ['기록했어!'];
     this.showRecordToast(`${emoji} ${msgs[Math.floor(Math.random() * msgs.length)]}`);
+    // 우렁이 리액션 팝: 고른 감정에 맞는 표정으로 등장
+    const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'empathy', '우울': 'love' };
+    this.stickerPop(popMap[emo] || 'joy', 1300);
     // 선택 강조
     document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
-    const btn = [...document.querySelectorAll('#quick-mood-row button')].find(b => b.textContent === emoji);
+    const btn = document.querySelector(`#quick-mood-row button[data-emo="${emo}"]`);
     if (btn) btn.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
     if (window.Dashboard) { window.Dashboard.renderTodayMoodChart(); }
     // 힘든 감정이면 안정 도구 권유
@@ -1118,17 +1282,75 @@ ${memory || '(없음)'}`;
     const el = document.getElementById('my-counselor-apps');
     if (!el) return;
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
-    el.innerHTML = apps.map(a => `
+    el.innerHTML = apps.map(a => {
+      const approved = a.status === 'approved';
+      const rejected = a.status === 'rejected';
+      const delisted = a.status === 'delisted';
+      const chip = approved
+        ? '<span style="flex-shrink: 0; background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">입점 완료</span>'
+        : rejected
+          ? '<span style="flex-shrink: 0; background: #e05d5d22; color: #c14a4a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">반려됨</span>'
+          : delisted
+            ? '<span style="flex-shrink: 0; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--glass-border); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">노출 중단됨</span>'
+            : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>';
+      return `
       <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
           <div style="min-width: 0;">
             <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
             <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
           </div>
-          <span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>
+          ${chip}
         </div>
-        <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; margin-top: 0.55rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
-      </div>`).join('');
+        ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
+        ${delisted ? '<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">운영팀에 의해 노출이 중단되었어요. 문의는 고객센터로 부탁드려요.</p>' : ''}
+        ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
+          <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
+          ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  // 관리자 승인 (데모) — 실서비스에서는 백엔드 관리자 콘솔에서 검수 후 승인한다.
+  // 승인되면 신청 정보가 실제 상담사 카드로 변환되어 '상담사 매칭' 탭에 노출된다.
+  approveCounselorApp(appId) {
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    const a = apps.find(x => x.id === appId);
+    if (!a || a.status === 'approved') return;
+    if (!confirm(`[관리자 데모]\n'${a.name}' 님의 자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?\n\n실서비스에서는 운영팀 관리자 콘솔에서 서류 검토 후 승인됩니다.`)) return;
+    a.status = 'approved';
+    window.Storage._safeSet('cbt_counselor_apps', apps);
+    // 매칭 탭에 노출될 상담사 카드 생성
+    const customs = window.Storage._safeGet('cbt_custom_counselors', []) || [];
+    customs.unshift({
+      id: 'cu_' + Date.now(),
+      fromApp: a.id, // 신청서와 연결 — 노출 중단 시 신청 상태도 함께 바꾼다
+      name: `${a.name} ${/전문의/.test(a.license) ? '전문의' : '상담사'}`,
+      hospital: a.hospital,
+      tel: a.tel || '',
+      safeTel: '0507-14' + String(Math.floor(Math.random() * 90) + 10) + '-' + String(Math.floor(Math.random() * 9000) + 1000),
+      callRate: 700,
+      lat: 37.5665 + (Math.random() - 0.5) * 0.05,
+      lng: 126.9780 + (Math.random() - 0.5) * 0.05,
+      rating: 5.0,
+      reviews: 0,
+      tags: ['신규 입점', a.license],
+      price: a.price || 40000,
+      avatar: Math.floor(Math.random() * 3),
+      isAvailableNow: true,
+      isNew: true,
+      career: [
+        `현) ${a.hospital}`,
+        a.license + (a.career ? ` · 경력 ${a.career}년` : ''),
+        ...(a.intro ? [a.intro] : [])
+      ],
+      reviewsList: []
+    });
+    window.Storage._safeSet('cbt_custom_counselors', customs);
+    this.renderCounselorApps();
+    alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
   },
 
   // === 상담사 가능 시간 설정 (요일 × 시간 토글) ===
@@ -1251,6 +1473,15 @@ ${memory || '(없음)'}`;
     this._tone(880, 0.14, 0);
     this._tone(1174, 0.18, 0.16);
     if (navigator.vibrate) { try { navigator.vibrate([120, 60, 120]); } catch (e) {} }
+  },
+
+  // 알림 시그니처: '우-렁!' 리듬의 귀여운 방울 알림음 + 진동 (TTS 없음)
+  playWoorung() {
+    if (navigator.vibrate) { try { navigator.vibrate([90, 50, 160]); } catch (e) {} }
+    // 낮게 '우' → 높게 통통 '렁!' 튀는 3음 차임
+    this._tone(659, 0.10, 0);          // 우
+    this._tone(988, 0.10, 0.11);       // 렁
+    this._tone(1319, 0.20, 0.22);      // ! (통-)
   },
 
   // 전화 연결음(뚜루루): 1초 울리고 2초 쉬는 표준 링백톤

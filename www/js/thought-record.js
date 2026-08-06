@@ -20,7 +20,7 @@ window.ThoughtRecord = {
   init() {
     if (this._inited) return; this._inited = true;
     const btnNew = document.getElementById('btn-new-record');
-    if (btnNew) btnNew.addEventListener('click', () => this.showForm());
+    if (btnNew) btnNew.addEventListener('click', () => this.startWizard());
     
     const formClose = document.getElementById('record-form-close');
     const formCancel = document.getElementById('rf-cancel');
@@ -390,7 +390,289 @@ window.ThoughtRecord = {
   
   createFromChat(data) {
     window.App.switchTab('record');
-    this.showForm(data);
+    this.startWizard(data);
+  },
+
+  // ==========================================================================
+  //  손으로 쓰는 사고기록 위저드 — 한 화면 한 질문, 우렁이가 CBT 순서대로 안내
+  //  (기존 한 장짜리 폼은 showForm으로 유지 — 위저드 1단계에서 전환 가능)
+  // ==========================================================================
+  EMOTION_PRESETS: ['불안', '우울', '분노', '짜증', '수치심', '죄책감', '외로움', '서운함', '무기력', '긴장'],
+
+  startWizard(prefilled = {}) {
+    this._wiz = {
+      situation: prefilled.situation || '',
+      thought: prefilled.thought || '',
+      emotions: [],      // [{name, intensity}]
+      distortions: [],
+      alternative: '',
+      after: {}          // {name: intensity}
+    };
+    this._wizStep(1);
+  },
+
+  _wizWrap(inner, step) {
+    const old = document.getElementById('tr-wizard');
+    if (old) old.remove();
+    const TOTAL = 6;
+    const ov = document.createElement('div');
+    ov.id = 'tr-wizard';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: var(--bg-primary); color: var(--text-primary); display: flex; flex-direction: column; overflow-y: auto; padding: 1.2rem 1.4rem;';
+    const dots = step ? `<div style="display: flex; gap: 0.35rem; justify-content: center; margin-bottom: 1.1rem;">${Array.from({ length: TOTAL }, (_, i) =>
+      `<span style="width: 8px; height: 8px; border-radius: 50%; background: ${i < step ? 'var(--accent-primary)' : 'var(--glass-border)'}; transition: background 0.3s;"></span>`).join('')}</div>` : '';
+    ov.innerHTML = `<div style="width: 100%; max-width: 400px; margin: auto; padding: 1.6rem 0 2rem;">${dots}${inner}</div>
+      <button onclick="window.ThoughtRecord._wizClose()" style="all: unset; position: fixed; top: 0.9rem; right: 1.1rem; font-size: 1.3rem; cursor: pointer; opacity: 0.6; padding: 0.3rem;">✕</button>`;
+    document.body.appendChild(ov);
+    const ta = ov.querySelector('textarea');
+    if (ta) setTimeout(() => ta.focus(), 150);
+  },
+
+  _wizClose() {
+    const w = this._wiz || {};
+    const hasContent = (w.situation || w.thought) && !w._saved;
+    if (hasContent && !confirm('쓰던 기록이 사라져요. 그만할까요?')) return;
+    const ov = document.getElementById('tr-wizard');
+    if (ov) ov.remove();
+  },
+
+  _wizNav(backStep, nextLabel) {
+    return `<div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+      ${backStep ? `<button id="trw-back" class="btn-secondary" style="flex: 0 0 auto; width: auto; padding: 0.8rem 1rem;">‹ 이전</button>` : ''}
+      <button id="trw-next" class="btn-primary" style="flex: 1;">${nextLabel}</button>
+    </div>`;
+  },
+
+  // ‹ 이전을 눌러도 쓰던 입력이 사라지지 않도록: 저장 콜백 후 이동
+  _wizBindBack(backStep, save) {
+    const b = document.getElementById('trw-back');
+    if (b) b.addEventListener('click', () => { if (save) save(); this._wizStep(backStep); });
+  },
+
+  _wizStep(n) {
+    const w = this._wiz;
+    const sticker = (name, size) => window.Stickers ? window.Stickers.svg(name, size || 84) : '';
+    const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+    if (n === 1) {
+      this._wizWrap(`
+        <div style="text-align: center;">${sticker('empathy', 92)}</div>
+        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; text-align: center;">무슨 일이 있었어요?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">언제, 어디서, 누구와 있었던 일인지<br>사진 찍듯 그 장면만 적어보세요.</p>
+        <textarea id="trw-input" rows="4" placeholder="예: 월요일 아침 회의에서 내 제안이 조용히 넘어갔다" style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.situation)}</textarea>
+        ${this._wizNav(null, '다음 ›')}
+        <button onclick="window.ThoughtRecord._wizToClassicForm()" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.76rem; color: var(--text-muted); cursor: pointer;">한 화면에서 한꺼번에 쓰기 (기존 양식)</button>`, 1);
+      document.getElementById('trw-next').addEventListener('click', () => {
+        const v = document.getElementById('trw-input').value.trim();
+        if (!v) { document.getElementById('trw-input').placeholder = '한 줄이면 충분해요. 그 장면을 적어주세요 :)'; return; }
+        w.situation = v;
+        this._wizStep(2);
+      });
+
+    } else if (n === 2) {
+      this._wizWrap(`
+        <div style="text-align: center;">${sticker('surprise', 92)}</div>
+        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; text-align: center;">그 순간, 머릿속을<br>스친 생각은?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">검열하지 말고 떠오른 그대로,<br>따옴표 안에 넣듯 적어보세요.</p>
+        <textarea id="trw-input" rows="4" placeholder='예: "역시 내 의견은 별로인가 봐"' style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.thought)}</textarea>
+        ${this._wizNav(1, '다음 ›')}`, 2);
+      this._wizBindBack(1, () => { w.thought = document.getElementById('trw-input').value; });
+      document.getElementById('trw-next').addEventListener('click', () => {
+        const v = document.getElementById('trw-input').value.trim();
+        if (!v) { document.getElementById('trw-input').placeholder = '짧아도 괜찮아요. 스친 생각 하나만요'; return; }
+        w.thought = v;
+        this._wizStep(3);
+      });
+
+    } else if (n === 3) {
+      const selected = w.emotions.map(e => e.name);
+      this._wizWrap(`
+        <h2 style="margin: 0 0 0.3rem; font-size: 1.25rem; text-align: center;">그때 마음은 어땠어요?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem;">느꼈던 감정을 골라주세요 (최대 3개)</p>
+        <div id="trw-emo-chips" style="display: flex; flex-wrap: wrap; gap: 0.45rem; justify-content: center;">
+          ${this.EMOTION_PRESETS.map(name => `<button data-emo="${name}" style="all: unset; box-sizing: border-box; padding: 0.5rem 0.95rem; border-radius: 999px; font-size: 0.88rem; font-weight: 600; cursor: pointer; border: 1.5px solid ${selected.includes(name) ? 'var(--accent-primary)' : 'var(--glass-border)'}; background: ${selected.includes(name) ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-secondary)'}; color: ${selected.includes(name) ? 'var(--accent-primary)' : 'var(--text-primary)'};">${name}</button>`).join('')}
+        </div>
+        <div style="display: flex; gap: 0.4rem; margin-top: 0.7rem;">
+          <input id="trw-emo-custom" placeholder="다른 감정 직접 쓰기" style="flex: 1; min-width: 0; padding: 0.55rem 0.8rem; border-radius: 999px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.85rem;">
+          <button id="trw-emo-add" class="btn-secondary" style="width: auto; padding: 0.5rem 0.9rem; font-size: 0.85rem;">추가</button>
+        </div>
+        <div id="trw-emo-sliders" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.7rem;"></div>
+        ${this._wizNav(2, '다음 ›')}`, 3);
+
+      const renderSliders = () => {
+        const box = document.getElementById('trw-emo-sliders');
+        box.innerHTML = w.emotions.map((e, i) => `
+          <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.35rem;">
+              <span>${esc(e.name)}</span><span id="trw-ev-${i}" style="color: var(--accent-primary);">${e.intensity}%</span>
+            </div>
+            <input type="range" data-i="${i}" min="0" max="100" value="${e.intensity}" style="width: 100%; accent-color: var(--accent-primary);">
+          </div>`).join('');
+        box.querySelectorAll('input[type=range]').forEach(sl => sl.addEventListener('input', () => {
+          const i = parseInt(sl.dataset.i, 10);
+          w.emotions[i].intensity = parseInt(sl.value, 10);
+          document.getElementById(`trw-ev-${i}`).textContent = sl.value + '%';
+        }));
+      };
+      const toggleEmo = (name) => {
+        const idx = w.emotions.findIndex(e => e.name === name);
+        if (idx >= 0) w.emotions.splice(idx, 1);
+        else if (w.emotions.length < 3) w.emotions.push({ name, intensity: 70 });
+        else { if (window.App && window.App.showRecordToast) window.App.showRecordToast('감정은 3개까지 고를 수 있어요'); return; }
+        this._wizStep(3); // 칩 상태 다시 그림
+      };
+      document.querySelectorAll('#trw-emo-chips button').forEach(b => b.addEventListener('click', () => toggleEmo(b.dataset.emo)));
+      document.getElementById('trw-emo-add').addEventListener('click', () => {
+        const v = document.getElementById('trw-emo-custom').value.trim();
+        if (v) toggleEmo(v);
+      });
+      renderSliders();
+      this._wizBindBack(2);
+      document.getElementById('trw-next').addEventListener('click', () => {
+        if (w.emotions.length === 0) { if (window.App && window.App.showRecordToast) window.App.showRecordToast('감정을 하나만 골라주세요'); return; }
+        this._wizStep(4);
+      });
+
+    } else if (n === 4) {
+      this._wizWrap(`
+        <h2 style="margin: 0 0 0.3rem; font-size: 1.25rem; text-align: center;">혹시 생각의 함정에<br>빠진 건 아닐까요?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 0.4rem; line-height: 1.5;">"${esc(w.thought).slice(0, 40)}${w.thought.length > 40 ? '…' : ''}"</p>
+        <p style="font-size: 0.78rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem;">이 생각에 숨어있는 패턴이 보이면 골라주세요. 몰라도 괜찮아요.</p>
+        <div id="trw-dist-chips" style="display: flex; flex-wrap: wrap; gap: 0.45rem; justify-content: center;">
+          ${this.distortions.map(d => `<button data-d="${d.id}" style="all: unset; box-sizing: border-box; padding: 0.5rem 0.85rem; border-radius: 999px; font-size: 0.84rem; font-weight: 600; cursor: pointer; border: 1.5px solid ${w.distortions.includes(d.id) ? 'var(--accent-primary)' : 'var(--glass-border)'}; background: ${w.distortions.includes(d.id) ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-secondary)'}; color: ${w.distortions.includes(d.id) ? 'var(--accent-primary)' : 'var(--text-primary)'};">${d.label}</button>`).join('')}
+        </div>
+        ${this._wizNav(3, '다음 ›')}
+        <button onclick="window.ThoughtRecord._wiz.distortions = []; window.ThoughtRecord._wizStep(5)" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.78rem; color: var(--text-muted); cursor: pointer;">잘 모르겠어요, 건너뛰기</button>`, 4);
+      document.querySelectorAll('#trw-dist-chips button').forEach(b => b.addEventListener('click', () => {
+        const id = b.dataset.d;
+        const idx = w.distortions.indexOf(id);
+        if (idx >= 0) w.distortions.splice(idx, 1); else w.distortions.push(id);
+        this._wizStep(4);
+      }));
+      this._wizBindBack(3);
+      document.getElementById('trw-next').addEventListener('click', () => this._wizStep(5));
+
+    } else if (n === 5) {
+      this._wizWrap(`
+        <div style="text-align: center;">${sticker('cheer', 92)}</div>
+        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; text-align: center;">친구가 같은 생각을 한다면,<br>뭐라고 말해줄래요?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">나에게도 그 다정함을 돌려주세요.<br>조금 더 균형 잡힌 생각을 적어봐요.</p>
+        <textarea id="trw-input" rows="4" placeholder="예: 한 번 조용히 넘어갔다고 내 의견이 별로라는 증거는 아니야" style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.alternative)}</textarea>
+        <button id="trw-hint" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.65rem; margin-top: 0.6rem; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent); color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer;">💡 우렁이에게 힌트 받기</button>
+        <div id="trw-hint-box" class="hidden" style="margin-top: 0.6rem; padding: 0.85rem 1rem; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent); font-size: 0.85rem; line-height: 1.6;"></div>
+        ${this._wizNav(4, '다음 ›')}`, 5);
+      this._wizBindBack(4, () => { w.alternative = document.getElementById('trw-input').value; });
+      document.getElementById('trw-hint').addEventListener('click', () => this._wizHint());
+      document.getElementById('trw-next').addEventListener('click', () => {
+        w.alternative = document.getElementById('trw-input').value.trim();
+        // 이전 감정 강도를 초기값으로 복사
+        w.emotions.forEach(e => { if (!(e.name in w.after)) w.after[e.name] = e.intensity; });
+        this._wizStep(6);
+      });
+
+    } else if (n === 6) {
+      this._wizWrap(`
+        <h2 style="margin: 0 0 0.3rem; font-size: 1.25rem; text-align: center;">지금은 어때요?</h2>
+        <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">방금 쓴 생각을 한 번 소리 내어 읽고,<br>같은 감정을 다시 느껴보세요.</p>
+        ${w.alternative ? `<div style="padding: 0.8rem 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--glass-border); font-size: 0.86rem; line-height: 1.6; margin-bottom: 1rem;">💬 ${esc(w.alternative)}</div>` : ''}
+        <div style="display: flex; flex-direction: column; gap: 0.7rem;">
+          ${w.emotions.map((e, i) => `
+            <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.35rem;">
+                <span>${esc(e.name)} <span style="font-weight: 400; color: var(--text-muted); font-size: 0.76rem;">(처음 ${e.intensity}%)</span></span>
+                <span id="trw-av-${i}" style="color: var(--accent-primary);">${w.after[e.name]}%</span>
+              </div>
+              <input type="range" data-name="${esc(e.name)}" data-i="${i}" min="0" max="100" value="${w.after[e.name]}" style="width: 100%; accent-color: var(--accent-primary);">
+            </div>`).join('')}
+        </div>
+        ${this._wizNav(5, '기록 저장하기 ✓')}`, 6);
+      this._wizBindBack(5);
+      document.querySelectorAll('#tr-wizard input[type=range]').forEach(sl => sl.addEventListener('input', () => {
+        w.after[sl.dataset.name] = parseInt(sl.value, 10);
+        document.getElementById(`trw-av-${sl.dataset.i}`).textContent = sl.value + '%';
+      }));
+      document.getElementById('trw-next').addEventListener('click', () => this._wizFinish());
+    }
+  },
+
+  _wizToClassicForm() {
+    const w = this._wiz || {};
+    const ov = document.getElementById('tr-wizard');
+    const cur = document.getElementById('trw-input');
+    if (cur) w.situation = cur.value; // 1단계(상황 입력)에서만 진입 가능 — 쓰던 내용 보존
+    if (ov) ov.remove();
+    this._wiz = null;
+    this.showForm({ situation: w.situation, thought: w.thought });
+  },
+
+  async _wizHint() {
+    const w = this._wiz;
+    const btn = document.getElementById('trw-hint');
+    const box = document.getElementById('trw-hint-box');
+    if (!btn || !box) return;
+    btn.style.pointerEvents = 'none';
+    btn.textContent = '우렁이가 생각 중… 🐌';
+    let hint = '이렇게 스스로에게 물어보세요:\n· 이 생각이 100% 사실이라는 증거는 뭘까?\n· 반대되는 증거는 하나도 없을까?\n· 가장 친한 친구가 이 생각을 말했다면 나는 뭐라고 답할까?';
+    try {
+      if (window.LLM) {
+        const distLabels = w.distortions.map(id => (this.distortions.find(d => d.id === id) || {}).label).filter(Boolean).join(', ');
+        const res = await window.LLM._chatCompletion({
+          model: window.LLM.MODEL,
+          messages: [{ role: 'user', content: `당신은 다정한 CBT 상담사 '우렁이'입니다. 사용자가 사고기록지를 쓰는 중입니다.\n상황: ${w.situation}\n자동적 사고: ${w.thought}\n감정: ${w.emotions.map(e => `${e.name} ${e.intensity}%`).join(', ')}\n${distLabels ? `사용자가 고른 인지왜곡: ${distLabels}\n` : ''}\n이 생각을 다시 바라보게 돕는 (1) 소크라테스식 질문 1개와 (2) 균형 잡힌 대안적 사고 예시 1문장을 제시하세요. 반말 없이 부드럽게, 60자 내외 두 줄로. 머리기호 없이 줄바꿈으로만 구분해 출력.` }],
+          temperature: 0.7,
+          max_tokens: 160
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const t = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+          if (t) hint = t;
+        }
+      }
+    } catch (e) {}
+    box.classList.remove('hidden');
+    box.innerHTML = `🐌 ${hint.replace(/\n/g, '<br>')}`;
+    btn.textContent = '💡 다른 힌트 받기';
+    btn.style.pointerEvents = '';
+  },
+
+  _wizFinish() {
+    const w = this._wiz;
+    const newEmotions = w.emotions.map(e => `${e.name} ${w.after[e.name]}%`).join(', ');
+    const record = {
+      id: 'rec_' + Date.now(),
+      date: new Date().toISOString(),
+      situation: w.situation,
+      thought: w.thought,
+      emotions: w.emotions,
+      distortions: w.distortions,
+      alternative: w.alternative,
+      newEmotions
+    };
+    window.Storage.saveThoughtRecord(record);
+    w.distortions.forEach(id => window.Storage.incrementDistortion(id));
+    if (w.emotions.length > 0) {
+      const avgInt = w.emotions.reduce((s, e) => s + e.intensity, 0) / w.emotions.length;
+      window.Storage.saveMoodEntry({ date: new Date().toISOString(), score: Math.max(1, Math.min(5, Math.round(5 - (avgInt / 25)))) });
+    }
+    window.Storage.markDayActive();
+    w._saved = true;
+    this.loadRecords();
+    if (window.Growth) window.Growth.checkAwards();
+    if (window.Dashboard && window.App && window.App.currentTab === 'dashboard') window.Dashboard.refresh();
+
+    // 완료 화면: 감정 변화 전/후 비교
+    const before = Math.round(w.emotions.reduce((s, e) => s + e.intensity, 0) / w.emotions.length);
+    const after = Math.round(w.emotions.reduce((s, e) => s + w.after[e.name], 0) / w.emotions.length);
+    const drop = before - after;
+    const bar = (v, color) => `<div style="width: 100%; background: var(--bg-tertiary); border-radius: 99px; height: 12px; overflow: hidden;"><div style="width: ${v}%; background: ${color}; height: 100%; border-radius: 99px; transition: width 0.8s;"></div></div>`;
+    this._wizWrap(`
+      <div style="text-align: center;">${window.Stickers ? window.Stickers.svg('proud', 110) : '🎉'}</div>
+      <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.3rem; text-align: center;">기록 완료!</h2>
+      <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin: 0 0 1.2rem; line-height: 1.6;">${drop > 0 ? `생각을 정리하는 것만으로<br>마음의 무게가 <b style="color: var(--accent-primary);">${drop}%p</b> 가벼워졌어요.` : '지금 당장 가벼워지지 않아도 괜찮아요.<br>알아차린 것 자체가 큰 걸음이에요.'}</p>
+      <div style="display: flex; flex-direction: column; gap: 0.8rem; text-align: left;">
+        <div><div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem;"><span>기록 전</span><b>${before}%</b></div>${bar(before, 'linear-gradient(90deg, #f87171, #ef4444)')}</div>
+        <div><div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem;"><span>기록 후</span><b>${after}%</b></div>${bar(after, 'linear-gradient(90deg, #34d399, #10b981)')}</div>
+      </div>
+      <button onclick="window.ThoughtRecord._wizClose()" class="btn-primary" style="width: 100%; margin-top: 1.4rem;">확인 🌿</button>`);
   }
 };
 

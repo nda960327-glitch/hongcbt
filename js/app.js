@@ -1126,7 +1126,7 @@ ${memory || '(없음)'}`;
 
     const text = parts.join('\n\n');
     const packs = window.Storage._safeGet('cbt_shared_packs', {}) || {};
-    packs[bookingId] = { ts: Date.now(), len: text.length };
+    packs[bookingId] = { ts: Date.now(), counselor: b.name, text }; // 원문 보관 — 상담사 수신함(콘솔)에서 열람
     window.Storage._safeSet('cbt_shared_packs', packs);
     const ovEl = document.getElementById('share-pack-overlay');
     if (ovEl) ovEl.remove();
@@ -1285,11 +1285,14 @@ ${memory || '(없음)'}`;
     el.innerHTML = apps.map(a => {
       const approved = a.status === 'approved';
       const rejected = a.status === 'rejected';
+      const delisted = a.status === 'delisted';
       const chip = approved
         ? '<span style="flex-shrink: 0; background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">입점 완료</span>'
         : rejected
           ? '<span style="flex-shrink: 0; background: #e05d5d22; color: #c14a4a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">반려됨</span>'
-          : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>';
+          : delisted
+            ? '<span style="flex-shrink: 0; background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--glass-border); font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">노출 중단됨</span>'
+            : '<span style="flex-shrink: 0; background: #f5c74e33; color: #b98a1a; font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.55rem; border-radius: 999px;">검수중</span>';
       return `
       <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
@@ -1300,7 +1303,8 @@ ${memory || '(없음)'}`;
           ${chip}
         </div>
         ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
-        ${!rejected ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
+        ${delisted ? '<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">운영팀에 의해 노출이 중단되었어요. 문의는 고객센터로 부탁드려요.</p>' : ''}
+        ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
           <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
@@ -1322,6 +1326,7 @@ ${memory || '(없음)'}`;
     const customs = window.Storage._safeGet('cbt_custom_counselors', []) || [];
     customs.unshift({
       id: 'cu_' + Date.now(),
+      fromApp: a.id, // 신청서와 연결 — 노출 중단 시 신청 상태도 함께 바꾼다
       name: `${a.name} ${/전문의/.test(a.license) ? '전문의' : '상담사'}`,
       hospital: a.hospital,
       tel: a.tel || '',

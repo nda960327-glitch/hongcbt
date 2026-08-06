@@ -61,7 +61,21 @@ window.MemoryVault = {
       moodEntries: window.Storage._safeGet("cbt_mood_entries", []),
       distortionStats: window.Storage.getDistortionStats(),
       activeDays: window.Storage._safeGet("cbt_active_days", []),
-      totalSessions: window.Storage.getTotalSessions()
+      totalSessions: window.Storage.getTotalSessions(),
+      // 성장 시스템 (스트릭·뱃지·하루정리·체크인) — 이게 빠지면 "어제처럼 기억"이 깨진다
+      moodLog: window.Storage._safeGet("cbt_mood_log", []),          // 원탭 기분 체크인
+      nightJournal: window.Storage._safeGet("cbt_night_journal", []), // 오늘 하루 정리
+      badges: window.Storage._safeGet("cbt_badges", {}),
+      breathCount: window.Storage._safeGet("cbt_breath_count", 0),
+      totalChats: window.Storage._safeGet("cbt_total_chats", 0),
+      userName: window.Storage._safeGet("cbt_user_name", ""),
+      missionLog: window.Storage._safeGet("cbt_mission_log", []),        // 행동 미션 기록
+      weeklyLetters: window.Storage._safeGet("cbt_weekly_letters", []),  // 주간 편지
+      quizBest: window.Storage._safeGet("cbt_quiz_best", null),
+      shields: window.Storage._safeGet("cbt_streak_shields", 0),         // 스트릭 보호권
+      activePersona: window.Storage._safeGet("cbt_active_persona", null),
+      onboardDone: window.Storage._safeGet("cbt_onboard_done", false),
+      concerns: window.Storage._safeGet("cbt_user_concerns", [])
     };
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
@@ -99,6 +113,20 @@ window.MemoryVault = {
     if (data.distortionStats) window.Storage._safeSet("cbt_distortion_stats", data.distortionStats);
     if (Array.isArray(data.activeDays)) window.Storage._safeSet("cbt_active_days", data.activeDays);
     if (data.totalSessions !== undefined) window.Storage._safeSet("cbt_total_sessions", data.totalSessions);
+    // 성장 시스템 (v1 파일에 없으면 조용히 건너뜀 — 구버전 백업과 호환)
+    if (Array.isArray(data.moodLog)) window.Storage._safeSet("cbt_mood_log", data.moodLog);
+    if (Array.isArray(data.nightJournal)) window.Storage._safeSet("cbt_night_journal", data.nightJournal);
+    if (data.badges) window.Storage._safeSet("cbt_badges", data.badges);
+    if (data.breathCount !== undefined) window.Storage._safeSet("cbt_breath_count", data.breathCount);
+    if (data.totalChats !== undefined) window.Storage._safeSet("cbt_total_chats", data.totalChats);
+    if (data.userName) window.Storage._safeSet("cbt_user_name", data.userName);
+    if (Array.isArray(data.missionLog)) window.Storage._safeSet("cbt_mission_log", data.missionLog);
+    if (Array.isArray(data.weeklyLetters)) window.Storage._safeSet("cbt_weekly_letters", data.weeklyLetters);
+    if (data.quizBest) window.Storage._safeSet("cbt_quiz_best", data.quizBest);
+    if (data.shields !== undefined) window.Storage._safeSet("cbt_streak_shields", data.shields);
+    if (data.activePersona) window.Storage._safeSet("cbt_active_persona", data.activePersona);
+    if (data.onboardDone !== undefined) window.Storage._safeSet("cbt_onboard_done", data.onboardDone);
+    if (Array.isArray(data.concerns)) window.Storage._safeSet("cbt_user_concerns", data.concerns);
     alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;
