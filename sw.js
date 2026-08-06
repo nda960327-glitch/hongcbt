@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cbt-app-v3';
+const CACHE_NAME = 'cbt-app-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -36,16 +36,37 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network first strategy for index.html to ensure updates
-  if (event.request.mode === 'navigate' || event.request.url.includes('index.html')) {
+  const req = event.request;
+
+  // API 호출(POST 등)은 절대 가로채지 않는다.
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+  if (url.pathname.startsWith('/api/')) return;
+
+  // 코드와 화면은 '네트워크 우선'. 예전에는 JS를 캐시 우선으로 주는 바람에
+  // 앱을 고쳐도 기기에 옛날 코드가 계속 남아 있었다.
+  const isCode = req.mode === 'navigate' ||
+                 url.pathname.endsWith('.html') ||
+                 url.pathname.endsWith('.js') ||
+                 url.pathname.endsWith('.css');
+
+  if (isCode) {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
+      fetch(req)
+        .then((res) => {
+          // 최신본을 받아오면 캐시도 같이 갱신해 오프라인에 대비한다.
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(req))   // 오프라인이면 마지막으로 받은 버전 사용
     );
     return;
   }
-  
+
+  // 이미지·아이콘 등 정적 자원은 캐시 우선이어도 무방하다.
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });

@@ -131,18 +131,10 @@ window.Chatbot = {
     }
     
     this._saveSession();
-    
-    // Save generated bot messages
-    if (window.Storage && responses.length > 0) {
-      responses.forEach(resp => {
-        window.Storage.saveMessage({
-          role: 'bot',
-          text: resp.text,
-          quickReplies: resp.quickReplies
-        });
-      });
-    }
-    
+
+    // 여기서 저장하지 않는다. 화면에 띄우는 app.js의 displayBotResponses()가
+    // 이미 저장하므로, 여기서도 저장하면 메시지가 두 번씩 쌓여 새로고침 때
+    // 같은 답이 중복으로 보인다.
     return responses;
   },
   
