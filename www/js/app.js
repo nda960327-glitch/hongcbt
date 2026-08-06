@@ -1017,7 +1017,9 @@ ${memory || '(없음)'}`;
           <span class="h-ico" data-icon="calendar" data-icon-size="17"></span>${b.time}
         </div>
         <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>
+          ${b.whenTs && Math.abs(b.whenTs - now) < 3600000
+            ? `<button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 예약 상담 시작 <span style="font-size: 0.66rem; font-weight: 500;">(30분 정액 · 추가 과금 없음)</span></button>`
+            : `<button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>`}
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openHumanChat('${b.counselorId}')">💬 채팅</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ? '📎 자료 전달됨 ✓' : '📎 상담 자료 보내기'}</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem; color: #c14a4a;" onclick="window.App.cancelBooking('${b.id}')">예약 취소</button>
@@ -1755,7 +1757,14 @@ ${memory || '(없음)'}`;
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const prepaid = bookings.some(b => b.counselorId === c.id && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
     if (!prepaid) {
-      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)\n연결할까요?`)) return;
+      // 이 상담사에게 예약이 있는데 시간 밖이면: 지금 통화는 별도 과금임을 분명히 알린다
+      const nextBk = bookings
+        .filter(x => x.counselorId === c.id && x.status !== 'cancelled' && x.whenTs && x.whenTs > Date.now())
+        .sort((x, y) => x.whenTs - y.whenTs)[0];
+      const bkWarn = nextBk
+        ? `\n\n📌 주의: [${nextBk.time}] 예약이 잡혀 있어요.\n예약 시간(전후 1시간)에 걸면 30분 정액으로 추가 과금이 없습니다.\n지금 거는 전화는 예약과 별개인 '바로상담'이라 위 요금이 차감돼요.`
+        : '';
+      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
     window.CallTalk.startHuman(c.id, { prepaid });
   },

@@ -74,6 +74,7 @@ window.Booking = {
       </div>
       <div style="margin-top: 0.65rem; padding-top: 0.6rem; border-top: 1px dashed var(--glass-border); font-size: 0.78rem; color: var(--text-secondary); line-height: 1.7;">
         <b style="color: var(--text-primary);">예약 후 이렇게 진행돼요</b><br>
+        · 예약 상담은 <b>30분 정액제</b>예요 — 통화 중 30초당 과금이 <b>전혀 없습니다</b>. (쓴 만큼 과금되는 건 예약 없이 거는 '바로상담'만!)<br>
         · 1회기 상담 시간은 <b>30분</b>입니다.<br>
         · 예약이 확정되면 <b>알림</b>으로 알려드려요.<br>
         · 예약 시간이 되면 <b>마이페이지 › 나의 상담 내역</b>의 [📞 전화 상담] 버튼으로 상담사님과 바로 연결됩니다.<br>

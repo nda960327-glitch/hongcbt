@@ -195,6 +195,14 @@
   deleteMission(ts, key) {
     const log = (window.Storage._safeGet('cbt_mission_log', []) || []).filter(m => m.ts !== ts);
     window.Storage._safeSet('cbt_mission_log', log);
+    // 오늘 미션을 지운 거라면 홈 카드의 '완료' 상태도 되돌린다 (다시 도전 가능)
+    const s = window.Storage._safeGet('cbt_daily_mission', null);
+    if (s && s.done && new Date(ts).toLocaleDateString('sv-CA') === s.date) {
+      s.done = false;
+      delete s.ts;
+      window.Storage._safeSet('cbt_daily_mission', s);
+      if (window.Missions) window.Missions.renderCard();
+    }
     this.renderCareFootprint();
     this.openDayDetail(key);
   },

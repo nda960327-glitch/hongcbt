@@ -230,7 +230,7 @@
           </div>
         </div>
         <div class="cc-bottom">
-          <div class="cc-price"><span>30분 상담</span><strong>${c.price.toLocaleString()}원</strong></div>
+          <div class="cc-price"><span>30분 상담 <b style="color: var(--text-primary);">${c.price.toLocaleString()}원</b> <span style="opacity: 0.75;">(예약 정액)</span></span><strong style="font-size: 0.8rem; color: var(--accent-secondary);">⚡ 바로상담 ${this.callRateFor(c).toLocaleString()}/30초</strong></div>
           <div class="cc-actions">
             <button class="btn-secondary cc-btn" onclick="window.Marketplace.openProfile('${c.id}')">프로필</button>
             <button class="btn-secondary cc-btn" onclick="window.App.openHumanChat('${c.id}')">💬 채팅</button>
