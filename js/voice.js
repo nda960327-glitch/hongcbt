@@ -172,6 +172,15 @@ window.Voice = {
 
     if (!clean) return;
 
+    // 음성 대화 핑퐁 템포 유지: 장문 답장이 오더라도 음성은 첫 2문장(최대 90자)까지만 짤막하게 대화체로 읽는다
+    const sents = clean.match(/[^.!?…]+[.!?…]*/g) || [clean];
+    if (sents.length > 2) {
+      clean = sents.slice(0, 2).join(" ").trim();
+    }
+    if (clean.length > 90) {
+      clean = clean.substring(0, 90).trim();
+    }
+
     const utter = new SpeechSynthesisUtterance(clean);
     if (this.selectedVoice) utter.voice = this.selectedVoice;
     utter.lang = 'ko-KR';
