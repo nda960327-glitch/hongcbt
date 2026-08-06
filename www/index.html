@@ -286,8 +286,14 @@
 
     <!-- DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-content">
-      <div class="tab-header">
-        <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
+      <div class="tab-header" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+        <div>
+          <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
+        </div>
+        <button class="btn-primary" style="font-size: 0.82rem; padding: 0.42rem 0.85rem; display: inline-flex; align-items: center; gap: 0.35rem; width: auto; border-radius: var(--radius-full); box-shadow: var(--shadow-sm); flex-shrink: 0;" onclick="window.App.switchTab('record')">
+          <span class="h-ico" data-icon="record" data-icon-size="16"></span>
+          <span>사고 기록지</span>
+        </button>
       </div>
       <div class="dashboard-grid">
         <div class="dash-card glass-card">
@@ -668,9 +674,9 @@
         <span class="nav-ico" data-icon="chat" data-icon-size="23"></span>
         <span>챗봇</span>
       </button>
-      <button class="nav-item" data-tab="record">
-        <span class="nav-ico" data-icon="record" data-icon-size="23"></span>
-        <span>기록</span>
+      <button class="nav-item" data-tab="counselors">
+        <span class="nav-ico" data-icon="counselor" data-icon-size="23"></span>
+        <span>상담사 매칭</span>
       </button>
       <button class="nav-item" data-tab="dashboard">
         <span class="nav-ico" data-icon="dashboard" data-icon-size="23"></span>
