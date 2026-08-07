@@ -10,26 +10,29 @@
   MEMORY_MODEL: "gpt-4o",     // 장기기억 정리 (비동기, 사용자 대기 없음)
   HISTORY_WINDOW: 30,         // 프롬프트에 넣는 최근 대화 수
 
+  // Cloudflare Worker 프록시 주소. 키는 Worker 시크릿에만 있고 앱에는 없다.
+  // 배포 후(wrangler deploy) 출력된 주소를 여기에 넣으면 폰·배포본에서도 AI가 동작한다.
+  BACKEND_URL: "https://cbt-proxy.hongcbt.workers.dev",
+
   _getApiKey() {
-    // 사용자가 프로필에서 입력한 키가 있으면 우선, 없으면 내장 키 사용
+    // 앱에 키를 내장하지 않는다. 사용자가 직접 넣은 개인 키(Pro 모드)만 쓴다.
     const userKey = window.Storage && window.Storage.getApiKey && window.Storage.getApiKey();
-    if (userKey && userKey.startsWith('sk-')) return userKey;
-    const k1 = "sk-proj-OLKhNsS6AYoHD2mZjT413zSk";
-    const k2 = "FXIH3xqLii2M6aK_Y2p7v87IXSMuqhqj";
-    const k3 = "aq-lBD9A8wytukjVhzT3BlbkFJ35vPAS";
-    const k4 = "pbxlC8M-V8nHFOdY1OWe9EIh1nWZ7D_A";
-    const k5 = "9j1OxHanWCeb8oMo5sysM5CbidLaKmq8T3AA";
-    return k1 + k2 + k3 + k4 + k5;
+    return (userKey && userKey.startsWith('sk-')) ? userKey : null;
   },
 
-  _proxyAvailable: undefined, // undefined=미확인, true=사용, false=미지원(직접 호출)
+  _proxyAvailable: undefined, // undefined=미확인, true=사용, false=미지원(다음 경로로)
 
-  // 채팅 완성 요청. 가능하면 동일 출처(Node 서버) 프록시로 보내 브라우저의
-  // CORS/네트워크 문제를 우회하고, 프록시가 없으면 OpenAI로 직접 호출한다.
+  // 백엔드가 하나도 없을 때 쓰는 가짜 응답 (503) — 호출부가 상태코드로 안내를 고른다
+  _noBackend() {
+    return new Response(JSON.stringify({ error: { message: "no-backend" } }),
+      { status: 503, headers: { "Content-Type": "application/json" } });
+  },
+
+  // 채팅 완성 요청. ①동일 출처 프록시 ②Worker ③사용자 개인 키 순으로 시도한다.
   async _chatCompletion(payload) {
     const isHttp = typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
 
-    // 1. 동일 출처 /api/chat 프록시 시도
+    // 1. 동일 출처 /api/chat 프록시 (로컬 개발 서버)
     if (this._proxyAvailable !== false && isHttp) {
       try {
         const r = await fetch("/api/chat", {
@@ -49,23 +52,21 @@
       }
     }
 
-    // 2. 로컬 개발 서버(http://localhost:3030/api/chat) 프록시 시도
-    if (isHttp && typeof location !== 'undefined' && location.port !== '3030') {
+    // 2. Cloudflare Worker 프록시 (폰·배포본의 주 경로)
+    if (this.BACKEND_URL) {
       try {
-        const r = await fetch("http://localhost:3030/api/chat", {
+        const r = await fetch(this.BACKEND_URL.replace(/\/+$/, "") + "/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const contentType = r.headers.get("content-type") || "";
-        if (r.ok && contentType.includes("application/json")) {
-          return r;
-        }
+        if (r.status !== 404) return r;
       } catch (e) {}
     }
 
-    // 3. 직접 OpenAI API 호출
+    // 3. 사용자가 직접 넣은 개인 키로 호출 (설정한 사람만)
     const apiKey = this._getApiKey();
+    if (!apiKey) return this._noBackend();
     return fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -484,6 +485,9 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     }
     if (status === 429) {
       return "지금 이용자가 많아서 잠깐 순서를 기다려야 해요.\n1~2분 뒤에 다시 말 걸어주시겠어요?";
+    }
+    if (status === 503) {
+      return "아직 AI 서버가 연결되지 않았어요. (앱 설정이 끝나지 않은 상태예요)\n앱 관리자에게 알려주시면 금방 연결할 수 있어요.";
     }
     return "지금 AI에 연결하지 못하고 있어요. 인터넷 연결을 확인하고 잠시 후 다시 시도해주세요.\n\n많이 힘든 상태라면 기다리지 마시고 꼭 도움을 받아요.\n· 자살예방상담전화 1393 (24시간)\n· 정신건강상담전화 1577-0199";
   },

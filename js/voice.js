@@ -271,8 +271,20 @@ window.Voice = {
       });
     } catch (e) { res = null; }
 
-    // 2) 프록시가 없으면(APK 등) OpenAI 직접 호출
-    if (!res || !res.ok || !((res.headers.get('content-type') || '').includes('audio'))) {
+    // 2) 동일 출처 프록시가 없으면(폰·배포본) Cloudflare Worker로
+    const isAudio = r => r && r.ok && (r.headers.get('content-type') || '').includes('audio');
+    if (!isAudio(res) && window.LLM && window.LLM.BACKEND_URL) {
+      try {
+        res = await fetch(window.LLM.BACKEND_URL.replace(/\/+$/, '') + '/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) { res = null; }
+    }
+
+    // 3) 그래도 없으면 사용자가 직접 넣은 개인 키로 (설정한 사람만)
+    if (!isAudio(res)) {
       const key = window.LLM && window.LLM._getApiKey ? window.LLM._getApiKey() : null;
       if (!key) throw new Error('no-key');
       res = await fetch('https://api.openai.com/v1/audio/speech', {

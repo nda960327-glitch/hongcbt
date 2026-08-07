@@ -1,4 +1,4 @@
-// 우렁의사 CBT AI 프록시 (Cloudflare Worker)
+// 우렁의사 AI 프록시 (Cloudflare Worker)
 // -------------------------------------------------------------
 // OpenAI API 키를 "서버에만" 보관하고, 브라우저에는 절대 노출하지 않습니다.
 // 브라우저 → (키 없이) 이 Worker → (숨긴 키로) OpenAI → Worker → 브라우저
@@ -10,11 +10,18 @@
 //   4) wrangler deploy
 //   5) 출력된 주소(예: https://cbt-proxy.<계정>.workers.dev)를
 //      js/llm.js 의 BACKEND_URL 에 넣으면 끝.
+//
+// [경로]
+//   POST /chat  (또는 /api/chat, 그리고 하위호환용 /) → 채팅 응답 (JSON)
+//   POST /tts   (또는 /api/tts)                      → 음성 합성 (mp3)
 // -------------------------------------------------------------
 
 const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o"];
-const MAX_TOKENS_CAP = 800;
+const ALLOWED_TTS_MODELS = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"];
+const ALLOWED_VOICES = ["coral", "nova", "shimmer", "sage", "alloy", "echo", "ash", "onyx", "fable"];
+const MAX_TOKENS_CAP = 1500;
 const MAX_MESSAGES = 40;
+const MAX_TTS_CHARS = 2000;
 
 export default {
   async fetch(request, env) {
@@ -29,42 +36,77 @@ export default {
     // CORS preflight
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
-
     if (!env.OPENAI_API_KEY) return json({ error: "Server not configured" }, 500, cors);
 
     let body;
     try { body = await request.json(); }
     catch { return json({ error: "Bad JSON" }, 400, cors); }
 
-    const messages = Array.isArray(body.messages) ? body.messages : null;
-    if (!messages || !messages.length) return json({ error: "messages required" }, 400, cors);
-
-    // 남용 방지: 모델 화이트리스트 / 토큰·메시지 상한 / 온도 클램프
-    const model = ALLOWED_MODELS.includes(body.model) ? body.model : "gpt-4o-mini";
-    const max_tokens = Math.min(Number(body.max_tokens) || 600, MAX_TOKENS_CAP);
-    const temperature = typeof body.temperature === "number"
-      ? Math.max(0, Math.min(1.2, body.temperature)) : 0.75;
-    const trimmed = messages.length > MAX_MESSAGES
-      ? messages.slice(messages.length - MAX_MESSAGES) : messages;
-
-    // 서버가 숨긴 키로 OpenAI 호출
-    const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({ model, messages: trimmed, temperature, max_tokens }),
-    });
-
-    // OpenAI 응답을 그대로 전달 (클라이언트의 기존 파싱과 호환)
-    const data = await upstream.text();
-    return new Response(data, {
-      status: upstream.status,
-      headers: { ...cors, "Content-Type": "application/json" },
-    });
+    const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
+    return path === "/tts" ? handleTts(body, env, cors) : handleChat(body, env, cors);
   },
 };
+
+// --- 채팅 완성 ---
+async function handleChat(body, env, cors) {
+  const messages = Array.isArray(body.messages) ? body.messages : null;
+  if (!messages || !messages.length) return json({ error: "messages required" }, 400, cors);
+
+  // 남용 방지: 모델 화이트리스트 / 토큰·메시지 상한 / 온도 클램프
+  const model = ALLOWED_MODELS.includes(body.model) ? body.model : "gpt-4o-mini";
+  const max_tokens = Math.min(Number(body.max_tokens) || 600, MAX_TOKENS_CAP);
+  const temperature = typeof body.temperature === "number"
+    ? Math.max(0, Math.min(1.2, body.temperature)) : 0.75;
+  const trimmed = messages.length > MAX_MESSAGES
+    ? messages.slice(messages.length - MAX_MESSAGES) : messages;
+
+  const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({ model, messages: trimmed, temperature, max_tokens }),
+  });
+
+  // OpenAI 응답을 그대로 전달 (클라이언트의 기존 파싱과 호환)
+  const data = await upstream.text();
+  return new Response(data, {
+    status: upstream.status,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
+}
+
+// --- 음성 합성 (TTS) — mp3 바이너리를 그대로 흘려보낸다 ---
+async function handleTts(body, env, cors) {
+  const input = typeof body.input === "string" ? body.input.slice(0, MAX_TTS_CHARS) : "";
+  if (!input.trim()) return json({ error: "input required" }, 400, cors);
+
+  const model = ALLOWED_TTS_MODELS.includes(body.model) ? body.model : "gpt-4o-mini-tts";
+  const voice = ALLOWED_VOICES.includes(body.voice) ? body.voice : "coral";
+  const speed = Math.max(0.5, Math.min(2, Number(body.speed) || 1));
+
+  const payload = { model, voice, input, speed, response_format: "mp3" };
+  if (typeof body.instructions === "string") payload.instructions = body.instructions.slice(0, 500);
+
+  const upstream = await fetch("https://api.openai.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!upstream.ok) {
+    const err = await upstream.text();
+    return new Response(err, { status: upstream.status, headers: { ...cors, "Content-Type": "application/json" } });
+  }
+  return new Response(upstream.body, {
+    status: 200,
+    headers: { ...cors, "Content-Type": "audio/mpeg" },
+  });
+}
 
 function json(obj, status, cors) {
   return new Response(JSON.stringify(obj), {

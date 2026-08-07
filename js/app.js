@@ -2591,16 +2591,6 @@ ${memory || '(없음)'}`;
     const input = document.getElementById('api-key-input');
     let key = input ? input.value.trim() : '';
     
-    // Hidden shortcut for easy access (obfuscated to bypass GitHub secret scanning)
-    if (key === '1024') {
-      const part1 = 'sk-proj-ULgXXtFEzTua_rJbGKJt';
-      const part2 = 'DcJskKeL0L5ULIkjwEHllVV4t';
-      const part3 = 'kUugrhBlOplNHSwYw41N4X_bsp';
-      const part4 = '5R7T3BlbkFJLiJyNiSTEtcZ31J25N';
-      const part5 = 'wyBHOrMMiajw9WVAE84yQnXPLJ';
-      const part6 = 'BM-5RJLttpzL0brgHrdgSgUKTtIf8A';
-      key = part1 + part2 + part3 + part4 + part5 + part6;
-    }
 
     if (key) {
       window.Storage.setApiKey(key);
