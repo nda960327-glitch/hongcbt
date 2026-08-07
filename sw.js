@@ -26,6 +26,7 @@ const ASSETS = [
   './js/onboard.js',
   './js/stickershop.js',
   './js/applock.js',
+  './js/safety.js',
   './js/admin.js',
   './js/dashboard.js',
   './js/learn.js',

@@ -142,6 +142,66 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     this.renderCard();
   },
 
+  // 편지를 예쁜 이미지 카드로 — 저장하거나 친구에게 공유 (은은한 입소문 루프)
+  async shareCard(letterId) {
+    const l = this.letters().find(x => x.id === letterId) || this.letters()[0];
+    if (!l) return;
+    const W = 720, PAD = 64, LH = 46;
+    const cv = document.createElement('canvas');
+    const ctx = cv.getContext('2d');
+    // 본문 줄바꿈 계산
+    ctx.font = '26px "Noto Sans KR", sans-serif';
+    const lines = [];
+    l.text.split('\n').forEach(par => {
+      if (!par.trim()) { lines.push(''); return; }
+      let cur = '';
+      for (const ch of par) {
+        if (ctx.measureText(cur + ch).width > W - PAD * 2) { lines.push(cur); cur = ch; }
+        else cur += ch;
+      }
+      if (cur) lines.push(cur);
+    });
+    const H = 300 + lines.length * LH + 140;
+    cv.width = W; cv.height = H;
+    const c2 = cv.getContext('2d');
+    // 배경: 크림 + 상단 세이지 그라데이션 띠
+    c2.fillStyle = '#faf5ee'; c2.fillRect(0, 0, W, H);
+    const grad = c2.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, '#4f8a6b'); grad.addColorStop(1, '#86cba8');
+    c2.fillStyle = grad; c2.fillRect(0, 0, W, 14);
+    // 제목·날짜
+    c2.fillStyle = '#362f28';
+    c2.font = 'bold 40px "Gowun Batang", serif';
+    c2.fillText('💌 우렁이의 주간 편지', PAD, 110);
+    c2.fillStyle = '#7f7264';
+    c2.font = '24px "Noto Sans KR", sans-serif';
+    c2.fillText(new Date(l.ts).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }), PAD, 156);
+    c2.strokeStyle = 'rgba(120,96,66,0.18)'; c2.beginPath(); c2.moveTo(PAD, 190); c2.lineTo(W - PAD, 190); c2.stroke();
+    // 본문
+    c2.fillStyle = '#4a4239';
+    c2.font = '26px "Noto Sans KR", sans-serif';
+    lines.forEach((ln, i) => c2.fillText(ln, PAD, 250 + i * LH));
+    // 푸터
+    c2.fillStyle = '#4f8a6b';
+    c2.font = 'bold 26px "Noto Sans KR", sans-serif';
+    c2.fillText('🐌 우렁의사 — 당신을 기억하는 AI 마음 주치의', PAD, H - 60);
+
+    cv.toBlob(async blob => {
+      if (!blob) return;
+      const file = new File([blob], '우렁이_주간편지.png', { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ files: [file], title: '우렁이의 주간 편지' }).catch(() => {});
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = '우렁이_주간편지.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+        if (window.App) window.App.showRecordToast('🖼 편지 카드를 저장했어요');
+      }
+    }, 'image/png');
+  },
+
   renderCard() {
     const el = document.getElementById('weekly-letter-body');
     if (!el) return;
@@ -166,9 +226,12 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
           <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('think', 84) : '💌'}</span>
           <p style="font-size: 0.83rem; color: var(--text-muted); margin: 0.5rem 0 0;">아직 받은 편지가 없어요.<br>일주일을 보내고 나면 우렁이가 편지를 써드려요.</p>
         </div>`}
-      <button id="weekly-generate" class="btn-primary" style="width: 100%; margin-top: 0.8rem; font-size: 0.85rem;" onclick="window.Weekly.requestLetter()">
-        ${thisWeek ? '💌 이번 주 편지 다시 쓰기' : '💌 이번 주 편지 받기'}
-      </button>
+      <div style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
+        <button id="weekly-generate" class="btn-primary" style="flex: 1.4; font-size: 0.85rem;" onclick="window.Weekly.requestLetter()">
+          ${thisWeek ? '💌 편지 다시 쓰기' : '💌 이번 주 편지 받기'}
+        </button>
+        ${latest ? `<button class="btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="window.Weekly.shareCard('${latest.id}')">🖼 카드로 저장</button>` : ''}
+      </div>
       ${list.length > 1 ? `
         <p style="font-size: 0.74rem; color: var(--text-muted); margin: 0.8rem 0 0.4rem; font-weight: 700;">지난 편지들</p>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">${list.slice(1).map(l => letterHtml(l, false)).join('')}</div>` : ''}

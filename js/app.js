@@ -220,6 +220,10 @@
     if (window.Growth) window.Growth.init();
     if (window.Missions) window.Missions.renderCard();
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
+    this.renderHomeGreeting();
+    if (window.Safety) window.Safety.renderRow();
+    const soundCb = document.getElementById('setting-sound');
+    if (soundCb) soundCb.checked = window.Storage._safeGet('cbt_sound_on', true) !== false;
     if (window.Weekly) window.Weekly.autoDeliver();
     this._maybeBackupNudge();
     // 기존 사용자(이미 상담사 선택함)는 온보딩을 건너뛴 것으로 처리
@@ -331,6 +335,9 @@
     }
     if (tabName === 'home' && window.Missions) {
       window.Missions.renderCard();
+    }
+    if (tabName === 'home') {
+      this.renderHomeGreeting();
     }
     if (tabName === 'counselors' && window.Marketplace) {
       window.Marketplace.renderCounselors();
@@ -1282,6 +1289,46 @@ ${memory || '(없음)'}`;
     this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
   },
 
+  // === 홈 인사 배너 — 시간대와 오늘의 상태를 읽고 다음 한 걸음을 권한다 ===
+  renderHomeGreeting() {
+    const el = document.getElementById('home-greeting');
+    if (!el) return;
+    const h = new Date().getHours();
+    const name = window.Storage._safeGet('cbt_user_name', '');
+    const who = name ? `${name} 님` : '당신';
+    const today = new Date().toLocaleDateString('sv-CA');
+
+    // 시간대별 기본 인사 + 스티커
+    let hello, sticker;
+    if (h >= 5 && h < 11) { hello = `좋은 아침이에요, ${who} ☀️`; sticker = 'joy'; }
+    else if (h < 17) { hello = `${who}, 오늘 하루 잘 흘러가고 있나요?`; sticker = 'cheer'; }
+    else if (h < 21) { hello = `수고한 저녁이에요, ${who} 🌆`; sticker = 'tea'; }
+    else { hello = `고요한 밤이에요, ${who} 🌙`; sticker = 'sleepy'; }
+
+    // 오늘 상태를 읽고 '다음 한 걸음' 제안 (우선순위)
+    const checkedIn = (window.Storage._safeGet('cbt_mood_log', []) || []).some(m => new Date(m.ts).toLocaleDateString('sv-CA') === today);
+    const mission = window.Missions ? window.Missions.todayMission() : null;
+    const nightDone = (window.Storage._safeGet('cbt_night_journal', []) || []).some(j => new Date(j.ts).toLocaleDateString('sv-CA') === today);
+    const streak = window.Storage.getStreak ? window.Storage.getStreak() : 0;
+
+    let sub, action;
+    if (!checkedIn) { sub = '아직 오늘 마음을 안 물어봤네요. 지금 기분 어때요?'; action = null; /* 바로 아래 체크인 카드가 있음 */ }
+    else if ((h >= 20 || h < 2) && !nightDone) { sub = '자기 전 3분, 오늘 하루를 같이 정리해볼까요?'; action = { label: '🌙 하루 정리하기', fn: "window.Growth && window.Growth.startNight()" }; }
+    else if (mission && !mission.done && h >= 9 && h < 21) { sub = `오늘의 미션이 기다리고 있어요 — "${(mission.text || '').slice(0, 24)}…"`; action = null; }
+    else if (streak >= 2) { sub = `${streak}일 연속으로 마음을 돌보는 중이에요. 대단해요! 🔥`; action = null; }
+    else { const cheers = ['오늘도 당신 곁엔 우렁이가 있어요 🐌', '작은 한 걸음이면 충분한 하루예요', '숨 한 번 크게 — 잘하고 있어요']; sub = cheers[Math.floor(Math.random() * cheers.length)]; action = null; }
+
+    el.innerHTML = `
+      <div class="glass-card" style="padding: 0.95rem 1.05rem; display: flex; align-items: center; gap: 0.75rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary)), var(--bg-secondary));">
+        <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(sticker, 56) : '🐌'}</span>
+        <div style="flex: 1; min-width: 0;">
+          <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; font-family: var(--font-heading);">${hello}</strong>
+          <span style="font-size: 0.78rem; color: var(--text-secondary);">${sub}</span>
+          ${action ? `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem; margin-top: 0.45rem;" onclick="${action.fn}">${action.label}</button>` : ''}
+        </div>
+      </div>`;
+  },
+
   // === 노쇼 확인 — 예약 시간이 지났는데 통화 기록이 없으면 물어본다 ===
   _noshowTick() {
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
@@ -2096,6 +2143,7 @@ ${memory || '(없음)'}`;
   // 알림 시그니처: '우-렁!' 리듬의 귀여운 방울 알림음 + 진동 (TTS 없음)
   playWoorung() {
     if (navigator.vibrate) { try { navigator.vibrate([90, 50, 160]); } catch (e) {} }
+    if (window.Storage._safeGet('cbt_sound_on', true) === false) return; // 알림음 끔 설정
     // 낮게 '우' → 높게 통통 '렁!' 튀는 3음 차임
     this._tone(659, 0.10, 0);          // 우
     this._tone(988, 0.10, 0.11);       // 렁
@@ -2370,7 +2418,11 @@ ${memory || '(없음)'}`;
 
   // === 글자 크기 (접근성) ===
   initFontScale() {
-    const scale = window.Storage._safeGet('cbt_font_scale', '100') || '100';
+    let scale = String(window.Storage._safeGet('cbt_font_scale', '100') || '100');
+    // 구버전 단계(112/124)는 새 단계로 이관 (레이아웃 깨짐 방지)
+    if (scale === '112') scale = '108';
+    if (scale === '124') scale = '116';
+    window.Storage._safeSet('cbt_font_scale', scale);
     document.documentElement.style.fontSize = scale + '%';
     const sel = document.getElementById('setting-font-scale');
     if (sel) sel.value = scale;
@@ -2379,7 +2431,7 @@ ${memory || '(없음)'}`;
   setFontScale(scale) {
     window.Storage._safeSet('cbt_font_scale', String(scale));
     document.documentElement.style.fontSize = scale + '%';
-    this.showRecordToast(scale === '100' ? '글자 크기: 보통' : scale === '112' ? '글자 크기: 크게' : '글자 크기: 아주 크게');
+    this.showRecordToast(String(scale) === '100' ? '글자 크기: 보통' : String(scale) === '108' ? '글자 크기: 크게' : '글자 크기: 아주 크게');
   },
 
   // === Theme Management ===

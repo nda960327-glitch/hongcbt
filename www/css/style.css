@@ -385,8 +385,9 @@ p { color: var(--text-secondary); }
   flex: 1;
   height: 100%;
   width: 100%;
-  padding-top: 84px;
-  padding-bottom: calc(84px + var(--safe-bottom));
+  /* px 대신 rem — 글자 크기 설정(108%·116%)에서도 바(탭·헤더)와 콘텐츠가 함께 커져 겹치지 않는다 */
+  padding-top: 5.25rem;
+  padding-bottom: calc(5.25rem + var(--safe-bottom));
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -420,7 +421,7 @@ p { color: var(--text-secondary); }
   flex-direction: column;
   gap: 1.25rem;
   overflow-y: auto;
-  padding-bottom: 128px;
+  padding-bottom: 8rem;
 }
 .message {
   display: flex;
@@ -530,7 +531,7 @@ p { color: var(--text-secondary); }
   position: absolute;
   bottom: 0; left: 0;
   width: 100%;
-  padding: 0.75rem 1.25rem calc(0.75rem + 74px + var(--safe-bottom));
+  padding: 0.75rem 1.25rem calc(0.75rem + 4.65rem + var(--safe-bottom));
   background: linear-gradient(to top, var(--bg-primary) 88%, transparent);
 }
 .input-wrapper {
@@ -1491,7 +1492,7 @@ body.kb-open .tab-content { padding-bottom: 8px; }
 /* 입력창의 하단 패딩에 박혀 있던 탭바 몫(74px)도 함께 제거 —
    키보드 위에 빈 공간이 뜨던 문제의 원인 */
 body.kb-open .chat-input-area { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
-body.kb-open .chat-messages { padding-bottom: 70px; }
+body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 
 /* ============================================================
    반응형 — 작은 폰(≤380px, ≤340px)에서도 깨지지 않게

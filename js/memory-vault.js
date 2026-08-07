@@ -76,7 +76,11 @@ window.MemoryVault = {
       activePersona: window.Storage._safeGet("cbt_active_persona", null),
       onboardDone: window.Storage._safeGet("cbt_onboard_done", false),
       concerns: window.Storage._safeGet("cbt_user_concerns", []),
-      clientId: window.Storage._safeGet("cbt_client_id", null) // 서버 식별 ID — 기기 이전해도 채팅·예약 이어짐
+      clientId: window.Storage._safeGet("cbt_client_id", null), // 서버 식별 ID — 기기 이전해도 채팅·예약 이어짐
+      safetyPlan: window.Storage._safeGet("cbt_safety_plan", null),
+      favs: window.Storage._safeGet("cbt_favs", []),
+      stickerPacks: window.Storage._safeGet("cbt_sticker_packs", {}),
+      fontScale: window.Storage._safeGet("cbt_font_scale", "100")
     };
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
@@ -130,6 +134,10 @@ window.MemoryVault = {
     if (data.onboardDone !== undefined) window.Storage._safeSet("cbt_onboard_done", data.onboardDone);
     if (Array.isArray(data.concerns)) window.Storage._safeSet("cbt_user_concerns", data.concerns);
     if (data.clientId) window.Storage._safeSet("cbt_client_id", data.clientId);
+    if (data.safetyPlan) window.Storage._safeSet("cbt_safety_plan", data.safetyPlan);
+    if (Array.isArray(data.favs)) window.Storage._safeSet("cbt_favs", data.favs);
+    if (data.stickerPacks) window.Storage._safeSet("cbt_sticker_packs", data.stickerPacks);
+    if (data.fontScale) window.Storage._safeSet("cbt_font_scale", data.fontScale);
     alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;
