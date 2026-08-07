@@ -58,6 +58,7 @@
         <button class="btn ghost" onclick="load()">새로고침</button>
         <button class="btn ghost" onclick="logout()">잠그기</button>
       </div>
+      <div id="presence-card"></div>
       <div id="settlement"></div>
       <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">📅 예약 일정</h2>
       <div id="schedule"></div>
@@ -94,6 +95,41 @@
       show(await r.json());
       loadSchedule();
       loadChats();
+      loadPresence();
+    }
+
+    // 바로상담 수신 토글 — ON이어야 매칭 카드에 '지금 통화' 버튼이 열린다
+    async function loadPresence() {
+      const el = document.getElementById('presence-card');
+      const r = await fetch('/api/presence?code=' + encodeURIComponent(CODE)).catch(() => null);
+      if (!r || !r.ok) { el.innerHTML = ''; return; } // 운영자 마스터 코드 등은 토글 없음
+      const p = await r.json();
+      el.innerHTML = `
+        <div class="card" style="border: 1.5px solid ${p.available ? 'var(--accent)' : 'var(--line)'};">
+          <div class="item-head" style="cursor: default;">
+            <strong>⚡ 바로상담 받기</strong>
+            ${p.busy ? '<span class="badge-new" style="color: #cf6b60; background: #cf6b601e;">🔴 통화 중</span>' : p.available ? '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">수신 중</span>' : '<span class="badge-read">부재중</span>'}
+          </div>
+          <p class="muted" style="margin-top: 0.3rem;">${p.available
+            ? '내담자 매칭 카드에 [⚡ 바로상담] 버튼이 열려 있어요. 자리를 비울 땐 꼭 꺼주세요.'
+            : '지금은 부재중으로 표시돼요. 상담 받을 준비가 되면 켜주세요. (예약 상담은 꺼져 있어도 연결됩니다)'}</p>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.7rem;">
+            <button class="btn" style="flex: 1; margin: 0; ${p.available ? 'background: #cf6b60;' : ''}" onclick="togglePresence(${p.available ? 'false' : 'true'})">${p.available ? '수신 끄기 (부재중)' : '수신 켜기 (바로상담 받기)'}</button>
+            ${p.busy ? `<button class="btn ghost" style="width: auto; margin: 0;" onclick="forceEndCall('${p.id}')">회선 수동 해제</button>` : ''}
+          </div>
+        </div>`;
+    }
+
+    async function togglePresence(on) {
+      await fetch('/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: CODE, available: on }) }).catch(() => {});
+      loadPresence();
+    }
+
+    // 통화가 비정상 종료돼 회선이 잠긴 경우 수동 해제 (35분 후엔 자동 해제)
+    async function forceEndCall(counselorId) {
+      if (!confirm('통화 회선을 수동으로 해제할까요?\n(내담자 앱이 비정상 종료된 경우에만 사용하세요)')) return;
+      await fetch('/api/call/end', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ counselorId, code: CODE }) }).catch(() => {});
+      loadPresence();
     }
 
     async function loadSchedule() {

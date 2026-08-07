@@ -187,6 +187,9 @@
     const chip = document.getElementById('wallet-chip');
     if (chip && window.Wallet) chip.textContent = `💰 내 캐시 ${window.Wallet.balance().toLocaleString()} · 충전 ›`;
 
+    // 서버의 실시간 통화 상태 갱신 (10초 캐시)
+    if (!this._skipPresenceFetch) this.fetchPresence();
+
     const sortType = document.getElementById('counselor-sort') ? document.getElementById('counselor-sort').value : 'distance';
     const filterAvailable = document.getElementById('counselor-available-now') ? document.getElementById('counselor-available-now').checked : false;
 
@@ -197,7 +200,7 @@
     });
 
     if (filterAvailable) {
-      filtered = filtered.filter(c => c.isAvailableNow);
+      filtered = filtered.filter(c => this.liveState(c) === 'avail');
     }
 
     filtered.sort((a, b) => {
@@ -219,7 +222,7 @@
               <h3 style="margin: 0; font-size: 1.05rem;">${c.name}${c.isNew ? ' <span style="background: #e8590c22; color: #e8590c; font-size: 0.66rem; font-weight: 800; padding: 0.14rem 0.45rem; border-radius: 999px; vertical-align: middle;">NEW</span>' : ''}</h3>
               <div style="display: flex; align-items: center; gap: 0.35rem;">
                 <span class="cc-distance-badge" style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.76rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">📍 ${c.distance} km</span>
-                ${c.isAvailableNow ? '<span class="cc-badge">상담가능</span>' : ''}
+                ${this.liveState(c) === 'avail' ? '<span class="cc-badge">상담가능</span>' : this.liveState(c) === 'busy' ? '<span class="cc-badge" style="background: #cf6b6022; color: #cf6b60; border-color: #cf6b6044;">통화중</span>' : ''}
               </div>
             </div>
             <p class="meta-line cc-hospital" style="margin-top: 0.35rem; font-size: 0.82rem; color: var(--text-muted);">${window.Icons ? window.Icons.svg('hospital', { size: 14 }) : ''}<span>${c.hospital}</span></p>
@@ -241,16 +244,22 @@
               <b style="display: block; font-size: 0.88rem;">📅 예약 상담</b>
               <span style="font-size: 0.7rem; opacity: 0.9;">30분 정액 ${c.price.toLocaleString()}원</span>
             </button>
-            ${c.isAvailableNow
-              ? `<button onclick="window.App.startHumanCall('${c.id}')"
+            ${(() => {
+              const st = this.liveState(c);
+              if (st === 'avail') return `<button onclick="window.App.startHumanCall('${c.id}')"
                   style="all: unset; box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; cursor: pointer; background: color-mix(in srgb, var(--accent-secondary) 16%, var(--bg-tertiary)); border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 45%, transparent); color: var(--text-primary);">
                   <b style="display: block; font-size: 0.88rem; color: var(--accent-secondary);">⚡ 바로상담</b>
                   <span style="font-size: 0.7rem; color: var(--text-muted);">지금 통화 · ${this.callRateFor(c).toLocaleString()}캐시/30초</span>
-                </button>`
-              : `<div style="box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px dashed var(--glass-border); opacity: 0.65;">
+                </button>`;
+              if (st === 'busy') return `<div style="box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; background: color-mix(in srgb, #cf6b60 10%, var(--bg-tertiary)); border: 1.5px solid color-mix(in srgb, #cf6b60 35%, transparent);">
+                  <b style="display: block; font-size: 0.88rem; color: #cf6b60;">🔴 통화 중</b>
+                  <span style="font-size: 0.7rem; color: var(--text-muted);">끝나는 대로 열려요 — 채팅을 남겨보세요</span>
+                </div>`;
+              return `<div style="box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px dashed var(--glass-border); opacity: 0.65;">
                   <b style="display: block; font-size: 0.88rem; color: var(--text-muted);">⚡ 바로상담</b>
                   <span style="font-size: 0.7rem; color: var(--text-muted);">지금은 부재중 — 예약해주세요</span>
-                </div>`}
+                </div>`;
+            })()}
           </div>
           <div style="display: flex; gap: 0.5rem;">
             <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.4rem;" onclick="window.Marketplace.openProfile('${c.id}')">프로필·후기</button>
@@ -259,6 +268,33 @@
         </div>
       </div>
     `).join('');
+  },
+
+  // === 바로상담 실시간 상태 (서버 presence) ===
+  _presence: {},
+  _presenceTs: 0,
+
+  fetchPresence(force) {
+    if (!force && Date.now() - this._presenceTs < 10000) return; // 10초 캐시
+    this._presenceTs = Date.now();
+    fetch('/api/presence').then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      const changed = JSON.stringify(d.presence) !== JSON.stringify(this._presence);
+      this._presence = d.presence || {};
+      if (changed && document.getElementById('tab-counselors')?.classList.contains('active')) {
+        this._skipPresenceFetch = true;
+        this.renderCounselors();
+        this._skipPresenceFetch = false;
+      }
+    }).catch(() => {});
+  },
+
+  // 카드에 표시할 상태: avail(지금 통화 가능) / busy(통화 중) / off(부재중)
+  liveState(c) {
+    const p = this._presence[c.id];
+    if (!p) return c.isAvailableNow ? 'avail' : 'off'; // 서버 미연결 시 데모 폴백
+    if (!p.available) return 'off';
+    return p.busy ? 'busy' : 'avail';
   },
 
   // 바로상담(30초당) 요금 — 예약 상담료에서 자동 책정: ÷60 × 1.25(즉시성 프리미엄)

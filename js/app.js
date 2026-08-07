@@ -1967,7 +1967,28 @@ ${memory || '(없음)'}`;
         : '';
       if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
-    window.CallTalk.startHuman(c.id, { prepaid });
+    // 서버 회선 점유: 다른 내담자가 이미 통화 중이면 연결하지 않는다
+    fetch('/api/call/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counselorId: c.id, clientId: this.clientId(), prepaid })
+    }).then(async res => {
+      if (res.status === 409) {
+        const d = await res.json().catch(() => ({}));
+        if (window.Marketplace) window.Marketplace.fetchPresence(true);
+        if (d.reason === 'busy') {
+          if (confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n통화가 끝나면 매칭 카드가 다시 열립니다.\n\n먼저 채팅으로 메시지를 남겨둘까요?`)) this.openHumanChat(c.id);
+        } else {
+          alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
+        }
+        return;
+      }
+      // 200 성공 또는 서버 미연결(404 등) — 데모 폴백으로 통화 진행
+      window.CallTalk.startHuman(c.id, { prepaid });
+    }).catch(() => {
+      // 오프라인: 회선 관리 없이 데모 통화
+      window.CallTalk.startHuman(c.id, { prepaid });
+    });
   },
 
   openHumanChat(counselorId) {

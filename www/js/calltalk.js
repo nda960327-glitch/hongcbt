@@ -106,6 +106,7 @@ window.CallTalk = {
     if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
     this._active = true;
     this._human = true;
+    this._counselorId = c.id; // 통화 종료 시 서버 회선 해제용
     this._startTs = Date.now();
     this._spent = 0;
 
@@ -244,6 +245,18 @@ window.CallTalk = {
 
   end(reason) {
     if (!this._active) return;
+    // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
+    if (this._human && this._counselorId) {
+      try {
+        fetch('/api/call/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ counselorId: this._counselorId, clientId: window.App ? window.App.clientId() : '' })
+        }).catch(() => {});
+      } catch (e) {}
+      if (window.Marketplace) window.Marketplace.fetchPresence(true);
+      this._counselorId = null;
+    }
     this._active = false;
     this._human = false;
     this._rate = null;
