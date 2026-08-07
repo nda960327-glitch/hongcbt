@@ -198,6 +198,7 @@ window.Missions = {
     }
     if (window.App && window.App.playNotify) window.App.playNotify();
     if (window.Growth) window.Growth.checkAwards();
+    if (window.Farm) window.Farm.addWater(3, '오늘의 미션 완료');
   },
 
   // 완료 전엔 몇 번이든 다른 미션으로 교체 — 그날 이미 본 미션은 다시 안 나온다
@@ -217,8 +218,10 @@ window.Missions = {
   },
 
   renderCard() {
-    const el = document.getElementById('mission-card-body');
-    if (!el) return;
+    // 홈 카드와 대시보드(우렁이 세계) 퀘스트 칸 양쪽에 같은 내용을 그린다
+    const targets = [...document.querySelectorAll('[data-mission-card]')];
+    if (!targets.length) return;
+    const el = { set innerHTML(v) { targets.forEach(t => { t.innerHTML = v; }); } };
     const m = this.todayMission();
     const total = this.doneCount();
     if (m.done) {

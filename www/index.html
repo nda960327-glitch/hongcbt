@@ -399,34 +399,86 @@
 
     <!-- DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-content">
-      <div class="tab-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; padding-bottom: 0.25rem;">
-        <div>
-          <h2 style="margin: 0; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 대시보드</h2>
-          <p class="tab-subtitle" style="margin-top: 0.3rem;">감정 변화 추이와 인지왜곡 통합 리포트</p>
-        </div>
-        <!-- 사고 기록지 진입은 아래 우렁이 카드에서 -->
+      <div class="tab-header">
+        <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>우렁이의 세계</h2>
+        <p class="tab-subtitle">나를 돌보면 밭이 자라고, 우렁이도 함께 자라요</p>
       </div>
+
       <div class="dashboard-grid">
-        <div class="dash-card glass-card">
-          <h3>오늘의 감정 흐름</h3>
+        <!-- ① 우렁이 프로필 — 레벨 · 경험치 · 스트릭 (마이탭 '나의 꾸준함'에서 이동) -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
+            <h3 style="margin: 0;">🐌 나의 우렁이</h3>
+            <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
+          </div>
+          <div id="level-card"></div>
+          <div id="shield-row" style="margin-top: 0.7rem;"></div>
+        </div>
+
+        <!-- ② 오늘의 퀘스트 — 홈의 우렁 미션과 같은 내용 (data-mission-card 로 동기화) -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem;">
+            <h3 style="margin: 0;">🗡️ 오늘의 퀘스트</h3>
+            <span style="font-size: 0.7rem; font-weight: 700; color: #6f97ab;">완료하면 💧물 +3</span>
+          </div>
+          <div id="mission-card-hub" data-mission-card></div>
+        </div>
+
+        <!-- ③ 우렁이 농장 — 야채를 키워 씨앗코인을 모은다 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0 0 0.2rem;">🌱 우렁이 농장</h3>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.85rem; line-height: 1.5;">체크인·퀘스트·하루정리·사고기록·호흡을 하면 💧물이 고여요. 밭에 물을 주고, 다 자라면 거둬서 🌰씨앗코인을 모으세요.</p>
+          <div id="farm-body"></div>
+        </div>
+
+        <!-- ④ 우렁이 옷장 — 씨앗코인/우렁 캐시로 옷을 사서 입힌다 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0 0 0.2rem;">👒 우렁이 옷장</h3>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.85rem; line-height: 1.5;">입힌 옷은 앱 곳곳의 우렁이에게 전부 적용돼요. 퀘스트로만 얻는 아이템도 있어요.</p>
+          <div id="closet-body"></div>
+        </div>
+
+        <!-- ⑤ 훈장 (뱃지) — 마이탭에서 이동 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0 0 0.2rem;">🏅 우렁이 훈장</h3>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.85rem;">우렁이와 함께한 발자국이 훈장으로 쌓여요.</p>
+          <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
+        </div>
+
+        <!-- ⑥ 마음 정원 — 이번 주 돌봄 발자국 -->
+        <div class="dash-card glass-card stats-card" style="grid-column: 1 / -1;">
+          <div id="care-footprint"></div>
+        </div>
+
+        <!-- ⑦ 감정 날씨 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0;">⛅ 오늘의 감정 날씨</h3>
           <div id="today-mood-chart" class="chart-container" style="min-height: 70px;"></div>
-          <h3 style="margin-top: 1.1rem;">이번 주 감정 흐름</h3>
+          <h3 style="margin-top: 1.1rem;">🌤️ 이번 주 감정 날씨</h3>
           <div id="mood-chart" class="chart-container"></div>
           <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin: 0.4rem 0 0;">화면에는 최근 7일이 보이지만, 감정 기록은 사라지지 않고 계속 쌓이고 있어요. (대화를 지워도 유지)</p>
         </div>
-        <!-- 감정 캘린더 (월간 히트맵) -->
-        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
-          <div id="mood-calendar"></div>
-        </div>
 
-        <!-- 월간 리포트 -->
+        <!-- ⑧ 월간 리포트 -->
         <div class="dash-card glass-card" style="grid-column: 1 / -1;">
           <div id="monthly-report"></div>
         </div>
 
-        <!-- 인지왜곡 패턴 차트 제거 — 인사이트는 주간 편지·상담 자료 요약에 녹아 있음 -->
-        <div class="dash-card glass-card stats-card">
-          <div id="care-footprint"></div>
+        <!-- ⑨ 우렁이의 주간 편지 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <h3 style="margin: 0;">💌 우렁이의 주간 편지</h3>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">일주일의 감정·기록을 모아 우렁이가 편지로 정리해드려요. (일요일 밤 추천)</p>
+          <div id="weekly-letter-body"></div>
+        </div>
+
+        <!-- ⑩ 지난 밤들 (하루 정리 아카이브) -->
+        <div id="night-journal-card" class="dash-card glass-card hidden" style="grid-column: 1 / -1;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">🌙 지난 밤들</h3>
+            <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="window.Growth && window.Growth.startNight()">오늘 정리하기</button>
+          </div>
+          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">자기 전 우렁이와 함께 정리한 하루들이에요.</p>
+          <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
         </div>
 
         <!-- 사고 기록지 바로가기 -->
@@ -442,23 +494,7 @@
           </button>
         </div>
 
-        <!-- 우렁이의 주간 편지 -->
-        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
-          <h3 style="margin: 0;">💌 우렁이의 주간 편지</h3>
-          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">일주일의 감정·기록을 모아 우렁이가 편지로 정리해드려요. (일요일 밤 추천)</p>
-          <div id="weekly-letter-body"></div>
-        </div>
-
-        <!-- 지난 밤들 (하루 정리 아카이브) -->
-        <div id="night-journal-card" class="dash-card glass-card hidden" style="grid-column: 1 / -1;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">🌙 지난 밤들</h3>
-            <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="window.Growth && window.Growth.startNight()">오늘 정리하기</button>
-          </div>
-          <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0.3rem 0 0.8rem;">자기 전 우렁이와 함께 정리한 하루들이에요.</p>
-          <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
-        </div>
-
+        <!-- AI 상담 요약 리포트 -->
         <div class="dash-card glass-card" style="grid-column: 1 / -1;">
           <div style="display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
             <div>
@@ -640,44 +676,9 @@
         <p style="margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--text-muted);">캐시는 상담 예약 결제와 보이스톡(30초당 150캐시)에 사용돼요.</p>
       </div>
 
-      <!-- 꾸준함 & 뱃지 (성장 시스템) -->
+      <!-- 감정 캘린더 (월간 히트맵) — 대시보드에서 이동 -->
       <div class="glass-card" style="margin: 1rem; padding: 1.1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem;">
-          <h3 style="margin: 0;">🏅 나의 꾸준함</h3>
-          <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
-        </div>
-        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.3rem 0 0.85rem;">우렁이와 함께한 발자국이 뱃지로 쌓여요. 매일 들러 체크인만 해도 스트릭이 이어집니다.</p>
-        <div id="level-card"></div>
-        <div id="shield-row" style="margin-bottom: 0.85rem;"></div>
-        <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
-      </div>
-
-      <!-- 내 프로필 (이름·전화번호·성별) -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.15rem;">
-        <h3 style="margin-top: 0; margin-bottom: 0.35rem;">👤 내 프로필</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">AI 상담사가 이 이름으로 불러드리고, 전문 상담사 예약·연락에 활용돼요.</p>
-        <div style="display: flex; flex-direction: column; gap: 0.9rem;">
-          <div>
-            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">이름(별명)</label>
-            <input type="text" id="user-name-input" maxlength="12" placeholder="예: 민지, 곰돌이"
-              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">전화번호</label>
-            <input type="tel" id="user-phone-input" maxlength="13" placeholder="예: 010-1234-5678"
-              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
-          </div>
-          <div>
-            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">성별</label>
-            <select id="user-gender-select"
-              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem; cursor: pointer;">
-              <option value="none">선택 안 함</option>
-              <option value="female">여성</option>
-              <option value="male">남성</option>
-            </select>
-          </div>
-          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">💾 프로필 저장</button>
-        </div>
+        <div id="mood-calendar"></div>
       </div>
 
       <!-- 예약된 상담 내역 -->
@@ -747,6 +748,34 @@
           <button onclick="window.App.closeSettings()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
           <strong style="font-size: 1.05rem; color: var(--text-primary);">⚙️ 설정</strong>
         </div>
+
+      <!-- 내 프로필 (이름·전화번호·성별) -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.15rem;">
+        <h3 style="margin-top: 0; margin-bottom: 0.35rem;">👤 내 프로필</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">AI 상담사가 이 이름으로 불러드리고, 전문 상담사 예약·연락에 활용돼요.</p>
+        <div style="display: flex; flex-direction: column; gap: 0.9rem;">
+          <div>
+            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">이름(별명)</label>
+            <input type="text" id="user-name-input" maxlength="12" placeholder="예: 민지, 곰돌이"
+              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">전화번호</label>
+            <input type="tel" id="user-phone-input" maxlength="13" placeholder="예: 010-1234-5678"
+              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
+          </div>
+          <div>
+            <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">성별</label>
+            <select id="user-gender-select"
+              style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem; cursor: pointer;">
+              <option value="none">선택 안 함</option>
+              <option value="female">여성</option>
+              <option value="male">남성</option>
+            </select>
+          </div>
+          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">💾 프로필 저장</button>
+        </div>
+      </div>
 
       <!-- 우렁이의 기억 (백업/복원) -->
       <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
@@ -1135,6 +1164,8 @@
   <script defer src="js/admin.js"></script>
   <script defer src="js/dashboard.js"></script>
   <script defer src="js/learn.js"></script>
+  <script defer src="js/farm.js"></script>
+  <script defer src="js/closet.js"></script>
   <script defer src="js/app.js"></script>
   
   <script>

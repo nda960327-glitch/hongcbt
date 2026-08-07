@@ -137,6 +137,7 @@
     }
     
     this._safeSet('cbt_thought_records', records);
+    if (existingIndex < 0 && isNewRealRecord && window.Farm) window.Farm.addWater(4, '사고 기록 정리');
     return newRecord;
   },
   

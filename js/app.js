@@ -391,13 +391,18 @@ window.App = {
     if (tabName === 'dashboard') {
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
       if (window.Growth) window.Growth.renderNightList();
+      // 우렁이 세계 — 레벨·훈장·농장·옷장·퀘스트
+      if (window.Growth) { window.Growth.renderLevelCard(); window.Growth.renderBadgeCard(); }
+      if (window.Missions) window.Missions.renderCard();
+      if (window.Farm) window.Farm.render();
+      if (window.Closet) window.Closet.render();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {
       this._setNavBadge('mypage', false); // 답장·예약 변경 확인함
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
-      if (window.Growth) window.Growth.renderBadgeCard();
+      if (window.Dashboard && window.Dashboard.renderMoodCalendar) window.Dashboard.renderMoodCalendar();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -973,6 +978,17 @@ window.App = {
   // 알림 종류별 on/off (설정 > 알림 받기)
   _notifOn(key) {
     return window.Storage._safeGet('cbt_notif_' + key, true) !== false;
+  },
+
+  // 옷을 갈아입으면 화면에 이미 그려진 우렁이들을 전부 다시 그린다
+  refreshAllStickers(root) {
+    if (!window.Stickers) return;
+    (root || document).querySelectorAll('[data-sticker]').forEach(el => {
+      el.innerHTML = window.Stickers.svg(
+        el.getAttribute('data-sticker'),
+        parseInt(el.getAttribute('data-sticker-size') || '96', 10)
+      );
+    });
   },
 
   // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
@@ -1670,6 +1686,7 @@ ${memory || '(없음)'}`;
     // 우렁이 리액션 팝: 고른 감정에 맞는 표정으로 등장
     const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'empathy', '우울': 'love' };
     this.stickerPop(popMap[emo] || 'joy', 1300);
+    if (window.Farm) window.Farm.addWater(2, '오늘의 마음 체크인');
     // 선택 강조
     document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
     const btn = document.querySelector(`#quick-mood-row button[data-emo="${emo}"]`);

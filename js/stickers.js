@@ -137,6 +137,8 @@ window.Stickers = {
         <circle class="${prefix}-cheek" cx="42" cy="96" r="8" fill="${sk.cheek}" opacity="0.85"/>
         <circle class="${prefix}-cheek" cx="98" cy="96" r="8" fill="${sk.cheek}" opacity="0.85"/>
         ${face}
+        <!-- 옷장에서 착용한 아이템 (모자·안경·목도리·소품) -->
+        ${(window.Closet && window.Closet.layer) ? window.Closet.layer() : ''}
       </g>`;
   },
 

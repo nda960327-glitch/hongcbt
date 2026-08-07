@@ -87,6 +87,7 @@ window.Growth = {
   bumpBreath() {
     window.Storage._safeSet('cbt_breath_count', (window.Storage._safeGet('cbt_breath_count', 0) || 0) + 1);
     this.checkAwards();
+    if (window.Farm) window.Farm.addWater(2, '호흡으로 마음 가라앉히기');
   },
 
   checkAwards(silent) {
@@ -374,6 +375,7 @@ window.Growth = {
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     journal.unshift({ ts: Date.now(), ...this._night });
     window.Storage._safeSet('cbt_night_journal', journal.slice(0, 60));
+    if (window.Farm) window.Farm.addWater(4, '하루 정리 완료');
     if (window.Storage.markDayActive) window.Storage.markDayActive();
     this.renderNightList();
 
