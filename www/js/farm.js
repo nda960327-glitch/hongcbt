@@ -348,8 +348,8 @@ window.Farm = {
       // 비 오는 날은 제자리에서 비를 긋고, 그 외에는 밭을 오간다
       + '<div style="position: absolute; right: 4%; bottom: 6%; width: 27%; line-height: 0;">'
         + (w === 'rain'
-            ? snail
-            : '<div class="wr-wander" style="--wr-far: -' + (40 + Math.floor(Math.random() * 60)) + 'px; animation: wr-stroll ' + (8 + Math.random() * 5).toFixed(1) + 's ease-in-out infinite;">' + snail + '</div>')
+            ? '<div class="wr-stand">' + snail + '</div>'
+            : '<div class="wr-wander" style="--wr-far: -' + (40 + Math.floor(Math.random() * 60)) + 'px; animation: wr-stroll ' + (8 + Math.random() * 5).toFixed(1) + 's ease-in-out infinite;"><div class="wr-stand">' + snail + '</div></div>')
       + '</div>'
       + '<div style="position: absolute; left: 50%; top: 4%; transform: translateX(-50%); max-width: 92%; font-size: 0.66rem; font-weight: 700; color: #3d4650; background: rgba(255,255,255,0.85); border: 1px solid rgba(61,70,80,0.15); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + CAP + '</div>'
       + '</div>';

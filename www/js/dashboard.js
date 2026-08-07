@@ -162,17 +162,37 @@
       week.push({ k, dow: d.toLocaleDateString('ko-KR', { weekday: 'short' }), n: (events[k] || []).length, today: i === 0 });
     }
     const weekTotal = week.reduce((s, d) => s + d.n, 0);
-    const plant = n => n === 0 ? '·' : n === 1 ? '🌱' : n <= 3 ? '🌿' : '🌸';
+    // 돌봄 횟수에 따라 자라는 새싹 (이모지 대신 자체 SVG — 기기별 편차 없음)
+    const plant = n => {
+      const G = '#6FA87E', L = '#9ACFA4', S = '#C9BFAE';
+      if (n === 0) return '<svg viewBox="0 0 28 28" width="24" height="24"><path d="M8 22h12" stroke="' + S + '" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>';
+      if (n === 1) return '<svg viewBox="0 0 28 28" width="24" height="24" fill="none" stroke-linecap="round">'
+        + '<path d="M14 22v-6" stroke="' + G + '" stroke-width="2.4"/>'
+        + '<path d="M14 17c-3 0-5-1.8-5-4.6 3.4 0 5 1.9 5 4.6Z" fill="' + L + '" stroke="' + G + '" stroke-width="1.6"/>'
+        + '<path d="M8 22h12" stroke="' + S + '" stroke-width="2.2"/></svg>';
+      if (n <= 3) return '<svg viewBox="0 0 28 28" width="24" height="24" fill="none" stroke-linecap="round">'
+        + '<path d="M14 22v-9" stroke="' + G + '" stroke-width="2.4"/>'
+        + '<path d="M14 16c-3.4 0-5.6-2-5.6-5.2 3.8 0 5.6 2.1 5.6 5.2Z" fill="' + L + '" stroke="' + G + '" stroke-width="1.6"/>'
+        + '<path d="M14 14.6c0-3.1 1.9-5.2 5.6-5.2 0 3.2-2.3 5.2-5.6 5.2Z" fill="' + L + '" stroke="' + G + '" stroke-width="1.6"/>'
+        + '<path d="M8 22h12" stroke="' + S + '" stroke-width="2.2"/></svg>';
+      return '<svg viewBox="0 0 28 28" width="24" height="24" fill="none" stroke-linecap="round">'
+        + '<path d="M14 22v-8" stroke="' + G + '" stroke-width="2.4"/>'
+        + '<path d="M14 17c-3 0-5-1.8-5-4.6 3.4 0 5 1.9 5 4.6Z" fill="' + L + '" stroke="' + G + '" stroke-width="1.6"/>'
+        + '<path d="M14 16c0-2.8 1.8-4.6 5-4.6 0 2.8-2 4.6-5 4.6Z" fill="' + L + '" stroke="' + G + '" stroke-width="1.6"/>'
+        + '<circle cx="14" cy="8" r="3.4" fill="#F0B6C4" stroke="#D98AA0" stroke-width="1.6"/>'
+        + '<circle cx="14" cy="8" r="1.1" fill="#E9D08A" stroke="none"/>'
+        + '<path d="M8 22h12" stroke="' + S + '" stroke-width="2.2"/></svg>';
+    };
 
     // 이번 주 돌봄 종류별 집계
     const from = Date.now() - 7 * 86400000;
     const week7 = ts => ts >= from;
     const care = [
-      { emoji: '🫶', name: '감정 체크인', n: (S._safeGet('cbt_mood_log', []) || []).filter(m => week7(m.ts)).length },
-      { emoji: '🌙', name: '하루 정리',   n: (S._safeGet('cbt_night_journal', []) || []).filter(j => week7(j.ts)).length },
-      { emoji: '🎯', name: '행동 미션',   n: ((S._safeGet('cbt_mission_log', []) || []).filter(m => m.done && week7(m.ts))).length },
-      { emoji: '📝', name: '생각 정리',   n: (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && week7(new Date(r.date).getTime())).length },
-      { emoji: '🫧', name: '호흡·안정',   n: null, total: S._safeGet('cbt_breath_count', 0) || 0 }
+      { ico: 'checkin', name: '감정 체크인', n: (S._safeGet('cbt_mood_log', []) || []).filter(m => week7(m.ts)).length },
+      { ico: 'moon', name: '하루 정리',   n: (S._safeGet('cbt_night_journal', []) || []).filter(j => week7(j.ts)).length },
+      { ico: 'quest', name: '행동 미션',   n: ((S._safeGet('cbt_mission_log', []) || []).filter(m => m.done && week7(m.ts))).length },
+      { ico: 'note', name: '생각 정리',   n: (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && week7(new Date(r.date).getTime())).length },
+      { ico: 'breath', name: '호흡·안정',   n: null, total: S._safeGet('cbt_breath_count', 0) || 0 }
     ];
     const streak = S.getStreak() || 0;
 
@@ -181,25 +201,25 @@
     if (weekTotal === 0) cheer = '이번 주 첫 돌봄을 시작해볼까요? 체크인 한 번이면 씨앗이 심어져요.';
     else if (weekTotal < 5) cheer = `이번 주 나를 ${weekTotal}번 돌봤어요. 씨앗이 움트고 있어요.`;
     else if (weekTotal < 12) cheer = `이번 주 나를 ${weekTotal}번 돌봤어요! 정원이 제법 푸릇푸릇해요.`;
-    else cheer = `이번 주 ${weekTotal}번의 돌봄이라니, 정원이 활짝 피었어요! 🌸`;
+    else cheer = `이번 주 ${weekTotal}번의 돌봄이라니, 정원이 활짝 피었어요!`;
 
     el.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-        <h3 style="margin: 0;">🌿 나의 마음 정원</h3>
-        ${streak >= 2 ? `<span style="font-size: 0.74rem; font-weight: 800; color: #e8590c;">🔥 ${streak}일 연속</span>` : ''}
+        <h3 style="margin: 0; display: flex; align-items: center; gap: 0.35rem;">${window.Icons ? window.Icons.svg('sprout', { size: 17 }) : ''}나의 마음 정원</h3>
+        ${streak >= 2 ? `<span style="font-size: 0.7rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.14rem 0.5rem; border-radius: 999px;">${streak}일 연속</span>` : ''}
       </div>
       <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.25rem 0 0.8rem;">나를 돌본 만큼 자라나요 — ${cheer}</p>
       <div style="display: flex; gap: 0.35rem; margin-bottom: 0.9rem;">
         ${week.map(d => `
           <div title="${d.k} · 돌봄 ${d.n}회" style="flex: 1; text-align: center; padding: 0.5rem 0 0.4rem; border-radius: 12px; background: ${d.n > 0 ? 'color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary))' : 'var(--bg-tertiary)'}; ${d.today ? 'outline: 2px solid var(--accent-primary); outline-offset: 1px;' : ''}">
-            <div style="font-size: ${d.n > 0 ? '1.25rem' : '1.1rem'}; line-height: 1.3; ${d.n === 0 ? 'color: var(--text-muted); opacity: 0.5;' : ''}">${plant(d.n)}</div>
+            <div style="line-height: 0; display: flex; justify-content: center; ${d.n === 0 ? 'opacity: 0.4;' : ''}">${plant(d.n)}</div>
             <div style="font-size: 0.62rem; font-weight: 700; color: var(--text-muted); margin-top: 0.15rem;">${d.dow}</div>
           </div>`).join('')}
       </div>
       <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
         ${care.map(c => `
           <span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 999px; background: ${(c.n || c.total) ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'}; color: ${(c.n || c.total) ? 'var(--accent-primary)' : 'var(--text-muted)'}; border: 1px solid ${(c.n || c.total) ? 'color-mix(in srgb, var(--accent-primary) 28%, transparent)' : 'var(--glass-border)'};">
-            ${c.emoji} ${c.name} ${c.n != null ? (c.n ? `주 ${c.n}회` : '—') : (c.total ? `누적 ${c.total}회` : '—')}
+            ${window.Icons ? window.Icons.svg(c.ico, { size: 13 }) : ''} ${c.name} ${c.n != null ? (c.n ? `주 ${c.n}회` : '—') : (c.total ? `누적 ${c.total}회` : '—')}
           </span>`).join('')}
       </div>`;
   },
@@ -350,7 +370,7 @@
             </div>`).join('')}
           ${missions.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🎯 해낸 미션</p>
-            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => `${esc(m.text ? `🌱 ${m.text}` : missionName(m.id))} <button onclick="window.Dashboard.deleteMission(${m.ts}, '${key}')" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.66rem; padding: 0.1rem 0.3rem;">✕</button>`).join('<br>')}</div>` : ''}
+            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => `${esc(m.text ? m.text : missionName(m.id))} <button onclick="window.Dashboard.deleteMission(${m.ts}, '${key}')" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.66rem; padding: 0.1rem 0.3rem;">✕</button>`).join('<br>')}</div>` : ''}
           ${records.length ? `
             <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">📝 사고 기록 ${records.length}건</p>
             ${records.map(r => `<div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">"${esc((r.thought || '').slice(0, 60))}"${r.alternative ? `<br><span style="color: var(--accent-primary);">→ ${esc(r.alternative.slice(0, 60))}</span>` : ''}</div>`).join('')}

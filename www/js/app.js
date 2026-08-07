@@ -406,6 +406,7 @@ window.App = {
       if (window.Growth) window.Growth.renderNightList();
       // 우렁이 세계 — 단일 게임 컨테이너 (HUD·내비·현재 화면 렌더)
       if (window.Game) window.Game.open();
+      this.hydrateInlineIcons(document.getElementById('tab-dashboard'));
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {
@@ -413,6 +414,7 @@ window.App = {
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
       this.renderMyHero();
+      this.hydrateInlineIcons(document.getElementById('tab-mypage'));
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -1010,6 +1012,18 @@ window.App = {
     subEl.innerHTML = 'Lv.' + lv + (info ? ' ' + info.name : '') + (streak >= 2 ? ' · 🔥 ' + streak + '일 연속' : '');
     const ava = document.querySelector('.my-hero__ava');
     if (ava && window.Stickers && info) ava.innerHTML = window.Stickers.svg(info.sticker, 62);
+  },
+
+  // data-ic="아이콘명" 이 붙은 요소 앞에 라인 아이콘을 심는다
+  hydrateInlineIcons(root) {
+    if (!window.Icons) return;
+    (root || document).querySelectorAll('[data-ic]').forEach(el => {
+      if (el.dataset.icDone) return;
+      const svg = window.Icons.svg(el.dataset.ic, { size: parseInt(el.dataset.icSize || '15', 10) });
+      if (!svg) return;
+      el.insertAdjacentHTML('afterbegin', svg);
+      el.dataset.icDone = '1';
+    });
   },
 
   // 서재 책장 — 한 번에 한 칸만 펼친다

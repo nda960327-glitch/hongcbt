@@ -77,7 +77,7 @@ window.Game = {
     const cell = (ico, label, water, onclick) => `
       <button onclick="${onclick}" title="${label} · 물 +${water}"
         style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.45rem 0.15rem 0.4rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
-        <span style="display: block; line-height: 0; margin-bottom: 0.2rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(ico, { size: 20 }) : ''}</span>
+        <span style="display: block; line-height: 0; margin-bottom: 0.25rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(ico, { size: 22 }) : ''}</span>
         <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${label}</span>
         <span style="display: block; font-size: 0.58rem; font-weight: 800; color: #6f97ab;">+${water}</span>
       </button>`;
@@ -170,8 +170,8 @@ window.Game = {
       <button onclick="${onclick}" title="${title}"
         style="all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 0%; min-width: 0; text-align: center;
                background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.3rem 0.2rem; border-radius: 10px;">
-        <span style="display: flex; align-items: center; justify-content: center; gap: 0.2rem; font-size: 0.62rem; color: var(--text-muted); line-height: 1.2;">${window.Icons ? window.Icons.svg(ico, { size: 12 }) : ''}${label}</span>
-        <span style="display: block; font-size: 0.74rem; font-weight: 800; color: ${color}; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${val}</span>
+        <span style="display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.66rem; font-weight: 700; color: var(--text-muted); line-height: 1.2;">${window.Icons ? window.Icons.svg(ico, { size: 15 }) : ''}${label}</span>
+        <span style="display: block; font-size: 0.86rem; font-weight: 800; color: ${color}; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${val}</span>
       </button>`;
 
     el.innerHTML = `

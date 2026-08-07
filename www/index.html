@@ -434,11 +434,11 @@
             <!-- 🗡️ 퀘스트 -->
             <div class="game-view hidden" id="gv-quest">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem;">
-                <strong style="font-size: 0.9rem; color: var(--text-primary);">🗡️ 오늘의 퀘스트</strong>
-                <span style="font-size: 0.7rem; font-weight: 700; color: #6f97ab;">완료하면 💧물 +3</span>
+                <strong class="q-title" data-ic="quest">오늘의 퀘스트</strong>
+                <span class="q-reward" data-ic="water" data-ic-size="12">완료하면 물 +3</span>
               </div>
               <div style="margin-bottom: 0.9rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--glass-border);">
-                <p style="margin: 0 0 0.5rem; font-size: 0.84rem; font-weight: 700; color: var(--text-primary);">🫶 지금 마음은 어때요? <span style="font-weight: 700; font-size: 0.68rem; color: #6f97ab;">체크인하면 💧물 +2</span></p>
+                <p class="q-sub" data-ic="checkin">지금 마음은 어때요? <span class="q-reward" data-ic="water">물 +2</span></p>
                 <div class="home-mood" data-mood-row>
                   <button class="home-mood__btn" data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')"><span data-sticker="joy" data-sticker-size="42"></span><span class="home-mood__lbl">기쁨</span></button>
                   <button class="home-mood__btn" data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')"><span data-sticker="empathy" data-sticker-size="42"></span><span class="home-mood__lbl">편안</span></button>
@@ -800,11 +800,11 @@
       <!-- 재화 2분할 -->
       <div class="my-money">
         <div class="my-money__card">
-          <p class="my-money__t">🌱 구독</p>
+          <p class="my-money__t" data-ic="seedling" data-ic-size="16">구독</p>
           <div id="sub-card-body"></div>
         </div>
         <div class="my-money__card">
-          <p class="my-money__t">💰 우렁 캐시</p>
+          <p class="my-money__t" data-ic="cash" data-ic-size="16">우렁 캐시</p>
           <div id="wallet-card-body"></div>
           <p class="my-money__note">예약 결제·보이스톡(30초 150캐시)에 사용돼요.</p>
         </div>
@@ -814,7 +814,7 @@
       <p class="my-sec">상담</p>
       <div class="my-group">
         <div class="my-row my-row--static">
-          <span class="my-row__ico">📅</span>
+          <span class="my-row__ico" data-ic="booking" data-ic-size="19"></span>
           <span class="my-row__txt"><b>나의 상담 내역</b><span>예약·지난 상담을 확인해요</span></span>
           <button id="btn-booking-history" class="my-row__btn" onclick="const f=document.getElementById('booking-history-full'); f.classList.toggle('hidden'); this.textContent = f.classList.contains('hidden') ? '전체 보기' : '접기';">전체 보기</button>
         </div>
@@ -829,12 +829,12 @@
       <p class="my-sec">나의 마음</p>
       <div class="my-group">
         <button class="my-row" onclick="window.Safety && window.Safety.open()">
-          <span class="my-row__ico">🛟</span>
+          <span class="my-row__ico" data-ic="lifering" data-ic-size="19"></span>
           <span class="my-row__txt"><b>나의 안전 계획</b><span id="safety-row-btn">힘든 순간 나를 지켜주는 안내서 (3분)</span></span>
           <span class="my-row__go">›</span>
         </button>
         <button class="my-row" onclick="window.App.switchTab('dashboard')">
-          <span class="my-row__ico">📊</span>
+          <span class="my-row__ico" data-ic="dashboard" data-ic-size="19"></span>
           <span class="my-row__txt"><b>마음 도구 대시보드</b><span>농장·일기장·리포트 보러가기</span></span>
           <span class="my-row__go">›</span>
         </button>
@@ -844,12 +844,12 @@
       <p class="my-sec">앱</p>
       <div class="my-group">
         <button class="my-row" onclick="window.App.openSettings()">
-          <span class="my-row__ico">⚙️</span>
+          <span class="my-row__ico" data-ic="settings" data-ic-size="19"></span>
           <span class="my-row__txt"><b>설정</b><span>프로필 · 테마 · 알림 · 앱 잠금 · 백업</span></span>
           <span class="my-row__go">›</span>
         </button>
         <div class="my-row my-row--static my-row--privacy">
-          <span class="my-row__ico">🔒</span>
+          <span class="my-row__ico" data-ic="lock" data-ic-size="19"></span>
           <span class="my-row__txt"><b>우렁이와의 비밀</b><span>여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 누구에게도 공유되지 않아요.</span></span>
         </div>
       </div>

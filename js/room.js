@@ -291,14 +291,12 @@ window.Room = {
           ${draw('rug')}
           ${draw('left')}
           ${draw('right')}
-          <!-- 우렁이 접지 그림자 -->
-          <ellipse cx="160" cy="192" rx="30" ry="7.5" fill="#000" opacity="0.13"/>
           <!-- 코너 비네트 -->
           <path d="M0 0 h46 q-30 24 -46 66z" fill="#000" opacity="0.05"/>
           <path d="M320 0 h-46 q30 24 46 66z" fill="#000" opacity="0.05"/>
         </svg>
         <div style="position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 30%; line-height: 0;">
-          <div class="${idle.active ? 'wr-wander' : ''}" style="width: 100%; ${idle.active ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}">${snail}</div>
+          <div class="${idle.active ? 'wr-wander' : ''}" style="width: 100%; ${idle.active ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-stand">${snail}</div></div>
         </div>
         <div style="position: absolute; left: 50%; top: 5%; transform: translateX(-50%); max-width: 88%; font-size: 0.68rem; font-weight: 700; color: #4a4038; background: rgba(255, 252, 245, 0.88); border: 1px solid rgba(74, 64, 56, 0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           ${idle.cap}
@@ -347,8 +345,8 @@ window.Room = {
     el.innerHTML = `
       ${this.scene()}
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; margin-top: 0.6rem;">
-        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">' + (window.Icons ? window.Icons.svg('closet', { size: 15 }) : '') + ' 옷장</button>
-        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">' + (window.Icons ? window.Icons.svg('medal', { size: 15 }) : '') + ' 훈장</button>
+        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">${window.Icons ? window.Icons.svg('closet', { size: 15 }) : ''} 옷장</button>
+        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">${window.Icons ? window.Icons.svg('medal', { size: 15 }) : ''} 훈장</button>
         <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.45rem 0.2rem; border-radius: 10px;">${this._shopOpen ? '닫기 ▲' : (window.Icons ? window.Icons.svg('shop', { size: 15 }) : '') + ' 상점'}</button>
       </div>
       <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.6rem;">
