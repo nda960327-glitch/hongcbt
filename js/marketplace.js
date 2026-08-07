@@ -179,6 +179,23 @@
     this.renderCounselors();
   },
 
+  // === 즐겨찾는 상담사 (♥) — 항상 맨 위에 고정 ===
+  favs() {
+    return (window.Storage && window.Storage._safeGet('cbt_favs', [])) || [];
+  },
+
+  isFav(id) {
+    return this.favs().includes(id);
+  },
+
+  toggleFav(id) {
+    let f = this.favs();
+    if (f.includes(id)) { f = f.filter(x => x !== id); if (window.App) window.App.showRecordToast('즐겨찾기에서 뺐어요'); }
+    else { f.push(id); if (window.App) window.App.showRecordToast('♥ 즐겨찾기! 항상 맨 위에 보여드릴게요'); }
+    window.Storage._safeSet('cbt_favs', f);
+    this.renderCounselors();
+  },
+
   // === 정렬·필터 상태 (칩 UI) ===
   _sort: 'distance',
   _availOnly: false,
@@ -229,7 +246,13 @@
       filtered = filtered.filter(c => this.liveState(c) === 'avail');
     }
 
+    // 1순위: ♥ 즐겨찾기, 2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
+    const stateRank = { avail: 0, busy: 1, off: 2 };
     filtered.sort((a, b) => {
+      const f = (this.isFav(a.id) ? 0 : 1) - (this.isFav(b.id) ? 0 : 1);
+      if (f !== 0) return f;
+      const r = stateRank[this.liveState(a)] - stateRank[this.liveState(b)];
+      if (r !== 0) return r;
       if (sortType === 'distance') return a.distance - b.distance;
       if (sortType === 'rating') return b.rating - a.rating;
       if (sortType === 'reviews') return b.reviews - a.reviews;
@@ -240,7 +263,9 @@
     list.innerHTML = filtered.map(c => {
       const st = this.liveState(c);
       return `
-      <div class="glass-card cc2" onclick="window.Marketplace.openProfile('${c.id}')">
+      <div class="glass-card cc2" onclick="window.Marketplace.openProfile('${c.id}')" style="position: relative;">
+        <button onclick="event.stopPropagation(); window.Marketplace.toggleFav('${c.id}')" title="즐겨찾기"
+          style="all: unset; position: absolute; top: 0.7rem; right: 0.8rem; cursor: pointer; font-size: 1.1rem; padding: 0.15rem; line-height: 1; ${this.isFav(c.id) ? 'color: #e0566b;' : 'color: var(--glass-border); -webkit-text-stroke: 1px var(--text-muted);'}">${this.isFav(c.id) ? '♥' : '♡'}</button>
         <div class="cc2-top">
           <div class="cc2-ava">
             ${c.photo ? `<img src="${c.photo}" alt="${c.name}">` : (window.Icons ? window.Icons.art.avatar(c.avatar, 56) : '')}
@@ -264,7 +289,9 @@
           ${st === 'avail'
             ? `<button class="cc2-live" onclick="window.App.startHumanCall('${c.id}')"><b>⚡ 바로상담</b><span>${this.callRateFor(c).toLocaleString()}캐시/30초</span></button>`
             : st === 'busy'
-              ? `<div class="cc2-live is-busy"><b>🔴 통화 중</b><span>끝나면 열려요</span></div>`
+              ? (window.App && window.App.isWaitingFor(c.id)
+                ? `<button class="cc2-live is-busy" onclick="window.App.leaveCallQueue('${c.id}')"><b>⏳ 대기 중</b><span>탭하면 대기 취소</span></button>`
+                : `<button class="cc2-live is-busy" onclick="window.App.joinCallQueue('${c.id}')" style="cursor: pointer;"><b>🔴 통화 중</b><span>🔔 다음 순서 잡기</span></button>`)
               : `<div class="cc2-live is-off"><b>⚡ 바로상담</b><span>지금은 부재중</span></div>`}
         </div>
         <div class="cc2-links" onclick="event.stopPropagation()">

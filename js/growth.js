@@ -211,11 +211,37 @@ window.Growth = {
   },
 
   startNight() {
+    // 쓰다 만 하루 정리가 있으면 이어쓰기 (12시간 보관)
+    const d = window.Storage._safeGet('cbt_night_draft', null);
+    if (d && d.night && Date.now() - d.ts < 12 * 3600000) {
+      if (confirm('🌙 쓰다 만 하루 정리가 있어요. 이어서 쓸까요?')) {
+        this._night = d.night;
+        this._nightStep(d.step || 1);
+        return;
+      }
+      localStorage.removeItem('cbt_night_draft');
+    }
     this._night = { mood: null, moment: '', note: '' };
     this._nightStep(1);
   },
 
+  _saveNightDraft(step) {
+    if (!this._night) return;
+    if (step <= 1 && !this._night.mood) return;
+    window.Storage._safeSet('cbt_night_draft', { night: this._night, step, ts: Date.now() });
+  },
+
   _nightStep(n) {
+    this._saveNightDraft(n); // 단계마다 초안 저장 — 새로고침해도 이어쓴다
+    setTimeout(() => {
+      const ta = document.getElementById('ng-moment') || document.getElementById('ng-note');
+      if (!ta) return;
+      ta.addEventListener('input', () => {
+        if (ta.id === 'ng-moment') this._night.moment = ta.value;
+        else this._night.note = ta.value;
+        this._saveNightDraft(n);
+      });
+    }, 100);
     const wrap = (inner) => {
       const old = document.getElementById('night-overlay');
       if (old) old.remove();
@@ -258,7 +284,7 @@ window.Growth = {
         <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">2 / 3</p>
         <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem; color: #ffffff;">오늘 가장 마음에 남는 순간은?</h2>
         <p style="font-size: 0.85rem; color: #ded6c3; margin: 0 0 0.8rem;">좋았든 힘들었든, 한 장면이면 충분해요.</p>
-        <textarea id="ng-moment" rows="3" placeholder="예: 점심에 동료가 건넨 말 한마디…" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;"></textarea>
+        <textarea id="ng-moment" rows="3" placeholder="예: 점심에 동료가 건넨 말 한마디…" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;">${(this._night.moment || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</textarea>
         ${nextBtn('다음 ›')}
         <button onclick="window.Growth._nightStep(4)" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.6rem; font-size: 0.82rem; color: #cfc7b4; cursor: pointer;">건너뛰기</button>`);
       document.getElementById('ng-next').addEventListener('click', () => {
@@ -270,7 +296,7 @@ window.Growth = {
         <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">3 / 3</p>
         <h2 style="margin: 0 0 0.4rem; font-size: 1.2rem; color: #ffffff;">오늘의 나에게 한마디</h2>
         <p style="font-size: 0.85rem; color: #ded6c3; margin: 0 0 0.8rem;">칭찬도, 위로도, 잔소리도 좋아요.</p>
-        <textarea id="ng-note" rows="3" placeholder="예: 오늘도 버텨줘서 고마워" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;"></textarea>
+        <textarea id="ng-note" rows="3" placeholder="예: 오늘도 버텨줘서 고마워" style="width: 100%; box-sizing: border-box; padding: 0.85rem; border-radius: 12px; border: 1px solid rgba(255,255,255,0.22); background: rgba(255,255,255,0.16); color: #ffffff; outline: none; resize: none; font-size: 0.98rem; line-height: 1.6;">${(this._night.note || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</textarea>
         ${nextBtn('하루 정리 끝내기')}`);
       document.getElementById('ng-next').addEventListener('click', () => {
         this._night.note = document.getElementById('ng-note').value.trim();
@@ -281,6 +307,7 @@ window.Growth = {
 
   async _finishNight() {
     // 저장
+    localStorage.removeItem('cbt_night_draft'); // 완료 — 초안 정리
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     journal.unshift({ ts: Date.now(), ...this._night });
     window.Storage._safeSet('cbt_night_journal', journal.slice(0, 60));

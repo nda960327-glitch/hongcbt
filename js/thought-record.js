@@ -448,7 +448,31 @@ window.ThoughtRecord = {
     });
   },
 
+  // 초안 자동 저장 — 새로고침·이탈해도 쓰던 기록이 살아있다 (24시간 보관)
+  _saveDraft(step) {
+    const w = this._wiz;
+    if (!w || w._saved || w.editId) return; // 수정 모드는 원본이 있으니 초안 불필요
+    if (step === 1 && !w.situation && !w.thought) return;
+    window.Storage._safeSet('cbt_wiz_draft', { wiz: w, step, ts: Date.now() });
+  },
+
+  _clearDraft() {
+    localStorage.removeItem('cbt_wiz_draft');
+  },
+
   startWizard(prefilled = {}) {
+    // 새로 쓰기인데 쓰다 만 초안이 있으면 이어쓰기 제안
+    if (!prefilled.editId && !prefilled.situation && !prefilled.thought) {
+      const d = window.Storage._safeGet('cbt_wiz_draft', null);
+      if (d && d.wiz && Date.now() - d.ts < 24 * 3600000) {
+        if (confirm('✍️ 쓰다 만 사고 기록이 있어요.\n이어서 쓸까요? (취소하면 새로 시작하고 초안은 지워져요)')) {
+          this._wiz = d.wiz;
+          this._wizStep(d.step || 1);
+          return;
+        }
+        this._clearDraft();
+      }
+    }
     this._wiz = {
       editId: prefilled.editId || null,       // 수정 모드면 원본 id 유지
       editDate: prefilled.editDate || null,
@@ -480,8 +504,20 @@ window.ThoughtRecord = {
 
   _wizClose() {
     const w = this._wiz || {};
+    // 닫기 직전 화면의 타이핑까지 초안에 담는다
+    const ta = document.getElementById('trw-input');
+    if (ta && !w._saved) {
+      const n = this._wizCurStep || 1;
+      if (n === 1) w.situation = ta.value;
+      else if (n === 2) w.thought = ta.value;
+      else if (n === 5) w.alternative = ta.value;
+    }
     const hasContent = (w.situation || w.thought) && !w._saved;
-    if (hasContent && !confirm('쓰던 기록이 사라져요. 그만할까요?')) return;
+    if (hasContent) {
+      // 초안이 저장돼 있으니 안심하고 닫아도 된다는 안내
+      if (!confirm('그만 쓸까요?\n(쓰던 내용은 초안으로 저장돼요 — 다음에 [+ 새 기록]을 누르면 이어쓸 수 있어요)')) return;
+      this._saveDraft(this._wizCurStep || 1);
+    }
     const ov = document.getElementById('tr-wizard');
     if (ov) ov.remove();
   },
@@ -503,6 +539,19 @@ window.ThoughtRecord = {
     const w = this._wiz;
     const sticker = (name, size) => window.Stickers ? window.Stickers.svg(name, size || 84) : '';
     const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    this._wizCurStep = n;
+    this._saveDraft(n); // 단계를 오갈 때마다 초안 저장
+    // 타이핑도 실시간 초안 반영 (1:상황 / 2:생각 / 5:대안)
+    setTimeout(() => {
+      const ta = document.getElementById('trw-input');
+      if (!ta || ![1, 2, 5].includes(n)) return;
+      ta.addEventListener('input', () => {
+        if (n === 1) w.situation = ta.value;
+        else if (n === 2) w.thought = ta.value;
+        else w.alternative = ta.value;
+        this._saveDraft(n);
+      });
+    }, 100);
 
     if (n === 1) {
       this._wizWrap(`
@@ -716,6 +765,7 @@ window.ThoughtRecord = {
     }
     window.Storage.markDayActive();
     w._saved = true;
+    this._clearDraft();
     this.loadRecords();
     if (window.Growth) window.Growth.checkAwards();
     if (window.Dashboard && window.App && window.App.currentTab === 'dashboard') window.Dashboard.refresh();

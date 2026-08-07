@@ -322,8 +322,16 @@
       <div id="chat-input-area" class="chat-input-area">
         <div class="input-wrapper glass-input">
           <button id="btn-mic" class="mic-btn" title="음성으로 말하기" style="background: none; border: none; padding: 0.5rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);"><span class="h-ico" data-icon="mic" data-icon-size="20"></span></button>
-          <button id="btn-sticker" title="이모티콘 보내기" onclick="window.StickerShop && window.StickerShop.toggleDrawer()" style="background: none; border: none; padding: 0.5rem 0.2rem 0.5rem 0; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 1.15rem; transition: var(--transition-fast);">😊</button>
           <textarea id="chat-input" placeholder="마음속 이야기를 편하게 적어주세요..." rows="1"></textarea>
+          <!-- 이모티콘 (카카오톡처럼 전송 버튼 옆) -->
+          <button id="btn-sticker" title="이모티콘 보내기" onclick="window.StickerShop && window.StickerShop.toggleDrawer()" style="background: none; border: none; padding: 0.5rem 0.3rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);">
+            <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="M8.3 14.2 q3.7 3.2 7.4 0"/>
+              <circle cx="9" cy="9.8" r="1.15" fill="currentColor" stroke="none"/>
+              <circle cx="15" cy="9.8" r="1.15" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
           <button id="chat-send" class="send-btn" disabled>
             <svg viewBox="0 0 24 24" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
           </button>
@@ -765,6 +773,15 @@
             </div>
           </div>
 
+          <!-- 앱 잠금 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">🔒 앱 잠금 (PIN)</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">앱을 열 때 PIN 4자리를 물어봐요. 내 마음 기록을 지켜요.</span>
+            </div>
+            <button id="lock-setup-btn" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.AppLock && window.AppLock.setup()">잠금 켜기 🔒</button>
+          </div>
+
           <!-- 문의하기 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
@@ -1034,6 +1051,7 @@
   <script defer src="js/sleep.js"></script>
   <script defer src="js/onboard.js"></script>
   <script defer src="js/stickershop.js"></script>
+  <script defer src="js/applock.js"></script>
   <script defer src="js/admin.js"></script>
   <script defer src="js/dashboard.js"></script>
   <script defer src="js/learn.js"></script>

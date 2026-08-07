@@ -52,27 +52,52 @@ window.StickerShop = {
 
   // === 스티커 서랍 (채팅 입력창 위 패널) ===
   toggleDrawer() {
+    const btn = document.getElementById('btn-sticker');
     const old = document.getElementById('sticker-drawer');
-    if (old) { old.remove(); return; }
+    if (old) {
+      old.remove();
+      if (btn) btn.style.color = 'var(--text-secondary)';
+      return;
+    }
+    if (btn) btn.style.color = 'var(--accent-primary)'; // 열림 상태 표시
     const area = document.getElementById('chat-input-area');
     if (!area) return;
     const panel = document.createElement('div');
     panel.id = 'sticker-drawer';
-    panel.style.cssText = 'position: absolute; left: 0.9rem; right: 0.9rem; bottom: calc(100% - 60px); max-height: 300px; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: var(--shadow-md); padding: 0.8rem 0.9rem; z-index: 6;';
+    panel.style.cssText = 'position: absolute; left: 0.9rem; right: 0.9rem; bottom: calc(100% - 60px); max-height: 320px; overflow-y: auto; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 18px; box-shadow: var(--shadow-md); padding: 0.6rem 0.9rem 0.8rem; z-index: 6;';
     area.appendChild(panel);
     this.renderDrawer();
+    // 바깥을 탭하면 닫힌다 (이모티콘 버튼 재탭·ESC로도 닫힘)
+    this._outside = (e) => {
+      const d = document.getElementById('sticker-drawer');
+      if (!d) return;
+      if (!d.contains(e.target) && !(e.target.closest && e.target.closest('#btn-sticker'))) this.closeDrawer();
+    };
+    this._esc = (e) => { if (e.key === 'Escape') this.closeDrawer(); };
+    setTimeout(() => {
+      document.addEventListener('click', this._outside, true);
+      document.addEventListener('keydown', this._esc);
+    }, 50);
   },
 
   closeDrawer() {
     const d = document.getElementById('sticker-drawer');
     if (d) d.remove();
+    const btn = document.getElementById('btn-sticker');
+    if (btn) btn.style.color = 'var(--text-secondary)';
+    if (this._outside) { document.removeEventListener('click', this._outside, true); this._outside = null; }
+    if (this._esc) { document.removeEventListener('keydown', this._esc); this._esc = null; }
   },
 
   renderDrawer() {
     const panel = document.getElementById('sticker-drawer');
     if (!panel || !window.Stickers) return;
     const owned = this.owned();
-    panel.innerHTML = this.PACKS.map(pack => {
+    panel.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; position: sticky; top: -0.6rem; background: var(--bg-secondary); padding: 0.4rem 0; z-index: 1;">
+        <strong style="font-size: 0.85rem; color: var(--text-primary);">😊 우렁이 이모티콘</strong>
+        <button onclick="window.StickerShop.closeDrawer()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;">✕</button>
+      </div>` + this.PACKS.map(pack => {
       const has = !!owned[pack.id];
       return `
         <div style="margin-bottom: 0.7rem;">
@@ -84,13 +109,14 @@ window.StickerShop = {
             <span style="flex: 1;"></span>
             ${!has ? `<span style="font-size: 0.62rem; color: var(--text-muted);">${pack.desc}</span>` : ''}
           </div>
-          <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.25rem;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;">
             ${pack.stickers.map(s => `
               <button ${has ? `onclick="window.StickerShop.send('${s}')"` : `onclick="window.StickerShop.buy('${pack.id}')"`}
                 title="${window.Stickers.labels[s] || s}"
-                style="all: unset; box-sizing: border-box; cursor: pointer; border-radius: 12px; padding: 0.15rem; text-align: center; line-height: 0; ${has ? '' : 'filter: grayscale(1); opacity: 0.4;'}"
+                style="all: unset; box-sizing: border-box; cursor: pointer; border-radius: 12px; padding: 0.25rem 0.1rem 0.35rem; text-align: center; ${has ? '' : 'filter: grayscale(1); opacity: 0.4;'}"
                 onmousedown="this.style.background='var(--bg-tertiary)'" onmouseup="this.style.background=''" onmouseleave="this.style.background=''">
-                ${window.Stickers.svg(s, 52)}
+                <span style="display: block; line-height: 0;">${window.Stickers.svg(s, 62)}</span>
+                <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-muted); margin-top: 0.15rem;">${window.Stickers.labels[s] || s}</span>
               </button>`).join('')}
           </div>
         </div>`;

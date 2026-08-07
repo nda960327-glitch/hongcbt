@@ -158,9 +158,10 @@
     // 4.45 먼저 말 걸기(체크인) 설정 + 스케줄러
     this.initCheckins();
 
-    // 4.45+ 글자 크기 복원 + 뒤로가기 가드
+    // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
     this._initBackGuard();
+    if (window.AppLock) window.AppLock.init();
 
     // 4.5 Theme toggle
     this.initTheme();
@@ -997,6 +998,9 @@
       this._bookingReminderTick(); // 예약 30분 전 알림도 같은 틱에서
       this._hchatBgTick();         // 채팅창을 닫아둬도 상담사 답장 수신
       this._bookingSyncTick();     // 상담사가 예약을 거절했는지 동기화
+      this._callQueueTick();       // 바로상담 대기열 — 회선 비면 알림
+      this._noshowTick();          // 예약 미진행 확인·환불
+      this._reviewReplyTick();     // 상담사 리뷰 답글 수신
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
@@ -1129,13 +1133,14 @@ ${memory || '(없음)'}`;
             <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
             <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
-              ${cancelled
-                ? `<span style="font-size: 0.78rem; color: var(--text-muted);">${b.cancelledBy === 'counselor' ? '상담사 사정으로 취소 · ' : ''}환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
+              ${cancelled || b.status === 'noshow'
+                ? `<span style="font-size: 0.78rem; color: var(--text-muted);">${b.status === 'noshow' ? '상담 미진행 · ' : b.cancelledBy === 'counselor' ? '상담사 사정으로 취소 · ' : ''}환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
                 : rv
                   ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
                   : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
               <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.switchTab('counselors')">다시 예약</button>
             </div>
+            ${(() => { const rep = (window.Storage._safeGet('cbt_review_replies', {}) || {})[b.id]; return rep ? `<p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--text-secondary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border-radius: 8px; padding: 0.5rem 0.7rem;">💌 <b>${b.name}</b>의 답글: ${rep.text.replace(/</g, '&lt;')}</p>` : ''; })()}
           </div>`;
         }).join('');
     }
@@ -1275,6 +1280,147 @@ ${memory || '(없음)'}`;
     try { fetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
     this.renderMyBookings();
     this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
+  },
+
+  // === 노쇼 확인 — 예약 시간이 지났는데 통화 기록이 없으면 물어본다 ===
+  _noshowTick() {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const now = Date.now();
+    if (document.getElementById('noshow-overlay')) return; // 한 번에 하나만
+    const target = bookings.find(b =>
+      b.status === 'confirmed' && !b.resolved && b.whenTs &&
+      b.whenTs + 40 * 60000 < now &&              // 상담 종료 시각 + 여유 지남
+      b.whenTs > now - 7 * 86400000 &&            // 너무 오래된 건 묻지 않음
+      (!b.askAfter || b.askAfter < now));
+    if (!target) return;
+    // 통화 기록이 있으면 자동으로 '진행됨' 처리
+    const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
+    const called = logs.some(l => l.counselorId === target.counselorId && Math.abs(l.ts - target.whenTs) < 90 * 60000);
+    if (called) {
+      target.resolved = 'done';
+      window.Storage._safeSet('cbt_bookings', bookings);
+      return;
+    }
+    const ov = document.createElement('div');
+    ov.id = 'noshow-overlay';
+    ov.className = 'modal-overlay';
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 340px; text-align: center;">
+        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('think', 90) : ''}</span>
+        <h2 style="margin: 0.6rem 0 0.3rem; font-size: 1.05rem;">${target.name}님과의 상담,<br>잘 진행되었나요?</h2>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 1rem;">[${target.time}] 예약 확인이에요.</p>
+        <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.App.resolveNoshow('${target.id}', 'done')">네, 잘 마쳤어요</button>
+        <button class="btn-secondary" style="width: 100%; margin-bottom: 0.5rem; color: #c14a4a;" onclick="window.App.resolveNoshow('${target.id}', 'noshow')">상담이 진행되지 않았어요</button>
+        <button style="all: unset; font-size: 0.78rem; color: var(--text-muted); cursor: pointer; padding: 0.3rem;" onclick="window.App.resolveNoshow('${target.id}', 'later')">나중에 답할게요</button>
+      </div>`;
+    document.body.appendChild(ov);
+  },
+
+  resolveNoshow(bookingId, answer) {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const b = bookings.find(x => x.id === bookingId);
+    const ov = document.getElementById('noshow-overlay');
+    if (ov) ov.remove();
+    if (!b) return;
+    if (answer === 'later') {
+      b.askAfter = Date.now() + 86400000; // 내일 다시
+    } else if (answer === 'done') {
+      b.resolved = 'done';
+    } else if (answer === 'noshow') {
+      if (!confirm('상담이 진행되지 않았다면 전액 환불해드려요.\n환불을 진행할까요?')) { b.askAfter = Date.now() + 86400000; window.Storage._safeSet('cbt_bookings', bookings); return; }
+      b.resolved = 'noshow';
+      b.status = 'noshow';
+      b.refunded = b.price;
+      if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 상담 미진행 전액 환불`);
+      try { fetch('/api/bookings/noshow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
+      this.showRecordToast(`😥 미진행 상담 ${b.price.toLocaleString()}캐시가 전액 환불됐어요`);
+      if (this.currentTab === 'mypage') this.renderMyBookings();
+    }
+    window.Storage._safeSet('cbt_bookings', bookings);
+  },
+
+  // === 리뷰 답글 수신 — 상담사가 답글을 달면 알림 ===
+  async _reviewReplyTick() {
+    try {
+      const res = await fetch(`/api/reviews?clientId=${encodeURIComponent(this.clientId())}`);
+      if (!res.ok) return;
+      const items = (await res.json()).items || [];
+      const seen = window.Storage._safeGet('cbt_review_replies', {}) || {};
+      let changed = false;
+      items.forEach(rv => {
+        if (rv.reply && (!seen[rv.bookingId] || seen[rv.bookingId].ts !== rv.reply.ts)) {
+          seen[rv.bookingId] = { text: rv.reply.text, ts: rv.reply.ts, counselor: rv.counselorName };
+          changed = true;
+          this.notify(`💌 ${rv.counselorName}님의 답글`, rv.reply.text);
+          this.playWoorung();
+          this.showRecordToast(`💌 ${rv.counselorName}님이 리뷰에 답글을 남겼어요`);
+          this._setNavBadge('mypage', true);
+        }
+      });
+      if (changed) {
+        window.Storage._safeSet('cbt_review_replies', seen);
+        if (this.currentTab === 'mypage') this.renderMyBookings();
+      }
+    } catch (e) {}
+  },
+
+  // === 바로상담 대기열 — 통화 중이면 줄 서고, 회선이 비면 알림 ===
+  joinCallQueue(counselorId) {
+    const c = window.Marketplace.getCounselor(counselorId);
+    if (!c) return;
+    fetch('/api/call/queue', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counselorId: c.id, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명' })
+    }).then(r => r.ok ? r.json() : null).then(d => {
+      if (!d) return;
+      const waits = window.Storage._safeGet('cbt_call_waits', []) || [];
+      if (!waits.find(w => w.counselorId === c.id)) waits.push({ counselorId: c.id, name: c.name, ts: Date.now() });
+      window.Storage._safeSet('cbt_call_waits', waits);
+      this.showRecordToast(`🔔 ${c.name}님 대기 ${d.position}번째로 등록! 회선이 비면 알려드려요`);
+      if (window.Marketplace) window.Marketplace.renderCounselors();
+    }).catch(() => {});
+  },
+
+  leaveCallQueue(counselorId) {
+    fetch('/api/call/queue/leave', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counselorId, clientId: this.clientId() })
+    }).catch(() => {});
+    const waits = (window.Storage._safeGet('cbt_call_waits', []) || []).filter(w => w.counselorId !== counselorId);
+    window.Storage._safeSet('cbt_call_waits', waits);
+    this.showRecordToast('대기를 취소했어요');
+    if (window.Marketplace) window.Marketplace.renderCounselors();
+  },
+
+  isWaitingFor(counselorId) {
+    return (window.Storage._safeGet('cbt_call_waits', []) || []).some(w => w.counselorId === counselorId);
+  },
+
+  async _callQueueTick() {
+    const waits = window.Storage._safeGet('cbt_call_waits', []) || [];
+    if (!waits.length) return;
+    for (const w of [...waits]) {
+      try {
+        const res = await fetch(`/api/call/queue?counselorId=${encodeURIComponent(w.counselorId)}&clientId=${encodeURIComponent(this.clientId())}`);
+        if (!res.ok) continue;
+        const d = await res.json();
+        if (d.position === 0) { // 서버에서 사라짐(연결됐거나 리셋) → 조용히 정리
+          window.Storage._safeSet('cbt_call_waits', (window.Storage._safeGet('cbt_call_waits', []) || []).filter(x => x.counselorId !== w.counselorId));
+          continue;
+        }
+        if (!d.available) {
+          this.showRecordToast(`${w.name}님이 부재중으로 전환해 대기가 종료됐어요`);
+          this.leaveCallQueue(w.counselorId);
+          continue;
+        }
+        if (d.free && d.position <= 1) {
+          this.notify(`⚡ ${w.name}님과 통화 가능!`, '회선이 비었어요. 지금 바로 걸어보세요 (대기 1순위)');
+          this.playWoorung();
+          this.showRecordToast(`⚡ ${w.name}님 회선이 비었어요! 지금 걸어보세요`);
+          if (window.Marketplace) window.Marketplace.fetchPresence(true);
+        }
+      } catch (e) {}
+    }
   },
 
   // 채팅창이 닫혀 있어도 상담사 답장을 받아온다 (1분 틱)
@@ -1554,7 +1700,7 @@ ${memory || '(없음)'}`;
     this.openHumanChat(counselorId);
   },
 
-  // 리뷰 작성 → 저장 (완료된 상담)
+  // 리뷰 작성 → 저장 (완료된 상담) + 서버 전송 (상담사가 보고 답글 가능)
   writeReview(bookingId) {
     const rating = parseInt(prompt('별점을 남겨주세요 (1~5)', '5'), 10);
     if (!rating || rating < 1 || rating > 5) return;
@@ -1562,6 +1708,16 @@ ${memory || '(없음)'}`;
     const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
     reviews[bookingId] = { rating, text, ts: Date.now() };
     window.Storage._safeSet('cbt_reviews', reviews);
+    // 서버로도 — 상담사 페이지 '⭐ 내 리뷰'에 도착
+    const b = (window.Storage._safeGet('cbt_bookings', []) || []).find(x => x.id === bookingId);
+    if (b) {
+      try {
+        fetch('/api/reviews', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bookingId, counselorId: b.counselorId, counselorName: b.name, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명', rating, text })
+        }).catch(() => {});
+      } catch (e) {}
+    }
     alert('소중한 리뷰가 등록되었습니다. 감사합니다! ⭐');
     this.renderMyBookings();
   },
@@ -1987,7 +2143,7 @@ ${memory || '(없음)'}`;
         const d = await res.json().catch(() => ({}));
         if (window.Marketplace) window.Marketplace.fetchPresence(true);
         if (d.reason === 'busy') {
-          if (confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n통화가 끝나면 매칭 카드가 다시 열립니다.\n\n먼저 채팅으로 메시지를 남겨둘까요?`)) this.openHumanChat(c.id);
+          if (confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n\n🔔 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
         } else {
           alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
         }

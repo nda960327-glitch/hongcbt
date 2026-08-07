@@ -64,6 +64,8 @@
       <div id="schedule"></div>
       <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">💬 상담 채팅</h2>
       <div id="chats"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">⭐ 내 리뷰</h2>
+      <div id="reviews"></div>
       <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">📥 받은 상담 자료</h2>
       <div id="list"></div>
     </div>
@@ -78,7 +80,74 @@
       if (!r.ok) { document.getElementById('err').style.display = 'block'; return; }
       CODE = v;
       sessionStorage.setItem('inbox_code', v);
+      if ('Notification' in window && Notification.permission === 'default') { try { Notification.requestPermission(); } catch (e) {} }
       show(await r.json());
+      loadSchedule(); loadChats(); loadPresence(); loadReviews();
+    }
+
+    // === 새 소식 알림음: 새 채팅·예약·자료가 오면 차임 + 브라우저 알림 ===
+    const lastCounts = {};
+    function maybeNotify(key, count, label) {
+      if (lastCounts[key] !== undefined && count > lastCounts[key]) {
+        chime();
+        try { if ('Notification' in window && Notification.permission === 'granted') new Notification('우렁의사 상담사', { body: label + ' 도착했어요' }); } catch (e) {}
+        document.title = `🔔 ${label} — 상담사 수신함`;
+        setTimeout(() => { document.title = '우렁의사 — 상담사 수신함'; }, 6000);
+      }
+      lastCounts[key] = count;
+    }
+
+    let audioCtx = null;
+    function chime() {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        [[659, 0], [988, 0.11], [1319, 0.22]].forEach(([f, t]) => {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
+          g.gain.setValueAtTime(0.001, audioCtx.currentTime + t);
+          g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.18);
+          o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.2);
+        });
+      } catch (e) {}
+    }
+
+    // === 내 리뷰 + 답글 ===
+    async function loadReviews() {
+      const el = document.getElementById('reviews');
+      if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#reviews')) return;
+      const r = await fetch('/api/reviews?code=' + encodeURIComponent(CODE)).catch(() => null);
+      if (!r || !r.ok) { el.innerHTML = ''; return; }
+      const items = (await r.json()).items || [];
+      maybeNotify('reviews', items.length, '새 리뷰가');
+      if (!items.length) {
+        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">아직 리뷰가 없습니다. 상담을 마친 내담자가 별점을 남기면 여기에 표시돼요.</div>';
+        return;
+      }
+      el.innerHTML = items.map(rv => `
+        <div class="card">
+          <div class="item-head" style="cursor: default;">
+            <strong>${'⭐'.repeat(rv.rating)} <span class="muted" style="font-weight: 500;">${esc(rv.clientName)} 님</span></strong>
+            <span class="muted">${new Date(rv.ts).toLocaleDateString('ko-KR')}</span>
+          </div>
+          ${rv.text ? `<p style="font-size: 0.86rem; margin-top: 0.35rem;">"${esc(rv.text)}"</p>` : ''}
+          ${rv.reply
+            ? `<p class="muted" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line);">↳ 내 답글: ${esc(rv.reply.text)}</p>`
+            : `<div style="display: flex; gap: 0.4rem; margin-top: 0.55rem;">
+                <input id="rvr-${rv.id}" placeholder="감사 인사·답글 남기기" style="text-align: left; flex: 1;" onkeydown="if(event.key==='Enter') sendReviewReply('${rv.id}')">
+                <button class="btn" style="width: auto; margin: 0; padding: 0.6rem 1rem;" onclick="sendReviewReply('${rv.id}')">등록</button>
+              </div>`}
+        </div>`).join('');
+    }
+
+    async function sendReviewReply(id) {
+      const inp = document.getElementById('rvr-' + id);
+      const t = (inp.value || '').trim();
+      if (!t) return;
+      inp.blur();
+      await fetch('/api/reviews/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, text: t, code: CODE }) }).catch(() => {});
+      loadReviews();
     }
 
     function logout() {
@@ -96,6 +165,7 @@
       loadSchedule();
       loadChats();
       loadPresence();
+      loadReviews();
     }
 
     // 바로상담 수신 토글 — ON이어야 매칭 카드에 '지금 통화' 버튼이 열린다
@@ -139,6 +209,7 @@
       const data = await r.json();
       const items = (data.items || []).sort((a, b) => a.whenTs - b.whenTs);
       const now = Date.now();
+      maybeNotify('bookings', items.filter(b => b.status === 'confirmed').length, '새 예약이');
       if (!items.length) {
         el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">예약이 없습니다. 내담자가 앱에서 예약하면 여기에 실시간으로 표시돼요.</div>';
         return;
@@ -146,7 +217,8 @@
       el.innerHTML = items.map(b => {
         const cancelled = b.status === 'cancelled';
         const declined = b.status === 'declined';
-        const inactive = cancelled || declined;
+        const noshow = b.status === 'noshow';
+        const inactive = cancelled || declined || noshow;
         const past = b.whenTs <= now;
         const soon = !inactive && !past && (b.whenTs - now) < 3600000;
         return `<div class="card" style="${inactive ? 'opacity: 0.55;' : ''} ${soon ? 'border-color: var(--accent);' : ''}">
@@ -154,6 +226,7 @@
             <strong style="${inactive ? 'text-decoration: line-through;' : ''}">${esc(b.clientName)} 님 ${inactive ? '' : '· 30분 상담'}</strong>
             ${cancelled ? '<span class="badge-read">내담자 취소</span>'
               : declined ? '<span class="badge-read" style="color: #cf6b60; border-color: #cf6b60;">거절함 (전액 환불)</span>'
+              : noshow ? '<span class="badge-read" style="color: #cf6b60; border-color: #cf6b60;">미진행 (환불·정산 제외)</span>'
               : past ? '<span class="badge-read">완료</span>'
               : soon ? '<span class="badge-new">곧 시작</span>'
               : '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">확정</span>'}
@@ -176,7 +249,7 @@
     function renderSettlement(items) {
       const el = document.getElementById('settlement');
       const now = Date.now();
-      const done = items.filter(b => b.status !== 'cancelled' && b.status !== 'declined' && b.whenTs <= now);
+      const done = items.filter(b => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'noshow' && b.whenTs <= now);
       const gross = done.reduce((s, b) => s + (b.price || 0), 0);
       const mine = Math.round(gross * 0.55);
       el.innerHTML = `
@@ -202,6 +275,7 @@
       const el = document.getElementById('chats');
       if (!r || !r.ok) { el.innerHTML = ''; return; }
       const items = (await r.json()).items || [];
+      maybeNotify('chat', items.length, '새 채팅이');
       if (!items.length) {
         el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">아직 채팅이 없습니다. 내담자가 앱에서 💬 채팅을 보내면 여기에 표시돼요.</div>';
         return;
@@ -261,6 +335,7 @@
       const unread = items.filter(x => !x.read).length;
       const who = data.scope === 'counselor' ? `${data.counselorName} 님 · ` : '전체(운영자) · ';
       document.getElementById('count').textContent = `${who}받은 자료 ${items.length}건 · 안 읽음 ${unread}건`;
+      maybeNotify('inbox', items.length, '새 상담 자료가');
       const list = document.getElementById('list');
       if (!items.length) {
         list.innerHTML = '<div class="card empty">아직 도착한 자료가 없습니다.<br>내담자가 앱에서 [상담 자료 보내기]로 동의·전달하면 여기에 쌓여요.</div>';
