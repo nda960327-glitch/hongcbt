@@ -12,6 +12,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 3030
+    },
+    {
+      "name": "hongcbt-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "http-server", "C:/Users/SAMSUNG/.gemini/antigravity/scratch/hongcbt", "-p", "8177", "-c-1"],
+      "port": 8177
     }
   ]
 }

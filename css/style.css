@@ -1209,83 +1209,103 @@ textarea:focus { border-color: var(--accent-primary); }
   color: var(--accent-primary);
 }
 
-/* ========== HOME 매칭 배너 카드 (AI & 전문 상담사 일관 디자인) ========== */
-.home-banner-card {
-  margin: 0 1.25rem 1rem;
-  border-radius: var(--radius-lg);
-  padding: 1.1rem 1.2rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  cursor: pointer;
-  background: var(--bg-secondary);
+/* ============================================================
+   HOME — 섹션 기반 레이아웃
+   구성: 인사 → 오늘(체크인·미션) → 상담 시작 → 마음 도구 → 제휴
+   ============================================================ */
+
+/* 섹션 제목 줄 */
+.home-sec {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.6rem; margin: 1.3rem 1.25rem 0.6rem;
+}
+.home-sec h3 {
+  margin: 0; font-size: 0.98rem; font-weight: 800;
+  color: var(--text-primary); font-family: var(--font-heading);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.home-sec__sub { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
+
+/* 홈 공용 카드 */
+.home-card { margin: 0 1.25rem 0.7rem; padding: 0.9rem 1rem; }
+.home-card__head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; margin-bottom: 0.6rem;
+}
+.home-card__t { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.home-card__head .home-card__t { margin: 0; }
+.home-card__hint { font-size: 0.7rem; color: var(--text-muted); }
+
+/* 원탭 기분 체크인 */
+.home-mood { display: flex; justify-content: space-between; gap: 0.3rem; }
+.home-mood__btn {
+  appearance: none; -webkit-appearance: none;
+  background: transparent; border: 0;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem;
+  padding: 0.35rem 0 0.3rem; border-radius: 12px;
+  cursor: pointer; font-family: inherit;
+  transition: background var(--transition-fast);
+}
+.home-mood__btn > span:first-child { line-height: 0; }
+.home-mood__lbl { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); }
+
+/* 상담 시작하기 — AI / 전문 상담사 2열 */
+.home-start { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin: 0 1.25rem; }
+.home-start__card {
+  appearance: none; text-align: left; font-family: inherit;
+  display: flex; flex-direction: column; gap: 0.45rem;
+  padding: 1rem 0.9rem;
   border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
-.home-banner-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--accent-primary);
-}
-.home-banner-card--ai {
+.home-start__card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.home-start__card--ai {
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)), var(--bg-secondary));
   border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
 }
-.home-banner-card--human {
-  background: linear-gradient(135deg, color-mix(in srgb, #3b82f6 8%, var(--bg-secondary)), var(--bg-secondary));
+.home-start__card--human {
+  background: linear-gradient(135deg, color-mix(in srgb, #3b82f6 9%, var(--bg-secondary)), var(--bg-secondary));
+  border-color: rgba(138, 180, 248, 0.3);
 }
-.home-banner-card__art {
-  width: 72px; height: 68px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.home-banner-card__body { flex: 1; min-width: 0; }
-.home-banner-card__tag {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--accent-primary);
-  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
-  padding: 0.15rem 0.5rem;
+.home-start__ico {
+  width: 42px; height: 42px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-full);
-  margin-bottom: 0.3rem;
-}
-.home-banner-card__tag--human {
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.12);
-}
-.home-banner-card__title {
-  color: var(--text-primary);
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 0;
-}
-.home-banner-card__desc {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-  margin: 0.25rem 0 0.6rem;
-  line-height: 1.35;
-}
-.home-banner-card__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.82rem;
-  font-weight: 600;
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
   color: var(--accent-primary);
 }
-.home-banner-card__btn--human {
-  color: #2563eb;
+/* 다크가 기본 테마 — 파랑은 밝은 톤으로 (진한 #2563eb 는 어두운 배경에서 대비 3.3:1) */
+.home-start__card--human .home-start__ico { background: rgba(138, 180, 248, 0.16); color: #8ab4f8; }
+.home-start__t {
+  font-size: 0.95rem; font-weight: 800; color: var(--text-primary);
+  font-family: var(--font-heading);
 }
+.home-start__d { font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; }
+.home-start__go {
+  margin-top: auto; font-size: 0.76rem; font-weight: 700;
+  color: var(--accent-primary);
+  display: inline-flex; align-items: center; gap: 0.2rem;
+}
+.home-start__card--human .home-start__go { color: #8ab4f8; }
 
-/* 홈 — 내 마음 도구 3분할 */
-.home-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.7rem; margin: 0 1.25rem 0.4rem; }
+/* 라이트 테마에서는 진한 파랑이 대비가 좋다 */
+[data-theme="light"] .home-start__card--human { border-color: rgba(37, 99, 235, 0.28); }
+[data-theme="light"] .home-start__card--human .home-start__ico { background: rgba(37, 99, 235, 0.13); color: #2563eb; }
+[data-theme="light"] .home-start__card--human .home-start__go { color: #2563eb; }
+
+/* 내 마음 도구 — 2열 가로형 */
+.home-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.7rem; margin: 0 1.25rem 0.4rem; }
 .home-tool {
-  display: flex; flex-direction: column; align-items: center; gap: 0.35rem;
+  display: flex; align-items: center; gap: 0.7rem;
+  text-align: left;
   background: var(--bg-secondary);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  padding: 1rem 0.5rem;
+  padding: 0.8rem 0.85rem;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
@@ -1293,13 +1313,26 @@ textarea:focus { border-color: var(--accent-primary); }
 }
 .home-tool:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
 .home-tool__ico {
-  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
   color: var(--accent-primary);
 }
-.home-tool__t { font-size: 0.82rem; font-weight: 700; color: var(--text-primary); }
+.home-tool__txt { display: flex; flex-direction: column; min-width: 0; }
+.home-tool__t,
+.home-tool__d { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home-tool__t { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
 .home-tool__d { font-size: 0.68rem; color: var(--text-muted); }
+
+/* 제휴 콘텐츠 가로 스크롤 */
+.home-ads {
+  display: flex; gap: 0.8rem; overflow-x: auto;
+  padding: 0 1.25rem 1rem;
+  scroll-snap-type: x mandatory; scrollbar-width: none;
+}
+.home-ads::-webkit-scrollbar { display: none; }
+.home-ad { min-width: 240px; scroll-snap-align: start; cursor: pointer; overflow: hidden; }
 
 /* 제휴 카드 일러스트 */
 .ad-art { line-height: 0; }
@@ -1500,8 +1533,12 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 @media (max-width: 380px) {
   .tab-header h2 { font-size: 1.15rem; }
   .stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .home-tools { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
-  .home-tool__d { display: none; }
+  .home-tools { gap: 0.5rem; }
+  .home-tool { padding: 0.7rem 0.6rem; gap: 0.55rem; }
+  .home-tool__ico { width: 34px; height: 34px; }
+  .home-tool__t { font-size: 0.8rem; }
+  .home-start { gap: 0.5rem; }
+  .home-start__card { padding: 0.85rem 0.7rem; }
   #persona-bar { gap: 0.4rem; padding: 0.4rem 0.6rem; }
   #persona-bar .btn-secondary { font-size: 0.68rem !important; padding: 0.3rem 0.5rem !important; }
   .message-bubble { max-width: 82%; }

@@ -112,55 +112,53 @@
     <!-- Tab Content Sections -->
     <!-- HOME TAB -->
     <section id="tab-home" class="tab-content">
-      <div class="tab-header">
-        <h2><span class="h-ico" data-icon="home" data-icon-size="24"></span>우렁의사 홈</h2>
-        <p class="tab-subtitle">나와 잘 맞는 상담사를 선택하고 대화를 시작해보세요</p>
+      <!-- 시간대·상태 인식 인사 배너 (홈의 헤더 역할) -->
+      <div id="home-greeting" style="margin: 1rem 1.25rem 0.2rem;"></div>
+
+      <!-- ========== 오늘 ========== -->
+      <div class="home-sec">
+        <h3>오늘</h3>
+        <span id="streak-chip" onclick="window.App.switchTab('mypage')" style="display: none; font-size: 0.72rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.18rem 0.55rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></span>
       </div>
 
-      <!-- 시간대·상태 인식 인사 배너 -->
-      <div id="home-greeting" style="margin: 0 1.25rem 1rem;"></div>
-
       <!-- 원탭 기분 체크인 -->
-      <div class="glass-card" style="margin: 0 1.25rem 1rem; padding: 0.9rem 1rem;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.55rem;">
-          <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">지금 마음은 어때요?</p>
-          <span id="streak-chip" onclick="window.App.switchTab('mypage')" style="display: none; font-size: 0.72rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.18rem 0.55rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></span>
-        </div>
-        <div id="quick-mood-row" style="display: flex; justify-content: space-between; gap: 0.3rem;">
-          <button data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
-            <span data-sticker="joy" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">기쁨</span>
+      <div class="glass-card home-card">
+        <p class="home-card__t">지금 마음은 어때요?</p>
+        <div id="quick-mood-row" class="home-mood">
+          <button class="home-mood__btn" data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')">
+            <span data-sticker="joy" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">기쁨</span>
           </button>
-          <button data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
-            <span data-sticker="empathy" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">편안</span>
+          <button class="home-mood__btn" data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')">
+            <span data-sticker="empathy" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">편안</span>
           </button>
-          <button data-emo="보통" onclick="window.App.quickMood(3,'보통','😐')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
-            <span data-sticker="blank" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">보통</span>
+          <button class="home-mood__btn" data-emo="보통" onclick="window.App.quickMood(3,'보통','😐')">
+            <span data-sticker="blank" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">보통</span>
           </button>
-          <button data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
-            <span data-sticker="surprise" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">불안/불편</span>
+          <button class="home-mood__btn" data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')">
+            <span data-sticker="surprise" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">불안</span>
           </button>
-          <button data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
-            <span data-sticker="sad" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">우울/고통</span>
+          <button class="home-mood__btn" data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')">
+            <span data-sticker="sad" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">우울</span>
           </button>
         </div>
       </div>
 
       <!-- 오늘의 우렁 미션 (행동활성화) -->
-      <div class="glass-card" style="margin: 0 1.25rem 1rem; padding: 0.95rem 1rem;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
-          <p style="margin: 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary);">🎯 오늘의 우렁 미션</p>
-          <span style="font-size: 0.7rem; color: var(--text-muted);">몸이 움직이면 마음이 따라와요</span>
+      <div class="glass-card home-card">
+        <div class="home-card__head">
+          <p class="home-card__t">🎯 오늘의 우렁 미션</p>
+          <span class="home-card__hint">몸이 움직이면 마음이 따라와요</span>
         </div>
         <div id="mission-card-body"></div>
       </div>
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
-      <div id="night-card" class="hidden" style="margin: 0 1.25rem 1rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
+      <div id="night-card" class="hidden" style="margin: 0 1.25rem 0.7rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
         <button onclick="window.Growth && window.Growth.dismissNightToday()" title="오늘은 그냥 잘래요" style="all: unset; position: absolute; top: 0.5rem; right: 0.75rem; font-size: 1rem; opacity: 0.55; cursor: pointer; padding: 0.25rem; z-index: 1;">✕</button>
         <button onclick="window.Growth && window.Growth.startNight()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 1rem 1.1rem; cursor: pointer;">
           <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
@@ -172,30 +170,58 @@
         </button>
       </div>
 
-      <!-- 2개 핵심 매칭 배너 (동일한 프리미엄 디자인 카드) -->
-      <div class="home-banner-card home-banner-card--ai" onclick="window.App.switchTab('chat')">
-        <div class="home-banner-card__art" data-art="heroChat"></div>
-        <div class="home-banner-card__body">
-          <div class="home-banner-card__tag">24시간 실시간 상담</div>
-          <h3 class="home-banner-card__title">AI 심리상담 대화</h3>
-          <p class="home-banner-card__desc">마음속 고민과 감정을 언제든 편하게 핑퐁 대화로 나눠보세요.</p>
-          <div class="home-banner-card__btn">대화 시작하기 <span class="h-ico" data-icon="chevron-right" data-icon-size="14"></span></div>
-        </div>
+      <!-- ========== 상담 시작하기 ========== -->
+      <div class="home-sec"><h3>상담 시작하기</h3></div>
+      <div class="home-start">
+        <button class="home-start__card home-start__card--ai" onclick="window.App.switchTab('chat')">
+          <span class="home-start__ico" data-icon="chat" data-icon-size="22"></span>
+          <span class="home-start__t">AI 심리상담</span>
+          <span class="home-start__d">24시간 언제든 편하게 대화</span>
+          <span class="home-start__go">대화 시작 ›</span>
+        </button>
+        <button class="home-start__card home-start__card--human" onclick="window.App.switchTab('counselors')">
+          <span class="home-start__ico" data-icon="counselor" data-icon-size="22"></span>
+          <span class="home-start__t">전문 상담사</span>
+          <span class="home-start__d">의료진 소속 검증 상담사 예약</span>
+          <span class="home-start__go">둘러보기 ›</span>
+        </button>
       </div>
 
-      <div class="home-banner-card home-banner-card--human" onclick="window.App.switchTab('counselors')">
-        <div class="home-banner-card__art">
-          <span class="h-ico" data-icon="counselor" data-icon-size="44" style="color: var(--accent-primary);"></span>
-        </div>
-        <div class="home-banner-card__body">
-          <div class="home-banner-card__tag home-banner-card__tag--human">전문 의료진 소속</div>
-          <h3 class="home-banner-card__title">추천 전문 상담사</h3>
-          <p class="home-banner-card__desc">나에게 딱 맞는 검증된 전문 상담사를 찾고 예약을 진행하세요.</p>
-          <div class="home-banner-card__btn home-banner-card__btn--human">상담사 둘러보기 <span class="h-ico" data-icon="chevron-right" data-icon-size="14"></span></div>
-        </div>
+      <!-- ========== 내 마음 도구 ========== -->
+      <div class="home-sec"><h3>내 마음 도구</h3></div>
+      <div class="home-tools">
+        <button class="home-tool" onclick="window.App.switchTab('record')">
+          <span class="home-tool__ico" data-icon="record" data-icon-size="20"></span>
+          <span class="home-tool__txt">
+            <span class="home-tool__t">사고 기록</span>
+            <span class="home-tool__d">생각 정리</span>
+          </span>
+        </button>
+        <button class="home-tool" onclick="window.Calm && window.Calm.openMenu()">
+          <span class="home-tool__ico" data-icon="heart" data-icon-size="20"></span>
+          <span class="home-tool__txt">
+            <span class="home-tool__t">마음 안정</span>
+            <span class="home-tool__d">호흡·그라운딩</span>
+          </span>
+        </button>
+        <button class="home-tool" onclick="window.Growth && window.Growth.startNight()">
+          <span class="home-tool__ico" data-icon="moon" data-icon-size="20"></span>
+          <span class="home-tool__txt">
+            <span class="home-tool__t">하루 정리</span>
+            <span class="home-tool__d">3분 회고</span>
+          </span>
+        </button>
+        <button class="home-tool" onclick="window.App.switchTab('learn')">
+          <span class="home-tool__ico" data-icon="book" data-icon-size="20"></span>
+          <span class="home-tool__txt">
+            <span class="home-tool__t">인지왜곡 학습</span>
+            <span class="home-tool__d">10가지 함정</span>
+          </span>
+        </button>
       </div>
 
-      <div id="pwa-install-banner" class="glass-card" style="margin: 0 1.25rem 1rem; padding: 1rem; border: 1px solid var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); display: none; flex-direction: column; gap: 0.8rem;">
+      <!-- 앱 설치 안내 (설치 가능할 때만 자동 표시) -->
+      <div id="pwa-install-banner" class="glass-card" style="margin: 1rem 1.25rem 0; padding: 1rem; border: 1px solid var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); display: none; flex-direction: column; gap: 0.8rem;">
         <div style="display: flex; gap: 1rem; align-items: center;">
           <div class="banner-ico" data-icon="download" data-icon-size="26"></div>
           <div>
@@ -206,89 +232,35 @@
         <button id="btn-install-app" class="btn-primary" style="width: 100%; box-shadow: var(--shadow-sm);">앱 다운로드</button>
       </div>
 
-      <!-- 내 마음 도구 (CBT 셀프케어 진입점) -->
-      <h3 class="card-head" style="margin: 0.4rem 1.25rem 0.6rem; font-size: 1.05rem;"><span class="h-ico" data-icon="bulb" data-icon-size="20"></span>내 마음 도구</h3>
-      <div class="home-tools">
-        <button class="home-tool" onclick="window.App.switchTab('record')">
-          <span class="home-tool__ico" data-icon="record" data-icon-size="24"></span>
-          <span class="home-tool__t">사고 기록</span>
-          <span class="home-tool__d">생각 정리</span>
-        </button>
-        <button class="home-tool" onclick="window.App.switchTab('learn')">
-          <span class="home-tool__ico" data-icon="book" data-icon-size="24"></span>
-          <span class="home-tool__t">인지왜곡 학습</span>
-          <span class="home-tool__d">10가지 함정</span>
-        </button>
-        <button class="home-tool" onclick="window.App.switchTab('dashboard')">
-          <span class="home-tool__ico" data-icon="dashboard" data-icon-size="24"></span>
-          <span class="home-tool__t">마음 대시보드</span>
-          <span class="home-tool__d">감정 추적</span>
-        </button>
-        <button class="home-tool" onclick="window.Calm && window.Calm.openMenu()">
-          <span class="home-tool__ico" data-icon="heart" data-icon-size="24"></span>
-          <span class="home-tool__t">마음 안정</span>
-          <span class="home-tool__d">호흡·그라운딩</span>
-        </button>
-        <button class="home-tool" onclick="window.Growth && window.Growth.startNight()">
-          <span class="home-tool__ico" data-icon="moon" data-icon-size="24"></span>
-          <span class="home-tool__t">하루 정리</span>
-          <span class="home-tool__d">3분 회고</span>
-        </button>
+      <!-- ========== 추천 제휴 콘텐츠 ========== -->
+      <div class="home-sec">
+        <h3>추천 제휴 콘텐츠</h3>
+        <span class="home-sec__sub">광고</span>
       </div>
-
-      <!-- 광고 및 제휴 콘텐츠 섹션 -->
-      <div style="margin: 0.3rem 0 0.5rem 0;">
-        <h3 class="card-head" style="margin: 0 1.25rem 0.3rem; font-size: 1.05rem;"><span class="h-ico" data-icon="sparkle" data-icon-size="20"></span>추천 제휴 콘텐츠</h3>
-        <p style="margin: 0 1.25rem 0.9rem; font-size: 0.8rem; color: var(--text-muted);">마음 건강을 위한 맞춤형 정보</p>
-
-        <div style="display: flex; gap: 0.85rem; overflow-x: auto; padding: 0 1.25rem 1rem; scroll-snap-type: x mandatory; scrollbar-width: none;">
-          <!-- 광고 1: 병원 홍보 -->
-          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
-            <div class="ad-art" data-art="adHospital"></div>
-            <div style="padding: 1rem;">
-              <span style="font-size: 0.7rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.4rem; border-radius: 6px;">제휴병원</span>
-              <h4 style="margin: 0.5rem 0 0.3rem 0;">서울 마음그린 정신건강의학과</h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시! 편안한 마음으로 방문하세요.</p>
-            </div>
-          </div>
-          
-          <!-- 광고 2: 수면 클리닉 -->
-          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
-            <div class="ad-art" data-art="adSleep"></div>
-            <div style="padding: 1rem;">
-              <span style="font-size: 0.7rem; color: #6f97ab; font-weight: bold; border: 1px solid #6f97ab; padding: 0.1rem 0.4rem; border-radius: 6px;">수면클리닉</span>
-              <h4 style="margin: 0.5rem 0 0.3rem 0;">굿나잇 수면클리닉 기획전</h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">불면증으로 고통받고 계신가요? 수면다원검사로 원인을 찾아드립니다.</p>
-            </div>
-          </div>
-          
-          <!-- 광고 3: 심리 서적 -->
-          <div class="glass-card" style="min-width: 260px; scroll-snap-align: start; cursor: pointer; overflow: hidden;" onclick="alert('도서 구매 페이지로 이동합니다.')">
-            <div class="ad-art" data-art="adBook"></div>
-            <div style="padding: 1rem;">
-              <span style="font-size: 0.7rem; color: var(--accent-secondary); font-weight: bold; border: 1px solid var(--accent-secondary); padding: 0.1rem 0.4rem; border-radius: 6px;">추천도서</span>
-              <h4 style="margin: 0.5rem 0 0.3rem 0;">베스트셀러: 내 마음을 안아주는 연습</h4>
-              <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4;">상처받은 당신을 위한 인지심리학자의 따뜻한 위로와 솔루션.</p>
-            </div>
+      <div class="home-ads">
+        <div class="glass-card home-ad" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adHospital"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.4rem; border-radius: 6px;">제휴병원</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">서울 마음그린 정신건강의학과</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시!</p>
           </div>
         </div>
-        
-        <style>
-          /* Hide scrollbar for the horizontal ad container but keep functionality */
-          div[style*="overflow-x: auto"]::-webkit-scrollbar {
-            display: none;
-          }
-        </style>
-      </div>
-      <!-- 상담사 입점 안내 (홈 하단) -->
-      <div style="padding: 0 1.25rem 1.5rem;">
-        <div class="glass-card" style="padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
-          <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
-          <div style="flex: 1; min-width: 0;">
-            <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
-            <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
+        <div class="glass-card home-ad" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adSleep"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: #6f97ab; font-weight: bold; border: 1px solid #6f97ab; padding: 0.1rem 0.4rem; border-radius: 6px;">수면클리닉</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">굿나잇 수면클리닉 기획전</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">수면다원검사로 불면의 원인을 찾아드립니다.</p>
           </div>
-          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
+        </div>
+        <div class="glass-card home-ad" onclick="alert('도서 구매 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adBook"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: var(--accent-secondary); font-weight: bold; border: 1px solid var(--accent-secondary); padding: 0.1rem 0.4rem; border-radius: 6px;">추천도서</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">내 마음을 안아주는 연습</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">인지심리학자의 따뜻한 위로와 솔루션.</p>
+          </div>
         </div>
       </div>
     </section>
@@ -743,6 +715,16 @@
             <p style="margin: 0.3rem 0 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 그 누구에게도 공유되지 않아요. 답변을 만드는 순간에만 안전하게 처리될 뿐, 흔적은 남지 않습니다. 당신과 우렁이, 둘만의 비밀이에요.</p>
           </div>
         </div>
+      </div>
+
+      <!-- 상담사 입점 안내 (홈에서 이동 — 공급자용 기능이라 마이페이지가 맞다) -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
+        <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
+        <div style="flex: 1; min-width: 0;">
+          <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
+        </div>
+        <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
       </div>
 
       <!-- 설정 진입 (마이탭 길이 축소 — 상세 설정은 전체화면 오버레이로) -->
