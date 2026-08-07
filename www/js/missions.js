@@ -279,6 +279,14 @@ ${recent}` }],
     this.renderCard();
   },
 
+  // 카테고리별 손그림 아이콘 (이모지 대신 톤 통일)
+  CAT_ICO: { '움직임': 'move', '마음': 'mind', '돌봄': 'care', '연결': 'link', '즐거움': 'joy', '우렁이 맞춤': 'sprout' },
+
+  catIcon(cat, size) {
+    const n = this.CAT_ICO[cat] || 'quest';
+    return window.Icons ? window.Icons.svg(n, { size: size || 22 }) : '';
+  },
+
   renderCard() {
     // 홈 카드와 대시보드(우렁이 세계) 퀘스트 칸 양쪽에 같은 내용을 그린다
     const targets = [...document.querySelectorAll('[data-mission-card]')];
@@ -293,29 +301,29 @@ ${recent}` }],
         <div style="display: flex; align-items: center; gap: 0.8rem;">
           <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('proud', 62) : '🎉'}</span>
           <div style="flex: 1; min-width: 0;">
-            <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">퀘스트 완료! ${m.emoji}</strong>
+            <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">퀘스트 완료!</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted);">${m.text}</span>
             <span style="display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem;">지금까지 ${total}개의 작은 승리를 모았어요</span>
           </div>
         </div>
         <div style="display: flex; gap: 0.45rem; margin-top: 0.6rem;">
           ${bonus < 3
-            ? `<button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.more()">🎁 퀘스트 더 받기 (${bonus}/3)</button>`
+            ? `<button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.more()">퀘스트 더 받기 (${bonus}/3)</button>`
             : `<span style="flex: 1; text-align: center; font-size: 0.72rem; color: var(--text-muted); padding: 0.5rem 0;">오늘의 보너스 퀘스트를 다 했어요! 내일 또 만나요</span>`}
-          <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">🐌 맞춤 숙제 받기</button>
+          <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">맞춤 숙제 받기</button>
         </div>`;
     } else {
       el.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.7rem;">
-          <span style="font-size: 1.9rem; flex-shrink: 0;">${m.emoji}</span>
-          <div style="flex: 1; min-width: 0;">
-            <span style="font-size: 0.68rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.12rem 0.5rem; border-radius: 999px;">${m.cat}</span>
+        <div style="display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.75rem;">
+          <span style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary)); border: 1px solid var(--glass-border); line-height: 0;">${this.catIcon(m.cat, 22)}</span>
+          <div style="flex: 1 1 0%; min-width: 0; padding-top: 0.1rem;">
+            <span style="display: inline-block; font-size: 0.66rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.1rem 0.5rem; border-radius: 999px;">${m.cat}</span>
             <p style="margin: 0.3rem 0 0; font-size: 0.92rem; font-weight: 600; color: var(--text-primary); line-height: 1.5;">${m.text}</p>
           </div>
         </div>
         <div style="display: flex; gap: 0.5rem;">
-          <button class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.6rem;" onclick="window.Missions.complete()">했어요! ✅</button>
-          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="마음에 드는 미션이 나올 때까지 바꿔보세요">🔄 다른 거</button>
+          <button class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.6rem;" onclick="window.Missions.complete()">했어요!</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="마음에 드는 미션이 나올 때까지 바꿔보세요">다른 거</button>
         </div>`;
     }
   }

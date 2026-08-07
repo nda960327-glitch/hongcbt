@@ -164,7 +164,7 @@
         this.userLat = pos.coords.latitude;
         this.userLng = pos.coords.longitude;
         this.hasGps = true;
-        if (statusText) statusText.textContent = "📍 내 위치 연결됨";
+        if (statusText) statusText.textContent = "내 위치 연결됨";
         this.renderCounselors();
       },
       (err) => {
@@ -224,9 +224,9 @@
     const sortLabel = (this.SORTS.find(s => s[0] === this._sort) || this.SORTS[0])[1];
     const caret = '<svg width="10" height="10" viewBox="0 0 10 10" style="flex-shrink: 0;"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     row.innerHTML = `
-      <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.Marketplace.openSortSheet()">↕ ${sortLabel} ${caret}</button>
-      <button class="cc-chip ${this._availOnly ? 'on' : ''}" style="flex-shrink: 0;" onclick="window.Marketplace.toggleAvail()">🟢 바로상담 가능만</button>
-      <button class="cc-chip" style="flex-shrink: 0;" onclick="window.Marketplace.requestUserLocation()"><span id="gps-status-text">${this.hasGps ? '📍 내 위치 ✓' : '📍 내 위치'}</span></button>`;
+      <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.Marketplace.openSortSheet()">${sortLabel} ${caret}</button>
+      <button class="cc-chip ${this._availOnly ? 'on' : ''}" style="flex-shrink: 0;" onclick="window.Marketplace.toggleAvail()">바로상담 가능만</button>
+      <button class="cc-chip" style="flex-shrink: 0;" onclick="window.Marketplace.requestUserLocation()">${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''}<span id="gps-status-text">${this.hasGps ? '내 위치 ✓' : '내 위치'}</span></button>`;
   },
 
   // 정렬 바텀시트 — 배달앱처럼 아래에서 올라오는 선택지
@@ -315,7 +315,7 @@
       return `
       <div class="glass-card cc2" onclick="window.Marketplace.openProfile('${c.id}')" style="position: relative;">
         <button onclick="event.stopPropagation(); window.Marketplace.toggleFav('${c.id}')" title="즐겨찾기"
-          style="all: unset; position: absolute; top: 0.7rem; right: 0.8rem; cursor: pointer; font-size: 1.1rem; padding: 0.15rem; line-height: 1; ${this.isFav(c.id) ? 'color: #e0566b;' : 'color: var(--glass-border); -webkit-text-stroke: 1px var(--text-muted);'}">${this.isFav(c.id) ? '♥' : '♡'}</button>
+          style="all: unset; position: absolute; top: 0.7rem; right: 0.8rem; cursor: pointer; font-size: 1.1rem; padding: 0.15rem; line-height: 1; line-height: 0;">${window.Icons ? window.Icons.svg(this.isFav(c.id) ? 'favOn' : 'favOff', { size: 20, line: this.isFav(c.id) ? '#C98A93' : '#B7A88F' }) : ''}</button>
         <div class="cc2-top">
           <div class="cc2-ava">
             ${c.photo ? `<img src="${c.photo}" alt="${c.name}">` : (window.Icons ? window.Icons.art.avatar(c.avatar, 56) : '')}
@@ -325,8 +325,8 @@
             <div class="cc2-name">${c.name}${c.isNew ? ' <span class="cc2-new">NEW</span>' : ''}</div>
             <div class="cc2-hosp">${c.hospital}</div>
             <div class="cc2-meta">
-              <span>⭐ <b>${c.rating}</b> (${c.reviews})</span>
-              <span>📍 ${c.distance}km</span>
+              <span role="button" onclick="event.stopPropagation(); window.Marketplace.openReviews('${c.id}')" style="cursor: pointer; text-decoration: underline; text-decoration-color: var(--glass-border); text-underline-offset: 3px;">${window.Icons ? window.Icons.svg('star', { size: 13 }) : ''} <b>${c.rating}</b> (${c.reviews})</span>
+              <span>${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''} ${c.distance}km</span>
               <span class="cc2-st ${st}">${st === 'avail' ? '● 상담 가능' : st === 'busy' ? '● 통화 중' : '● 부재중'}</span>
             </div>
             <div class="cc2-tags">${(c.tags || []).slice(0, 3).map(t => `<span class="cc2-tag">${t}</span>`).join('')}</div>
@@ -334,23 +334,195 @@
         </div>
         <div class="cc2-duo" onclick="event.stopPropagation()">
           <button class="cc2-book" onclick="window.Booking.openModal('${c.id}')">
-            <b>📅 예약 상담</b><span>30분 ${c.price.toLocaleString()}원</span>
+            <b>${window.Icons ? window.Icons.svg('booking', { size: 14 }) : ''} 예약 상담</b><span>30분 ${c.price.toLocaleString()}원</span>
           </button>
           ${st === 'avail'
-            ? `<button class="cc2-live" onclick="window.App.startHumanCall('${c.id}')"><b>⚡ 바로상담</b><span>${this.callRateFor(c).toLocaleString()}캐시/30초</span></button>`
+            ? `<button class="cc2-live" onclick="window.App.startHumanCall('${c.id}')"><b>${window.Icons ? window.Icons.svg('bolt', { size: 14 }) : ''} 바로상담</b><span>${this.callRateFor(c).toLocaleString()}캐시/30초</span></button>`
             : st === 'busy'
               ? (window.App && window.App.isWaitingFor(c.id)
-                ? `<button class="cc2-live is-busy" onclick="window.App.leaveCallQueue('${c.id}')"><b>⏳ 대기 중</b><span>탭하면 대기 취소</span></button>`
-                : `<button class="cc2-live is-busy" onclick="window.App.joinCallQueue('${c.id}')" style="cursor: pointer;"><b>🔴 통화 중</b><span>🔔 다음 순서 잡기</span></button>`)
-              : `<div class="cc2-live is-off"><b>⚡ 바로상담</b><span>지금은 부재중</span></div>`}
+                ? `<button class="cc2-live is-busy" onclick="window.App.leaveCallQueue('${c.id}')"><b>대기 중</b><span>탭하면 대기 취소</span></button>`
+                : `<button class="cc2-live is-busy" onclick="window.App.joinCallQueue('${c.id}')" style="cursor: pointer;"><b>통화 중</b><span>다음 순서 잡기</span></button>`)
+              : `<div class="cc2-live is-off"><b>${window.Icons ? window.Icons.svg('bolt', { size: 14 }) : ''} 바로상담</b><span>지금은 부재중</span></div>`}
         </div>
         <div class="cc2-links" onclick="event.stopPropagation()">
           <button onclick="window.Marketplace.openProfile('${c.id}')">프로필·후기 보기</button>
           <i></i>
-          <button onclick="window.App.openHumanChat('${c.id}')">💬 채팅 문의</button>
+          <button onclick="window.App.openHumanChat('${c.id}')">${window.Icons ? window.Icons.svg('bubble', { size: 14 }) : ''} 채팅 문의</button>
         </div>
       </div>`;
     }).join('');
+  },
+
+  // ==========================================================================
+  //  전체 후기 페이지 — 별점 분포 · 정렬 · 내 후기 표시 (작성자는 익명 처리)
+  // ==========================================================================
+  _revSort: 'recent',
+
+  // 내가 남긴 후기까지 합쳐 전체 목록을 만든다
+  allReviews(c) {
+    const S = window.Storage;
+    const bookings = (S && S._safeGet('cbt_bookings', [])) || [];
+    const mine = (S && S._safeGet('cbt_reviews', {})) || {};
+    const own = bookings.filter(b => b.counselorId === c.id && mine[b.id]).map(b => ({
+      author: '나', rating: mine[b.id].rating || 5, text: mine[b.id].text || '',
+      ts: mine[b.id].ts || b.whenTs || Date.now(), isMine: true
+    }));
+    const base = (c.reviewsList || []).map((r, i) => ({
+      author: r.author, rating: r.rating, text: r.text,
+      ts: r.ts || (Date.now() - (i + 1) * 86400000 * 9), isMine: false
+    }));
+    return own.concat(base);
+  },
+
+  // ── 리뷰 관리(신고·숨김) ────────────────────────────────────────
+  _hidden() { return (window.Storage && window.Storage._safeGet('cbt_review_hidden', {})) || {}; },
+  _reports() { return (window.Storage && window.Storage._safeGet('cbt_review_reports', [])) || []; },
+
+  // 리뷰 고유키 (상담사 + 작성자 + 본문 앞부분)
+  reviewKey(cid, r) {
+    return cid + '|' + (r.author || '') + '|' + String(r.text || '').slice(0, 24);
+  },
+
+  isHidden(cid, r) { return !!this._hidden()[this.reviewKey(cid, r)]; },
+
+  reportReview(cid, key) {
+    const reason = prompt('이 후기를 신고하는 이유를 적어주세요.\n(욕설·허위·광고·개인정보 노출 등)');
+    if (reason === null) return;
+    const reports = this._reports();
+    if (reports.some(x => x.key === key)) { alert('이미 신고된 후기예요. 검토 중입니다.'); return; }
+    const c = this.all().find(x => x.id === cid);
+    const all = c ? this.allReviews(c) : [];
+    const r = all.find(x => this.reviewKey(cid, x) === key) || {};
+    reports.unshift({ key, cid, counselor: c ? c.name : '', author: r.author || '', text: r.text || '',
+                      reason: (reason || '').trim() || '사유 미기재', ts: Date.now(), status: 'open' });
+    window.Storage._safeSet('cbt_review_reports', reports.slice(0, 200));
+    if (window.App) window.App.showRecordToast('신고가 접수됐어요. 검토 후 조치할게요');
+    this.renderReviews();
+  },
+
+  // 대표 후기 선정 — 별점 높은 것만 골라 보여주면 신뢰를 잃는다.
+  //  ① 정보량(길이) 70% + 최신성 30% 으로 점수화
+  //  ② 긍정(4점 이상) 1개 + 비판(3점 이하) 1개를 반드시 섞는다
+  //  ③ 비판 후기가 없으면 그때만 정보량 순으로 채운다
+  pickHighlights(list, n) {
+    n = n || 2;
+    if (!list || !list.length) return [];
+    const score = r => {
+      const len = Math.min((r.text || '').length, 160) / 160;
+      const fresh = Math.max(0, 1 - (Date.now() - (r.ts || 0)) / (180 * 86400000));
+      return len * 0.7 + fresh * 0.3;
+    };
+    const sorted = [...list].sort((a, b) => score(b) - score(a));
+    const out = [];
+    const pos = sorted.find(r => r.rating >= 4);
+    const neg = sorted.find(r => r.rating <= 3);
+    if (pos) out.push(pos);
+    if (neg && out.length < n) out.push(neg);
+    for (const r of sorted) { if (out.length >= n) break; if (!out.includes(r)) out.push(r); }
+    return out.slice(0, n);
+  },
+
+  openReviews(id) {
+    const c = this.all().find(x => x.id === id);
+    if (!c) return;
+    this._revId = id;
+    const old = document.getElementById('review-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'review-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 960; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2rem;';
+    document.body.appendChild(ov);
+    this.renderReviews();
+  },
+
+  closeReviews() {
+    const ov = document.getElementById('review-overlay');
+    if (ov) ov.remove();
+  },
+
+  setRevSort(v) { this._revSort = v; this.renderReviews(); },
+
+  renderReviews() {
+    const ov = document.getElementById('review-overlay');
+    if (!ov) return;
+    const c = this.all().find(x => x.id === this._revId);
+    if (!c) return;
+    let list = this.allReviews(c).filter(r => !this.isHidden(c.id, r));
+
+    // 별점 분포 (실제 목록 기준)
+    const dist = [5, 4, 3, 2, 1].map(v => ({ v, n: list.filter(r => Math.round(r.rating) === v).length }));
+    const total = list.length || 1;
+
+    if (this._revSort === 'high') list = [...list].sort((a, b) => b.rating - a.rating);
+    else if (this._revSort === 'low') list = [...list].sort((a, b) => a.rating - b.rating);
+    else list = [...list].sort((a, b) => b.ts - a.ts);
+
+    const esc = t => String(t || '').replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    // 작성자는 익명 처리 — 앞 한 글자만 남기고 가린다
+    const anon = (name, isMine) => {
+      if (isMine) return '나';
+      const n = String(name || '익명');
+      return n.length <= 1 ? n + '○○' : n[0] + '○'.repeat(Math.min(3, n.length - 1));
+    };
+    const ago = ts => { const d = Math.floor((Date.now() - ts) / 86400000); return d < 1 ? '오늘' : d < 30 ? d + '일 전' : Math.floor(d / 30) + '개월 전'; };
+
+    const SORTS = [['recent', '최신순'], ['high', '별점 높은순'], ['low', '별점 낮은순']];
+
+    ov.innerHTML = `
+      <div style="position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
+        <button onclick="window.Marketplace.closeReviews()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
+        <strong style="font-size: 1.02rem; color: var(--text-primary);">${esc(c.name)} 후기</strong>
+      </div>
+
+      <div style="padding: 1rem;">
+        <div class="glass-card" style="padding: 1rem; display: flex; gap: 1rem; align-items: center;">
+          <div style="text-align: center; flex-shrink: 0;">
+            <div style="font-size: 2rem; font-weight: 800; color: var(--text-primary); line-height: 1.1;">${c.rating}</div>
+            <div style="line-height: 0; margin: 0.2rem 0;">${window.Icons ? window.Icons.stars(Math.round(c.rating), 13) : ''}</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted);">후기 ${c.reviews}개</div>
+          </div>
+          <div style="flex: 1 1 0%; min-width: 0;">
+            ${dist.map(d => `
+              <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.22rem;">
+                <span style="font-size: 0.66rem; color: var(--text-muted); width: 14px;">${d.v}</span>
+                <div style="flex: 1; height: 6px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;">
+                  <div style="height: 100%; width: ${Math.round(d.n / total * 100)}%; background: var(--accent-warm, #e8b04b);"></div>
+                </div>
+                <span style="font-size: 0.64rem; color: var(--text-muted); width: 18px; text-align: right;">${d.n}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.35rem; margin: 0.9rem 0 0.7rem;">
+          ${SORTS.map(([k, label]) => `
+            <button onclick="window.Marketplace.setRevSort('${k}')" style="all: unset; cursor: pointer; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.7rem; border-radius: 999px;
+                   border: 1px solid ${this._revSort === k ? 'transparent' : 'var(--glass-border)'};
+                   background: ${this._revSort === k ? 'var(--accent-primary)' : 'transparent'};
+                   color: ${this._revSort === k ? '#fff' : 'var(--text-secondary)'};">${label}</button>`).join('')}
+        </div>
+
+        <p style="margin: 0 0 0.7rem; font-size: 0.68rem; color: var(--text-muted); line-height: 1.6;">
+          작성자는 개인정보 보호를 위해 <b>익명</b>으로 표시돼요. 상담을 완료하면 후기를 남길 수 있어요.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+          ${list.length ? list.map(r => `
+            <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); ${r.isMine ? 'border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);' : ''} border-radius: 14px; padding: 0.85rem 0.95rem;">
+              <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.35rem;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">${anon(r.author, r.isMine)}</span>
+                ${r.isMine ? '<span style="font-size: 0.62rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 14%, transparent); padding: 0.08rem 0.4rem; border-radius: 999px;">내 후기</span>' : ''}
+                <span style="flex: 1;"></span>
+                <span style="line-height: 0;">${window.Icons ? window.Icons.stars(Math.round(r.rating), 12) : ''}</span>
+                <span style="font-size: 0.66rem; color: var(--text-muted);">${ago(r.ts)}</span>
+              </div>
+              <div style="display: flex; justify-content: flex-end; margin-top: 0.3rem;">
+                ${r.isMine ? '' : `<button onclick="window.Marketplace.reportReview(\'${c.id}\', \'${this.reviewKey(c.id, r)}\')" style="all: unset; cursor: pointer; font-size: 0.66rem; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px;">신고</button>`}
+              </div>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.65;">${esc(r.text)}</p>
+            </div>`).join('')
+            : `<p style="text-align: center; font-size: 0.82rem; color: var(--text-muted); padding: 2rem 0;">아직 등록된 후기가 없어요.</p>`}
+        </div>
+      </div>`;
   },
 
   // === 바로상담 실시간 상태 (서버 presence) ===
@@ -450,9 +622,14 @@
       </div>
 
       <div style="margin-bottom: 1.5rem;">
-        <h4 style="margin: 0 0 0.8rem 0; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;" class="card-head">${window.Icons ? window.Icons.svg('quote',{size:17}):''}내담자 리얼 후기</h4>
+        <div style="display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem; margin-bottom: 0.8rem;">
+          <h4 style="margin: 0;" class="card-head">${window.Icons ? window.Icons.svg('quote',{size:17}):''}내담자 후기</h4>
+          <span style="flex: 1;"></span>
+          <button onclick="window.Marketplace.openReviews('${counselor.id}')" style="all: unset; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">전체 ${counselor.reviews}개 보기 ›</button>
+        </div>
+        <p style="margin: -0.4rem 0 0.7rem; font-size: 0.67rem; color: var(--text-muted); line-height: 1.5;">내용이 자세하고 최근에 쓰인 후기를 뽑되, 아쉬웠다는 후기도 함께 보여드려요.</p>
         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
-          ${counselor.reviewsList.map(r => `
+          ${this.pickHighlights(this.allReviews(counselor), 2).map(r => `
             <div style="background: var(--bg-tertiary); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border);">
               <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
                 <span style="font-weight: bold; font-size: 0.85rem;">${r.author}</span>

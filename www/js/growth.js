@@ -115,8 +115,8 @@ window.Growth = {
     const el = document.getElementById('streak-chip');
     if (!el) return;
     const st = this.stats().streak;
-    el.textContent = st >= 2 ? `🔥 ${st}일 연속` : '';
-    el.style.display = st >= 2 ? '' : 'none';
+    el.textContent = st >= 2 ? `${st}일 연속` : '';
+    el.style.display = st >= 2 ? 'inline-flex' : 'none';
   },
 
   // ==========================================================================

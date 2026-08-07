@@ -96,6 +96,73 @@ window.Admin = {
     this._render();
   },
 
+  // ── 리뷰 신고 관리 ───────────────────────────────────────────────
+  _reports() { return window.Storage._safeGet('cbt_review_reports', []) || []; },
+  _hidden() { return window.Storage._safeGet('cbt_review_hidden', {}) || {}; },
+
+  hideReview(key) {
+    const h = this._hidden();
+    h[key] = Date.now();
+    window.Storage._safeSet('cbt_review_hidden', h);
+    const reports = this._reports();
+    const r = reports.find(x => x.key === key); if (r) r.status = 'hidden';
+    window.Storage._safeSet('cbt_review_reports', reports);
+    if (window.App) window.App.showRecordToast('후기를 숨겼어요');
+    this._render();
+  },
+
+  unhideReview(key) {
+    const h = this._hidden();
+    delete h[key];
+    window.Storage._safeSet('cbt_review_hidden', h);
+    const reports = this._reports();
+    const r = reports.find(x => x.key === key); if (r) r.status = 'kept';
+    window.Storage._safeSet('cbt_review_reports', reports);
+    if (window.App) window.App.showRecordToast('후기를 복원했어요');
+    this._render();
+  },
+
+  dismissReport(key) {
+    const reports = this._reports();
+    const r = reports.find(x => x.key === key); if (r) r.status = 'kept';
+    window.Storage._safeSet('cbt_review_reports', reports);
+    this._render();
+  },
+
+  reviewSection() {
+    const reports = this._reports();
+    const hidden = this._hidden();
+    const esc = t => String(t || '').replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const open = reports.filter(r => r.status === 'open');
+    const done = reports.filter(r => r.status !== 'open');
+
+    const row = r => `
+      <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.75rem 0.85rem; margin-bottom: 0.5rem;">
+        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+          <strong style="font-size: 0.78rem;">${esc(r.counselor)}</strong>
+          <span style="font-size: 0.68rem; color: var(--text-muted);">작성자 ${esc(r.author)}</span>
+          <span style="flex: 1;"></span>
+          <span style="font-size: 0.64rem; font-weight: 800; padding: 0.1rem 0.45rem; border-radius: 999px; ${r.status === 'hidden' ? 'color: #c14a4a; background: rgba(193,74,74,0.12);' : r.status === 'kept' ? 'color: var(--text-muted); background: var(--bg-secondary);' : 'color: #c9a227; background: rgba(201,162,39,0.14);'}">${r.status === 'hidden' ? '숨김' : r.status === 'kept' ? '유지' : '검토 대기'}</span>
+        </div>
+        <p style="margin: 0 0 0.3rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.55;">"${esc(r.text)}"</p>
+        <p style="margin: 0 0 0.5rem; font-size: 0.7rem; color: #c14a4a;">신고 사유: ${esc(r.reason)}</p>
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+          ${hidden[r.key]
+            ? `<button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" onclick="window.Admin.unhideReview('${r.key}')">복원</button>`
+            : `<button class="btn-primary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem; background: #c14a4a; border: none;" onclick="window.Admin.hideReview('${r.key}')">숨기기</button>
+               <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" onclick="window.Admin.dismissReport('${r.key}')">유지(반려)</button>`}
+        </div>
+      </div>`;
+
+    return `
+      <div style="margin-top: 1.2rem;">
+        <h3 style="margin: 0 0 0.2rem; font-size: 0.95rem;">신고된 후기 관리</h3>
+        <p style="margin: 0 0 0.7rem; font-size: 0.72rem; color: var(--text-muted);">검토 대기 ${open.length}건 · 처리 완료 ${done.length}건 · 현재 숨김 ${Object.keys(hidden).length}건</p>
+        ${open.length ? open.map(row).join('') : '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.6rem;">검토할 신고가 없어요.</p>'}
+        ${done.length ? `<details><summary style="cursor: pointer; font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.5rem;">처리 완료 ${done.length}건 보기</summary>${done.map(row).join('')}</details>` : ''}
+      </div>`;
+  },
+
   _render() {
     this.close();
     const S = window.Storage;
@@ -196,6 +263,10 @@ window.Admin = {
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
             ${apps.length ? apps.map(appCard).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">접수된 신청이 없습니다.</p>'}
           </div>
+        </div>
+
+        <div>
+          ${this.reviewSection()}
         </div>
 
         <div>

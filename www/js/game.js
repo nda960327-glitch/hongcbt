@@ -65,6 +65,7 @@ window.Game = {
       if (window.Mail)   window.Mail.render();
       if (window.Weekly) window.Weekly.renderCard();
       if (window.Growth) window.Growth.renderNightList();
+      if (window.App && window.App.hydrateInlineIcons) window.App.hydrateInlineIcons(document.getElementById('gv-letter'));
     }
     this.renderHud();
   },

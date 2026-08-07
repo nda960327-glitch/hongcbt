@@ -113,16 +113,14 @@
     <!-- HOME TAB -->
     <section id="tab-home" class="tab-content">
       <!-- 홈 상단 로고 -->
-      <div class="home-logo">
-        <span class="home-logo__mark" data-sticker="joy" data-sticker-size="34"></span>
+      <header class="home-top">
+        <span class="home-logo__mark" data-sticker="joy" data-sticker-size="32"></span>
         <span class="home-logo__t">우렁의사</span>
-      </div>
+        <span id="streak-chip" class="home-streak" onclick="window.App.switchTab('dashboard')"></span>
+      </header>
 
       <!-- ========== 오늘 ========== -->
-      <div class="home-sec">
-        <h3>오늘</h3>
-        <span id="streak-chip" onclick="window.App.switchTab('mypage')" style="display: none; font-size: 0.72rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 30%, transparent); padding: 0.18rem 0.55rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></span>
-      </div>
+      <div class="home-sec"><h3>오늘</h3></div>
 
       <!-- 원탭 기분 체크인 -->
       <div class="glass-card home-card">
@@ -154,7 +152,7 @@
       <!-- 오늘의 우렁 미션 (행동활성화) -->
       <div class="glass-card home-card">
         <div class="home-card__head">
-          <p class="home-card__t">🎯 오늘의 우렁 미션</p>
+          <p class="home-card__t" data-ic="quest" data-ic-size="15">오늘의 우렁 미션</p>
           <span class="home-card__hint">몸이 움직이면 마음이 따라와요</span>
         </div>
         <div id="mission-card-body" data-mission-card></div>
@@ -166,7 +164,7 @@
         <button onclick="window.Growth && window.Growth.startNight()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 1rem 1.1rem; cursor: pointer;">
           <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
           <span style="flex: 1; min-width: 0; text-align: left;">
-            <strong style="display: block; font-size: 0.98rem; color: #ffffff;">🌙 오늘 하루, 정리하고 잘까요?</strong>
+            <strong style="display: block; font-size: 0.98rem; color: #ffffff;">오늘 하루, 정리하고 잘까요?</strong>
             <span style="font-size: 0.8rem; color: #ded6c3;">자기 전 딱 3분, 우렁이가 오늘을 같이 돌아봐드려요</span>
           </span>
           <span style="width: 30px; height: 30px; border-radius: 50%; background: #f0ead9; color: #232f3b; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">›</span>
@@ -180,13 +178,13 @@
           <span class="home-start__ico" data-icon="chat" data-icon-size="22"></span>
           <span class="home-start__t">AI 심리상담</span>
           <span class="home-start__d">24시간 언제든 편하게 대화</span>
-          <span class="home-start__go">대화 시작 ›</span>
+          <span class="home-start__go">대화 시작<span class="home-start__arrow">›</span></span>
         </button>
         <button class="home-start__card home-start__card--human" onclick="window.App.switchTab('counselors')">
           <span class="home-start__ico" data-icon="counselor" data-icon-size="22"></span>
           <span class="home-start__t">전문 상담사</span>
           <span class="home-start__d">의료진 소속 검증 상담사 예약</span>
-          <span class="home-start__go">둘러보기 ›</span>
+          <span class="home-start__go">둘러보기<span class="home-start__arrow">›</span></span>
         </button>
       </div>
 
@@ -194,14 +192,14 @@
       <div class="home-sec"><h3>내 마음 도구</h3></div>
       <div class="home-tools">
         <button class="home-tool" onclick="window.App.switchTab('record')">
-          <span class="home-tool__ico" data-icon="record" data-icon-size="20"></span>
+          <span class="home-tool__ico" data-icon="note" data-icon-size="20"></span>
           <span class="home-tool__txt">
             <span class="home-tool__t">사고 기록</span>
             <span class="home-tool__d">생각 정리</span>
           </span>
         </button>
         <button class="home-tool" onclick="window.Calm && window.Calm.openMenu()">
-          <span class="home-tool__ico" data-icon="heart" data-icon-size="20"></span>
+          <span class="home-tool__ico" data-icon="breath" data-icon-size="20"></span>
           <span class="home-tool__txt">
             <span class="home-tool__t">마음 안정</span>
             <span class="home-tool__d">호흡·그라운딩</span>
@@ -238,7 +236,7 @@
       <!-- ========== 추천 제휴 콘텐츠 ========== -->
       <div class="home-sec">
         <h3>대면상담 및 진료</h3>
-        <span class="home-sec__sub">광고</span>
+        <span class="home-sec__sub">제휴</span>
       </div>
       <div class="home-ads">
         <div class="glass-card home-ad" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
@@ -464,11 +462,11 @@
 
             <!-- 💌 서재 (편지·리포트·감정날씨·지난밤들) -->
             <div class="game-view hidden" id="gv-letter">
-              <p class="game-view-tip" style="margin-bottom: 0.7rem;">📚 우렁이의 서재 — 편지와 기록이 책처럼 꽂혀 있어요. 칸을 눌러 펼쳐보세요.</p>
+              <p class="lib-lede">우렁이의 서재 — 편지와 기록이 책처럼 꽂혀 있어요. 칸을 눌러 펼쳐보세요.</p>
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #c57c54; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-mail', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">📮</span>
+                  <span class="lib-ico" data-ic="letter" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">우렁이네 우편함</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">우표 붙여 편지 보내면 우렁이가 답장해요</span>
@@ -481,7 +479,7 @@
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #d98a84; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-weekly', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">💌</span>
+                  <span class="lib-ico" data-ic="checkin" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">우렁이의 주간 편지</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">일주일을 모아 우렁이가 써주는 편지 (일요일 밤 추천)</span>
@@ -494,7 +492,7 @@
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #7b6fa8; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-diary', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">📓</span>
+                  <span class="lib-ico" data-ic="note" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">나의 일기장</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">자기 전 3분, 우렁이와 정리한 하루들</span>
@@ -503,10 +501,10 @@
                 </button>
                 <div id="lib-diary" class="lib-body hidden" style="padding: 0 0.85rem 0.85rem;">
                 <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
-                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem;" onclick="window.Growth && window.Growth.startNight()">🌙 하루 정리</button>
-                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem; background: var(--accent-secondary);" onclick="window.Growth && window.Growth.writeDiary()">✍️ 자유 일기</button>
-                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('download')">📄 일기장 저장</button>
-                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('print')">🖨 인쇄 · PDF</button>
+                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem;" onclick="window.Growth && window.Growth.startNight()">하루 정리</button>
+                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem; background: var(--accent-secondary);" onclick="window.Growth && window.Growth.writeDiary()">자유 일기</button>
+                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('download')">일기장 저장</button>
+                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('print')">인쇄 · PDF</button>
                 </div>
                 <div style="display: flex; gap: 0.4rem; margin-bottom: 0.55rem;">
                   <input id="diary-date" type="date"
@@ -525,7 +523,7 @@
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #6f97ab; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-monthly', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">📈</span>
+                  <span class="lib-ico" data-ic="dashboard" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">월간 리포트</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">한 달의 돌봄과 감정을 결산해요</span>
@@ -538,7 +536,7 @@
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #e8b04b; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-forecast', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">⛅</span>
+                  <span class="lib-ico" data-ic="water" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">감정 일기예보</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">오늘의 흐름과 이번 주 감정 날씨</span>
@@ -555,7 +553,7 @@
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #7fc29b; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-calendar', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span style="font-size: 1.15rem; line-height: 1;">📅</span>
+                  <span class="lib-ico" data-ic="booking" data-ic-size="21"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                     <strong style="display: block; font-size: 0.86rem; color: var(--text-primary);">감정 캘린더</strong>
                     <span style="display: block; font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">한 달을 감정 색으로 한눈에</span>
@@ -687,8 +685,8 @@
     <section id="tab-counselors" class="tab-content">
       <div class="tab-header" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;">
         <div style="min-width: 0;">
-          <h2 style="margin: 0;"><span class="h-ico" data-icon="counselor" data-icon-size="24"></span>상담사 매칭</h2>
-          <p class="tab-subtitle" style="margin-top: 0.3rem;">검증된 병원 소속 상담사들과 함께하세요</p>
+          <h2 class="mk-title" style="margin: 0;">상담사 매칭</h2>
+          <p class="tab-subtitle" style="margin-top: 0.25rem;">검증된 병원 소속 상담사와 연결해드려요</p>
         </div>
         <button id="wallet-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기" style="all: unset; box-sizing: border-box; flex-shrink: 0; margin-top: 0.25rem; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.3rem 0.7rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></button>
       </div>

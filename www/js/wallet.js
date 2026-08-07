@@ -24,7 +24,8 @@ window.Wallet = {
     { pay: 10000,  bonus: 300,   label: '1만' },   // +3%
     { pay: 30000,  bonus: 1500,  label: '3만' },   // +5%
     { pay: 50000,  bonus: 3500,  label: '5만' },   // +7%
-    { pay: 100000, bonus: 10000, label: '10만' }   // +10%
+    { pay: 100000, bonus: 10000, label: '10만' },  // +10%
+    { pay: 300000, bonus: 45000, label: '30만' }   // +15%
   ],
 
   // 충전 — 실제 서비스에서는 이 함수 안이 Google Play Billing / PG 호출로 바뀐다

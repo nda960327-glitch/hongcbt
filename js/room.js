@@ -251,7 +251,8 @@ window.Room = {
     const uid = 'rm' + Math.floor(Math.random() * 1e6);
     // 배회 폭·속도를 매번 다르게 (같은 움직임 반복 방지)
     const far = 42 + Math.floor(Math.random() * 46);
-    const dur = (7 + Math.random() * 5).toFixed(1);
+    const roam = Math.random() < 0.5;   // 활발해도 절반은 제자리에서 논다
+    const dur = (16 + Math.random() * 10).toFixed(1);   // 대부분 제자리, 가끔 한 바퀴
     const idle = this._idle || this.pickIdle();
     const snail = window.Stickers
       ? (idle.skin ? window.Stickers.svgFor(idle.skin, idle.s, 96) : window.Stickers.svg(idle.s, 96))
@@ -296,7 +297,7 @@ window.Room = {
           <path d="M320 0 h-46 q30 24 46 66z" fill="#000" opacity="0.05"/>
         </svg>
         <div style="position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 30%; line-height: 0;">
-          <div class="${idle.active ? 'wr-wander' : ''}" style="width: 100%; ${idle.active ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-stand">${snail}</div></div>
+          <div class="${idle.active && roam ? 'wr-wander' : ''}" style="width: 100%; ${idle.active && roam ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-stand">${snail}</div></div>
         </div>
         <div style="position: absolute; left: 50%; top: 5%; transform: translateX(-50%); max-width: 88%; font-size: 0.68rem; font-weight: 700; color: #4a4038; background: rgba(255, 252, 245, 0.88); border: 1px solid rgba(74, 64, 56, 0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           ${idle.cap}

@@ -380,6 +380,7 @@ window.App = {
       window.Missions.renderCard();
     }
     if (tabName === 'home') {
+      this.hydrateInlineIcons(document.getElementById('tab-home'));
       this.renderHomeGreeting();
     }
     if (tabName === 'counselors' && window.Marketplace) {
