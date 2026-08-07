@@ -30,6 +30,7 @@ window.CallTalk = {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) { alert('이 브라우저는 음성 인식을 지원하지 않아요. 크롬에서 사용해주세요.'); return; }
 
+    if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
     const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사', tagline: '' };
     this._active = true;
     this._human = false;
@@ -102,6 +103,7 @@ window.CallTalk = {
       return;
     }
 
+    if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
     this._active = true;
     this._human = true;
     this._startTs = Date.now();

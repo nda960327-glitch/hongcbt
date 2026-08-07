@@ -543,6 +543,7 @@
           <input type="checkbox" id="counselor-available-now" onchange="window.Marketplace.renderCounselors()" style="accent-color: #10b981;">
           지금 바로 상담 가능
         </label>
+        <button id="wallet-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기" style="all: unset; box-sizing: border-box; font-size: 0.76rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.3rem 0.7rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></button>
       </div>
       <div id="counselors-list" style="padding: 0 1.25rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
         <!-- Counselor cards inserted dynamically -->
@@ -755,6 +756,15 @@
                 <option value="male">남성 목소리</option>
               </select>
             </div>
+          </div>
+
+          <!-- 문의하기 -->
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">문의하기</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">불편한 점, 제안, 결제 문의 모두 환영해요.</span>
+            </div>
+            <a href="mailto:3663hong@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">📧 메일 보내기</a>
           </div>
 
           <!-- 로그아웃 -->

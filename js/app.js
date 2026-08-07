@@ -794,6 +794,17 @@
     this._setNavBadge('dashboard', true);
   },
 
+  // === 기기 고유 ID — 서버(채팅·예약·수신함)가 나를 알아보는 기준 ===
+  // 별명은 표시용일 뿐, 식별은 이 ID로 한다. 별명을 바꿔도 동기화가 안 끊긴다.
+  clientId() {
+    let id = window.Storage._safeGet('cbt_client_id', null);
+    if (!id) {
+      id = 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      window.Storage._safeSet('cbt_client_id', id);
+    }
+    return id;
+  },
+
   // === 스티커 팝 — 우렁이가 화면 가운데 폴짝 나타났다 사라지는 리액션 ===
   stickerPop(name, ms = 1400) {
     if (!window.Stickers) return;
@@ -1152,6 +1163,7 @@ ${memory || '(없음)'}`;
           counselorId: b.counselorId || '',
           counselorName: b.name,
           bookingId,
+          clientId: this.clientId(),
           clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
           text
         })
@@ -1204,7 +1216,7 @@ ${memory || '(없음)'}`;
       const keys = Object.keys(localStorage).filter(k => k.startsWith('cbt_hchat_'));
       for (const key of keys) {
         const cid = key.replace('cbt_hchat_', '');
-        const res = await fetch(`/api/chat-msg?client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(cid)}`).catch(() => null);
+        const res = await fetch(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(cid)}`).catch(() => null);
         if (!res || !res.ok) continue;
         const data = await res.json();
         const cur = window.Storage._safeGet(key, []) || [];
@@ -1231,7 +1243,7 @@ ${memory || '(없음)'}`;
       const active = bookings.filter(b => b.status === 'confirmed' && b.whenTs && b.whenTs > Date.now());
       if (!active.length) return;
       const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
-      const res = await fetch(`/api/bookings?client=${encodeURIComponent(clientName)}`).catch(() => null);
+      const res = await fetch(`/api/bookings?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}`).catch(() => null);
       if (!res || !res.ok) return;
       const server = (await res.json()).items || [];
       let changed = false;
@@ -1291,11 +1303,12 @@ ${memory || '(없음)'}`;
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
   quickMood(v, emo, emoji) {
     const log = window.Storage._safeGet('cbt_mood_log', []) || [];
-    // 연타 방지: 1분 안에 다시 누르면 새 기록 대신 마지막 체크인을 교체 (잘못 누른 것 수정)
+    // 연타 방지: 1분 안에 다시 누르면 새 기록 대신 마지막 '홈 체크인'을 교체.
+    // (하루정리·대화에서 남은 기분 기록은 교체 대상에서 제외 — 덮어쓰기 사고 방지)
     const last = log[log.length - 1];
-    const replacing = last && Date.now() - last.ts < 60000;
-    if (replacing) log[log.length - 1] = { ts: Date.now(), emo, v };
-    else log.push({ ts: Date.now(), emo, v });
+    const replacing = last && last.src === 'quick' && Date.now() - last.ts < 60000;
+    if (replacing) log[log.length - 1] = { ts: Date.now(), emo, v, src: 'quick' };
+    else log.push({ ts: Date.now(), emo, v, src: 'quick' });
     window.Storage._safeSet('cbt_mood_log', log.slice(-800));
     window.Storage.markDayActive();
     if (window.Growth) window.Growth.checkAwards();
@@ -1396,30 +1409,80 @@ ${memory || '(없음)'}`;
   // AI 요약 리포트를 상담사에게 전달
   // ① 예약한 상담사의 채팅방에 첨부 (상담 시작 시 함께 확인)
   // ② 카톡/문자 공유로 즉시 직접 전달도 가능
+  // 리포트 전송 — 받을 상담사를 '직접 고른 뒤' 보낸다 (자동 발송 금지)
   sendReportToCounselor(report) {
     const full = (report.title ? report.title + '\n\n' : '') + report.body;
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
-    const target = bookings.find(b => b.counselorId);
+    const now = Date.now();
+    const seen = new Set();
+    const cands = [];
+    bookings.filter(b => b.status !== 'cancelled' && b.counselorId).forEach(b => {
+      if (seen.has(b.counselorId)) return;
+      seen.add(b.counselorId);
+      cands.push({ id: b.counselorId, name: b.name, hospital: b.hospital, upcoming: b.whenTs && b.whenTs > now });
+    });
 
-    if (target) {
-      const key = 'cbt_hchat_' + target.counselorId;
-      const msgs = window.Storage._safeGet(key, []) || [];
-      msgs.push({ role: 'me', text: `📊 [AI 상담 요약 리포트]\n\n${full}`, ts: Date.now() });
-      msgs.push({ role: 'sys', text: `✅ 리포트가 ${target.name}님 채팅방에 전달됐어요.\n상담이 시작되면 상담사님이 이 리포트를 먼저 읽고 대화를 준비합니다.`, ts: Date.now() });
-      window.Storage._safeSet(key, msgs.slice(-200));
-      this.openHumanChat(target.counselorId);
-      // 즉시 직접 전달 옵션
-      setTimeout(() => {
-        if (confirm('카카오톡·문자로도 상담사님께 바로 보낼까요?')) {
-          if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
-          else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다. 메신저에 붙여넣어 전달하세요.'));
-        }
-      }, 600);
-    } else {
-      alert('아직 예약된 상담사가 없어요.\n공유하기로 직접 전달하거나, 상담사 매칭에서 예약 후 전송해주세요.');
+    const shareOut = () => {
       if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
-      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => alert('리포트가 복사되었습니다.'));
+      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('📋 리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => alert(full.slice(0, 1500)));
+      else alert(full.slice(0, 1500));
+    };
+
+    if (!cands.length) {
+      alert('아직 예약한 상담사가 없어요.\n카카오톡·문자 공유로 직접 전달하거나, 상담사 매칭에서 예약 후 보내주세요.');
+      shareOut();
+      return;
     }
+
+    const old = document.getElementById('report-send-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'report-send-overlay';
+    ov.className = 'modal-overlay';
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 360px;">
+        <h2 style="margin: 0 0 0.3rem; font-size: 1.1rem;">📊 리포트 보내기</h2>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.9rem;">누구에게 보낼까요? 선택한 상담사의 채팅방으로 전달돼요.</p>
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+          ${cands.map(c => `
+            <button style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); cursor: pointer;"
+              onclick="document.getElementById('report-send-overlay').remove(); window.App._deliverReportTo('${c.id}', ${JSON.stringify(c.name).replace(/"/g, '&quot;')})">
+              <span style="flex-shrink: 0; line-height: 0;">${window.Icons ? window.Icons.svg('counselor', { size: 22 }) : '👩‍⚕️'}</span>
+              <span style="flex: 1; min-width: 0;">
+                <strong style="display: block; font-size: 0.88rem; color: var(--text-primary);">${c.name}</strong>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital || ''} ${c.upcoming ? '· 예약 예정' : '· 지난 상담'}</span>
+              </span>
+              <span style="color: var(--accent-primary); font-weight: 800;">›</span>
+            </button>`).join('')}
+          <button class="btn-secondary" style="width: 100%; font-size: 0.82rem;" id="report-share-out">📤 카카오톡·문자로 직접 공유</button>
+          <button class="btn-secondary" style="width: 100%; font-size: 0.82rem;" onclick="document.getElementById('report-send-overlay').remove()">취소</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    this._pendingReport = full;
+    document.getElementById('report-share-out').onclick = () => { ov.remove(); shareOut(); };
+  },
+
+  _deliverReportTo(counselorId, name) {
+    const full = this._pendingReport || '';
+    if (!full) return;
+    if (!confirm(`${name}님에게 이 리포트를 보낼까요?`)) return;
+    const key = 'cbt_hchat_' + counselorId;
+    const msgs = window.Storage._safeGet(key, []) || [];
+    const text = `📊 [AI 상담 요약 리포트]\n\n${full}`;
+    msgs.push({ role: 'me', text, ts: Date.now() });
+    msgs.push({ role: 'sys', text: `✅ 리포트가 ${name}님께 전달됐어요.\n상담사님이 이 리포트를 먼저 읽고 상담을 준비합니다.`, ts: Date.now() });
+    window.Storage._safeSet(key, msgs.slice(-200));
+    // 서버 채팅으로도 전송 → 상담사 페이지에 실제 도착
+    try {
+      fetch('/api/chat-msg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counselorId, counselorName: name, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명', from: 'client', text })
+      }).catch(() => {});
+    } catch (e) {}
+    this.openHumanChat(counselorId);
   },
 
   // 리뷰 작성 → 저장 (완료된 상담)
@@ -1862,7 +1925,7 @@ ${memory || '(없음)'}`;
     // 서버 스레드에서 상담사 답장 가져오기 (8초 폴링)
     const sync = async () => {
       try {
-        const res = await fetch(`/api/chat-msg?client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(c.id)}`);
+        const res = await fetch(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(c.id)}`);
         if (!res.ok) return;
         const data = await res.json();
         const cur = window.Storage._safeGet(key, []) || [];
@@ -1937,7 +2000,7 @@ ${memory || '(없음)'}`;
         fetch('/api/chat-msg', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ counselorId: c.id, counselorName: c.name, clientName, from: 'client', text: t })
+          body: JSON.stringify({ counselorId: c.id, counselorName: c.name, clientId: this.clientId(), clientName, from: 'client', text: t })
         }).catch(() => {});
       } catch (e) {}
       inp.value = '';

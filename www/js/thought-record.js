@@ -493,7 +493,7 @@ window.ThoughtRecord = {
         <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">언제, 어디서, 누구와 있었던 일인지<br>사진 찍듯 그 장면만 적어보세요.</p>
         <textarea id="trw-input" rows="4" placeholder="예: 월요일 아침 회의에서 내 제안이 조용히 넘어갔다" style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.situation)}</textarea>
         ${this._wizNav(null, '다음 ›')}
-        <button onclick="window.ThoughtRecord._wizToClassicForm()" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.76rem; color: var(--text-muted); cursor: pointer;">한 화면에서 한꺼번에 쓰기 (기존 양식)</button>`, 1);
+        ${w.editId ? '' : `<button onclick="window.ThoughtRecord._wizToClassicForm()" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.76rem; color: var(--text-muted); cursor: pointer;">한 화면에서 한꺼번에 쓰기 (기존 양식)</button>`}`, 1);
       document.getElementById('trw-next').addEventListener('click', () => {
         const v = document.getElementById('trw-input').value.trim();
         if (!v) { document.getElementById('trw-input').placeholder = '한 줄이면 충분해요. 그 장면을 적어주세요 :)'; return; }

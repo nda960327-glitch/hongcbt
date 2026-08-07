@@ -75,7 +75,8 @@ window.MemoryVault = {
       shields: window.Storage._safeGet("cbt_streak_shields", 0),         // 스트릭 보호권
       activePersona: window.Storage._safeGet("cbt_active_persona", null),
       onboardDone: window.Storage._safeGet("cbt_onboard_done", false),
-      concerns: window.Storage._safeGet("cbt_user_concerns", [])
+      concerns: window.Storage._safeGet("cbt_user_concerns", []),
+      clientId: window.Storage._safeGet("cbt_client_id", null) // 서버 식별 ID — 기기 이전해도 채팅·예약 이어짐
     };
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
@@ -128,6 +129,7 @@ window.MemoryVault = {
     if (data.activePersona) window.Storage._safeSet("cbt_active_persona", data.activePersona);
     if (data.onboardDone !== undefined) window.Storage._safeSet("cbt_onboard_done", data.onboardDone);
     if (Array.isArray(data.concerns)) window.Storage._safeSet("cbt_user_concerns", data.concerns);
+    if (data.clientId) window.Storage._safeSet("cbt_client_id", data.clientId);
     alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;

@@ -1438,6 +1438,10 @@ body.header-hidden .tab-content { padding-top: 10px; }
    입력창이 키보드 바로 위에 붙게 한다 */
 body.kb-open #bottom-nav { display: none; }
 body.kb-open .tab-content { padding-bottom: 8px; }
+/* 입력창의 하단 패딩에 박혀 있던 탭바 몫(74px)도 함께 제거 —
+   키보드 위에 빈 공간이 뜨던 문제의 원인 */
+body.kb-open .chat-input-area { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
+body.kb-open .chat-messages { padding-bottom: 70px; }
 
 /* ============================================================
    반응형 — 작은 폰(≤380px, ≤340px)에서도 깨지지 않게

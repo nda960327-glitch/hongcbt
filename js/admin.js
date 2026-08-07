@@ -159,15 +159,19 @@ window.Admin = {
       <div style="padding: 1rem 1.1rem 2rem; display: flex; flex-direction: column; gap: 1.2rem;">
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">📊 핵심 지표</h3>
-          <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
-            ${stat('심사 대기', pending.length)}
-            ${stat('입점 상담사', customs.length)}
-            ${stat('예약 건수', bookings.length)}
-            ${stat('누적 대화', (S._safeGet('cbt_total_chats', 0) || 0).toLocaleString())}
-            ${stat('기분 체크인', ((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString())}
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+            <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">📊 서비스 현황 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(서버 집계)</span></h3>
+            <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.6rem;" onclick="window.Admin._render()">🔄 새로고침</button>
           </div>
-          <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.5rem 0 0;">※ 서버가 없는 데모라 이 기기의 데이터만 집계됩니다.</p>
+          <div id="admin-stats-grid" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 통계를 불러오는 중…</p>
+          </div>
+          <div style="margin-top: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.7;">
+            <b style="color: var(--text-primary);">📱 이 기기 사용자</b> ·
+            ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `무료 플랜 (오늘 ${window.Subscription.chatLeft()}/30회 남음)`) : '-'}
+            · 누적 대화 ${(S._safeGet('cbt_total_chats', 0) || 0).toLocaleString()}회 · 체크인 ${((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString()}회 · 심사 대기 ${pending.length}건
+          </div>
+          <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0.4rem 0 0;">※ 가입자·구독자 정확 집계는 회원 서버 구축 후 가능 — 지금은 서버에 기록을 남긴 기기 수를 이용자 수로 셉니다.</p>
         </div>
 
         <div>
@@ -228,6 +232,25 @@ window.Admin = {
 
       </div>`;
     document.body.appendChild(ov);
+    // 서버 통계 → 서비스 현황 그리드
+    fetch('/api/stats?code=' + this.PASS).then(r2 => r2.ok ? r2.json() : null).then(d => {
+      const grid = document.getElementById('admin-stats-grid');
+      if (!grid) return;
+      if (!d) { grid.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 미연결 — 통계를 불러올 수 없어요.</p>'; return; }
+      const cell = (label, v, sub) => `
+        <div style="flex: 1; min-width: 96px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.5rem; text-align: center;">
+          <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-primary);">${v}</div>
+          <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem;">${label}</div>
+          ${sub ? `<div style="font-size: 0.6rem; color: var(--text-muted); opacity: 0.8;">${sub}</div>` : ''}
+        </div>`;
+      grid.innerHTML =
+        cell('누적 이용자', d.uniqueClients, '서버 기록 기기 수') +
+        cell('입점 상담사', d.counselors) +
+        cell('예약', d.bookings.total, `예정 ${d.bookings.upcoming} · 완료 ${d.bookings.done} · 취소 ${d.bookings.cancelled}`) +
+        cell('채팅 스레드', d.chat.threads, `답장 대기 ${d.chat.awaiting}`) +
+        cell('상담 자료', d.inbox.total, `안 읽음 ${d.inbox.unread}`) +
+        cell('플랫폼 수익', d.revenue.platform.toLocaleString(), `총 결제 ${d.revenue.gross.toLocaleString()}캐시의 7%`);
+    }).catch(() => {});
     // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
     fetch('/api/bookings?code=' + this.PASS).then(r => r.ok ? r.json() : null).then(d => {
       const el = document.getElementById('admin-rev');

@@ -216,6 +216,7 @@ window.Booking = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: booking.id, counselorId: counselor.id, counselorName: counselor.name,
+          clientId: window.App ? window.App.clientId() : '',
           clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
           time: formattedDate, whenTs: booking.whenTs, price: counselor.price
         })

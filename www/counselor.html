@@ -159,9 +159,9 @@
     }
 
     // 상담 채팅: 내담자별 스레드 + 답장
-    async function loadChats() {
-      // 답장 작성 중엔 새로고침으로 입력이 날아가지 않게 건너뛴다
-      if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#chats')) return;
+    async function loadChats(force) {
+      // 답장 작성 중엔 새로고침으로 입력이 날아가지 않게 건너뛴다 (전송 직후엔 강제 갱신)
+      if (!force && document.activeElement && document.activeElement.closest && document.activeElement.closest('#chats')) return;
       const r = await fetch('/api/chat-msg?code=' + encodeURIComponent(CODE)).catch(() => null);
       const el = document.getElementById('chats');
       if (!r || !r.ok) { el.innerHTML = ''; return; }
@@ -213,7 +213,7 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ counselorId: cid, counselorName: cname, clientName: client, from: 'counselor', text: t, code: CODE })
       }).catch(() => {});
-      loadChats();
+      loadChats(true); // 전송 직후엔 입력 보호 가드를 건너뛰고 바로 갱신
     }
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }

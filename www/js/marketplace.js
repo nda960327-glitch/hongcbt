@@ -183,6 +183,10 @@
     const list = document.getElementById('counselors-list');
     if (!list) return;
 
+    // 내 캐시 잔액 칩 — 결제 직전에야 잔액 부족을 아는 일이 없게
+    const chip = document.getElementById('wallet-chip');
+    if (chip && window.Wallet) chip.textContent = `💰 내 캐시 ${window.Wallet.balance().toLocaleString()} · 충전 ›`;
+
     const sortType = document.getElementById('counselor-sort') ? document.getElementById('counselor-sort').value : 'distance';
     const filterAvailable = document.getElementById('counselor-available-now') ? document.getElementById('counselor-available-now').checked : false;
 
@@ -229,13 +233,28 @@
             </div>
           </div>
         </div>
-        <div class="cc-bottom">
-          <div class="cc-price"><span>30분 상담 <b style="color: var(--text-primary);">${c.price.toLocaleString()}원</b> <span style="opacity: 0.75;">(예약 정액)</span></span><strong style="font-size: 0.8rem; color: var(--accent-secondary);">⚡ 바로상담 ${this.callRateFor(c).toLocaleString()}/30초</strong></div>
-          <div class="cc-actions">
-            <button class="btn-secondary cc-btn" onclick="window.Marketplace.openProfile('${c.id}')">프로필</button>
-            <button class="btn-secondary cc-btn" onclick="window.App.openHumanChat('${c.id}')">💬 채팅</button>
-            <button class="btn-secondary cc-btn" onclick="window.App.startHumanCall('${c.id}')">📞 통화</button>
-            <button class="btn-primary cc-btn" onclick="window.Booking.openModal('${c.id}')">예약하기</button>
+        <div class="cc-bottom" style="flex-direction: column; gap: 0.5rem; align-items: stretch;">
+          <!-- 두 가지 상담 방식: 한눈에 비교되는 큰 선택지 -->
+          <div style="display: flex; gap: 0.5rem;">
+            <button onclick="window.Booking.openModal('${c.id}')"
+              style="all: unset; box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; cursor: pointer; background: var(--accent-primary); color: #fff; box-shadow: var(--shadow-sm);">
+              <b style="display: block; font-size: 0.88rem;">📅 예약 상담</b>
+              <span style="font-size: 0.7rem; opacity: 0.9;">30분 정액 ${c.price.toLocaleString()}원</span>
+            </button>
+            ${c.isAvailableNow
+              ? `<button onclick="window.App.startHumanCall('${c.id}')"
+                  style="all: unset; box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; cursor: pointer; background: color-mix(in srgb, var(--accent-secondary) 16%, var(--bg-tertiary)); border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 45%, transparent); color: var(--text-primary);">
+                  <b style="display: block; font-size: 0.88rem; color: var(--accent-secondary);">⚡ 바로상담</b>
+                  <span style="font-size: 0.7rem; color: var(--text-muted);">지금 통화 · ${this.callRateFor(c).toLocaleString()}캐시/30초</span>
+                </button>`
+              : `<div style="box-sizing: border-box; flex: 1; text-align: center; padding: 0.6rem 0.3rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px dashed var(--glass-border); opacity: 0.65;">
+                  <b style="display: block; font-size: 0.88rem; color: var(--text-muted);">⚡ 바로상담</b>
+                  <span style="font-size: 0.7rem; color: var(--text-muted);">지금은 부재중 — 예약해주세요</span>
+                </div>`}
+          </div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.4rem;" onclick="window.Marketplace.openProfile('${c.id}')">프로필·후기</button>
+            <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.4rem;" onclick="window.App.openHumanChat('${c.id}')">💬 채팅 문의</button>
           </div>
         </div>
       </div>
