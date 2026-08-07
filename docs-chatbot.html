@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우렁의사 챗봇 설계 문서</title>
+<style>
+  :root{--ink:#2b2620;--sub:#6b6357;--mut:#968d7e;--line:#e3dacb;--bg:#fffdf9;
+        --g:#4f8a6b;--gL:#e8f1eb;--o:#c57c54;--r:#c96a5a;--rL:#faeeec;--y:#c9a227;--v:#7b6fa8;--b:#6f97ab}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,'Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);
+       max-width:780px;margin:0 auto;padding:34px 22px 60px;line-height:1.8;font-size:15.5px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.03em;line-height:1.35}
+  .lede{font-size:16px;color:var(--sub);margin:0 0 6px;line-height:1.75}
+  .meta{font-size:12px;color:var(--mut);margin:0 0 26px}
+  h2{font-size:19px;margin:44px 0 4px;letter-spacing:-.02em;display:flex;align-items:baseline;gap:9px}
+  h2 .no{font-size:12px;font-weight:800;color:var(--g);letter-spacing:.1em}
+  h2+.sub{font-size:13px;color:var(--mut);margin:0 0 16px}
+  h3{font-size:15.5px;margin:24px 0 6px}
+  p{margin:0 0 12px}
+  b,strong{font-weight:800}
+  ul,ol{margin:0 0 14px;padding-left:20px}
+  li{margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:6px 0 16px;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}
+  th{background:#f5efe4;font-weight:800;font-size:13px}
+  td.k{white-space:nowrap;font-weight:700;width:1%}
+  code{background:#f2ece1;padding:1.5px 6px;border-radius:5px;font-size:13px;
+       font-family:ui-monospace,Menlo,Consolas,monospace}
+  .card{border:1px solid var(--line);border-radius:14px;padding:15px 17px;margin:0 0 14px}
+  .good{background:var(--gL);border-color:#c5ddd0}
+  .bad{background:var(--rL);border-color:#e8c5bf}
+  .quote{border-left:4px solid var(--line);padding:2px 0 2px 14px;margin:10px 0;
+         color:var(--sub);font-size:14px;line-height:1.75}
+  .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:999px;
+       background:var(--g);color:#fff;vertical-align:2px}
+  .tag.o{background:var(--o)}.tag.v{background:var(--v)}.tag.b{background:var(--b)}.tag.r{background:var(--r)}
+  .layer{display:flex;gap:11px;margin-bottom:9px;align-items:flex-start}
+  .layer .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--g);color:#fff;
+            font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .layer .t{flex:1;min-width:0}
+  .layer .t b{display:block;font-size:14.5px}
+  .layer .t span{font-size:13.5px;color:var(--sub);line-height:1.7}
+  .pri{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:#fff}
+  .P1{background:var(--r)}.P2{background:var(--y)}.P3{background:var(--mut)}
+  hr{border:0;border-top:1px solid var(--line);margin:34px 0}
+  @media print{body{padding:0;font-size:11.5pt} h2{page-break-after:avoid} .card,table{page-break-inside:avoid}}
+</style></head>
+<body>
+
+<h1>우렁의사 AI 챗봇 설계 문서</h1>
+<p class="lede">이 챗봇이 왜 다른지, 어떤 명령을 넣었는지, 무엇이 아직 부족한지</p>
+<p class="meta">2026년 8월 · 대화 모델 gpt-4o · 기억 정리 모델 gpt-4o · 최근 대화 30턴을 프롬프트에 주입</p>
+
+<div class="card good">
+<p style="margin:0"><b>한 줄 요약</b> — 일반 상담 AI는 “들어주고 공감”에서 멈춥니다. 우렁의사는 <b>왜곡인지 현실인지 먼저 가르고</b>, 현실이면 <b>생각이 아니라 상황을 바꾸라고 말합니다</b>. 그리고 그 판단을 <b>사람마다 누적된 사례 기록</b> 위에서 내립니다.</p>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅰ</span>다른 AI와 무엇이 다른가</h2>
+<p class="sub">ChatGPT에 “상담해줘”라고 하는 것과의 실제 차이</p>
+
+<table>
+<tr><th>항목</th><th>일반 AI · 보통의 상담 챗봇</th><th>우렁의사</th></tr>
+<tr><td class="k">판단</td><td>공감·타당화에 수렴. 의견을 잘 안 냄</td><td><b>의견 표명 트리거</b>가 명시됨 — 착취·반복 손해·자기파괴 신호에선 반드시 입장을 밝힘</td></tr>
+<tr><td class="k">인지왜곡</td><td>부정적 생각 = 왜곡으로 간주하고 교정 시도</td><td><b>근거 유무를 먼저 가름</b>. 근거가 있으면 왜곡이 아니라 관찰 → 상황 변경(경계·거리두기)으로</td></tr>
+<tr><td class="k">기억</td><td>세션 단위. 대화창 닫으면 소실</td><td>매 대화 후 <b>사례 기록을 비동기 갱신</b>. 이름·관계·반복 주제·효과적이던 접근·둘만의 농담까지 축적</td></tr>
+<tr><td class="k">사례 개념화</td><td>없음</td><td><b>핵심신념 → 두려움 → 행동 → 결과</b> 가설을 세우고 다듬고, 때가 되면 말로 꺼냄</td></tr>
+<tr><td class="k">기법</td><td>일반론적 조언</td><td>CBT·DBT·MBCT를 상태에 따라 <b>선택</b>. 감정 강도 6~7 이상이면 통찰 탐색을 멈추고 고통감내 우선</td></tr>
+<tr><td class="k">출력 형태</td><td>긴 문단 하나</td><td>메신저처럼 <b>짧은 말풍선 여러 개</b>(<code>|||</code> 분할) + 감정 스티커</td></tr>
+<tr><td class="k">앱 연동</td><td>없음</td><td>앱 <b>전 기능을 학습</b>. 위치 안내 + <code>[이동:탭]</code>으로 실제 화면 이동, 대화에서 사고기록 자동 생성</td></tr>
+<tr><td class="k">안전</td><td>일반적 안내</td><td>위기 신호 시 <b>유머·기법 중단</b>, 안전과 연결에만 집중 + 1393·1577-0199 자동 노출</td></tr>
+</table>
+
+<div class="card">
+<p style="margin:0 0 8px"><b>실제로 이렇게 갈립니다</b> — “날 이용하는 사람 아닐까?” + 최근 세 번 다 내가 냄</p>
+<p class="quote" style="border-color:var(--r)"><b class="pri P1">기존</b> “그런 생각이 들면 진짜 힘들겠다.” <br><span style="color:var(--r)">→ 감정만 받고 사안은 안 건드림. 벽에 대고 말하는 느낌.</span></p>
+<p class="quote" style="border-color:var(--g);margin-bottom:0"><b class="pri" style="background:var(--g)">현재</b> “세 번 다 네가 냈으면 그건 기분 탓이 아니야.”<br><span style="color:var(--g)">→ 관찰로 인정하고, 재구성이 아니라 경계 설정으로 넘어감.</span></p>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅱ</span>어떤 명령을 넣었는가 — 프롬프트 7층 구조</h2>
+<p class="sub">파일: <code>js/llm.js</code> 의 <code>CORE_PROMPT</code></p>
+
+<div class="layer"><div class="n">1</div><div class="t"><b>사람처럼 대화하는 법 <span class="tag">가장 중요</span></b><span>11개 원칙. 말투 미러링, 매번 질문으로 끝내지 않기, 같은 질문 반복 금지, <b>상투적 회피어 금지</b>(“언제든 얘기해”, “도움이 됐으면 좋겠어” 등 명시적 금지 목록), <b>감정만 받고 내용은 안 건드리는 답장 금지</b>, 같은 고민이 2회 이상 돌아오면 관점 제시 의무.</span></div></div>
+
+<div class="layer"><div class="n">2</div><div class="t"><b>세 가지 치료의 통합</b><span>CBT(생각 재구성)·DBT(수용과 변화, TIPP·DEAR MAN·FAST)·MBCT(탈중심화·3분 호흡). 기법 이름을 사용자에게 나열하지 말고 대화에 녹이도록 지시.</span></div></div>
+
+<div class="layer"><div class="n">3</div><div class="t"><b>왜곡인가, 진짜인가 <span class="tag o">이 앱의 핵심</span></b><span>재구성 전에 반드시 분기. <b>근거 없음</b> → 인지 재구성 / <b>근거 있음</b> → 완화 금지, “네가 본 게 맞을 수 있어” 인정 후 상황 변경 / <b>애매함</b> → 함께 증거 수집. “착취·학대 앞에서 마음챙김을 권하는 것은 오답”이라고 못 박음. 의견 표명 형식도 규정: <b>관찰 → 내 생각 → 근거 → 결정권은 너에게</b>.</span></div></div>
+
+<div class="layer"><div class="n">4</div><div class="t"><b>사람 먼저 읽기</b><span>감정 강도·필요한 것(진정/통찰/수용)·왜곡 유무·충동 위험을 매 순간 가늠. “들어주기가 먼저지만 <b>먼저는 영원히가 아니다</b>” — 진정되면 본론 복귀 의무.</span></div></div>
+
+<div class="layer"><div class="n">5</div><div class="t"><b>안전 최우선 <span class="tag r">P1</span></b><span>자·타해 신호 시 응답에 <code>위험감지</code>를 포함 → 시스템이 1393·1577-0199 안내를 띄움. 위기엔 유머·기법 설명 중단.</span></div></div>
+
+<div class="layer"><div class="n">6</div><div class="t"><b>세션의 시작과 마무리</b><span>오래 비웠다 오면 새 세션으로 반갑게 인사하고 지난 이야기 후속을 물음. 마무리 신호 감지 시 <code>[세션끝]</code> 표식 → 시스템이 세션을 정리하고 <b>사고 기록을 자동 생성</b>. 먼저 대화를 끊지 않음.</span></div></div>
+
+<div class="layer"><div class="n">7</div><div class="t"><b>장기기억과 사례 개념화</b><span>“기록을 보니…”라고 말하지 말고 아는 사람이 기억하듯 쓰라고 지시. 개념화 구조를 명시: <b>핵심 신념 → 두려워하는 것 → 하는 행동 → 그 결과</b>. 가설이 서면 때를 봐서 말로 꺼내되, 사람을 규정하는 무기로 쓰지 말고 “맞아?”라고 함께 확인.</span></div></div>
+
+<h3>여기에 실행 시점마다 덧붙는 것들</h3>
+<ul>
+<li><b>페르소나 지침</b> — 선택된 상담사(햇님/달님/소나무)의 말투·전문 기법 블록</li>
+<li><b>앱 사용 가이드</b> — 전 기능 위치·게임 경제·가격까지. 기능이 바뀌면 이 가이드도 함께 갱신</li>
+<li><b>현재 시각</b> — “한낮에 잘 자라고 하면 즉시 AI 티가 난다”며 시간대 엇박자 금지</li>
+<li><b>다가오는 명절·기념일</b>, <b>사용자 이름</b>, <b>언어 모드</b>(한/영/일)</li>
+<li><b>음성 모드 지침</b> — 보이스톡 중에는 문장을 더 짧게</li>
+<li><b>장기기억 본문</b> + 세션 안내</li>
+</ul>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅲ</span>상담사 4인 — 기법을 인격으로 나눴다</h2>
+<p class="sub">같은 기억을 공유하되 접근이 다름 (파일: <code>js/personas.js</code>)</p>
+
+<table>
+<tr><th>상담사</th><th>기법</th><th>이럴 때</th><th>수업 코스</th></tr>
+<tr><td class="k">🐌 우렁의사</td><td>통합</td><td>일상 대화·처음 시작</td><td>—</td></tr>
+<tr><td class="k">☀️ 햇님</td><td>CBT</td><td>“다 내 잘못이야” 생각이 안 떠날 때</td><td><b>햇살 수업</b> 6단계</td></tr>
+<tr><td class="k">🌙 달님</td><td>DBT</td><td>감정을 그냥 쏟아내고 싶을 때</td><td><b>달빛 수업</b> 6단계</td></tr>
+<tr><td class="k">🌲 소나무</td><td>MBCT</td><td>같은 생각을 곱씹어 잠이 안 올 때</td><td><b>솔숲 수업</b> 6단계</td></tr>
+</table>
+<p>수업은 <b>한 턴에 한 단계씩</b> 진행하고, 답장 첫 줄에 <code>☀️ [2/6] 자동적 사고</code>처럼 진행 상황을 표시하도록 지시했습니다. 중간에 힘들어하면 멈추고 감정을 돌본 뒤 이어갑니다. 달님은 코스 중에도 <b>존댓말과 수용적 태도를 유지</b>합니다.</p>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅳ</span>명령어 목록</h2>
+
+<h3>사용자가 쓰는 명령 <span class="tag b">말로 하면 됨</span></h3>
+<table>
+<tr><th>말</th><th>일어나는 일</th></tr>
+<tr><td class="k">“햇살 수업 시작”</td><td>CBT 생각교정 6단계 코스 진행 (버튼으로도 시작 가능)</td></tr>
+<tr><td class="k">“달빛 수업 시작”</td><td>DBT 감정조절 6단계 코스</td></tr>
+<tr><td class="k">“솔숲 수업 시작”</td><td>MBCT 마음챙김 6단계 코스</td></tr>
+<tr><td class="k">“○○ 어디 있어?”</td><td>앱 기능 위치 안내 + 필요하면 해당 탭으로 이동시켜 줌</td></tr>
+<tr><td class="k">“어떻게 생각해?”<br>“내가 이상한 거야?”</td><td><b>되묻기 금지</b> — 반드시 그 자리에서 자기 의견을 말하도록 규정</td></tr>
+<tr><td class="k">“고마워”, “잘자”, “이만 갈게”</td><td>마무리로 감지 → 짧게 인사 + <b>이번 세션을 사고 기록으로 정리</b></td></tr>
+</table>
+
+<h3>시스템 마커 <span class="tag v">모델이 출력, 사용자에겐 안 보임</span></h3>
+<table>
+<tr><td class="k"><code>|||</code></td><td>말풍선 분할. 한 말풍선 = 한 문장이 기본</td></tr>
+<tr><td class="k"><code>[스티커:공감]</code></td><td>우렁이 감정 스티커를 말풍선으로 삽입 (40여 종)</td></tr>
+<tr><td class="k"><code>[이동:dashboard]</code></td><td>답장 1.8초 뒤 해당 탭으로 실제 이동</td></tr>
+<tr><td class="k"><code>[세션끝]</code></td><td>세션 종료 → 사고기록 자동 추출 + 다음 세션 경계 설정</td></tr>
+<tr><td class="k"><code>위험감지</code></td><td>안전 안내 배너 + 위기 상담 번호 노출</td></tr>
+</table>
+
+<h3>자동으로 도는 것들 <span class="tag">사용자 개입 없음</span></h3>
+<ul>
+<li><b>장기기억 갱신</b> — 매 대화 후 비동기. 기본정보·관계·반복 주제·인지 패턴·<b>사례 개념화 가설</b>·<b>현실 문제(왜곡 아님)</b>·효과적이던 접근·다음에 물어볼 것을 500단어로 압축</li>
+<li><b>사고기록 자동 생성</b> — 세션 종료 시, 또는 사용자 발화가 8개 쌓이면 조용히 추출 (잡담이면 자체 판단으로 걸러냄)</li>
+<li><b>맞춤 숙제</b> — 최근 대화를 읽고 오늘 30분 안에 할 수 있는 행동 과제를 처방</li>
+<li><b>주간 편지·우편함 답장</b> — 우렁이 말투(우로로록·우덩우덩)로 작성</li>
+</ul>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅴ</span>왜 이게 좋은가</h2>
+<div class="card good">
+<ul style="margin:0">
+<li><b>“착한 말만 하는 AI”의 함정을 구조로 막았다.</b> 회피어 금지 목록과 의견 표명 트리거가 프롬프트에 명시돼 있어, 모델이 안전한 공감으로 도망가기 어렵습니다.</li>
+<li><b>가스라이팅 방지.</b> 근거 있는 지각을 왜곡으로 취급해 “생각을 바꿔보자”고 하는 것이 가장 위험한 실수라고 프롬프트에 못 박았습니다.</li>
+<li><b>관계가 누적된다.</b> 사례 개념화가 기억에 남아, 3주 뒤에도 “이거 저번 A랑 같은 모양 아니야?”가 가능합니다.</li>
+<li><b>앱과 한 몸이다.</b> 대화가 사고기록·감정 데이터로 바뀌고, 그게 다시 리포트의 근거가 됩니다.</li>
+<li><b>기법이 인격으로 분리돼 진입 장벽이 낮다.</b> “CBT 받으세요” 대신 “햇님한테 가봐”가 됩니다.</li>
+</ul>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<h2><span class="no">Ⅵ</span>개선해야 할 점</h2>
+<p class="sub">솔직하게 — 지금 알고 있는 약점</p>
+
+<div class="card bad">
+<h3 style="margin-top:0">우선순위 높음 <span class="pri P1">P1</span></h3>
+<ul style="margin-bottom:0">
+<li><b>안전 감지가 모델 자기신고에 의존한다.</b> <code>위험감지</code>를 모델이 안 쓰면 배너가 안 뜹니다. 자·타해 표현에 대한 <b>규칙 기반 이중 안전망</b>(키워드+맥락 필터)이 없습니다. 임상 앱에서 가장 시급한 구멍입니다.</li>
+<li><b>의견 표명의 과교정 위험.</b> “겁내지 말고 말하라”를 강화한 만큼, 근거가 얇은데 단정하는 실패가 생길 수 있습니다. 지금은 모델 자율에만 맡겨져 있어, <b>확신도에 따라 표현 수위를 조절하는 규칙</b>이 필요합니다.</li>
+<li><b>사례 개념화 검증 절차 부재.</b> 가설이 틀렸을 때 스스로 폐기하라고 적어뒀을 뿐, 반증 이력을 남기는 구조가 없습니다. 틀린 가설이 기억에 남아 계속 재생산될 수 있습니다.</li>
+</ul>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">우선순위 중간 <span class="pri P2">P2</span></h3>
+<ul style="margin-bottom:0">
+<li><b>기억이 500단어 요약이라 손실이 크다.</b> 압축 과정에서 중요한 디테일이 사라집니다. 사건 단위 인덱스 + 필요할 때 꺼내 쓰는 검색형 기억이 더 낫습니다.</li>
+<li><b>프롬프트가 매우 길다.</b> 7개 섹션 + 페르소나 + 앱 가이드 + 상황 블록이 매번 들어가 <b>토큰 비용과 지연</b>이 큽니다. 상황별로 필요한 블록만 넣는 조립 최적화가 필요합니다.</li>
+<li><b>수업 코스 이탈 처리가 약하다.</b> 6단계 중간에 다른 얘기로 새면 코스 상태가 흐지부지됩니다. 진행 상태를 앱이 들고 있지 않고 모델 기억에만 있습니다.</li>
+<li><b>말투 미러링과 달님의 존댓말 고정이 충돌</b>할 수 있습니다. 우선순위는 명시했지만 실제 검증은 안 됐습니다.</li>
+<li><b>효과 측정이 없다.</b> 어떤 개입이 실제로 기분 점수를 올렸는지 추적하지 않습니다. PHQ-9 재측정과 개입 이력을 연결하면 근거 기반으로 개선할 수 있습니다.</li>
+</ul>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">우선순위 낮음 <span class="pri P3">P3</span></h3>
+<ul style="margin-bottom:0">
+<li>다국어(영·일) 모드에서 페르소나 말투 품질이 한국어만큼 다듬어지지 않았습니다.</li>
+<li>스티커 40여 종 중 실제로 자주 쓰이는 건 소수 — 사용 빈도 기반 정리가 필요합니다.</li>
+<li>앱 가이드가 프롬프트에 하드코딩돼 있어, 기능 변경 시 수동 동기화가 필요합니다.</li>
+</ul>
+</div>
+
+<hr>
+<p style="font-size:12.5px;color:var(--mut);line-height:1.7">
+이 문서는 <code>js/llm.js</code>(CORE_PROMPT·APP_GUIDE), <code>js/personas.js</code>(상담사 4인·수업 코스),
+<code>js/missions.js</code>(맞춤 숙제), <code>js/weekly.js</code>·<code>js/mail.js</code>(편지)의 실제 구현을 근거로 작성했습니다.<br>
+우렁의사는 의료기기가 아니며, 이 챗봇은 진단·처방을 제공하지 않습니다. 위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.
+</p>
+
+</body></html>

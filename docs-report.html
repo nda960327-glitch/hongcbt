@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 마음 리포트 — 설계 근거와 한계</title>
+<style>
+  :root{--ink:#2b2620;--sub:#6b6357;--mut:#968d7e;--line:#e3dacb;--bg:#fffdf9;
+        --g:#4f8a6b;--gL:#e8f1eb;--o:#c57c54;--r:#c96a5a;--rL:#faeeec;--y:#c9a227;--yL:#faf3df;--v:#7b6fa8;--b:#6f97ab}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,'Malgun Gothic',sans-serif;background:var(--bg);color:var(--ink);
+       max-width:780px;margin:0 auto;padding:34px 22px 60px;line-height:1.8;font-size:15.5px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.03em;line-height:1.35}
+  .lede{font-size:16px;color:var(--sub);margin:0 0 6px;line-height:1.75}
+  .meta{font-size:12px;color:var(--mut);margin:0 0 26px}
+  h2{font-size:19px;margin:44px 0 4px;letter-spacing:-.02em;display:flex;align-items:baseline;gap:9px}
+  h2 .no{font-size:12px;font-weight:800;color:var(--g);letter-spacing:.1em}
+  h2+.sub{font-size:13px;color:var(--mut);margin:0 0 16px}
+  h3{font-size:15.5px;margin:24px 0 6px}
+  p{margin:0 0 12px}
+  b,strong{font-weight:800}
+  ul,ol{margin:0 0 14px;padding-left:20px}
+  li{margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:6px 0 16px;font-size:14px;table-layout:fixed}
+  th,td{border:1px solid var(--line);padding:9px 10px;text-align:left;vertical-align:top;word-break:keep-all;overflow-wrap:anywhere}
+  th{background:#f5efe4;font-weight:800;font-size:13px}
+  td.k{font-weight:700}
+  code{background:#f2ece1;padding:1.5px 6px;border-radius:5px;font-size:13px;
+       font-family:ui-monospace,Menlo,Consolas,monospace;overflow-wrap:anywhere}
+  .card{border:1px solid var(--line);border-radius:14px;padding:15px 17px;margin:0 0 14px}
+  .good{background:var(--gL);border-color:#c5ddd0}
+  .bad{background:var(--rL);border-color:#e8c5bf}
+  .warn{background:var(--yL);border-color:#e8d9ae}
+  .quote{border-left:4px solid var(--line);padding:2px 0 2px 14px;margin:10px 0;
+         color:var(--sub);font-size:14px;line-height:1.75}
+  .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:999px;
+       background:var(--g);color:#fff;vertical-align:2px}
+  .tag.r{background:var(--r)}.tag.y{background:var(--y)}.tag.v{background:var(--v)}
+  .layer{display:flex;gap:11px;margin-bottom:11px;align-items:flex-start}
+  .layer .n{flex:0 0 26px;height:26px;border-radius:50%;background:var(--g);color:#fff;
+            font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .layer .t{flex:1;min-width:0}
+  .layer .t b{display:block;font-size:14.5px}
+  .layer .t span{font-size:13.5px;color:var(--sub);line-height:1.7}
+  .pri{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:4px;color:#fff}
+  .P1{background:var(--r)}.P2{background:var(--y)}.P3{background:var(--mut)}
+  hr{border:0;border-top:1px solid var(--line);margin:34px 0}
+  @media print{body{padding:0;font-size:11.5pt} h2{page-break-after:avoid} .card,table{page-break-inside:avoid}}
+</style></head>
+<body>
+
+<h1>AI 마음 리포트 — 설계 근거와 한계</h1>
+<p class="lede">왜 이 리포트는 학계 기준에서 방어 가능한가, 그리고 무엇이 아직 부족한가</p>
+<p class="meta">2026년 8월 · 파일: <code>js/assess.js</code>, <code>js/assess-charts.js</code></p>
+
+<div class="card good">
+<p style="margin:0"><b>핵심 방어선 한 줄</b> — <b>수치는 앱이, 해석만 AI가</b> 만듭니다.
+표준 점수는 공인 도구의 원문항·원절단점 그대로 계산하고, 추이·시간대·왜곡 분포는 로컬 원자료로 앱이 직접 집계합니다.
+AI는 이미 확정된 숫자를 <b>읽고 해석</b>할 뿐, 점수를 만들어내지 못합니다.</p>
+</div>
+
+<!-- ══════════════════════════ -->
+<h2><span class="no">Ⅰ</span>학계에서 욕먹는 리포트의 전형</h2>
+<p class="sub">먼저 무엇을 피해야 하는지 정의했습니다</p>
+<table>
+<tr><th>흔한 문제</th><th>왜 문제인가</th><th>우리의 대응</th></tr>
+<tr><td class="k">비표준 척도로 “진단”</td><td>검증되지 않은 문항으로 병명을 시사하면 근거가 0</td><td>진단명·진단 시사 표현 <b>전면 금지</b>. 우울·불안은 <b>PHQ-9·GAD-7</b>만 사용</td></tr>
+<tr><td class="k">AI가 점수를 지어냄</td><td>재현 불가능, 검증 불가능</td><td>표준 점수는 <b>앱이 계산</b>해 주입, 모델은 “그대로 옮기라”고 강제</td></tr>
+<tr><td class="k">데이터 부족한데 결론</td><td>표본이 없는 추론</td><td>충분도 <b>80% 미만이면 생성 자체 차단</b>(결제도 안 받음)</td></tr>
+<tr><td class="k">시점 불일치</td><td>3개월 전 검사로 오늘을 말함</td><td>PHQ-9·GAD-7은 “지난 2주” 도구 → <b>14일 지나면 만료</b>·재실시</td></tr>
+<tr><td class="k">근거 없는 단정</td><td>어디서 나온 판단인지 추적 불가</td><td><b>근거 추적표</b> — 판단마다 실제 발화 인용 + 근거 강도 <code>●●●○○</code></td></tr>
+<tr><td class="k">표준·비표준 혼재</td><td>참고 지표가 검사 결과처럼 보임</td><td>섹션·라벨로 <b>물리적 분리</b>. 탐색 지표엔 “표준 도구 아님” 명시</td></tr>
+</table>
+
+<!-- ══════════════════════════ -->
+<h2><span class="no">Ⅱ</span>방어 가능한 이유 — 6개 장치</h2>
+
+<div class="layer"><div class="n">1</div><div class="t"><b>공인 도구를 원형 그대로 <span class="tag">가장 중요</span></b><span>
+<b>PHQ-9</b>(우울 9문항)·<b>GAD-7</b>(불안 7문항)을 문구·순서·4점 척도까지 원형 유지. 절단점도 원 도구 그대로:
+PHQ-9 <code>0–4 정상 / 5–9 경도 / 10–14 중등도 / 15–19 중등도이상 / 20+ 심함</code>,
+GAD-7 <code>0–4 / 5–9 / 10–14 / 15+</code>. 둘 다 공개 도구라 사용에 제약이 없습니다.</span></div></div>
+
+<div class="layer"><div class="n">2</div><div class="t"><b>사실과 해석의 분리</b><span>
+기분 추이(3주 라인차트)·요일×시간대 히트맵·인지왜곡 분포(도넛)는 <b>앱이 로컬 원자료로 직접 집계</b>합니다.
+AI에게는 집계 결과를 텍스트로 넘겨 “해석만” 시킵니다. <b>모델이 수치를 조작할 경로가 구조적으로 없습니다.</b></span></div></div>
+
+<div class="layer"><div class="n">3</div><div class="t"><b>근거 추적 가능성 <span class="tag v">Ⅷ 섹션</span></b><span>
+각 판단에 대해 <b>실제 기록에서 나온 표현을 인용</b>하고, 근거 강도를 5단계로 표기합니다.
+반복 관찰이면 4~5, 한두 번이면 2~3, 추론이면 1. 독자가 “이 말은 어디서 나왔나”를 되짚을 수 있습니다.</span></div></div>
+
+<div class="layer"><div class="n">4</div><div class="t"><b>데이터 품질을 먼저 공개</b><span>
+본문보다 <b>앞에</b> 충분도(5축 막대)와 신뢰도를 보여줍니다. 기간이 짧거나 입력이 몰려 있으면
+<b>“이 데이터는 믿을만하지 못합니다”</b>를 명시합니다. 단, <b>사실만</b> 적습니다 — “과장·연기 의심” 같은
+사용자를 비난하는 표현은 금지어로 제거했습니다.</span></div></div>
+
+<div class="layer"><div class="n">5</div><div class="t"><b>보고서 격식</b><span>
+임상심리평가 보고서의 표준 흐름(전반적 인상 → 평가 결과 → 심리적 역동 → 적응 자원 → 행동 관찰 →
+요약 및 제언 → 전문가 연계)을 따르고, <b>Ⅶ. 전문가 연계 권고</b>와 <b>한계 및 고지</b>를 필수 섹션으로 고정했습니다.</span></div></div>
+
+<div class="layer"><div class="n">6</div><div class="t"><b>안전 규칙 내장 <span class="tag r">P1</span></b><span>
+PHQ-9 <b>문항 9(자해 사고)</b>에 1점 이상 응답하면 검진 저장 즉시 1393·1577-0199 안내가 뜹니다.
+리포트 프롬프트에도 “문항9가 1 이상이면 전문가 연계에 반드시 반영”을 명시했습니다.</span></div></div>
+
+<div class="card warn">
+<p style="margin:0"><b>표현 규칙</b> — 병명은 물론 <b>“~장애가 의심됩니다”, “~증상입니다”</b> 같은 진단 시사 표현까지 금지어입니다.
+허용된 언어는 <b>선별검사 점수 · 관찰된 패턴 · 경향</b> 세 가지뿐입니다.</p>
+</div>
+
+<!-- ══════════════════════════ -->
+<h2><span class="no">Ⅲ</span>생성 조건 — 아무 때나 안 만든다</h2>
+<table>
+<tr><th>조건</th><th>기준</th><th>미달 시</th></tr>
+<tr><td class="k">표준 검진</td><td>PHQ-9·GAD-7 전 문항 완료</td><td>생성 차단 + 검진 화면으로 이동</td></tr>
+<tr><td class="k">검진 시점</td><td>14일 이내</td><td>“○일 전에 하셨어요” 안내 후 재실시 요구</td></tr>
+<tr><td class="k">데이터 충분도</td><td>80% 이상</td><td>생성 차단, 결제 없음</td></tr>
+<tr><td class="k">생성 실패</td><td>—</td><td><b>전액 자동 환불</b></td></tr>
+</table>
+<p>충분도는 대화량(30%)·활동 기간(25%)·감정 기록(15%)·깊은 기록(15%)·표준 검진(15%)의 가중 합입니다.</p>
+
+<!-- ══════════════════════════ -->
+<h2><span class="no">Ⅳ</span>시각화가 많은 이유</h2>
+<p class="sub">장식이 아니라, 각 차트가 특정 질문에 답합니다</p>
+<table>
+<tr><th>차트</th><th>답하는 질문</th><th>출처</th></tr>
+<tr><td class="k">반원 게이지</td><td>표준 기준에서 어디쯤인가</td><td><b>표준</b> · 절단점 색 띠 표시</td></tr>
+<tr><td class="k">라인 + 추세선</td><td>나아지고 있나, 나빠지고 있나</td><td><b>사실</b> · 체크인 원자료</td></tr>
+<tr><td class="k">요일×시간 히트맵</td><td>언제 무너지나</td><td><b>사실</b> · 타임스탬프 집계</td></tr>
+<tr><td class="k">레이더 2종</td><td>욕구·자원의 균형이 어떤 모양인가</td><td>탐색 지표</td></tr>
+<tr><td class="k">도넛</td><td>어떤 생각의 함정이 잦은가</td><td><b>사실</b> · 사고기록 집계</td></tr>
+<tr><td class="k">흐름도</td><td>반복되는 고리가 무엇인가</td><td>사례 개념화 가설</td></tr>
+<tr><td class="k">4주 타임라인</td><td>그래서 뭘 하면 되나</td><td>제언</td></tr>
+</table>
+<p>모두 <b>라이브러리 없는 순수 SVG</b>라 오프라인·인쇄본에서도 동일하게 재현됩니다.
+저장·인쇄 시 외부 의존이 0인 <b>자기완결 문서</b>로 나갑니다.</p>
+
+<!-- ══════════════════════════ -->
+<h2><span class="no">Ⅴ</span>개선해야 할 점</h2>
+<p class="sub">지금 알고 있는 약점 — 이걸 모르는 척하는 게 더 위험합니다</p>
+
+<div class="card bad">
+<h3 style="margin-top:0">우선순위 높음 <span class="pri P1">P1</span></h3>
+<ul style="margin-bottom:0">
+<li><b>비표준 지표가 여전히 점수 형태다.</b> 욕구·웰빙 축을 0~100으로 보여주는 순간, 라벨을 붙여놔도 독자는 검사 점수처럼 읽습니다. <b>수치 대신 3단계 서술(낮음/보통/높음)</b>로 바꾸거나, 신뢰구간을 함께 표기하는 편이 안전합니다.</li>
+<li><b>같은 데이터로 두 번 돌리면 결과가 달라진다.</b> LLM 특성상 <b>재검사 신뢰도(test–retest)</b>가 보장되지 않습니다. 최소한 표준 점수 외 항목에 “참고치이며 재생성 시 달라질 수 있음”을 명시하고, 장기적으로는 규칙 기반 산출로 옮겨야 합니다.</li>
+<li><b>규준(norm)이 없다.</b> “행복도 34점”이 어느 집단 대비 어느 위치인지 말할 수 없습니다. 규준 데이터 없이 절대 점수를 제시하는 건 학계에서 가장 먼저 지적받는 부분입니다.</li>
+<li><b>PHQ-9 문항 9 대응이 안내 팝업뿐이다.</b> 임상 앱이라면 위험도에 따른 <b>단계적 대응 프로토콜</b>(경고 → 안전계획 연결 → 필요 시 연계)이 있어야 합니다.</li>
+</ul>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">우선순위 중간 <span class="pri P2">P2</span></h3>
+<ul style="margin-bottom:0">
+<li><b>기분 척도가 자체 제작 5점이다.</b> 체크인 값(1~5)은 검증된 척도가 아닙니다. 추이 자체는 사실이지만 “행복도”로 해석하는 순간 비약이 생깁니다.</li>
+<li><b>선택 편향.</b> 앱에 기록을 남기는 순간(주로 힘들 때)이 과표집됩니다. 리포트에 이 편향을 명시해야 합니다.</li>
+<li><b>단면 vs 종단 혼용.</b> PHQ-9는 특정 2주의 단면인데, 추이 차트는 3주 종단입니다. 서로 다른 시간 단위를 한 문서에서 병렬 제시할 때의 해석 주의가 필요합니다.</li>
+<li><b>인지왜곡 집계가 AI 라벨링에 의존.</b> 사고기록의 왜곡 태그를 대화에서 자동 부여하는데, 이 분류의 정확도가 검증되지 않았습니다.</li>
+<li><b>충분도 가중치가 임의값이다.</b> 30/25/15/15/15의 근거가 없습니다. 최소 “실무적 판단”이라고 밝혀야 합니다.</li>
+</ul>
+</div>
+
+<div class="card">
+<h3 style="margin-top:0">우선순위 낮음 <span class="pri P3">P3</span></h3>
+<ul style="margin-bottom:0">
+<li>도구 출처 표기(PHQ-9 Spitzer 등)와 라이선스 고지가 리포트 안에 없습니다.</li>
+<li>색상만으로 심각도를 구분하는 구간이 있어 <b>색각 이상 접근성</b>이 부족합니다.</li>
+<li>결과를 상담사에게 전달할 때의 <b>동의 절차</b>가 UI에 없습니다.</li>
+<li>PHQ-9 재측정 이력을 시계열로 보여주면 개입 효과를 직접 보여줄 수 있는데, 아직 없습니다.</li>
+</ul>
+</div>
+
+<div class="card good">
+<p style="margin:0"><b>제안 — 다음 한 걸음</b><br>
+① 비표준 지표를 숫자에서 <b>서술 3단계</b>로 전환 · ② 리포트 하단에 <b>도구 출처·편향·재현성 고지</b> 블록 추가 ·
+③ PHQ-9 <b>재측정 추이</b> 섹션 신설. 이 셋만 해도 “참고용 리포트”로서의 방어선이 확실히 올라갑니다.</p>
+</div>
+
+<hr>
+<p style="font-size:12.5px;color:var(--mut);line-height:1.7">
+우렁의사는 의료기기가 아니며, 이 리포트는 진단·처방을 제공하지 않습니다.
+PHQ-9·GAD-7은 선별(screening) 도구로, 점수가 높다고 진단이 되는 것이 아니며 전문가의 평가가 필요합니다.<br>
+위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.
+</p>
+
+</body></html>
