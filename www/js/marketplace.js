@@ -206,6 +206,13 @@
     this.renderCounselors();
   },
 
+  // 이름·병원·전문분야 검색 (검색창은 정적 DOM이라 입력 포커스가 유지된다)
+  _query: '',
+  setQuery(v) {
+    this._query = (v || '').trim().toLowerCase();
+    this.renderCounselors();
+  },
+
   toggleAvail() {
     this._availOnly = !this._availOnly;
     this.renderCounselors();
@@ -272,6 +279,14 @@
       filtered = filtered.filter(c => this.liveState(c) === 'avail');
     }
 
+    if (this._query) {
+      const q = this._query;
+      filtered = filtered.filter(c =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.hospital || '').toLowerCase().includes(q) ||
+        (c.tags || []).some(t => t.toLowerCase().includes(q)));
+    }
+
     // 1순위: ♥ 즐겨찾기, 2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
     const stateRank = { avail: 0, busy: 1, off: 2 };
     filtered.sort((a, b) => {
@@ -285,6 +300,15 @@
       if (sortType === 'price_low') return a.price - b.price;
       return 0;
     });
+
+    if (!filtered.length) {
+      list.innerHTML = `<div style="text-align: center; padding: 2.2rem 1rem; color: var(--text-muted);">
+        <div style="margin-bottom: 0.5rem;">${window.Stickers ? window.Stickers.svg('think', 72) : '🔍'}</div>
+        <p style="font-size: 0.88rem; margin: 0;">${this._query ? `'${this._query.replace(/[<>&"']/g, '')}' 검색 결과가 없어요` : '조건에 맞는 상담사가 없어요'}</p>
+        <p style="font-size: 0.76rem; margin: 0.3rem 0 0;">검색어나 필터를 바꿔보세요</p>
+      </div>`;
+      return;
+    }
 
     list.innerHTML = filtered.map(c => {
       const st = this.liveState(c);

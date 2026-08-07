@@ -730,6 +730,17 @@ window.App = {
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
     if (name) name.textContent = p.name;
     if (tagline) tagline.textContent = p.tagline;
+    // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 MBCT)
+    const progBtn = document.getElementById('btn-program');
+    if (progBtn) {
+      const prog = window.Personas.programOf(p.id);
+      if (prog) {
+        progBtn.style.display = 'inline-flex';
+        progBtn.textContent = `${prog.emoji} ${prog.name}`;
+      } else {
+        progBtn.style.display = 'none';
+      }
+    }
   },
 
   updateLastActiveTime() {
