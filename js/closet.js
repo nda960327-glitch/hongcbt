@@ -264,6 +264,61 @@ window.Closet = {
   },
 
   // --------------------------------------------------------------------------
+  //  탈의실 씬 — 거울 앞에서 입어보고 멋진 척하는 우렁이
+  // --------------------------------------------------------------------------
+  _shopOpen: false,
+
+  toggleShop() {
+    this._shopOpen = !this._shopOpen;
+    if (window.Sfx) window.Sfx.play('nav');
+    this.render();
+  },
+
+  POSES: [
+    { s: 'proud',    cap: '흠… 오늘 좀 치는데?' },
+    { s: 'stareyes', cap: '거울 속 저 멋쟁이 누구야' },
+    { s: 'shy',      cap: '이거 나한테 너무 과한가…?' },
+    { s: 'ok',       cap: '결정했어. 오늘은 이거다' },
+    { s: 'think',    cap: '음… 모자를 바꿔볼까' },
+    { s: 'dance',    cap: '새 옷 입고 한 바퀴~' }
+  ],
+
+  scene() {
+    const pose = this.POSES[Math.floor(Math.random() * this.POSES.length)];
+    const snail = window.Stickers ? window.Stickers.svg(pose.s, 92) : '';
+    return `
+      <div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.7rem;">
+        <svg viewBox="0 0 320 200" width="100%" style="display: block;" role="img" aria-label="우렁이 탈의실">
+          <rect width="320" height="200" fill="#EFE4D2"/>
+          <rect y="152" width="320" height="48" fill="#C9A278"/>
+          <path d="M0 152 H320" stroke="#B08B63" stroke-width="3"/>
+          <!-- 옷걸이 행거 -->
+          <path d="M28 44 h96" stroke="#8A6F55" stroke-width="5" stroke-linecap="round"/>
+          <path d="M36 44 v108M116 44 v108" stroke="#8A6F55" stroke-width="5" stroke-linecap="round"/>
+          <g stroke="#6E5844" stroke-width="2.6" fill="none">
+            <path d="M56 44 v10M78 44 v10M100 44 v10"/>
+          </g>
+          <path d="M48 58 q8 -6 16 0 v26 q-8 5 -16 0z" fill="#D46A63" stroke="#9C4640" stroke-width="2.4"/>
+          <path d="M70 58 q8 -6 16 0 v32 q-8 5 -16 0z" fill="#7B93C9" stroke="#4E639A" stroke-width="2.4"/>
+          <path d="M92 58 q8 -6 16 0 v22 q-8 5 -16 0z" fill="#E8C77A" stroke="#A9803C" stroke-width="2.4"/>
+          <!-- 스탠딩 거울 -->
+          <g>
+            <ellipse cx="245" cy="160" rx="34" ry="8" fill="#B08B63" stroke="#8A6039" stroke-width="2.6"/>
+            <rect x="207" y="34" width="76" height="122" rx="34" fill="#BFE0EE" stroke="#8A6F55" stroke-width="6"/>
+            <path d="M222 60 q10 -16 26 -14" stroke="#FFFFFF" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.75"/>
+            <path d="M218 84 q4 -8 10 -10" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.5"/>
+            <!-- 거울에 비친 뿌연 실루엣 -->
+            <ellipse cx="247" cy="118" rx="24" ry="20" fill="#9FCBDD" opacity="0.55"/>
+            <circle cx="238" cy="116" r="1.8" fill="#7BA7B8"/><circle cx="252" cy="116" r="1.8" fill="#7BA7B8"/>
+          </g>
+          <path d="M150 20 l1.8 3.8 3.8 1.8 -3.8 1.8 -1.8 3.8 -1.8 -3.8 -3.8 -1.8 3.8 -1.8z" fill="#F5C74E" opacity="0.8"/>
+        </svg>
+        <div style="position: absolute; left: 43%; bottom: 5%; width: 29%; line-height: 0;">${snail}</div>
+        <div style="position: absolute; left: 50%; top: 4%; transform: translateX(-50%); max-width: 90%; font-size: 0.66rem; font-weight: 700; color: #4a4038; background: rgba(255,252,245,0.88); border: 1px solid rgba(74,64,56,0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${pose.cap}</div>
+      </div>`;
+  },
+
+  // --------------------------------------------------------------------------
   //  옷장 UI (대시보드 허브 안에서 렌더)
   // --------------------------------------------------------------------------
   render() {
@@ -296,22 +351,28 @@ window.Closet = {
     };
 
     el.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.7rem;">
+      ${this.scene()}
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
         <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
         <span style="font-size: 0.72rem; color: var(--text-muted);">💰 ${cash.toLocaleString()}캐시</span>
         <button onclick="window.Closet.unequipAll()" style="all: unset; margin-left: auto; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); cursor: pointer; border-bottom: 1px solid var(--glass-border);">전부 벗기</button>
+        <button onclick="window.Closet.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
+          ${this._shopOpen ? '닫기 ▲' : '🛍 쇼핑하기 ▼'}
+        </button>
       </div>
-      ${this.SLOTS.map(s => {
-        const items = this.ITEMS.filter(i => i.slot === s.id);
-        if (!items.length) return '';
-        return `
-          <p style="margin: 0.55rem 0 0.4rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted);">${s.name}</p>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.45rem;">
-            ${items.map(cell).join('')}
-          </div>`;
-      }).join('')}
-      <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-        코인은 밭에서 작물을 수확하면 모여요. 회색 아이템을 누르면 구매, 가진 아이템을 누르면 입고 벗을 수 있어요.
-      </p>`;
+      <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.5rem;">
+        ${this.SLOTS.map(s => {
+          const items = this.ITEMS.filter(i => i.slot === s.id);
+          if (!items.length) return '';
+          return `
+            <p style="margin: 0.55rem 0 0.4rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted);">${s.name}</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 0.45rem;">
+              ${items.map(cell).join('')}
+            </div>`;
+        }).join('')}
+        <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
+          코인은 밭에서 작물을 수확하면 모여요. 회색 아이템을 누르면 구매, 가진 아이템을 누르면 입고 벗을 수 있어요.
+        </p>
+      </div>`;
   }
 };

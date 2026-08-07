@@ -1640,3 +1640,8 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 }
 .record-card .record-detail { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px dashed var(--glass-border); }
 .record-card .record-detail .record-section strong { color: var(--accent-secondary); }
+
+/* 게임 카드 가로 넘침 방지 — nowrap 내용이 카드 폭을 밀어올리지 못하게 */
+.dashboard-grid > * { min-width: 0; max-width: 100%; }
+.dash-card, #game-stage, .game-view, #game-hud, #mail-body { min-width: 0; }
+.dash-card { overflow-x: hidden; }

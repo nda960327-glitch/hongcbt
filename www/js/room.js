@@ -263,6 +263,14 @@ window.Room = {
       </div>`;
   },
 
+  _shopOpen: false,
+
+  toggleShop() {
+    this._shopOpen = !this._shopOpen;
+    if (window.Sfx) window.Sfx.play('nav');
+    this.render();
+  },
+
   render() {
     const el = document.getElementById('room-body');
     if (!el) return;
@@ -295,21 +303,26 @@ window.Room = {
 
     el.innerHTML = `
       ${this.scene()}
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0;">
         <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
         <span style="font-size: 0.72rem; color: var(--text-muted);">💰 ${cash.toLocaleString()}캐시</span>
+        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; margin-left: auto; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
+          ${this._shopOpen ? '상점 닫기 ▲' : '🛍 가구 상점 ▼'}
+        </button>
       </div>
-      ${this.SLOTS.map(s => {
-        const items = this.ITEMS.filter(i => i.slot === s.id);
-        if (!items.length) return '';
-        return `
-          <p style="margin: 0.55rem 0 0.4rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted);">${s.name}</p>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 0.4rem;">
-            ${items.map(cell).join('')}
-          </div>`;
-      }).join('')}
-      <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-        회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 우렁이가 입은 옷도 방에 그대로 나와요.
-      </p>`;
+      <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.6rem;">
+        ${this.SLOTS.map(s => {
+          const items = this.ITEMS.filter(i => i.slot === s.id);
+          if (!items.length) return '';
+          return `
+            <p style="margin: 0.55rem 0 0.4rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted);">${s.name}</p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 0.4rem;">
+              ${items.map(cell).join('')}
+            </div>`;
+        }).join('')}
+        <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
+          회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 우렁이가 입은 옷도 방에 그대로 나와요.
+        </p>
+      </div>`;
   }
 };

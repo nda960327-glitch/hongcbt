@@ -12,13 +12,14 @@ window.Farm = {
 
   PLOTS: 6,
 
+  // seed: 씨앗 값(씨앗코인). 상추는 무료라 코인이 없어도 농사를 시작할 수 있다.
   CROPS: [
-    { id: 'lettuce', emoji: '🥬', name: '상추',   need: 6,  coin: 8  },
-    { id: 'carrot',  emoji: '🥕', name: '당근',   need: 9,  coin: 14 },
-    { id: 'corn',    emoji: '🌽', name: '옥수수', need: 12, coin: 20 },
-    { id: 'tomato',  emoji: '🍅', name: '토마토', need: 14, coin: 24 },
-    { id: 'berry',   emoji: '🍓', name: '딸기',   need: 16, coin: 34 },
-    { id: 'pumpkin', emoji: '🎃', name: '호박',   need: 22, coin: 55 }
+    { id: 'lettuce', emoji: '🥬', name: '상추',   need: 6,  coin: 8,  seed: 0  },
+    { id: 'carrot',  emoji: '🥕', name: '당근',   need: 9,  coin: 14, seed: 4  },
+    { id: 'corn',    emoji: '🌽', name: '옥수수', need: 12, coin: 20, seed: 6  },
+    { id: 'tomato',  emoji: '🍅', name: '토마토', need: 14, coin: 24, seed: 8  },
+    { id: 'berry',   emoji: '🍓', name: '딸기',   need: 16, coin: 34, seed: 12 },
+    { id: 'pumpkin', emoji: '🎃', name: '호박',   need: 22, coin: 55, seed: 20 }
   ],
 
   _S() { return window.Storage; },
@@ -120,6 +121,14 @@ window.Farm = {
     if (p[i]) return;
     const c = this.crop(cropId);
     if (!c) return;
+    if (c.seed > 0) {
+      if (this.coins() < c.seed) {
+        if (window.Sfx) window.Sfx.play('denied');
+        alert(`${c.emoji} ${c.name} 씨앗은 🌰${c.seed}코인이에요. (지금 ${this.coins()}코인)\n상추 씨앗은 공짜니 상추부터 키워보세요!`);
+        return;
+      }
+      this.spendCoins(c.seed);
+    }
     p[i] = { crop: c.id, water: 0, ts: Date.now() };
     this._savePlots(p);
     this.closePicker();
@@ -140,10 +149,11 @@ window.Farm = {
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem;">
         ${this.CROPS.map(c => `
           <button onclick="window.Farm.plant(${i}, '${c.id}')"
-            style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.55rem 0.3rem; border-radius: 12px; border: 1.5px solid var(--glass-border); background: var(--bg-tertiary);">
+            style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.55rem 0.3rem; border-radius: 12px; border: 1.5px solid ${c.seed === 0 ? 'color-mix(in srgb, var(--accent-primary) 40%, transparent)' : 'var(--glass-border)'}; background: var(--bg-tertiary);">
             <div style="font-size: 1.5rem; line-height: 1.2;">${c.emoji}</div>
             <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-primary);">${c.name}</div>
-            <div style="font-size: 0.62rem; color: var(--text-muted);">물 ${c.need} · ${c.coin}코인</div>
+            <div style="font-size: 0.6rem; font-weight: 800; color: ${c.seed === 0 ? 'var(--accent-primary)' : '#c9a227'};">씨앗 ${c.seed === 0 ? '무료' : '🌰' + c.seed}</div>
+            <div style="font-size: 0.6rem; color: var(--text-muted);">물 ${c.need} → 🌰${c.coin}</div>
           </button>`).join('')}
       </div>`;
     el.classList.remove('hidden');
@@ -190,6 +200,21 @@ window.Farm = {
         window.App.notify('🌱 우렁이 농장', `${c.emoji} ${c.name}이(가) 다 자랐어요! 수확하러 오세요`);
       }
     }
+  },
+
+  // 심은 작물 뽑기 — 되돌릴 수 없고, 준 물도 돌아오지 않는다
+  pull(i) {
+    const p = this.plots();
+    const slot = p[i];
+    if (!slot) return;
+    const c = this.crop(slot.crop);
+    const name = c ? c.emoji + ' ' + c.name : '작물';
+    if (!confirm(`${name}을(를) 뽑아버릴까요?\n지금까지 준 물 ${slot.water}방울은 돌아오지 않아요.`)) return;
+    p[i] = null;
+    this._savePlots(p);
+    if (window.Sfx) window.Sfx.play('plant');
+    if (window.App) window.App.showRecordToast(`${name}을(를) 뽑았어요. 밭이 비었습니다`);
+    this.render();
   },
 
   harvest(i) {
@@ -342,9 +367,11 @@ window.Farm = {
       const pct = Math.min(100, Math.round(slot.water / c.need * 100));
       return `
         <button onclick="window.Farm.tap(${i})" title="${c.name} · ${slot.water}/${c.need}"
-          style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.6rem 0.2rem 0.5rem; border-radius: 14px;
+          style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.6rem 0.2rem 0.5rem; border-radius: 14px; position: relative;
                  border: 1.5px solid ${ripe ? 'var(--accent-primary)' : 'var(--glass-border)'};
                  background: ${ripe ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-tertiary)'};">
+          <span role="button" title="뽑기" onclick="event.stopPropagation(); window.Farm.pull(${i});"
+            style="position: absolute; top: 2px; right: 5px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.7; padding: 0.15rem; line-height: 1;">✕</span>
           <div style="font-size: 1.5rem; line-height: 1.25;">${this._stageEmoji(slot, c)}</div>
           <div style="height: 4px; margin: 0.3rem 0.4rem 0.25rem; border-radius: 999px; background: var(--bg-secondary); overflow: hidden;">
             <div style="height: 100%; width: ${pct}%; background: var(--accent-primary);"></div>

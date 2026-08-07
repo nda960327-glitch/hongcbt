@@ -155,7 +155,7 @@ ${userText}` }],
           <div style="border: 1px solid var(--glass-border); border-radius: 12px; margin-bottom: 0.45rem; overflow: hidden; background: ${m.dir === 'recv' ? 'color-mix(in srgb, var(--accent-primary) 7%, var(--bg-tertiary))' : 'var(--bg-tertiary)'};">
             <button onclick="window.Mail.toggle('${m.id}')" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.55rem 0.7rem; cursor: pointer;">
               <span style="font-size: 0.95rem;">${m.dir === 'recv' ? '💌' : '📮'}</span>
-              <span style="flex: 1; min-width: 0; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              <span style="flex: 1 1 0%; width: 0; min-width: 0; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 ${m.dir === 'recv' ? '우렁이의 답장' : '내가 보낸 편지'} — ${(m.text || '').split('\n')[0].slice(0, 26)}
               </span>
               <span style="font-size: 0.64rem; color: var(--text-muted); flex-shrink: 0;">${fmt(m.ts)}</span>
