@@ -204,44 +204,22 @@ window.Personas = {
   },
 
   // 간단한 얼굴 아바타 SVG (외부 이미지 없이 자체 렌더링)
+  // 페르소나 아바타 — 실제 캐릭터 스티커를 원형 배경 위에 올린다.
+  //  (밋밋한 표정 아이콘 대신 우렁이·햇님·달님·소나무 본체를 그대로 씀)
+  AVATAR_POSE: { woorung: 'joy', haru: 'cheer', dalnim: 'empathy', sonamu: 'think' },
+
   avatarSvg(id, size = 48) {
     const p = this.get(id);
-    const c = p.color;
-    let face = '';
-    switch (p.id) {
-      case 'haru': // 윙크 + 활짝 웃음
-        face = `<circle cx="17" cy="20" r="2.2" fill="#3b2f24"/>
-                <path d="M28 19 q3 2.5 6 0" stroke="#3b2f24" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-                <path d="M16 29 q8 7 16 0" stroke="#3b2f24" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
-        break;
-      case 'dalnim': // 지그시 감은 눈 + 잔잔한 미소 + 달
-        face = `<path d="M14 21 q3 2 6 0" stroke="#2f2a3f" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-                <path d="M28 21 q3 2 6 0" stroke="#2f2a3f" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-                <path d="M19 29 q5 3.5 10 0" stroke="#2f2a3f" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-                <path d="M36 8 a5.5 5.5 0 1 0 4 9 a4.5 4.5 0 1 1 -4 -9" fill="#f2e6b8"/>`;
-        break;
-      case 'sonamu': // 둥근 안경 + 온화한 미소 + 잎사귀
-        face = `<circle cx="17" cy="21" r="4.6" stroke="#243b33" stroke-width="1.8" fill="none"/>
-                <circle cx="31" cy="21" r="4.6" stroke="#243b33" stroke-width="1.8" fill="none"/>
-                <line x1="21.6" y1="21" x2="26.4" y2="21" stroke="#243b33" stroke-width="1.8"/>
-                <circle cx="17" cy="21" r="1.6" fill="#243b33"/>
-                <circle cx="31" cy="21" r="1.6" fill="#243b33"/>
-                <path d="M18 30 q6 4 12 0" stroke="#243b33" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-                <path d="M24 4 q6 -3 8 3 q-6 2 -8 -3" fill="#5fae7f"/>`;
-        break;
-      default: // woorung: 또렷한 눈 + 미소 + 볼터치
-        face = `<circle cx="17" cy="20" r="2.4" fill="#2f3d34"/>
-                <circle cx="31" cy="20" r="2.4" fill="#2f3d34"/>
-                <path d="M17 28 q7 5 14 0" stroke="#2f3d34" stroke-width="2.4" fill="none" stroke-linecap="round"/>
-                <circle cx="12.5" cy="26" r="2.6" fill="#f0b9a0" opacity="0.75"/>
-                <circle cx="35.5" cy="26" r="2.6" fill="#f0b9a0" opacity="0.75"/>`;
-    }
-    return `<svg width="${size}" height="${size}" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${p.name}">
-      <circle cx="24" cy="24" r="23" fill="${c}" opacity="0.18"/>
-      <circle cx="24" cy="24" r="18.5" fill="${c}" opacity="0.34"/>
-      <circle cx="24" cy="24" r="15" fill="#fdf6ec"/>
-      ${face}
-    </svg>`;
+    const pose = this.AVATAR_POSE[p.id] || 'joy';
+    // 스티커는 캐릭터 몸 전체라 원 안에 넣으면 작아 보인다 → 1.18배로 키워 담는다
+    const inner = (window.Stickers && window.Stickers.svgFor)
+      ? window.Stickers.svgFor(p.id, pose, Math.round(size * 1.18))
+      : '';
+    if (!inner) return `<span style="display:inline-block;width:${size}px;height:${size}px;border-radius:50%;background:${p.color};opacity:.25"></span>`;
+    return `<span role="img" aria-label="${p.name}" style="position:relative;display:inline-flex;align-items:center;justify-content:center;
+      width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0;line-height:0;
+      background:radial-gradient(circle at 50% 42%, color-mix(in srgb, ${p.color} 26%, transparent), color-mix(in srgb, ${p.color} 12%, transparent));
+      border:1.5px solid color-mix(in srgb, ${p.color} 32%, transparent);">${inner}</span>`;
   },
 
   renderHomeQuickSelect() {
