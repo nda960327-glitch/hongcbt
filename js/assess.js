@@ -13,29 +13,72 @@ window.Assess = {
   MIN_TOTAL: 40,   // 이 미만이면 생성 자체를 막는다
 
   // --------------------------------------------------------------------------
-  //  자가 문답 — 대화만으로 알기 어려운 축을 채우는 18문항 (최근 2주, 0~3점)
+  //  자가검진 — 표준 선별도구(PHQ-9·GAD-7, 공개 도구) + 탐색 문항(비표준) 분리
+  //  ⚠️ 표준 문항의 문구·순서·채점은 원 도구 그대로 유지할 것 (임의 수정 금지)
   // --------------------------------------------------------------------------
-  QUESTIONS: [
-    { id: 'q_mood',    axis: '기분',    t: '기분이 가라앉거나, 우울하거나, 희망이 없다고 느꼈다' },
-    { id: 'q_anhedo',  axis: '기분',    t: '일상에서 흥미나 즐거움을 거의 느끼지 못했다' },
-    { id: 'q_sleep',   axis: '수면',    t: '잠들기 어렵거나, 자주 깨거나, 너무 많이 잤다' },
-    { id: 'q_energy',  axis: '에너지',  t: '피곤하고 기운이 없었다' },
-    { id: 'q_anx',     axis: '불안',    t: '초조하거나 불안하거나 조마조마하게 느꼈다' },
-    { id: 'q_worry',   axis: '불안',    t: '걱정을 멈추거나 조절할 수가 없었다' },
-    { id: 'q_up',      axis: '기분변동', t: '평소와 달리 기분이 지나치게 들뜨거나, 잠을 안 자도 쌩쌩한 날이 있었다' },
-    { id: 'q_updown',  axis: '기분변동', t: '의욕이 넘치다가 갑자기 무기력해지는 큰 오르내림이 있었다' },
-    { id: 'q_focus',   axis: '주의력',  t: '해야 할 일에 집중을 유지하기 어려웠다' },
-    { id: 'q_impulse', axis: '주의력',  t: '차례를 기다리기 힘들거나, 생각 전에 말/행동이 먼저 나갔다' },
-    { id: 'q_irrit',   axis: '충동·분노', t: '사소한 일에도 짜증이나 화가 치밀었다' },
-    { id: 'q_agg',     axis: '충동·분노', t: '화가 나서 물건을 던지거나 소리를 지르고 싶은 충동이 들었다' },
-    { id: 'q_reject',  axis: '욕구', t: '상대가 실망할까 봐, 싫어도 부탁을 거절하지 못했다' },
-    { id: 'q_belong',  axis: '욕구', t: '무리에서 빠지거나 혼자 남는 게 두려워서 무리해서라도 맞췄다' },
-    { id: 'q_approve', axis: '욕구', t: '칭찬이나 인정을 받지 못하면 내 가치가 없는 것처럼 느껴졌다' },
-    { id: 'q_give',    axis: '욕구', t: '관계를 지키려고 먼저 사주거나, 먼저 챙기거나, 더 많이 내주는 편이었다' },
-    { id: 'q_perfect', axis: '욕구', t: '실수하면 안 된다는 생각에 시작을 미루거나 스스로를 심하게 몰아붙였다' },
-    { id: 'q_alone',   axis: '욕구', t: '속마음을 말하면 상대가 떠날 것 같아 혼자 삼켰다' }
+  SECTIONS: [
+    {
+      id: 'phq9', name: 'PHQ-9 · 우울 선별 (표준)', standard: true,
+      intro: '지난 2주 동안, 다음 문제들로 얼마나 자주 방해를 받았습니까?',
+      items: [
+        { id: 'p1', t: '일 또는 여가 활동을 하는 데 흥미나 즐거움을 느끼지 못함' },
+        { id: 'p2', t: '기분이 가라앉거나, 우울하거나, 희망이 없다고 느낌' },
+        { id: 'p3', t: '잠이 들거나 계속 잠을 자는 것이 어려움, 또는 잠을 너무 많이 잠' },
+        { id: 'p4', t: '피곤하다고 느끼거나 기운이 거의 없음' },
+        { id: 'p5', t: '입맛이 없거나 과식을 함' },
+        { id: 'p6', t: '자신을 부정적으로 봄 — 혹은 자신이 실패자라고 느끼거나 자신 또는 가족을 실망시켰다고 느낌' },
+        { id: 'p7', t: '신문을 읽거나 텔레비전 보는 것과 같은 일에 집중하는 것이 어려움' },
+        { id: 'p8', t: '다른 사람들이 주목할 정도로 너무 느리게 움직이거나 말을 함, 또는 반대로 평상시보다 많이 움직여서 너무 안절부절못하거나 들떠 있음' },
+        { id: 'p9', t: '자신이 죽는 것이 더 낫다고 생각하거나 어떤 식으로든 자신을 해칠 것이라고 생각함' }
+      ]
+    },
+    {
+      id: 'gad7', name: 'GAD-7 · 불안 선별 (표준)', standard: true,
+      intro: '지난 2주 동안, 다음 문제들로 얼마나 자주 방해를 받았습니까?',
+      items: [
+        { id: 'g1', t: '초조하거나 불안하거나 조마조마하게 느낀다' },
+        { id: 'g2', t: '걱정하는 것을 멈추거나 조절할 수가 없다' },
+        { id: 'g3', t: '여러 가지 것들에 대해 걱정을 너무 많이 한다' },
+        { id: 'g4', t: '편하게 있기가 어렵다' },
+        { id: 'g5', t: '너무 안절부절못해서 가만히 있기가 힘들다' },
+        { id: 'g6', t: '쉽게 짜증이 나거나 쉽게 성을 내게 된다' },
+        { id: 'g7', t: '끔찍한 일이 생길 것처럼 두렵게 느껴진다' }
+      ]
+    },
+    {
+      id: 'extra', name: '탐색 문항 (비표준 · 참고용)', standard: false,
+      intro: '아래는 표준 검사가 아닌, 리포트의 욕구·패턴 분석을 돕는 참고 문항이에요.',
+      items: [
+        { id: 'x_up',      t: '평소와 달리 기분이 지나치게 들뜨거나, 잠을 안 자도 쌩쌩한 날이 있었다' },
+        { id: 'x_updown',  t: '의욕이 넘치다가 갑자기 무기력해지는 큰 오르내림이 있었다' },
+        { id: 'x_focus',   t: '해야 할 일에 집중을 유지하기 어려웠다' },
+        { id: 'x_impulse', t: '생각 전에 말이나 행동이 먼저 나갔다' },
+        { id: 'x_reject',  t: '상대가 실망할까 봐, 싫어도 부탁을 거절하지 못했다' },
+        { id: 'x_belong',  t: '혼자 남는 게 두려워서 무리해서라도 맞췄다' },
+        { id: 'x_approve', t: '칭찬이나 인정을 받지 못하면 내 가치가 없는 것처럼 느껴졌다' },
+        { id: 'x_give',    t: '관계를 지키려고 먼저 챙기거나 더 많이 내주는 편이었다' },
+        { id: 'x_perfect', t: '실수하면 안 된다는 생각에 시작을 미루거나 스스로를 몰아붙였다' },
+        { id: 'x_alone',   t: '속마음을 말하면 상대가 떠날 것 같아 혼자 삼켰다' }
+      ]
+    }
   ],
-  SCALE: ['전혀 아님', '며칠', '절반 이상', '거의 매일'],
+  get QUESTIONS() { return this.SECTIONS.flatMap(s => s.items.map(i => ({ id: i.id, axis: s.standard ? s.name.split(' ·')[0] : '탐색', t: i.t }))); },
+  SCALE: ['전혀 없음', '며칠 동안', '일주일 이상', '거의 매일'],
+
+  // 표준 채점 (밴드는 원 도구의 절단점 그대로)
+  scores() {
+    const qa = this.answers();
+    if (!qa || !qa.map) return null;
+    const sum = ids => ids.reduce((a, id) => a + (qa.map[id] ?? 0), 0);
+    const pIds = ['p1','p2','p3','p4','p5','p6','p7','p8','p9'];
+    const gIds = ['g1','g2','g3','g4','g5','g6','g7'];
+    const done = ids => ids.every(id => qa.map[id] != null);
+    const phq = done(pIds) ? sum(pIds) : null;
+    const gad = done(gIds) ? sum(gIds) : null;
+    const phqBand = phq == null ? null : phq <= 4 ? '정상 수준' : phq <= 9 ? '가벼운 우울' : phq <= 14 ? '중간 정도 우울' : phq <= 19 ? '약간 심한 우울' : '심한 우울';
+    const gadBand = gad == null ? null : gad <= 4 ? '정상 수준' : gad <= 9 ? '가벼운 불안' : gad <= 14 ? '중간 정도 불안' : '심한 불안';
+    return { phq, phqBand, gad, gadBand, item9: qa.map.p9 ?? 0 };
+  },
 
   _S() { return window.Storage; },
 
@@ -188,8 +231,8 @@ window.Assess = {
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem; border: 1.5px solid color-mix(in srgb, #c96a5a 25%, transparent); margin-bottom: 0.8rem;">
         <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
-          ⚠️ <b>병명을 붙이는 의학적 진단은 아니에요.</b> 대신 쌓인 기록에서 보이는 패턴은 돌려 말하지 않고 정직하게 짚습니다.
-          마음이 걱정된다면 전문가를 만나보세요. 위기 순간엔 <b>1393</b>, <b>1577-0199</b>.
+          ⚠️ <b>이것은 진단이 아니라 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
+          나머지는 기록 기반의 탐색 지표입니다. 마음이 걱정되면 전문가를 만나보세요. 위기 순간엔 <b>1393</b>, <b>1577-0199</b>.
         </p>
       </div>
 
@@ -217,16 +260,26 @@ window.Assess = {
       <div class="glass-card" style="padding: 0.95rem; margin-bottom: 0.8rem;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
           <div>
-            <strong style="font-size: 0.86rem; color: var(--text-primary);">📝 자가 문답 (3분)</strong>
-            <p style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">${m.qa ? '완료! 다시 하면 답이 갱신돼요.' : '대화만으로 알기 어려운 축(수면·집중·기분변동·욕구)을 채워줘요.'}</p>
+            <strong style="font-size: 0.86rem; color: var(--text-primary);">📝 표준 자가검진 (5분)</strong>
+            <p style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">${m.qa ? '완료! 다시 하면 답이 갱신돼요.' : 'PHQ-9(우울)·GAD-7(불안) 표준 선별검사 + 탐색 문항이에요.'}</p>
           </div>
           <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.75rem; flex-shrink: 0;" onclick="window.Assess.openQuiz()">${m.qa ? '다시 하기' : '시작하기'}</button>
         </div>
+        ${(() => {
+          const sc = this.scores();
+          if (!sc || sc.phq == null) return '';
+          return `
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.6rem;">
+            <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">PHQ-9 <b style="color: ${sc.phq >= 10 ? '#c96a5a' : sc.phq >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.phq}/27</b> · ${sc.phqBand}</span>
+            <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">GAD-7 <b style="color: ${sc.gad >= 10 ? '#c96a5a' : sc.gad >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.gad}/21</b> · ${sc.gadBand}</span>
+          </div>
+          <p style="margin: 0.4rem 0 0; font-size: 0.66rem; color: var(--text-muted);">표준 선별검사 점수예요. 선별은 진단이 아니며, 10점 이상이면 전문가와 이야기해보길 권해요.</p>`;
+        })()}
         <div id="assess-quiz"></div>
       </div>
 
       <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
-        🔍 AI 진단서 생성 — ${this.PRICE.toLocaleString()}캐시
+        🔍 AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
       </button>
       <p style="margin: 0.4rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">깊은 분석에 고성능 AI가 오래 돌아가는 유료 기능이에요. 생성 실패 시 전액 자동 환불.</p>
 
@@ -239,7 +292,7 @@ window.Assess = {
             <button onclick="document.getElementById('as-${r.id}').classList.toggle('hidden')" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.7rem 0.85rem; cursor: pointer;">
               <span style="flex: 1 1 0%; width: 0; min-width: 0;">
                 <span style="display: block; font-size: 0.68rem; color: var(--text-muted);">${r.date}</span>
-                <strong style="font-size: 0.84rem; color: var(--text-primary);">AI 진단서 ${r.json && r.json.headline ? '— ' + String(r.json.headline).slice(0, 18) + '…' : '(참고용)'}</strong>
+                <strong style="font-size: 0.84rem; color: var(--text-primary);">AI 마음 리포트 ${r.json && r.json.headline ? '— ' + String(r.json.headline).slice(0, 18) + '…' : '(참고용)'}</strong>
               </span><span style="color: var(--text-muted); font-weight: 800;">›</span>
             </button>
             <div id="as-${r.id}" class="hidden" style="padding: 0 0.85rem 0.85rem;">
@@ -257,11 +310,9 @@ window.Assess = {
     const el = document.getElementById('assess-quiz');
     if (!el) return;
     const prev = (this.answers() || {}).map || {};
-    el.innerHTML = `
-      <p style="margin: 0.8rem 0 0.6rem; font-size: 0.74rem; color: var(--text-secondary);">지난 <b>2주</b> 동안 얼마나 자주 그랬는지 골라주세요.</p>
-      ${this.QUESTIONS.map(q => `
+    const qHtml = q => `
         <div style="margin-bottom: 0.7rem;">
-          <p style="margin: 0 0 0.3rem; font-size: 0.78rem; color: var(--text-primary); line-height: 1.45;"><b style="color: var(--text-muted); font-size: 0.66rem;">[${q.axis}]</b> ${q.t}</p>
+          <p style="margin: 0 0 0.3rem; font-size: 0.78rem; color: var(--text-primary); line-height: 1.5;">${q.t}</p>
           <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;" data-q="${q.id}">
             ${this.SCALE.map((s, i) => `
               <button data-v="${i}" onclick="window.Assess._pick(this)"
@@ -270,8 +321,14 @@ window.Assess = {
                        background: ${prev[q.id] === i ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'var(--bg-tertiary)'};
                        color: ${prev[q.id] === i ? 'var(--accent-primary)' : 'var(--text-secondary)'};">${s}</button>`).join('')}
           </div>
-        </div>`).join('')}
-      <button class="btn-primary" style="width: 100%; margin-top: 0.3rem;" onclick="window.Assess.saveQuiz()">답변 저장</button>`;
+        </div>`;
+    el.innerHTML = this.SECTIONS.map(sec => `
+      <div style="margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--glass-border);">
+        <p style="margin: 0 0 0.15rem; font-size: 0.8rem; font-weight: 800; color: ${sec.standard ? 'var(--accent-primary)' : 'var(--text-muted)'};">${sec.name}</p>
+        <p style="margin: 0 0 0.6rem; font-size: 0.7rem; color: var(--text-muted);">${sec.intro}</p>
+        ${sec.items.map(qHtml).join('')}
+      </div>`).join('')
+      + `<button class="btn-primary" style="width: 100%; margin-top: 0.3rem;" onclick="window.Assess.saveQuiz()">답변 저장</button>`;
     document.querySelectorAll('#assess-quiz [data-q]').forEach(row => {
       const qid = row.dataset.q;
       if (prev[qid] != null) row.dataset.picked = prev[qid];
@@ -298,8 +355,12 @@ window.Assess = {
     });
     if (missing > 0) { alert(`${missing}개 문항이 남았어요. 전부 답해주세요.`); return; }
     this._S()._safeSet('cbt_assess_answers', { ts: Date.now(), map });
-    if (window.App) window.App.showRecordToast('📝 자가 문답 저장 완료 — 데이터가 채워졌어요');
+    if (window.App) window.App.showRecordToast('📝 자가검진 저장 완료');
     if (window.Sfx) window.Sfx.play('ripe');
+    const sc = this.scores();
+    if (sc && sc.item9 > 0) {
+      alert('마지막 우울 문항(자해 관련)에 응답하셨어요.\n\n혼자 견디지 마세요 — 자살예방상담 1393, 정신건강상담 1577-0199 에서 지금 바로 이야기할 수 있어요. 우렁이도 늘 여기 있어요.');
+    }
     this.render();
   },
 
@@ -320,12 +381,12 @@ window.Assess = {
       .replace(/color-mix\(in srgb, #4f8a6b 12%, transparent\)/g, '#e4efe8')
       .replace(/color-mix\(in srgb, #c57c54 8%, transparent\)/g, '#f8efe9');
     return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>우렁의사 AI 진단서 — ${r.date}</title>
+<title>우렁의사 AI 마음 리포트 — ${r.date}</title>
 <style>body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fffdf9;color:#2b2620;max-width:680px;margin:0 auto;padding:28px 22px;line-height:1.6}
 h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 18px}
 .box{border:1px solid #e5ddd0;border-radius:14px;padding:16px 18px;margin-bottom:14px}
 @media print{body{padding:0}}</style></head><body>
-<h1>🔍 우렁의사 AI 진단서</h1>
+<h1>🔍 우렁의사 AI 마음 리포트</h1>
 <p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 1393 / 1577-0199</p>
 <div class="box">${inner}</div>
 <p style="font-size:11px;color:#8a8073">이 리포트는 우렁의사 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
@@ -338,7 +399,7 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
     const blob = new Blob([this._docHtml(r)], { type: 'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `우렁의사_AI진단서_${new Date().toLocaleDateString('sv-CA')}.html`;
+    a.download = `우렁의사_AI마음리포트_${new Date().toLocaleDateString('sv-CA')}.html`;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
@@ -370,11 +431,11 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
       return;
     }
     const warn = m.total < 60 ? `\n\n⚠️ 데이터 충분도 ${m.total}% — 분석 깊이가 제한될 수 있어요. 그래도 진행할까요?` : '';
-    if (!confirm(`AI 진단서를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${warn}`)) return;
-    if (!window.Wallet.spend(this.PRICE, 'AI 진단서 생성')) return;
+    if (!confirm(`AI 마음 리포트를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${warn}`)) return;
+    if (!window.Wallet.spend(this.PRICE, 'AI 마음 리포트 생성')) return;
 
     const box = document.getElementById('assess-result');
-    if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: var(--text-primary);">⏳ 쌓인 기록 전체를 정밀 분석 중… (30초~1분)</p></div>`;
+    if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: var(--text-primary);">⏳ 표준 검진 점수와 기록 전체를 정밀 분석 중… (30초~1분)</p></div>`;
 
     try {
       const { json, raw } = await this._generate(m);
@@ -388,7 +449,7 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
       const first = document.getElementById('as-' + rec.id);
       if (first) { first.classList.remove('hidden'); first.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     } catch (e) {
-      window.Wallet.refund(this.PRICE, 'AI 진단서 생성 실패 환불');
+      window.Wallet.refund(this.PRICE, 'AI 마음 리포트 생성 실패 환불');
       if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: #c96a5a;">생성에 실패해서 ${this.PRICE.toLocaleString()}캐시를 환불했어요. 잠시 후 다시 시도해주세요.</p></div>`;
     }
   },
@@ -398,7 +459,12 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
     const msgs = (S.getMessages() || []).slice(-200).map(x => `${x.role === 'user' ? '내담자' : '상담사'}: ${x.text}`).join('\n').slice(-24000);
     const memory = (S.getUserMemory && S.getUserMemory()) || '(없음)';
     const qa = this.answers();
-    const qaTxt = qa ? this.QUESTIONS.map(q => `[${q.axis}] ${q.t} → ${this.SCALE[qa.map[q.id]] || '무응답'}`).join('\n') : '(자가 문답 안 함)';
+    const sc = this.scores();
+    const scTxt = sc && sc.phq != null
+      ? `PHQ-9(우울 선별, 표준): ${sc.phq}/27 — ${sc.phqBand} / 문항9(자해사고): ${sc.item9}
+GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
+      : '(표준 검진 미실시)';
+    const qaTxt = qa ? this.QUESTIONS.map(q => `[${q.axis}] ${q.t} → ${this.SCALE[qa.map[q.id]] || '무응답'}`).join('\n') : '(자가검진 안 함)';
     const moods = (S._safeGet('cbt_mood_log', []) || []).slice(-60).map(x => `${new Date(x.ts).toLocaleDateString('sv-CA')} ${x.emo || ''} ${x.v ?? ''}`).join(', ') || '(없음)';
 
     const prompt = `당신은 20년 경력의 임상심리 전문가입니다. 심리상담 앱에 쌓인 한 사람의 기록 전체를 읽고, 그 사람 자신도 몰랐던 것을 짚어주는 심층 패턴 리포트를 작성합니다.
@@ -406,7 +472,7 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
 [태도 — 매우 중요]
 · 겁내지 마세요. "~일 수 있습니다", "~로 보입니다"를 남발하는 리포트는 무가치합니다. 관찰된 패턴은 단정적으로 말하세요. 병명(우울증, ADHD, 조울증 등 진단명)을 붙이는 것만 하지 않으면 됩니다.
 · 점쟁이가 맞히듯 소름 돋게 구체적으로. 기록 속 실제 표현·사건·반복을 근거로 그 사람의 내면 논리를 꿰뚫어 서술하세요. 대담한 추론 환영 — 단, 근거 없는 지어내기는 금지.
-· 점수화에는 알려진 선별도구의 논리를 총동원하세요: 우울(PHQ-9의 축), 불안(GAD-7), 주의력·충동(ASRS), 기분 삽화(MDQ), 분노(BPAQ), 인지왜곡(Burns 10유형 빈도). 대화 증거 + 자가 문답을 결합해 0~100으로 환산합니다.
+· 표준 선별검사(PHQ-9·GAD-7)가 실시됐다면 그 점수와 밴드를 우울·불안 신호의 근거로 그대로 사용하세요(우울 score = PHQ-9/27을 100 환산, 불안 = GAD-7/21 환산, evidence 에 "PHQ-9 X점(밴드)" 명기). 대화 관찰은 보조 근거로만. 나머지 축(기분변동·주의력·분노·인지왜곡·욕구·웰빙)은 표준 도구가 아니므로 반드시 "탐색 지표(비표준)"임을 evidence 안에 명시하고, 대화·탐색 문항을 근거로 추정하세요. 문항9(자해)가 1 이상이면 referral 에 반드시 반영.
 · 신뢰도: 데이터 신뢰도 플래그가 2개 이상이면 reliability.level 을 "낮음"으로 하고 note 에 "이 데이터는 믿을만하지 못합니다"와 사실 근거(기간·입력 패턴)만 적으세요. 과장·연기·기계적 입력 의심 같은 표현은 절대 금지 — 사람을 비난하지 마세요.
 · 자·타해, 폭력의 위험 신호가 보이면 referral 에 분명히 적고 1393·1577-0199 를 포함하세요.
 
@@ -442,7 +508,10 @@ ${m.total < 60 ? '(충분도 60% 미만 — overall 첫 문장에 데이터가 �
 [장기기억 요약]
 ${memory.slice(0, 1500)}
 
-[자가 문답(최근 2주)]
+[표준 선별검사 결과]
+${scTxt}
+
+[자가검진 원자료(최근 2주)]
 ${qaTxt}
 
 [기분 체크인 흐름]

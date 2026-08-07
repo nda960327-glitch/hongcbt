@@ -154,7 +154,7 @@
           <p class="home-card__t">🎯 오늘의 우렁 미션</p>
           <span class="home-card__hint">몸이 움직이면 마음이 따라와요</span>
         </div>
-        <div id="mission-card-body"></div>
+        <div id="mission-card-body" data-mission-card></div>
       </div>
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
@@ -449,17 +449,13 @@
               </div>
             </div>
 
-            <!-- 🏅 훈장 -->
+            <!-- 🏅 훈장 (방의 하위 화면 — 방의 🏅 버튼으로 진입) -->
             <div class="game-view hidden" id="gv-medal">
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem;">
-                <strong style="font-size: 0.9rem; color: var(--text-primary);">🐌 나의 우렁이</strong>
-                <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
-              </div>
-              <div id="level-card"></div>
-              <div id="shield-shop" style="margin: 0.4rem 0 0.6rem;"></div>
-              <div id="shield-row" class="hidden" style="display: none;"></div>
-              <strong style="display: block; font-size: 0.84rem; color: var(--text-primary); margin-bottom: 0.5rem;">🏅 우렁이 훈장</strong>
+              <button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>
+              <strong style="display: block; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;">🏅 우렁이 훈장</strong>
               <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
+              <div id="shield-shop" style="margin: 0.7rem 0 0;"></div>
+              <div id="shield-row" class="hidden" style="display: none;"></div>
             </div>
 
             <!-- 💌 서재 (편지·리포트·감정날씨·지난밤들) -->
@@ -503,10 +499,20 @@
                 </button>
                 <div id="lib-diary" class="lib-body hidden" style="padding: 0 0.85rem 0.85rem;">
                 <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
-                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem;" onclick="window.Growth && window.Growth.startNight()">🌙 오늘 일기 쓰기</button>
+                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem;" onclick="window.Growth && window.Growth.startNight()">🌙 하루 정리</button>
+                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem; background: var(--accent-secondary);" onclick="window.Growth && window.Growth.writeDiary()">✍️ 자유 일기</button>
                   <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('download')">📄 일기장 저장</button>
                   <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('print')">🖨 인쇄 · PDF</button>
                 </div>
+                <div style="display: flex; gap: 0.4rem; margin-bottom: 0.55rem;">
+                  <input id="diary-date" type="date"
+                    oninput="window.Growth._diaryDate = this.value; window.Growth.renderNightList();"
+                    style="flex-shrink: 0; box-sizing: border-box; padding: 0.45rem 0.55rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.76rem; font-family: inherit;">
+                  <button onclick="document.getElementById('diary-date').value=''; window.Growth._diaryDate=''; window.Growth.renderNightList();" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0 0.3rem;">전체</button>
+                </div>
+                <input id="diary-search" type="search" placeholder="🔍 일기 검색 (내용·답글)"
+                  oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
+                  style="width: 100%; box-sizing: border-box; margin-bottom: 0.55rem; padding: 0.5rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.8rem;">
                 <div id="night-journal-card" class="hidden">
                   <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
                 </div>
@@ -559,6 +565,15 @@
           </div>
 
           <nav id="game-nav"></nav>
+
+          <!-- 🐌 나의 우렁이 — 탭 밖 상시 표시 (레벨·스트릭) -->
+          <div style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem;">
+              <strong style="font-size: 0.84rem; color: var(--text-primary);">🐌 나의 우렁이</strong>
+              <span id="growth-streak-line" style="font-size: 0.74rem; font-weight: 800; color: #e8590c;"></span>
+            </div>
+            <div id="level-card"></div>
+          </div>
         </div>
 
         <!-- 사고 기록지 바로가기 -->
@@ -598,8 +613,8 @@
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <span style="font-size: 1.3rem; line-height: 1;">🔍</span>
               <div>
-                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">AI 진단서 <span style="font-size: 0.66rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 45%, transparent); padding: 0.08rem 0.4rem; border-radius: 999px; vertical-align: 2px;">30,000캐시</span></strong>
-                <span style="font-size: 0.76rem; color: var(--text-muted);">쌓인 기록 전체를 정밀 분석 — 의학적 진단이 아닌 참고용이에요</span>
+                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">AI 마음 리포트 <span style="font-size: 0.66rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 45%, transparent); padding: 0.08rem 0.4rem; border-radius: 999px; vertical-align: 2px;">30,000캐시</span></strong>
+                <span style="font-size: 0.76rem; color: var(--text-muted);">표준 검진(PHQ-9·GAD-7) + 기록 정밀 분석 — 진단이 아닌 참고용</span>
               </div>
             </div>
             <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
@@ -610,7 +625,7 @@
         <div id="assess-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
           <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
             <button onclick="window.Assess.close()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
-            <strong style="font-size: 1.05rem; color: var(--text-primary);">🔍 AI 진단서 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 의학적 진단 아님</span></strong>
+            <strong style="font-size: 1.05rem; color: var(--text-primary);">🔍 AI 마음 리포트 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 진단 아님</span></strong>
           </div>
           <div id="assess-body" style="padding: 1rem;"></div>
         </div>

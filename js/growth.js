@@ -250,22 +250,116 @@ window.Growth = {
   // 대시보드 '지난 밤들' — 하루 정리 아카이브
   MOOD_EMOJI: { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢' },
 
+  // 자유 일기 — 아무 때나 쓰는 한 편 (하루정리와 같은 일기장에 꽂힌다)
+  writeDiary() {
+    const old = document.getElementById('diary-write-overlay');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'diary-write-overlay';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 950; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 1.2rem;';
+    ov.innerHTML = `
+      <div class="glass-card" style="width: 100%; max-width: 430px; padding: 1.1rem; background: var(--bg-secondary);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
+          <strong style="font-size: 0.95rem; color: var(--text-primary);">✍️ 자유 일기</strong>
+          <button onclick="document.getElementById('diary-write-overlay').remove()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;">✕</button>
+        </div>
+        <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">형식 없이, 지금 마음 가는 대로. 우렁이가 읽고 짧은 답글을 달아줘요.</p>
+        <textarea id="diary-write-text" rows="7" maxlength="1200" placeholder="오늘은…"
+          style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; font-family: inherit; resize: vertical; line-height: 1.7;"></textarea>
+        <button class="btn-primary" style="width: 100%; margin-top: 0.7rem;" onclick="window.Growth.saveDiary()">📓 일기장에 꽂기</button>
+      </div>`;
+    document.body.appendChild(ov);
+    setTimeout(() => { const t = document.getElementById('diary-write-text'); if (t) t.focus(); }, 150);
+  },
+
+  saveDiary() {
+    const ta = document.getElementById('diary-write-text');
+    const text = ta ? ta.value.trim() : '';
+    if (!text) { alert('한 줄이라도 적어볼까요?'); return; }
+    const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
+    // 오늘 체크인이 있으면 그 기분을 일기의 날씨로
+    const today = new Date().toLocaleDateString('sv-CA');
+    const todayMood = (window.Storage._safeGet('cbt_mood_log', []) || [])
+      .filter(m => new Date(m.ts).toLocaleDateString('sv-CA') === today).pop() || null;
+    const ts = Date.now();
+    journal.unshift({ ts, free: true, mood: todayMood ? { emo: todayMood.emo } : null, moment: text, note: '' });
+    window.Storage._safeSet('cbt_night_journal', journal.slice(0, 120));
+    const ov = document.getElementById('diary-write-overlay');
+    if (ov) ov.remove();
+    if (window.Farm) window.Farm.addWater(3, '자유 일기 한 편');
+    if (window.Storage.markDayActive) window.Storage.markDayActive();
+    if (window.Sfx) window.Sfx.play('ripe');
+    if (window.App) window.App.showRecordToast('📓 일기를 꽂았어요 — 우렁이가 읽고 있어요');
+    this.renderNightList();
+    this._diaryReply(ts);
+  },
+
+  // 우렁이의 한 줄 답글 (비동기 — 실패해도 일기는 무사)
+  async _diaryReply(ts) {
+    try {
+      if (!window.LLM) return;
+      const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
+      const j = journal.find(x => x.ts === ts);
+      if (!j) return;
+      const content = [j.moment, j.note].filter(Boolean).join(' / ');
+      if (!content) return;
+      const res = await window.LLM._chatCompletion({
+        model: window.LLM.MEMORY_MODEL,
+        messages: [{ role: 'user', content: `당신은 달팽이 상담사 '우렁이'. 사용자의 일기 아래에 다는 한 줄 답글을 쓰세요.
+규칙: 딱 1~2문장, 반말, 따뜻하되 상투적이지 않게. 일기의 구체적 내용을 되받을 것. 가끔 우렁이 울음(우로로록 등)이나 가벼운 위트 허용. 답글 문장만 출력.
+[일기] 기분: ${j.mood ? j.mood.emo : '미기록'} / ${content.slice(0, 500)}` }],
+        temperature: 0.8,
+        max_tokens: 90
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const reply = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+      if (!reply) return;
+      const jr = window.Storage._safeGet('cbt_night_journal', []) || [];
+      const target = jr.find(x => x.ts === ts);
+      if (!target) return;
+      target.reply = reply;
+      window.Storage._safeSet('cbt_night_journal', jr);
+      this.renderNightList();
+      if (window.App) window.App.showRecordToast('🐌 우렁이가 일기에 답글을 달았어요');
+    } catch (e) {}
+  },
+
+  deleteDiary(ts) {
+    if (!confirm('이 일기를 지울까요? 되돌릴 수 없어요.')) return;
+    const jr = (window.Storage._safeGet('cbt_night_journal', []) || []).filter(x => x.ts !== ts);
+    window.Storage._safeSet('cbt_night_journal', jr);
+    this.renderNightList();
+  },
+
+  _diaryShowAll: false,
+  _diaryQuery: '',
+  _diaryDate: '',
+
   // 일기장 내보내기 — 다이어리 양식의 독립 문서 (download: html 파일 / print: PDF)
   exportDiary(mode) {
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     if (!journal.length) { alert('아직 일기가 없어요. 오늘 밤 첫 일기를 써볼까요?'); return; }
     const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const name = window.Storage._safeGet('cbt_user_name', '') || '';
-    const entries = [...journal].sort((a, b) => a.ts - b.ts).map(j => {
+    const sorted = [...journal].sort((a, b) => a.ts - b.ts);
+    const first = new Date(sorted[0].ts), lastD = new Date(sorted[sorted.length - 1].ts);
+    let lastMonth = null;
+    const entries = sorted.map(j => {
       const d = new Date(j.ts);
-      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : '🌙';
-      return `<div class="entry">
-        <div class="ehead"><span class="edate">${d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
+      const mo = d.toISOString().slice(0, 7);
+      const monthHead = mo !== lastMonth ? `<h2 class="mhead">${d.getFullYear()}년 ${d.getMonth() + 1}월</h2>` : '';
+      lastMonth = mo;
+      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : (j.free ? '✍️' : '🌙');
+      return `${monthHead}<div class="entry">
+        <div class="ehead"><span class="edate">${d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}${j.free ? ' · 자유 일기' : ''}</span>
         <span class="eweather">마음 날씨 ${emoji}${j.mood && j.mood.emo ? ' ' + esc(j.mood.emo) : ''}</span></div>
         ${j.moment ? `<p class="emoment">${esc(j.moment)}</p>` : ''}
         ${j.note ? `<p class="enote">✎ 나에게: ${esc(j.note)}</p>` : ''}
+        ${j.reply ? `<p class="ereply">🐌 우렁이: ${esc(j.reply)}</p>` : ''}
       </div>`;
     }).join('');
+    const coverMeta = `${first.getFullYear()}.${first.getMonth() + 1}.${first.getDate()} ~ ${lastD.getFullYear()}.${lastD.getMonth() + 1}.${lastD.getDate()}`;
     const doc = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <title>${esc(name)} 마음 일기장</title>
 <style>
@@ -276,10 +370,12 @@ h1{font-size:22px;margin:0}p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px
 .edate{font-weight:800;font-size:14px}.eweather{font-size:12px;color:#8a8073}
 .emoment{margin:8px 0 0;font-size:14px}
 .enote{margin:6px 0 0;font-size:12.5px;color:#7d6f5d;background:#f4ede1;border-radius:8px;padding:8px 12px}
+.ereply{margin:8px 0 0;font-size:12.5px;color:#4f6b58;border-left:3px solid #7fa78c;padding:4px 10px}
+h2.mhead{font-size:15px;color:#4f8a6b;margin:26px 0 2px;border-bottom:2px solid #e4efe8;padding-bottom:4px}
 @media print{body{padding:0}}
 </style></head><body>
 <h1>📓 ${esc(name) || '나'}의 마음 일기장</h1>
-<p class="meta">우렁이와 함께 쓴 밤의 기록 ${journal.length}편 · 우렁의사 앱</p>
+<p class="meta">${coverMeta} · 모두 ${journal.length}편 · 우렁이와 함께 쓴 기록</p>
 ${entries}
 <p style="font-size:11px;color:#a99c8c;margin-top:24px">— 느리지만 계속 가고 있는 기록. 🐌</p>
 </body></html>`;
@@ -309,20 +405,48 @@ ${entries}
     const emptyNote = document.getElementById('diary-empty-note');
     if (emptyNote) emptyNote.style.display = journal.length ? 'none' : '';
     if (journal.length === 0) return;
-    list.innerHTML = journal.slice(0, 14).map(j => {
+    // 키워드 검색 (내용·나에게 한마디·우렁이 답글)
+    const q = (this._diaryQuery || '').toLowerCase();
+    const dq = this._diaryDate || '';
+    let items = q
+      ? journal.filter(j => [j.moment, j.note, j.reply].some(t => (t || '').toLowerCase().includes(q)))
+      : journal;
+    if (dq) items = items.filter(j => new Date(j.ts).toLocaleDateString('sv-CA') === dq);
+    if ((q || dq) && items.length === 0) {
+      list.innerHTML = '<p style="margin: 0.3rem 0; font-size: 0.78rem; color: var(--text-muted); text-align: center;">검색 결과가 없어요.</p>';
+      return;
+    }
+    const shown = (q || dq || this._diaryShowAll) ? items : items.slice(0, 10);
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    const monthOf = ts => new Date(ts).toISOString().slice(0, 7);
+    let lastMonth = null;
+    let html = `<p style="margin: 0 0 0.55rem; font-size: 0.7rem; color: var(--text-muted);">모두 ${journal.length}편 · 이번 달 ${journal.filter(j => monthOf(j.ts) === thisMonth).length}편</p>`;
+    shown.forEach(j => {
+      const mo = monthOf(j.ts);
+      if (mo !== lastMonth) {
+        lastMonth = mo;
+        const d0 = new Date(j.ts);
+        html += `<p style="margin: 0.7rem 0 0.35rem; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);">${d0.getFullYear()}년 ${d0.getMonth() + 1}월</p>`;
+      }
       const d = new Date(j.ts);
       const dateStr = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : '🌙';
-      return `<div style="padding: 0.7rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
-        <div style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">
-          <span style="font-size: 1.1rem;">${emoji}</span>${dateStr} 밤
+      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : (j.free ? '✍️' : '🌙');
+      html += `<div style="padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); margin-bottom: 0.5rem; position: relative;">
+        <button onclick="window.Growth.deleteDiary(${j.ts})" title="삭제" style="all: unset; position: absolute; top: 0.45rem; right: 0.6rem; cursor: pointer; color: var(--text-muted); opacity: 0.6; font-size: 0.8rem; padding: 0.15rem;">✕</button>
+        <div style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--text-primary); padding-right: 1.4rem;">
+          <span style="font-size: 1.1rem;">${emoji}</span>${dateStr}${j.free ? '' : ' 밤'}
           <span style="flex: 1;"></span>
-          <span style="font-size: 0.7rem; font-weight: 600; color: var(--text-muted);">🕐 ${d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 취침</span>
+          <span style="font-size: 0.68rem; font-weight: 600; color: var(--text-muted);">${j.free ? '자유 일기' : '🕐 ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 취침'}</span>
         </div>
-        ${j.moment ? `<p style="margin: 0.35rem 0 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.5;">${esc(j.moment)}</p>` : ''}
+        ${j.moment ? `<p style="margin: 0.35rem 0 0; font-size: 0.83rem; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap;">${esc(j.moment)}</p>` : ''}
         ${j.note ? `<p style="margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">💬 나에게: ${esc(j.note)}</p>` : ''}
+        ${j.reply ? `<p style="margin: 0.45rem 0 0; font-size: 0.76rem; color: var(--text-primary); line-height: 1.55; background: color-mix(in srgb, var(--accent-primary) 9%, transparent); border-left: 3px solid var(--accent-primary); border-radius: 0 8px 8px 0; padding: 0.4rem 0.6rem;">🐌 ${esc(j.reply)}</p>` : ''}
       </div>`;
-    }).join('');
+    });
+    if (!q && !dq && !this._diaryShowAll && items.length > 10) {
+      html += `<button class="btn-secondary" style="width: 100%; font-size: 0.76rem; padding: 0.45rem;" onclick="window.Growth._diaryShowAll = true; window.Growth.renderNightList();">지난 일기 ${items.length - 10}편 더 보기</button>`;
+    }
+    list.innerHTML = html;
   },
 
   startNight() {
@@ -424,8 +548,10 @@ ${entries}
     // 저장
     localStorage.removeItem('cbt_night_draft'); // 완료 — 초안 정리
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
-    journal.unshift({ ts: Date.now(), ...this._night });
-    window.Storage._safeSet('cbt_night_journal', journal.slice(0, 60));
+    const entryTs = Date.now();
+    journal.unshift({ ts: entryTs, ...this._night });
+    window.Storage._safeSet('cbt_night_journal', journal.slice(0, 120));
+    this._diaryReply(entryTs);
     if (window.Farm) window.Farm.addWater(4, '하루 정리 완료');
     if (window.Storage.markDayActive) window.Storage.markDayActive();
     this.renderNightList();

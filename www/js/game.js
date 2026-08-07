@@ -6,12 +6,11 @@
 // ============================================================================
 window.Game = {
 
-  // 옷장은 탭이 아니라 방 안의 하위 화면 (방 -> 👒 옷장 버튼으로 진입)
+  // 옷장·훈장은 탭이 아니라 방 안의 하위 화면 (방의 👒 / 🏅 버튼으로 진입)
   VIEWS: [
     { id: 'room',   emoji: '🏡', name: '방' },
     { id: 'farm',   emoji: '🌱', name: '농장' },
     { id: 'quest',  emoji: '🗡️', name: '퀘스트' },
-    { id: 'medal',  emoji: '🏅', name: '훈장' },
     { id: 'letter', emoji: '💌', name: '서재' }
   ],
 
@@ -31,8 +30,8 @@ window.Game = {
     document.querySelectorAll('.game-view').forEach(el => {
       el.classList.toggle('hidden', el.id !== 'gv-' + view);
     });
-    // 옷장은 방의 하위 화면이라 내비에서는 '방'을 켜둔다
-    const navView = view === 'closet' ? 'room' : view;
+    // 옷장·훈장은 방의 하위 화면이라 내비에서는 '방'을 켜둔다
+    const navView = (view === 'closet' || view === 'medal') ? 'room' : view;
     document.querySelectorAll('#game-nav button').forEach(b => {
       b.classList.toggle('active', b.dataset.view === navView);
     });
@@ -48,9 +47,11 @@ window.Game = {
       if (window.Dashboard) window.Dashboard.renderCareFootprint();
     }
     if (view === 'medal') {
-      if (window.Growth) { window.Growth.renderLevelCard(); window.Growth.renderBadgeCard(); }
+      if (window.Growth) window.Growth.renderBadgeCard();
       this.renderShieldShop();
     }
+    // 나의 우렁이(레벨)는 탭 아래 상시 표시
+    if (window.Growth) window.Growth.renderLevelCard();
     if (view === 'letter') {
       if (window.Dashboard) {
         window.Dashboard.renderTodayMoodChart();
