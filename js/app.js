@@ -394,6 +394,7 @@ window.App = {
       // 우렁이 세계 — 레벨·훈장·농장·옷장·퀘스트
       if (window.Growth) { window.Growth.renderLevelCard(); window.Growth.renderBadgeCard(); }
       if (window.Missions) window.Missions.renderCard();
+      if (window.Room) window.Room.render();
       if (window.Farm) window.Farm.render();
       if (window.Closet) window.Closet.render();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
