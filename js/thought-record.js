@@ -52,6 +52,10 @@ window.ThoughtRecord = {
 
     this.setupDistortionChips();
 
+    // 기록 검색: 상황·생각·대안 텍스트로 실시간 필터
+    const search = document.getElementById('record-search');
+    if (search) search.addEventListener('input', () => { this._query = search.value.trim(); this.loadRecords(); });
+
     // 완성형: 샘플(목업) 기록을 심지 않는다 — 빈 상태 안내가 대신한다
     this.loadRecords();
   },
@@ -142,14 +146,28 @@ window.ThoughtRecord = {
   },
   
   loadRecords() {
-    const records = window.Storage.getThoughtRecords() || [];
+    let records = window.Storage.getThoughtRecords() || [];
     const container = document.getElementById('record-list');
     const emptyState = document.getElementById('record-empty');
-    
+
     if (!container) return;
-    
+
+    // 검색어 필터
+    if (this._query) {
+      const q = this._query.toLowerCase();
+      records = records.filter(r =>
+        [r.situation, r.thought, r.alternative, (r.emotions || []).map(e => e.name).join(' ')]
+          .some(t => (t || '').toLowerCase().includes(q)));
+    }
+
     container.innerHTML = '';
-    
+
+    if (this._query && records.length === 0) {
+      if (emptyState) emptyState.classList.add('hidden');
+      container.innerHTML = `<p style="text-align: center; font-size: 0.84rem; color: var(--text-muted); padding: 1.5rem 0;">'${this._query.replace(/</g, '&lt;')}'에 맞는 기록이 없어요.</p>`;
+      return;
+    }
+
     if (records.length === 0) {
       if (emptyState) emptyState.classList.remove('hidden');
     } else {

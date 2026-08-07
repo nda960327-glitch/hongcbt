@@ -158,6 +158,10 @@
     // 4.45 먼저 말 걸기(체크인) 설정 + 스케줄러
     this.initCheckins();
 
+    // 4.45+ 글자 크기 복원 + 뒤로가기 가드
+    this.initFontScale();
+    this._initBackGuard();
+
     // 4.5 Theme toggle
     this.initTheme();
     const btnTheme = document.getElementById('btn-theme');
@@ -474,7 +478,11 @@
     const container = document.getElementById('chat-messages');
     if (!container) return;
 
-    const time = new Date(msg.timestamp || new Date()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const ts = msg.timestamp ? new Date(msg.timestamp) : new Date();
+    const time = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    // 날짜 구분선: 어제/오늘 대화가 섞여 보이지 않게
+    this._appendDateDivider(container, ts);
 
     const wrapper = document.createElement('div');
     wrapper.className = `message ${msg.role}`;
@@ -491,7 +499,7 @@
         </div>
       `;
       container.appendChild(wrapper);
-      this.scrollToBottom();
+      this._smartScroll(msg);
       return;
     }
 
@@ -515,7 +523,58 @@
 
     wrapper.innerHTML = html;
     container.appendChild(wrapper);
-    this.scrollToBottom();
+    this._smartScroll(msg);
+  },
+
+  // 날짜가 바뀌면 '오늘 / 어제 / 8월 5일 (화)' 구분선을 끼워 넣는다
+  _appendDateDivider(container, ts) {
+    const key = ts.toLocaleDateString('sv-CA');
+    if (this._lastMsgDay === key) return;
+    this._lastMsgDay = key;
+    const today = new Date().toLocaleDateString('sv-CA');
+    const yesterday = new Date(Date.now() - 86400000).toLocaleDateString('sv-CA');
+    const label = key === today ? '오늘' : key === yesterday ? '어제'
+      : ts.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+    const div = document.createElement('div');
+    div.className = 'chat-date-divider';
+    div.style.cssText = 'align-self: center; text-align: center; margin: 0.7rem auto 0.3rem; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.2rem 0.8rem; width: fit-content;';
+    div.textContent = label;
+    container.appendChild(div);
+  },
+
+  // 스마트 스크롤: 옛 대화를 읽는 중이면 끌어내리지 않고 '새 메시지' 칩만 띄운다
+  _isNearBottom(container) {
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 160;
+  },
+
+  _smartScroll(msg) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    if (this._bulkLoading) return; // 과거 대화 일괄 렌더 중엔 개별 스크롤 생략
+    if (msg.role === 'user' || this._isNearBottom(container)) {
+      this.scrollToBottom();
+      this._hideNewMsgChip();
+    } else if (msg.role === 'bot') {
+      this._showNewMsgChip();
+    }
+  },
+
+  _showNewMsgChip() {
+    if (document.getElementById('new-msg-chip')) return;
+    const area = document.getElementById('chat-input-area');
+    if (!area) return;
+    const chip = document.createElement('button');
+    chip.id = 'new-msg-chip';
+    chip.textContent = '⬇ 새 메시지';
+    chip.style.cssText = 'position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 5; border: none; border-radius: 999px; background: var(--accent-primary); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.35rem 0.9rem; cursor: pointer; box-shadow: var(--shadow-sm);';
+    chip.addEventListener('click', () => { this.scrollToBottom(); this._hideNewMsgChip(); });
+    area.style.position = area.style.position || 'absolute';
+    area.appendChild(chip);
+  },
+
+  _hideNewMsgChip() {
+    const chip = document.getElementById('new-msg-chip');
+    if (chip) chip.remove();
   },
   
   showTypingIndicator() {
@@ -2019,6 +2078,8 @@ ${memory || '(없음)'}`;
       window.Chatbot.reset();
       const container = document.getElementById('chat-messages');
       if (container) container.innerHTML = '';
+      this._lastMsgDay = null;
+      this._chatWindow = 50;
       // '다시 묻지 않기'를 선택한 사용자에게는 모달 대신 현재 상담사가 바로 인사
       const optedOut = window.Storage && window.Storage._safeGet('cbt_persona_reprompt_off', false);
       if (optedOut && window.Personas && window.Personas.hasChosen()) {
@@ -2043,18 +2104,97 @@ ${memory || '(없음)'}`;
     }
   },
   
+  _chatWindow: 50, // 처음엔 최근 50개만 렌더 — 긴 대화도 즉시 열린다
+
   loadExistingMessages() {
+    const container = document.getElementById('chat-messages');
     const messages = window.Storage.getMessages() || [];
-    messages.forEach(msg => this.displayMessage(msg));
-    
-    // If chat is waiting for input from latest state, we might need quick replies. 
-    // Here we just restore chat UI.
+    if (!container) return;
+    container.innerHTML = '';
+    this._lastMsgDay = null;
+    this._bulkLoading = true;
+
+    const start = Math.max(0, messages.length - this._chatWindow);
+    if (start > 0) {
+      const more = document.createElement('button');
+      more.id = 'chat-load-more';
+      more.textContent = `↑ 이전 대화 ${start.toLocaleString()}개 더 보기`;
+      more.style.cssText = 'align-self: center; margin: 0.4rem auto 0.6rem; border: 1px solid var(--glass-border); border-radius: 999px; background: var(--bg-secondary); color: var(--text-secondary); font-size: 0.78rem; font-weight: 700; padding: 0.4rem 1rem; cursor: pointer; width: fit-content;';
+      more.addEventListener('click', () => {
+        // 보고 있던 위치가 튀지 않게: 바닥 기준 오프셋 유지
+        const prevBottomOffset = container.scrollHeight - container.scrollTop;
+        this._chatWindow += 100;
+        this.loadExistingMessages();
+        container.scrollTop = container.scrollHeight - prevBottomOffset;
+      });
+      container.appendChild(more);
+    }
+    messages.slice(start).forEach(msg => this.displayMessage(msg));
+    this._bulkLoading = false;
+    container.scrollTop = container.scrollHeight;
+
+    // If chat is waiting for input from latest state, we might need quick replies.
     const state = window.Chatbot.getState();
     if (state && state.quickReplies) {
         this.displayQuickReplies(state.quickReplies);
     }
   },
   
+  // === 안드로이드 뒤로가기: 앱이 꺼지는 대신 열린 오버레이가 닫히게 ===
+  _initBackGuard() {
+    // 뒤로가기로 닫아도 안전한 동적 오버레이 (통화는 실수 종료 방지를 위해 제외)
+    const DYNAMIC = ['night-overlay', 'calm-overlay', 'sleep-overlay', 'tr-wizard', 'onboard-overlay',
+      'admin-overlay', 'admin-code-overlay', 'hchat-overlay', 'chat-search-overlay', 'day-detail-overlay',
+      'share-pack-overlay', 'report-send-overlay', 'cprof-edit-overlay'];
+    const currentTop = () => {
+      for (let i = document.body.children.length - 1; i >= 0; i--) {
+        const el = document.body.children[i];
+        if (el.id && DYNAMIC.includes(el.id)) return el;
+      }
+      const open = [...document.querySelectorAll('.modal-overlay')].filter(m => !m.classList.contains('hidden') && m.offsetParent !== null);
+      return open[open.length - 1] || null;
+    };
+    // 오버레이가 열릴 때마다 히스토리 한 칸 → 뒤로가기가 '닫기'가 된다
+    const mo = new MutationObserver(() => {
+      const t = currentTop();
+      if (t && !t.dataset.bp) {
+        t.dataset.bp = '1';
+        try { history.pushState({ ov: 1 }, ''); } catch (e) {}
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('popstate', () => {
+      const t = currentTop();
+      if (!t) return;
+      delete t.dataset.bp;
+      if (t.id === 'tr-wizard') {
+        // 작성 중이면 확인을 거쳐 닫힌다 (내용 실수 유실 방지)
+        if (window.ThoughtRecord) window.ThoughtRecord._wizClose();
+        if (document.getElementById('tr-wizard')) { // 사용자가 취소함 → 히스토리 복구
+          try { history.pushState({ ov: 1 }, ''); document.getElementById('tr-wizard').dataset.bp = '1'; } catch (e) {}
+        }
+        return;
+      }
+      if (t.id === 'hchat-overlay') clearInterval(this._hchatPoll);
+      if (t.classList.contains('modal-overlay')) t.classList.add('hidden');
+      else t.remove();
+    });
+  },
+
+  // === 글자 크기 (접근성) ===
+  initFontScale() {
+    const scale = window.Storage._safeGet('cbt_font_scale', '100') || '100';
+    document.documentElement.style.fontSize = scale + '%';
+    const sel = document.getElementById('setting-font-scale');
+    if (sel) sel.value = scale;
+  },
+
+  setFontScale(scale) {
+    window.Storage._safeSet('cbt_font_scale', String(scale));
+    document.documentElement.style.fontSize = scale + '%';
+    this.showRecordToast(scale === '100' ? '글자 크기: 보통' : scale === '112' ? '글자 크기: 크게' : '글자 크기: 아주 크게');
+  },
+
   // === Theme Management ===
   initTheme() {
     const saved = localStorage.getItem('cbt_theme');
