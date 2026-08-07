@@ -1,4 +1,4 @@
-﻿window.App = {
+window.App = {
   currentTab: 'chat',
   typingIndicatorElement: null,
   deferredPrompt: null,
@@ -131,15 +131,36 @@
     const btnChatReset = document.getElementById('btn-chat-reset');
     if (btnChatReset) btnChatReset.addEventListener('click', () => this.resetChat());
 
-    // 4.4 내 이름(별명) 설정
+    // 4.4 내 프로필 정보 설정 (이름/별명, 전화번호, 성별)
     const nameInput = document.getElementById('user-name-input');
-    const nameSave = document.getElementById('btn-save-name');
-    if (nameInput) nameInput.value = window.Storage._safeGet('cbt_user_name', '');
-    if (nameSave && nameInput) nameSave.addEventListener('click', () => {
-      const v = nameInput.value.trim();
-      window.Storage._safeSet('cbt_user_name', v);
-      alert(v ? `이제 상담사들이 '${v}'(이)라고 기억하고 불러드릴게요!` : '이름이 지워졌어요.');
-    });
+    const phoneInput = document.getElementById('user-phone-input');
+    const genderSelect = document.getElementById('user-gender-select');
+    const profileSaveBtn = document.getElementById('btn-save-profile') || document.getElementById('btn-save-name');
+
+    if (nameInput && window.Storage) nameInput.value = window.Storage._safeGet('cbt_user_name', '');
+    if (phoneInput && window.Storage) phoneInput.value = window.Storage._safeGet('cbt_user_phone', '');
+    if (genderSelect && window.Storage) genderSelect.value = window.Storage._safeGet('cbt_user_gender', 'none');
+
+    if (profileSaveBtn) {
+      profileSaveBtn.addEventListener('click', () => {
+        const nameVal = nameInput ? nameInput.value.trim() : '';
+        const phoneVal = phoneInput ? phoneInput.value.trim() : '';
+        const genderVal = genderSelect ? genderSelect.value : 'none';
+
+        if (window.Storage) {
+          window.Storage._safeSet('cbt_user_name', nameVal);
+          window.Storage._safeSet('cbt_user_phone', phoneVal);
+          window.Storage._safeSet('cbt_user_gender', genderVal);
+        }
+
+        const msg = nameVal ? `프로필 정보(이름: ${nameVal})가 성공적으로 저장되었어요!` : '프로필 정보가 저장되었어요!';
+        if (typeof this.showToast === 'function') {
+          this.showToast('✅ ' + msg);
+        } else {
+          alert('✅ ' + msg);
+        }
+      });
+    }
 
     // 4.42 언어 설정 (한국어/English/日本語)
     const langSel = document.getElementById('setting-lang');
