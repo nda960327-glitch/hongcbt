@@ -943,6 +943,56 @@ textarea:focus { border-color: var(--accent-primary); }
 .dist-title { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.25rem; font-family: var(--font-heading); }
 .dist-desc { font-size: 0.72rem; color: var(--text-muted); }
 
+/* ========== 상담사 매칭 리디자인 (cc2) ========== */
+.cc-chip {
+  all: unset; box-sizing: border-box; flex-shrink: 0;
+  font-size: 0.78rem; font-weight: 700; color: var(--text-secondary);
+  background: var(--bg-secondary); border: 1.5px solid var(--glass-border);
+  padding: 0.38rem 0.8rem; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+.cc-chip.on {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 13%, transparent);
+  border-color: var(--accent-primary);
+}
+#cc-sort-pills::-webkit-scrollbar { display: none; }
+
+.cc2 { padding: 1rem 1.05rem 0.8rem; border-radius: 18px; cursor: pointer; transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
+.cc2:active { transform: scale(0.995); }
+.cc2-top { display: flex; gap: 0.8rem; align-items: flex-start; }
+.cc2-ava { position: relative; flex-shrink: 0; width: 56px; height: 56px; }
+.cc2-ava img, .cc2-ava svg { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid color-mix(in srgb, var(--accent-primary) 25%, transparent); }
+.cc2-dot { position: absolute; right: 0; bottom: 2px; width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid var(--bg-secondary); }
+.cc2-dot.avail { background: #22b573; animation: cc2pulse 1.8s ease-out infinite; }
+.cc2-dot.busy { background: #cf6b60; }
+.cc2-dot.off { background: #a8a094; opacity: 0.7; }
+@keyframes cc2pulse { 0% { box-shadow: 0 0 0 0 rgba(34,181,115,0.4); } 70% { box-shadow: 0 0 0 7px rgba(34,181,115,0); } 100% { box-shadow: 0 0 0 0 rgba(34,181,115,0); } }
+.cc2-info { flex: 1; min-width: 0; }
+.cc2-name { font-size: 1rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading); }
+.cc2-new { background: #e8590c22; color: #e8590c; font-size: 0.62rem; font-weight: 800; padding: 0.12rem 0.42rem; border-radius: 999px; vertical-align: middle; }
+.cc2-hosp { font-size: 0.76rem; color: var(--text-muted); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc2-meta { display: flex; flex-wrap: wrap; gap: 0.55rem; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.3rem; }
+.cc2-meta b { color: var(--text-primary); }
+.cc2-st.avail { color: #22b573; font-weight: 700; }
+.cc2-st.busy { color: #cf6b60; font-weight: 700; }
+.cc2-st.off { opacity: 0.75; }
+.cc2-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; }
+.cc2-tag { font-size: 0.68rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 10%, transparent); padding: 0.16rem 0.5rem; border-radius: 999px; }
+.cc2-duo { display: flex; gap: 0.45rem; margin-top: 0.7rem; }
+.cc2-duo > * { flex: 1; text-align: center; border-radius: 11px; padding: 0.42rem 0.3rem; box-sizing: border-box; }
+.cc2-duo b { display: block; font-size: 0.8rem; }
+.cc2-duo span { font-size: 0.62rem; }
+.cc2-book { border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; box-shadow: var(--shadow-sm); font-family: var(--font-main); }
+.cc2-book:active { transform: scale(0.98); }
+.cc2-live { border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 45%, transparent); background: color-mix(in srgb, var(--accent-secondary) 13%, var(--bg-tertiary)); color: var(--accent-secondary); cursor: pointer; font-family: var(--font-main); }
+.cc2-live span { color: var(--text-muted); }
+.cc2-live.is-busy { border-color: color-mix(in srgb, #cf6b60 35%, transparent); background: color-mix(in srgb, #cf6b60 9%, var(--bg-tertiary)); color: #cf6b60; cursor: default; }
+.cc2-live.is-off { border: 1px dashed var(--glass-border); background: var(--bg-tertiary); color: var(--text-muted); opacity: 0.7; cursor: default; }
+.cc2-links { display: flex; align-items: center; justify-content: center; gap: 0.9rem; margin-top: 0.35rem; }
+.cc2-links button { all: unset; font-size: 0.74rem; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0.3rem 0.2rem; }
+.cc2-links i { width: 1px; height: 10px; background: var(--glass-border); }
+
 /* ========== 인지왜곡 학습 리뉴얼 ========== */
 .learn-hero {
   display: flex; align-items: center; gap: 0.8rem;

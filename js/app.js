@@ -487,17 +487,27 @@
     const wrapper = document.createElement('div');
     wrapper.className = `message ${msg.role}`;
 
-    // 우렁이 스티커 메시지: 말풍선 없이 캐릭터만 폴짝
+    // 스티커 메시지: 말풍선 없이 캐릭터만 폴짝 (사용자가 보낸 이모티콘은 오른쪽)
     if (msg.sticker && window.Stickers) {
       wrapper.classList.add('sticker-msg');
-      const activeP = window.Personas ? window.Personas.getActive() : { id: 'woorung' };
-      wrapper.innerHTML = `
-        <div class="message-avatar">${window.Personas ? window.Personas.avatarSvg(activeP.id, 34) : (window.Icons ? window.Icons.art.mascot(34) : '')}</div>
-        <div style="background: none; border: none; box-shadow: none; padding: 0;">
-          ${window.Stickers.svgFor ? window.Stickers.svgFor(activeP.id, msg.sticker, 108) : window.Stickers.svg(msg.sticker, 108)}
-          <span class="message-time" style="display: block; text-align: center;">${time}</span>
-        </div>
-      `;
+      if (msg.role === 'user') {
+        wrapper.style.justifyContent = 'flex-end';
+        wrapper.innerHTML = `
+          <div style="background: none; border: none; box-shadow: none; padding: 0; text-align: right;">
+            ${window.Stickers.svg(msg.sticker, 96)}
+            <span class="message-time" style="display: block; text-align: center;">${time}</span>
+          </div>
+        `;
+      } else {
+        const activeP = window.Personas ? window.Personas.getActive() : { id: 'woorung' };
+        wrapper.innerHTML = `
+          <div class="message-avatar">${window.Personas ? window.Personas.avatarSvg(activeP.id, 34) : (window.Icons ? window.Icons.art.mascot(34) : '')}</div>
+          <div style="background: none; border: none; box-shadow: none; padding: 0;">
+            ${window.Stickers.svgFor ? window.Stickers.svgFor(activeP.id, msg.sticker, 108) : window.Stickers.svg(msg.sticker, 108)}
+            <span class="message-time" style="display: block; text-align: center;">${time}</span>
+          </div>
+        `;
+      }
       container.appendChild(wrapper);
       this._smartScroll(msg);
       return;
