@@ -1831,7 +1831,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 /* ============================================================
    서재 책장 — 책등 색 + 살짝 들린 카드
    ============================================================ */
-.lib-lede { margin: 0 0 0.8rem; font-size: 0.74rem; color: var(--text-muted); line-height: 1.6; }
+.lib-lede { margin: 0 0 0.85rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6; }
 .lib-row {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   box-shadow: var(--shadow-sm);
@@ -1840,7 +1840,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .lib-ico {
   flex-shrink: 0; line-height: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; border-radius: 10px;
+  width: 37px; height: 37px; border-radius: 11px;
   background: var(--bg-tertiary); border: 1px solid var(--glass-border);
 }
 .lib-row .lib-body { border-top: 1px dashed var(--glass-border); padding-top: 0.75rem; margin-top: 0.1rem; }
@@ -1873,7 +1873,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 /* 서재·마이 리스트 보조문구도 한 단계 위로 */
 .my-row__txt > span { font-size: 0.76rem; }
 .lib-row .lib-body { font-size: 0.86rem; }
-.game-view-tip, .lib-lede { font-size: 0.78rem; }
+.game-view-tip { font-size: 0.8rem; }
 
 /* ============================================================
    탭 헤더 통일 — 모든 탭이 같은 리듬으로 시작한다
@@ -1891,3 +1891,49 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 /* 헤더 칩 아이콘 정렬 */
 .head-chip { display: inline-flex; align-items: center; gap: 0.28rem; }
 .head-chip svg { flex-shrink: 0; }
+
+/* ============================================================
+   상담사별 채팅방 — 우렁의사 초록 / 햇님 주황 / 달님 보라 / 소나무 진초록
+   --chat-accent 는 updatePersonaBar() 가 #tab-chat 에 꽂아준다
+   /* 상담사별 채팅방 */
+   ============================================================ */
+#tab-chat { --chat-accent: var(--accent-primary); }
+#chat-messages {
+  background:
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--chat-accent) 13%, transparent), transparent 70%);
+}
+#tab-chat .message.bot .message-content,
+#tab-chat .message.bot .message-bubble {
+  background: color-mix(in srgb, var(--chat-accent) 10%, var(--bg-tertiary));
+  border: 1px solid color-mix(in srgb, var(--chat-accent) 24%, var(--glass-border));
+}
+#tab-chat .message.user .message-content,
+#tab-chat .message.user .message-bubble {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--chat-accent) 88%, #fff),
+    var(--chat-accent));
+}
+#tab-chat .message.bot .message-avatar {
+  background: color-mix(in srgb, var(--chat-accent) 10%, var(--bg-secondary));
+  border-color: color-mix(in srgb, var(--chat-accent) 38%, transparent);
+}
+#chat-send.send-btn:not(:disabled) {
+  background: var(--chat-accent);
+  border-color: transparent;
+  color: #fff;
+}
+#tab-chat .input-wrapper:focus-within {
+  border-color: color-mix(in srgb, var(--chat-accent) 55%, transparent);
+}
+#btn-program {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--chat-accent) 82%, #fff),
+    var(--chat-accent)) !important;
+}
+
+/* 입력창 플레이스홀더 — 한 줄을 넘겨 잘리는 일이 없게 */
+#chat-input::placeholder {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

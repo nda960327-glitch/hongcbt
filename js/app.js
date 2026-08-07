@@ -425,7 +425,7 @@ window.App = {
     const inputEl = document.getElementById('chat-input');
     const sendBtn = document.getElementById('chat-send');
     if (inputEl) {
-      const ph = '마음속 이야기를 편하게 적어주세요...';
+      const ph = '마음속 이야기를 적어주세요';
       inputEl.placeholder = window.I18N ? window.I18N.t(ph) : ph;
       inputEl.disabled = false;
     }
@@ -557,7 +557,7 @@ window.App = {
       } else {
         const activeP = window.Personas ? window.Personas.getActive() : { id: 'woorung' };
         wrapper.innerHTML = `
-          <div class="message-avatar">${window.Personas ? window.Personas.avatarSvg(activeP.id, 34) : (window.Icons ? window.Icons.art.mascot(34) : '')}</div>
+          <div class="message-avatar">${this._msgAvatar(msg)}</div>
           <div style="background: none; border: none; box-shadow: none; padding: 0;">
             ${window.Stickers.svgFor ? window.Stickers.svgFor(activeP.id, msg.sticker, 108) : window.Stickers.svg(msg.sticker, 108)}
             <span class="message-time" style="display: block; text-align: center;">${time}</span>
@@ -572,7 +572,7 @@ window.App = {
     let html = '';
     if (msg.role === 'bot') {
       html = `
-        <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
+        <div class="message-avatar">${this._msgAvatar(msg)}</div>
         <div class="message-bubble">
           <p>${(msg.text || '').replace(/\n/g, '<br>')}</p>
           <span class="message-time">${time}</span>
@@ -590,6 +590,14 @@ window.App = {
     wrapper.innerHTML = html;
     container.appendChild(wrapper);
     this._smartScroll(msg);
+  },
+
+  // 말풍선 옆 아바타 — 그 메시지를 보낸 상담사의 얼굴을 쓴다.
+  //  (지난 대화를 다시 볼 때 누가 한 말인지 섞이지 않게 저장된 persona 를 우선)
+  _msgAvatar(msg) {
+    if (!window.Personas) return window.Icons ? window.Icons.art.mascot(34) : '';
+    const id = (msg && msg.persona) || window.Personas.getActive().id;
+    return window.Personas.avatarSvg(id, 34);
   },
 
   // 날짜가 바뀌면 '오늘 / 어제 / 8월 5일 (화)' 구분선을 끼워 넣는다
@@ -631,8 +639,8 @@ window.App = {
     if (!area) return;
     const chip = document.createElement('button');
     chip.id = 'new-msg-chip';
-    chip.textContent = '⬇ 새 메시지';
-    chip.style.cssText = 'position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 5; border: none; border-radius: 999px; background: var(--accent-primary); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.35rem 0.9rem; cursor: pointer; box-shadow: var(--shadow-sm);';
+    chip.innerHTML = '<span style="display:inline-flex;align-items:center;gap:0.28rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 13l6 6 6-6"/></svg>새 메시지</span>';
+    chip.style.cssText = 'position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 5; border: none; border-radius: 999px; background: var(--chat-accent, var(--accent-primary)); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.35rem 0.9rem; cursor: pointer; box-shadow: var(--shadow-sm);';
     chip.addEventListener('click', () => { this.scrollToBottom(); this._hideNewMsgChip(); });
     area.style.position = area.style.position || 'absolute';
     area.appendChild(chip);
@@ -748,6 +756,14 @@ window.App = {
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
     if (name) name.textContent = p.name;
     if (tagline) tagline.textContent = p.tagline;
+    // 상담사마다 채팅방 분위기를 다르게 — 말풍선·아바타·전송 버튼이 이 색을 따라간다
+    const chatTab = document.getElementById('tab-chat');
+    if (chatTab) chatTab.style.setProperty('--chat-accent', p.color);
+    const bar = document.getElementById('persona-bar');
+    if (bar) {
+      bar.style.background = `linear-gradient(180deg, color-mix(in srgb, ${p.color} 13%, var(--bg-secondary)), var(--bg-secondary))`;
+      bar.style.borderBottomColor = `color-mix(in srgb, ${p.color} 30%, transparent)`;
+    }
     // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 MBCT) — 있을 땐 CTA가 줄을 채운다
     const progBtn = document.getElementById('btn-program');
     const spacer = document.getElementById('chat-tools-spacer');
@@ -755,7 +771,7 @@ window.App = {
       const prog = window.Personas.programOf(p.id);
       if (prog) {
         progBtn.style.display = 'inline-flex';
-        progBtn.textContent = `${prog.emoji} ${prog.name} 시작하기`;
+        progBtn.innerHTML = `<span style="display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 17, line: '#fff' }) : ''}${prog.name} 시작하기</span>`;
         if (spacer) spacer.style.display = 'none';
       } else {
         progBtn.style.display = 'none';
@@ -782,6 +798,8 @@ window.App = {
     if (!m) return;
     const willShow = m.classList.contains('hidden');
     m.classList.toggle('hidden');
+    // 채팅 탭은 초기 아이콘 심기 대상이 아니어서, 메뉴를 열 때 한 번 채운다
+    this.hydrateInlineIcons(m);
     if (willShow) {
       setTimeout(() => {
         const close = ev => {
@@ -853,9 +871,9 @@ window.App = {
         </div>
         ${p.method ? `
         <div style="margin-top: 0.55rem; border-radius: 12px; background: color-mix(in srgb, ${p.color} 7%, var(--bg-tertiary)); border: 1px solid color-mix(in srgb, ${p.color} 22%, transparent); padding: 0.7rem 0.8rem;">
-          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
-            <span style="font-size: 0.66rem; font-weight: 800; color: #fff; background: ${p.color}; padding: 0.14rem 0.5rem; border-radius: 999px;">${p.method}</span>
-            ${p.lesson ? `<span style="font-size: 0.64rem; font-weight: 800; color: ${p.color}; border: 1px solid color-mix(in srgb, ${p.color} 45%, transparent); padding: 0.12rem 0.45rem; border-radius: 999px;">${p.lesson} 코스 보유</span>` : ''}
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.35rem;">
+            <span style="flex-shrink: 0; white-space: nowrap; font-size: 0.66rem; font-weight: 800; color: #fff; background: ${p.color}; padding: 0.16rem 0.55rem; border-radius: 999px;">${p.method}</span>
+            ${p.lesson ? `<span style="flex-shrink: 0; white-space: nowrap; font-size: 0.64rem; font-weight: 800; color: ${p.color}; border: 1px solid color-mix(in srgb, ${p.color} 45%, transparent); padding: 0.14rem 0.5rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.22rem;">${p.lessonIcon && window.Icons ? window.Icons.svg(p.lessonIcon, { size: 13, line: p.color }) : ''}${p.lesson} 코스</span>` : ''}
           </div>
           <p style="margin: 0 0 0.45rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.55;">${p.why || ''}</p>
           <ol style="margin: 0; padding-left: 1.05rem; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.65;">
@@ -900,10 +918,14 @@ window.App = {
     const L = window.Storage._safeGet('cbt_lang', 'ko');
     const text = (L !== 'ko' && this.personaGreetingsAlt[L] && this.personaGreetingsAlt[L][id])
       || this.personaGreetings[id] || this.personaGreetings.woorung;
-    const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
-    this.displayMessage(msg);
-    window.Storage.saveMessage(msg);
-    if (window.Voice) window.Voice.speak(text, id);
+    // '|||' 는 말풍선을 나누라는 내부 기호다. 통째로 뿌리면 화면에 그대로 노출된다.
+    const parts = String(text).split('|||').map(t => t.trim()).filter(Boolean);
+    parts.forEach((t, i) => {
+      const msg = { role: 'bot', text: t, persona: id, timestamp: new Date(Date.now() + i).toISOString() };
+      window.Storage.saveMessage(msg);
+      setTimeout(() => this.displayMessage(msg), i * 450);
+    });
+    if (window.Voice) window.Voice.speak(parts.join(' '), id);
   },
 
   selectPersona(id) {

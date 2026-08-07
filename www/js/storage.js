@@ -84,6 +84,10 @@
 
   // === Chat Messages ===
   saveMessage(message) {
+    // 누가 한 말인지 새겨둔다 — 나중에 상담사를 바꿔도 지난 말풍선의 얼굴이 안 바뀐다
+    if (message && message.role === 'bot' && !message.persona && window.Personas) {
+      try { message.persona = window.Personas.getActive().id; } catch (e) {}
+    }
     const messages = this.getMessages();
     const messageWithId = {
       id: this._generateId(),

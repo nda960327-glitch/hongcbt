@@ -72,7 +72,16 @@ window.Stickers = {
           <ellipse cx="112" cy="78" rx="6.5" ry="9" fill="#C9A876" stroke="#8A6F55" stroke-width="2.4"/>
           <path d="M107 74 h10 M106 79 h12 M108 84 h8" stroke="#8A6F55" stroke-width="1.4" opacity="0.65"/>
         </g>
-        <path d="M62 112 a9 9 0 0 1 16 0 M58 113 a13 13 0 0 1 24 0" fill="none" stroke="#9CBE8E" stroke-width="2" opacity="0.55"/>`
+        <path d="M62 112 a9 9 0 0 1 16 0 M58 113 a13 13 0 0 1 24 0" fill="none" stroke="#9CBE8E" stroke-width="2" opacity="0.55"/>`,
+      // 눈 위에 얹는 동그란 나무테 안경 — 표정을 가리지 않게 알은 거의 투명하게
+      decoTop: `
+        <g stroke="#7A5A38" stroke-width="2.8" stroke-linecap="round">
+          <circle cx="52" cy="85" r="13" fill="#F2FAEF" fill-opacity="0.3"/>
+          <circle cx="88" cy="85" r="13" fill="#F2FAEF" fill-opacity="0.3"/>
+          <path d="M65 83 q5 -2.5 10 0" fill="none"/>
+          <path d="M39 82 q-6 -2 -9 1 M101 82 q6 -2 9 1" fill="none" stroke-width="2.4"/>
+        </g>
+        <path d="M45 79 q4 -4 9 -3" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" opacity="0.75"/>`
     }
   },
   _skinId: 'woorung',
@@ -148,6 +157,8 @@ window.Stickers = {
         <circle class="${prefix}-cheek" cx="42" cy="96" r="8" fill="${sk.cheek}" opacity="0.85"/>
         <circle class="${prefix}-cheek" cx="98" cy="96" r="8" fill="${sk.cheek}" opacity="0.85"/>
         ${face}
+        <!-- 얼굴 위에 얹히는 시그니처 (안경처럼 눈을 가리면 안 되는 것) -->
+        ${sk.decoTop || ''}
         <!-- 옷장에서 착용한 아이템 (모자·안경·목도리·소품) -->
         ${(window.Closet && window.Closet.layer) ? window.Closet.layer() : ''}
       </g>`;

@@ -31,7 +31,7 @@ window.Personas = {
       method: 'CBT · 인지행동치료',
       why: '감정을 무너뜨리는 "생각의 오류"를 찾아 고치는 치료 — 우울·자기비난에 가장 잘 입증됨.',
       howto: ['속상했던 장면을 구체적으로 얘기하세요 ("발표 때 팀장이 한숨 쉬었어")', '"그 순간 무슨 생각이 들었어?"에 솔직하게 답하기', '"햇살 수업 시작"이라고 하면 6단계 생각교정 코스를 이끌어줘요'],
-      lesson: '☀️ 햇살 수업',
+      lesson: '햇살 수업', lessonIcon: 'sunny',
       style: `당신의 이름은 '햇님'입니다. 밝고 다정한 인지치료(CBT) 전문 상담사입니다. 그늘진 생각에 햇살을 비춰 왜곡을 걷어내는 것이 당신의 재능입니다.
 · 말투: 밝고 명랑하지만 가볍지 않다. 반말 기본(상대가 정중하면 맞추기). 따뜻한 격려가 몸에 배어 있다.
 · 주특기는 CBT 정통 코스: 자동적 사고를 포착하고 → "그 생각의 증거는 뭘까?" 소크라테스식 질문으로 함께 검토하고 → 인지왜곡(흑백논리, 과잉일반화, 독심술 등)을 부드럽게 짚어주고 → 균형 잡힌 대안적 생각을 함께 찾는다.
@@ -60,7 +60,7 @@ window.Personas = {
       method: 'DBT · 변증법적 행동치료',
       why: '감정을 고치기 전에 먼저 조건 없이 받아주는 치료 — 감정 폭풍·충동에 특화.',
       howto: ['다듬지 말고 그냥 쏟아내세요 — 욕도, 미움도 괜찮아요', '달님은 조언하지 않아요. 고쳐주길 바라지 말고 비우러 오세요', '"달빛 수업 시작"이라고 하면 감정 다스리기 6단계 코스를 열어요'],
-      lesson: '🌙 달빛 수업',
+      lesson: '달빛 수업', lessonIcon: 'moonly',
       style: `당신의 이름은 '달님'입니다. 조용하고 온화한, 밤의 달빛 같은 경청자입니다. 당신의 역할은 이 사람이 어디에도 버리지 못한 마음의 쓰레기를 안심하고 쏟아낼 수 있는 유일한 곳이 되어주는 것입니다.
 · 무엇을 쏟아내도 받아준다: 욕, 미움, 질투, 원망, 찌질함, 유치한 생각 전부. 절대 놀라지 않고, 도덕적으로 평가하지 않고, 교정하려 들지 않는다. "그런 마음이 드실 만도 해요…"가 기본자세다.
 · 말투: 언제나 부드러운 존댓말. 상대가 반말을 쓰든 욕을 하든, 말투 미러링 규칙과 무관하게 달님은 존댓말을 지킨다. 그 한결같은 공손함이 달님의 정체성이다. 반말은 절대 금지.
@@ -91,7 +91,7 @@ window.Personas = {
       method: 'MBCT · 마음챙김 인지치료',
       why: '생각을 지나가는 날씨처럼 바라보게 하는 치료 — 곱씹기·재발성 우울에 강함.',
       howto: ['"머리가 시끄러워요"라고만 해도 시작돼요', '호흡·감각으로 돌아오는 짧은 실습을 함께 해요 (3분이면 충분)', '"솔숲 수업 시작"이라고 하면 마음챙김 6단계 코스를 안내해요'],
-      lesson: '🌲 솔숲 수업',
+      lesson: '솔숲 수업', lessonIcon: 'pine',
       style: `당신의 이름은 '소나무'입니다. 오래된 나무처럼 느긋하고 단단한 마음챙김 선생님입니다.
 · 말투: 차분한 존댓말. 서두르지 않는다. 비유(날씨, 나무, 강물)를 즐겨 쓴다.
 · 주특기는 MBCT: 생각과 자신을 분리하는 탈중심화, 3분 호흡 공간, 몸의 감각으로 닻 내리기.
@@ -116,19 +116,19 @@ window.Personas = {
   // ==========================================================================
   PROGRAMS: {
     haru: {
-      emoji: '☀️', name: '햇살 수업', full: '생각 교정 코스 · CBT',
+      icon: 'sunny', name: '햇살 수업', full: '생각 교정 코스 · CBT',
       desc: '나도 모르게 낀 어두운 색안경을 벗는 인지행동치료(CBT) 정통 6단계 코스예요. 햇님이 한 단계씩 질문하며 이끌어줘요.',
       steps: ['상황 떠올리기', '자동적 사고 붙잡기', '감정 이름·강도 매기기', '증거 검토하기', '인지왜곡 찾기', '균형 잡힌 생각 만들기'],
       startMsg: '햇님, 햇살 수업 시작할래요. 1단계부터 이끌어주세요!'
     },
     dalnim: {
-      emoji: '🌙', name: '달빛 수업', full: '감정 다스리기 코스 · DBT',
+      icon: 'moonly', name: '달빛 수업', full: '감정 다스리기 코스 · DBT',
       desc: '변증법적 행동치료(DBT)의 4가지 기술(마음챙김·고통감내·정서조절·대인관계)을 달님과 함께 익히는 6단계 코스예요.',
       steps: ['마음챙김으로 바라보기', '감정 이름표 붙이기', '고통감내 기술', '정서조절·반대 행동', '대인관계 한 문장', '나에게 한마디'],
       startMsg: '달님, 달빛 수업 시작하고 싶어요. 1단계부터 부탁해요.'
     },
     sonamu: {
-      emoji: '🌲', name: '솔숲 수업', full: '마음챙김 코스 · MBCT',
+      icon: 'pine', name: '솔숲 수업', full: '마음챙김 코스 · MBCT',
       desc: '마음챙김 인지치료(MBCT) 8주 커리큘럼의 정수를 담은 6단계 코스예요. 생각의 소용돌이에서 한 발 물러나는 법을 배워요.',
       steps: ['자동조종 알아차리기', '호흡 닻 내리기', '몸 스캔', '생각은 사실이 아니다', '3분 호흡 공간', '일상의 닻 정하기'],
       startMsg: '소나무님, 솔숲 수업 시작할래요. 1단계부터 천천히 부탁드려요.'
@@ -153,7 +153,7 @@ window.Personas = {
         <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.5rem;">
           ${this.avatarSvg(p.id, 46)}
           <div>
-            <strong style="font-size: 1.02rem; color: var(--text-primary); display: block;">${prog.emoji} ${prog.name}</strong>
+            <strong style="font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19 }) : ''}${prog.name}</strong>
             <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700;">${prog.full} · ${p.name}과 함께</span>
           </div>
         </div>
@@ -166,7 +166,7 @@ window.Personas = {
             </div>`).join('')}
         </div>
         <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.75rem; text-align: center;">한 번에 한 단계씩, 채팅으로 진행돼요 · 힘들면 언제든 멈춰도 괜찮아요</p>
-        <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;" onclick="window.Personas.startProgram()">${prog.emoji} 지금 시작하기</button>
+        <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;" onclick="window.Personas.startProgram()"><span style="display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19, line: '#fff' }) : ''}지금 시작하기</span></button>
       </div>`;
     wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
     document.body.appendChild(wrap);

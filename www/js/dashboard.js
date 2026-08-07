@@ -91,9 +91,9 @@
       if (d < 0) return `<span style="color: var(--text-muted); font-size: 0.62rem;">▼${-d}</span>`;
       return '<span style="color: var(--text-muted); font-size: 0.62rem;">—</span>';
     };
-    const tile = (emoji, label, v, cmp) => `
+    const tile = (ico, label, v, cmp) => `
       <div style="flex: 1; min-width: 74px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.6rem 0.4rem; text-align: center;">
-        <div style="font-size: 1.05rem;">${emoji}</div>
+        <div style="line-height: 0; margin-bottom: 0.25rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(ico, { size: 21 }) : ''}</div>
         <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">${v} ${cmp}</div>
         <div style="font-size: 0.64rem; color: var(--text-muted);">${label}</div>
       </div>`;
@@ -124,10 +124,10 @@
         </div>
         <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.6rem;">이 달에 나를 돌본 날: <b>${cur.activeDays}일</b> (지난달 ${prev.activeDays}일)</p>
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-          ${tile('🫶', '체크인', cur.checkins, diff(cur.checkins, prev.checkins))}
-          ${tile('🌙', '하루 정리', cur.nights, diff(cur.nights, prev.nights))}
-          ${tile('🎯', '미션', cur.missions, diff(cur.missions, prev.missions))}
-          ${tile('📝', '사고 기록', cur.records, diff(cur.records, prev.records))}
+          ${tile('checkin', '체크인', cur.checkins, diff(cur.checkins, prev.checkins))}
+          ${tile('moonly', '하루 정리', cur.nights, diff(cur.nights, prev.nights))}
+          ${tile('quest', '미션', cur.missions, diff(cur.missions, prev.missions))}
+          ${tile('note', '사고 기록', cur.records, diff(cur.records, prev.records))}
         </div>
         ${cur.topEmos.length ? `
           <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; align-items: center;">

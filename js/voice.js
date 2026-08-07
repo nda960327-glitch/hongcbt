@@ -133,7 +133,7 @@ window.Voice = {
       if (listening) {
         input.placeholder = window.I18N ? window.I18N.t('듣고 있어요… 편하게 말씀하세요') : '듣고 있어요… 편하게 말씀하세요';
       } else {
-        input.placeholder = window.I18N ? window.I18N.t('마음속 이야기를 편하게 적어주세요...') : '마음속 이야기를 편하게 적어주세요...';
+        input.placeholder = window.I18N ? window.I18N.t('마음속 이야기를 적어주세요') : '마음속 이야기를 적어주세요';
       }
     }
   },
