@@ -112,8 +112,7 @@
     <!-- Tab Content Sections -->
     <!-- HOME TAB -->
     <section id="tab-home" class="tab-content">
-      <!-- 시간대·상태 인식 인사 배너 (홈의 헤더 역할) -->
-      <div id="home-greeting" style="margin: 1rem 1.25rem 0.2rem;"></div>
+      <div style="height: 0.9rem;"></div>
 
       <!-- ========== 오늘 ========== -->
       <div class="home-sec">
@@ -234,7 +233,7 @@
 
       <!-- ========== 추천 제휴 콘텐츠 ========== -->
       <div class="home-sec">
-        <h3>추천 제휴 콘텐츠</h3>
+        <h3>대면상담 및 진료</h3>
         <span class="home-sec__sub">광고</span>
       </div>
       <div class="home-ads">
@@ -401,7 +400,7 @@
     <section id="tab-dashboard" class="tab-content">
       <div class="tab-header">
         <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>우렁이 마음케어 센터</h2>
-        <p class="tab-subtitle">마음을 돌본 만큼 방·농장·기록이 자라나요</p>
+        <p class="tab-subtitle">돌볼수록 자라는 나의 마음 정원</p>
       </div>
 
       <div class="dashboard-grid">
@@ -566,8 +565,8 @@
 
           <nav id="game-nav"></nav>
 
-          <!-- 🐌 나의 우렁이 — 탭 밖 상시 표시 (레벨·스트릭) -->
-          <div style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
+          <!-- 🐌 나의 우렁이 — 방 화면에서만 표시 -->
+          <div id="my-snail-panel" style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem;">
               <strong style="font-size: 0.84rem; color: var(--text-primary);">🐌 나의 우렁이</strong>
               <span id="growth-streak-line" style="font-size: 0.74rem; font-weight: 800; color: #e8590c;"></span>
@@ -1260,7 +1259,7 @@
       </button>
       <button class="nav-item active" data-tab="chat">
         <span class="nav-ico" data-icon="chat" data-icon-size="23"></span>
-        <span data-i18n="nav.chat">챗봇</span>
+        <span data-i18n="nav.chat">AI심리상담</span>
       </button>
       <button class="nav-item" data-tab="counselors">
         <span class="nav-ico" data-icon="counselor" data-icon-size="23"></span>

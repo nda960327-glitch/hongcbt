@@ -382,12 +382,10 @@ window.Farm = {
         </button>`;
     }).join('');
 
-    el.innerHTML = this.scene() + (window.Game ? window.Game.careBar() : '') + `
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem;">
-        <span style="font-size: 0.8rem; font-weight: 800; color: #6f97ab;">💧 물 ${w}</span>
-        <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-primary);">🌰 ${this.coins().toLocaleString()}코인</span>
-        <span style="margin-left: auto; font-size: 0.7rem; color: var(--text-muted);">누적 ${st.harvested || 0}개</span>
-        <button onclick="window.Farm.toggleShop()" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 40%, transparent); padding: 0.15rem 0.5rem; border-radius: 999px;">물 충전</button>
+    el.innerHTML = this.scene() + `
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.15rem 0 0.6rem;">
+        <span style="font-size: 0.72rem; color: var(--text-muted);">누적 수확 ${st.harvested || 0}개</span>
+        <button onclick="window.Farm.toggleShop()" style="all: unset; cursor: pointer; margin-left: auto; font-size: 0.72rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 40%, transparent); padding: 0.25rem 0.7rem; border-radius: 999px;">💧 물 충전</button>
       </div>
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">${cells}</div>
       <div id="farm-shop" class="hidden" style="margin-top: 0.7rem; padding: 0.75rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
@@ -395,6 +393,6 @@ window.Farm = {
       <p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
         체크인·미션·하루정리·사고기록·호흡을 하면 💧물이 고여요. 밭을 눌러 물을 주고, 다 자라면 눌러서 수확하세요.
         방치해도 시들지 않으니 안심하세요.
-      </p>`;
+      </p>` + (window.Game ? window.Game.careBar() : '');
   }
 };

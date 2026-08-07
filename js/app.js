@@ -1417,7 +1417,7 @@ ${memory || '(없음)'}`;
   // === 홈 인사 배너 — 시간대와 오늘의 상태를 읽고 다음 한 걸음을 권한다 ===
   renderHomeGreeting() {
     const el = document.getElementById('home-greeting');
-    if (!el) return;
+    if (!el) return;   // 홈 인사 배너는 제거됨 — 요소가 없으면 조용히 종료
     const h = new Date().getHours();
     const name = window.Storage._safeGet('cbt_user_name', '');
     const who = name ? `${name} 님` : '당신';

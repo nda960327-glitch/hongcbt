@@ -308,17 +308,10 @@ window.Room = {
 
     el.innerHTML = `
       ${this.scene()}
-      ${window.Game ? window.Game.careBar() : ''}
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.15rem 0 0;">
-        <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
-        <span style="font-size: 0.72rem; color: var(--text-muted);">💰 ${cash.toLocaleString()}캐시</span>
-        <button onclick="window.Game && window.Game.show('medal')" title="우렁이 훈장" style="all: unset; box-sizing: border-box; cursor: pointer; margin-left: auto; font-size: 0.95rem; line-height: 1; padding: 0.3rem 0.45rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">🏅</button>
-        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.35rem 0.8rem; border-radius: 999px;">
-          👒 옷장
-        </button>
-        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
-          ${this._shopOpen ? '상점 닫기 ▲' : '🛍 가구 상점 ▼'}
-        </button>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; margin-top: 0.6rem;">
+        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">👒 옷장</button>
+        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">🏅 훈장</button>
+        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.45rem 0.2rem; border-radius: 10px;">${this._shopOpen ? '닫기 ▲' : '🛍 상점'}</button>
       </div>
       <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.6rem;">
         ${this.SLOTS.map(s => {
@@ -333,6 +326,7 @@ window.Room = {
         <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
           회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 우렁이가 입은 옷도 방에 그대로 나와요.
         </p>
-      </div>`;
+      </div>
+      ${window.Game ? window.Game.careBar() : ''}`;
   }
 };

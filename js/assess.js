@@ -10,7 +10,8 @@
 window.Assess = {
 
   PRICE: 30000,
-  MIN_TOTAL: 40,   // 이 미만이면 생성 자체를 막는다
+  MIN_TOTAL: 80,      // 충분도가 이 미만이면 생성 자체를 막는다
+  QA_VALID_DAYS: 14,  // PHQ-9·GAD-7은 '지난 2주'를 묻는 도구 — 2주가 지나면 만료로 본다
 
   // --------------------------------------------------------------------------
   //  자가검진 — 표준 선별도구(PHQ-9·GAD-7, 공개 도구) + 탐색 문항(비표준) 분리
@@ -83,6 +84,17 @@ window.Assess = {
   _S() { return window.Storage; },
 
   answers() { return this._S()._safeGet('cbt_assess_answers', null); },
+
+  // 검진이 유효한가 (완료 + 2주 이내)
+  qaStatus() {
+    const qa = this.answers();
+    if (!qa || !qa.map) return { ok: false, state: 'none' };
+    const sc = this.scores();
+    if (!sc || sc.phq == null || sc.gad == null) return { ok: false, state: 'partial' };
+    const days = Math.floor((Date.now() - (qa.ts || 0)) / 86400000);
+    if (days >= this.QA_VALID_DAYS) return { ok: false, state: 'expired', days };
+    return { ok: true, state: 'valid', days, left: this.QA_VALID_DAYS - days };
+  },
   reports() { return this._S()._safeGet('cbt_assessments', []) || []; },
   report(id) { return this.reports().find(r => r.id === id) || null; },
 
@@ -112,7 +124,12 @@ window.Assess = {
       { name: '기간(꾸준함)', pct: Math.min(100, Math.round(days.size / 14 * 100)),        hint: `활동한 날 ${days.size}일 (충분: 14일)` },
       { name: '감정 기록',    pct: Math.min(100, Math.round(moods.length / 20 * 100)),      hint: `기분 체크인 ${moods.length}회 (충분: 20회)` },
       { name: '깊은 기록',    pct: Math.min(100, Math.round((records.length + nights.length) / 8 * 100)), hint: `사고기록 ${records.length} + 하루정리 ${nights.length} (충분: 8개)` },
-      { name: '자가 문답',    pct: qa ? 100 : 0, hint: qa ? '완료' : '아직 안 함 (아래에서 3분)' }
+      { name: '표준 자가검진', pct: this.qaStatus().ok ? 100 : 0,
+        hint: (() => { const st = this.qaStatus();
+          return st.state === 'valid' ? `완료 · ${st.left}일 남음`
+            : st.state === 'expired' ? `만료됨 (${st.days}일 전) — 다시 필요`
+            : st.state === 'partial' ? '진행 중 — 끝까지 답해주세요'
+            : '필수 · 아직 안 함 (5분)'; })() }
     ];
     const total = Math.round(bars[0].pct * 0.3 + bars[1].pct * 0.25 + bars[2].pct * 0.15 + bars[3].pct * 0.15 + bars[4].pct * 0.15);
 
@@ -192,21 +209,22 @@ window.Assess = {
     return `
       ${j.headline ? `<p style="margin: 0 0 0.7rem; padding: 0.75rem 0.9rem; border-left: 4px solid var(--accent-secondary); background: color-mix(in srgb, var(--accent-secondary) 8%, transparent); border-radius: 0 12px 12px 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); line-height: 1.55;">"${esc(j.headline)}"</p>` : ''}
       ${j.reliability ? `<p style="margin: 0 0 0.6rem; font-size: 0.74rem;"><b style="color: ${relColor};">데이터 신뢰도: ${esc(j.reliability.level)}</b> <span style="color: var(--text-muted);">${esc(j.reliability.note)}</span></p>` : ''}
-      ${j.overall ? `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.overall)}</p>` : ''}
-      ${Array.isArray(j.signals) && j.signals.length ? sec('🧠 마음 신호', j.signals.map(x => this._scoreBar(x)).join('')) : ''}
-      ${Array.isArray(j.needs) && j.needs.length ? sec('🔥 욕구·동기 패턴', j.needs.map(x => this._scoreBar(x)).join('')) : ''}
-      ${Array.isArray(j.wellbeing) && j.wellbeing.length ? sec('🌿 웰빙 지표 (높을수록 좋아요)', j.wellbeing.map(x => this._goodBar(x)).join('')) : ''}
-      ${j.hiddenPattern ? sec('🔮 본인은 모를 수 있는 패턴', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-primary); line-height: 1.7; background: var(--bg-tertiary); border-radius: 12px; padding: 0.8rem 0.9rem;">${esc(j.hiddenPattern)}</p>`) : ''}
-      ${j.coreHypothesis ? sec('🧩 핵심 가설', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.coreHypothesis)}</p>`) : ''}
-      ${Array.isArray(j.whatYouNeed) && j.whatYouNeed.length ? sec('💡 지금 당신에게 필요한 것', `<ul style="margin: 0; padding-left: 1.1rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8;">${j.whatYouNeed.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`) : ''}
-      ${Array.isArray(j.happinessRx) && j.happinessRx.length ? sec('🗺 행복해지는 4주 처방', j.happinessRx.map(x => `
+      ${j.overall ? sec('Ⅰ. 전반적 인상 <span style="font-weight: 600; font-size: 0.7rem; color: var(--text-muted);">(임상적 인상 · 진단 아님)</span>', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.overall)}</p>`) : ''}
+      ${Array.isArray(j.signals) && j.signals.length ? sec('Ⅱ. 평가 결과 — 표준 선별검사 및 관찰 지표', j.signals.map(x => this._scoreBar(x)).join('')) : ''}
+      ${Array.isArray(j.needs) && j.needs.length ? sec('Ⅲ. 심리적 역동 — 욕구·동기 <span style="font-weight: 600; font-size: 0.7rem; color: var(--text-muted);">(탐색 지표 · 비표준)</span>', j.needs.map(x => this._scoreBar(x)).join('')) : ''}
+      ${Array.isArray(j.wellbeing) && j.wellbeing.length ? sec('Ⅳ. 적응 자원 — 웰빙 지표', j.wellbeing.map(x => this._goodBar(x)).join('')) : ''}
+      ${j.strengths ? sec('Ⅳ-1. 강점 및 보호요인', `<p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.strengths)}</p>`) : ''}
+      ${j.hiddenPattern ? sec('Ⅴ. 행동 관찰 — 반복되는 패턴', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-primary); line-height: 1.7; background: var(--bg-tertiary); border-radius: 12px; padding: 0.8rem 0.9rem;">${esc(j.hiddenPattern)}</p>`) : ''}
+      ${j.coreHypothesis ? sec('Ⅴ-1. 사례 개념화 (가설)', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.coreHypothesis)}</p>`) : ''}
+      ${(Array.isArray(j.whatYouNeed) && j.whatYouNeed.length) || (Array.isArray(j.happinessRx) && j.happinessRx.length) ? sec('Ⅵ. 요약 및 제언',
+        (Array.isArray(j.whatYouNeed) && j.whatYouNeed.length ? `<p style="margin: 0 0 0.3rem; font-size: 0.74rem; font-weight: 800; color: var(--text-muted);">지금 필요한 것</p><ul style="margin: 0 0 0.7rem; padding-left: 1.1rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8;">${j.whatYouNeed.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '')
+        + (Array.isArray(j.happinessRx) && j.happinessRx.length ? `<p style="margin: 0 0 0.3rem; font-size: 0.74rem; font-weight: 800; color: var(--text-muted);">4주 실행 계획</p>` + j.happinessRx.map(x => `
         <div style="display: flex; gap: 0.6rem; margin-bottom: 0.45rem;">
           <span style="flex-shrink: 0; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border-radius: 999px; padding: 0.2rem 0.55rem; height: fit-content;">${esc(x.week)}</span>
           <span style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">${esc(x.do)}</span>
-        </div>`).join('')) : ''}
-      ${j.strengths ? sec('💪 강점과 보호요인', `<p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.strengths)}</p>`) : ''}
-      ${j.referral ? `<p style="margin: 1rem 0 0; font-size: 0.76rem; color: var(--text-primary); background: color-mix(in srgb, #c96a5a 9%, transparent); border: 1px solid color-mix(in srgb, #c96a5a 25%, transparent); border-radius: 12px; padding: 0.7rem 0.85rem; line-height: 1.6;">🏥 ${esc(j.referral)}</p>` : ''}
-      ${j.limits ? `<p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">한계: ${esc(j.limits)}</p>` : ''}`;
+        </div>`).join('') : '')) : ''}
+      ${j.referral ? `<p style="margin: 1rem 0 0; font-size: 0.76rem; color: var(--text-primary); background: color-mix(in srgb, #c96a5a 9%, transparent); border: 1px solid color-mix(in srgb, #c96a5a 25%, transparent); border-radius: 12px; padding: 0.7rem 0.85rem; line-height: 1.6;">Ⅶ. 전문가 연계 권고 — ${esc(j.referral)}</p>` : ''}
+      ${j.limits ? `<p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">한계 및 고지: ${esc(j.limits)} 본 보고서는 심리평가 보고서의 구조를 참고한 참고용 자료이며, 의학적 진단·처방을 대신할 수 없습니다.</p>` : ''}`;
   },
 
   render() {
@@ -247,8 +265,8 @@ window.Assess = {
         </div>
         ${m.bars.map(bar).join('')}
         <p style="margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
-          ${canGen ? (m.total >= 60 ? '충분한 데이터예요. 정밀 분석이 가능합니다.' : `기본 분석은 가능하지만, ${60}% 이상 모이면 훨씬 깊어져요.`)
-                   : `아직 부족해요 (최소 ${this.MIN_TOTAL}%). 우렁이와 더 대화하고, 체크인·기록을 쌓고, 자가 문답에 답하면 채워집니다. 그 전에는 생성하지 않아요 — 얕은 데이터로 만든 리포트는 당신을 오해할 수 있으니까요.`}
+          ${canGen ? '충분한 데이터예요. 정밀 분석이 가능합니다.'
+                   : `아직 ${m.total}%예요. 리포트는 <b>${this.MIN_TOTAL}% 이상</b>일 때만 만들어요 — 얕은 데이터로 만든 리포트는 당신을 오해하게 하니까요.<br>표준 자가검진(필수)을 하고, 우렁이와 대화하고, 매일 체크인·기록을 쌓으면 채워집니다.`}
         </p>
       </div>
 
@@ -260,10 +278,14 @@ window.Assess = {
       <div class="glass-card" style="padding: 0.95rem; margin-bottom: 0.8rem;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
           <div>
-            <strong style="font-size: 0.86rem; color: var(--text-primary);">📝 표준 자가검진 (5분)</strong>
-            <p style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">${m.qa ? '완료! 다시 하면 답이 갱신돼요.' : 'PHQ-9(우울)·GAD-7(불안) 표준 선별검사 + 탐색 문항이에요.'}</p>
+            <strong style="font-size: 0.86rem; color: var(--text-primary);">📝 표준 자가검진 <span style="font-size: 0.66rem; font-weight: 800; color: #c96a5a;">필수</span></strong>
+            <p style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">${(() => { const st = this.qaStatus();
+              return st.state === 'valid' ? `완료 · ${st.left}일 뒤 만료돼요`
+                : st.state === 'expired' ? `${st.days}일 전에 했어요 — 최근 2주 상태를 묻는 검사라 다시 해야 해요`
+                : st.state === 'partial' ? '아직 안 끝났어요 — 이어서 답해주세요'
+                : 'PHQ-9(우울)·GAD-7(불안) 표준 검사. 한 문항씩 천천히 답하면 돼요.'; })()}</p>
           </div>
-          <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.75rem; flex-shrink: 0;" onclick="window.Assess.openQuiz()">${m.qa ? '다시 하기' : '시작하기'}</button>
+          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.85rem; flex-shrink: 0;" onclick="window.Assess.openQuiz()">${this.qaStatus().ok ? '다시 하기' : '시작하기 ›'}</button>
         </div>
         ${(() => {
           const sc = this.scores();
@@ -306,54 +328,119 @@ window.Assess = {
       </div>`;
   },
 
-  openQuiz() {
-    const el = document.getElementById('assess-quiz');
-    if (!el) return;
-    const prev = (this.answers() || {}).map || {};
-    const qHtml = q => `
-        <div style="margin-bottom: 0.7rem;">
-          <p style="margin: 0 0 0.3rem; font-size: 0.78rem; color: var(--text-primary); line-height: 1.5;">${q.t}</p>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;" data-q="${q.id}">
-            ${this.SCALE.map((s, i) => `
-              <button data-v="${i}" onclick="window.Assess._pick(this)"
-                style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.66rem; font-weight: 700; padding: 0.4rem 0.1rem; border-radius: 9px;
-                       border: 1.5px solid ${prev[q.id] === i ? 'var(--accent-primary)' : 'var(--glass-border)'};
-                       background: ${prev[q.id] === i ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'var(--bg-tertiary)'};
-                       color: ${prev[q.id] === i ? 'var(--accent-primary)' : 'var(--text-secondary)'};">${s}</button>`).join('')}
-          </div>
-        </div>`;
-    el.innerHTML = this.SECTIONS.map(sec => `
-      <div style="margin-top: 0.9rem; padding-top: 0.7rem; border-top: 1px dashed var(--glass-border);">
-        <p style="margin: 0 0 0.15rem; font-size: 0.8rem; font-weight: 800; color: ${sec.standard ? 'var(--accent-primary)' : 'var(--text-muted)'};">${sec.name}</p>
-        <p style="margin: 0 0 0.6rem; font-size: 0.7rem; color: var(--text-muted);">${sec.intro}</p>
-        ${sec.items.map(qHtml).join('')}
-      </div>`).join('')
-      + `<button class="btn-primary" style="width: 100%; margin-top: 0.3rem;" onclick="window.Assess.saveQuiz()">답변 저장</button>`;
-    document.querySelectorAll('#assess-quiz [data-q]').forEach(row => {
-      const qid = row.dataset.q;
-      if (prev[qid] != null) row.dataset.picked = prev[qid];
-    });
+  // --------------------------------------------------------------------------
+  //  자가검진 위저드 — 한 화면에 한 문항. 큰 글씨·세로 선택지·자동 진행.
+  //  (읽기 부담을 줄이기 위해 문항을 절대 여러 개 동시에 보여주지 않는다)
+  // --------------------------------------------------------------------------
+  _qi: 0,
+  _qmap: {},
+
+  _flat() {
+    return this.SECTIONS.flatMap(sec => sec.items.map(it => ({ ...it, sec })));
   },
 
-  _pick(btn) {
-    const row = btn.parentElement;
-    row.querySelectorAll('button').forEach(b => {
-      const on = b === btn;
-      b.style.borderColor = on ? 'var(--accent-primary)' : 'var(--glass-border)';
-      b.style.background = on ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'var(--bg-tertiary)';
-      b.style.color = on ? 'var(--accent-primary)' : 'var(--text-secondary)';
-      if (on) row.dataset.picked = b.dataset.v;
-    });
+  openQuiz() {
+    const prev = (this.answers() || {}).map || {};
+    this._qmap = { ...prev };
+    const flat = this._flat();
+    const firstUnanswered = flat.findIndex(q => this._qmap[q.id] == null);
+    this._qi = firstUnanswered < 0 ? 0 : firstUnanswered;
+    this._renderQ();
+  },
+
+  _renderQ() {
+    const el = document.getElementById('assess-quiz');
+    if (!el) return;
+    const flat = this._flat();
+    const total = flat.length;
+
+    if (this._qi >= total) { this._renderQDone(); return; }
+
+    const q = flat[this._qi];
+    const cur = this._qmap[q.id];
+    const pct = Math.round(this._qi / total * 100);
+
+    el.innerHTML = `
+      <div style="margin-top: 0.9rem; padding-top: 0.85rem; border-top: 1px dashed var(--glass-border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.35rem;">
+          <span style="font-size: 0.7rem; font-weight: 800; color: ${q.sec.standard ? 'var(--accent-primary)' : 'var(--text-muted)'};">${q.sec.name}</span>
+          <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted);">${this._qi + 1} / ${total}</span>
+        </div>
+        <div style="height: 6px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden; margin-bottom: 0.9rem;">
+          <div style="height: 100%; width: ${pct}%; border-radius: 999px; background: var(--accent-primary); transition: width 0.25s;"></div>
+        </div>
+
+        <p style="margin: 0 0 0.35rem; font-size: 0.72rem; color: var(--text-muted);">지난 2주 동안, 얼마나 자주 그랬나요?</p>
+        <p style="margin: 0 0 1rem; font-size: 1.08rem; font-weight: 700; color: var(--text-primary); line-height: 1.75; letter-spacing: 0.01em; word-break: keep-all;">${q.t}</p>
+
+        <div style="display: flex; flex-direction: column; gap: 0.45rem;">
+          ${this.SCALE.map((label, v) => `
+            <button onclick="window.Assess._answer(${v})"
+              style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.7rem; padding: 0.85rem 0.95rem; border-radius: 14px; font-size: 0.98rem; font-weight: 700; line-height: 1.5;
+                     border: 2px solid ${cur === v ? 'var(--accent-primary)' : 'var(--glass-border)'};
+                     background: ${cur === v ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'var(--bg-tertiary)'};
+                     color: ${cur === v ? 'var(--accent-primary)' : 'var(--text-primary)'};">
+              <span style="flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 800;
+                           background: ${cur === v ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${cur === v ? '#fff' : 'var(--text-muted)'};">${v}</span>
+              ${label}
+            </button>`).join('')}
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem;">
+          <button onclick="window.Assess._prevQ()" ${this._qi === 0 ? 'disabled' : ''}
+            style="all: unset; box-sizing: border-box; cursor: ${this._qi === 0 ? 'default' : 'pointer'}; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); padding: 0.5rem 0.8rem; border-radius: 10px; border: 1px solid var(--glass-border); opacity: ${this._qi === 0 ? '0.35' : '1'};">‹ 이전</button>
+          <span style="flex: 1;"></span>
+          <button onclick="window.Assess._closeQuiz()" style="all: unset; cursor: pointer; font-size: 0.76rem; color: var(--text-muted); padding: 0.5rem 0.6rem;">나중에</button>
+        </div>
+      </div>`;
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+
+  _answer(v) {
+    const flat = this._flat();
+    const q = flat[this._qi];
+    if (!q) return;
+    this._qmap[q.id] = v;
+    if (window.Sfx) window.Sfx.play('nav');
+    // 고르면 잠깐 보여준 뒤 자동으로 다음 문항 (되돌아갈 수 있게 이전 버튼 유지)
+    this._renderQ();
+    setTimeout(() => { this._qi += 1; this._renderQ(); }, 260);
+  },
+
+  _prevQ() {
+    if (this._qi > 0) { this._qi -= 1; this._renderQ(); }
+  },
+
+  _closeQuiz() {
+    // 여기까지 답한 것은 저장해둔다 (이어서 하기 가능)
+    const prev = (this.answers() || {}).map || {};
+    this._S()._safeSet('cbt_assess_answers', { ts: Date.now(), map: { ...prev, ...this._qmap } });
+    const el = document.getElementById('assess-quiz');
+    if (el) el.innerHTML = '';
+    this.render();
+  },
+
+  _renderQDone() {
+    const el = document.getElementById('assess-quiz');
+    if (!el) return;
+    el.innerHTML = `
+      <div style="margin-top: 0.9rem; padding: 1rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); text-align: center;">
+        <p style="margin: 0 0 0.2rem; font-size: 1rem; font-weight: 800; color: var(--text-primary);">다 답하셨어요 👏</p>
+        <p style="margin: 0 0 0.9rem; font-size: 0.78rem; color: var(--text-muted); line-height: 1.6;">천천히 끝까지 해주셔서 고마워요. 저장하면 점수가 계산돼요.</p>
+        <button class="btn-primary" style="width: 100%;" onclick="window.Assess.saveQuiz()">결과 저장하기</button>
+        <button onclick="window.Assess._prevQ()" style="all: unset; display: block; width: 100%; text-align: center; cursor: pointer; font-size: 0.76rem; color: var(--text-muted); padding: 0.6rem 0;">‹ 마지막 문항 다시 보기</button>
+      </div>`;
   },
 
   saveQuiz() {
-    const map = {};
-    let missing = 0;
-    document.querySelectorAll('#assess-quiz [data-q]').forEach(row => {
-      if (row.dataset.picked == null) { missing++; return; }
-      map[row.dataset.q] = parseInt(row.dataset.picked, 10);
-    });
-    if (missing > 0) { alert(`${missing}개 문항이 남았어요. 전부 답해주세요.`); return; }
+    const map = { ...this._qmap };
+    const missing = this._flat().filter(q => map[q.id] == null);
+    if (missing.length > 0) {
+      alert(`${missing.length}개 문항이 남았어요. 이어서 답해주세요.`);
+      this._qi = this._flat().findIndex(q => map[q.id] == null);
+      this._renderQ();
+      return;
+    }
     this._S()._safeSet('cbt_assess_answers', { ts: Date.now(), map });
     if (window.App) window.App.showRecordToast('📝 자가검진 저장 완료');
     if (window.Sfx) window.Sfx.play('ripe');
@@ -361,6 +448,8 @@ window.Assess = {
     if (sc && sc.item9 > 0) {
       alert('마지막 우울 문항(자해 관련)에 응답하셨어요.\n\n혼자 견디지 마세요 — 자살예방상담 1393, 정신건강상담 1577-0199 에서 지금 바로 이야기할 수 있어요. 우렁이도 늘 여기 있어요.');
     }
+    const el = document.getElementById('assess-quiz');
+    if (el) el.innerHTML = '';
     this.render();
   },
 
@@ -421,16 +510,26 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
   // --------------------------------------------------------------------------
   async generate() {
     const m = this.metrics();
+    const st = this.qaStatus();
+    if (!st.ok) {
+      if (window.Sfx) window.Sfx.play('denied');
+      const msg = st.state === 'expired'
+        ? `표준 자가검진을 ${st.days}일 전에 하셨어요.\n\nPHQ-9·GAD-7은 '지난 2주'의 상태를 묻는 검사라, 2주가 지나면 지금의 당신을 설명하지 못해요.\n검진을 다시 해주세요. (5분)`
+        : '표준 자가검진(PHQ-9·GAD-7)을 먼저 해주세요.\n\n이 검진 없이는 우울·불안을 표준 기준으로 판단할 수 없어서, 리포트를 만들지 않습니다. 한 문항씩 천천히 답하면 5분이면 끝나요.';
+      alert(msg);
+      this.openQuiz();
+      return;
+    }
     if (m.total < this.MIN_TOTAL) {
       if (window.Sfx) window.Sfx.play('denied');
-      alert(`데이터가 아직 ${m.total}%뿐이라 진단서를 만들 수 없어요. (최소 ${this.MIN_TOTAL}%)\n\n얕은 데이터로 만든 리포트는 당신을 오해하게 됩니다.\n우렁이와 대화하고, 체크인·하루정리를 쌓고, 자가 문답(3분)에 답해주세요.`);
+      alert(`데이터가 아직 ${m.total}%예요. (최소 ${this.MIN_TOTAL}%)\n\n얕은 데이터로 만든 리포트는 당신을 오해하게 됩니다.\n우렁이와 더 대화하고, 매일 체크인·하루정리를 쌓아주세요.`);
       return;
     }
     if (!window.Wallet || window.Wallet.balance() < this.PRICE) {
       alert(`우렁 캐시가 부족해요. (${this.PRICE.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
       return;
     }
-    const warn = m.total < 60 ? `\n\n⚠️ 데이터 충분도 ${m.total}% — 분석 깊이가 제한될 수 있어요. 그래도 진행할까요?` : '';
+    const warn = m.total < 90 ? `\n\n(데이터 충분도 ${m.total}%)` : '';
     if (!confirm(`AI 마음 리포트를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${warn}`)) return;
     if (!window.Wallet.spend(this.PRICE, 'AI 마음 리포트 생성')) return;
 
@@ -470,8 +569,9 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
     const prompt = `당신은 20년 경력의 임상심리 전문가입니다. 심리상담 앱에 쌓인 한 사람의 기록 전체를 읽고, 그 사람 자신도 몰랐던 것을 짚어주는 심층 패턴 리포트를 작성합니다.
 
 [태도 — 매우 중요]
-· 겁내지 마세요. "~일 수 있습니다", "~로 보입니다"를 남발하는 리포트는 무가치합니다. 관찰된 패턴은 단정적으로 말하세요. 병명(우울증, ADHD, 조울증 등 진단명)을 붙이는 것만 하지 않으면 됩니다.
-· 점쟁이가 맞히듯 소름 돋게 구체적으로. 기록 속 실제 표현·사건·반복을 근거로 그 사람의 내면 논리를 꿰뚫어 서술하세요. 대담한 추론 환영 — 단, 근거 없는 지어내기는 금지.
+· 이 보고서는 임상심리평가 보고서의 표준 구조(배경정보 → 평가도구 → 결과 → 행동관찰 → 요약 및 제언)를 따릅니다. 격식 있는 평가 보고서 문체로 쓰되, 읽는 사람은 내담자 본인이므로 어렵지 않게.
+· 진단 금지의 범위: 병명(우울증·ADHD·양극성장애 등)뿐 아니라 "~장애가 의심됩니다", "~증상입니다" 같은 진단 시사 표현도 금지. 오직 "선별검사 점수", "관찰된 패턴", "경향" 의 언어만 사용.
+· 그 범위 안에서는 겁내지 마세요. "~일 수 있습니다" 남발은 무가치합니다. 관찰된 패턴은 근거와 함께 명확히 서술하세요. 기록 속 실제 표현·사건·반복을 인용해 구체적으로.
 · 표준 선별검사(PHQ-9·GAD-7)가 실시됐다면 그 점수와 밴드를 우울·불안 신호의 근거로 그대로 사용하세요(우울 score = PHQ-9/27을 100 환산, 불안 = GAD-7/21 환산, evidence 에 "PHQ-9 X점(밴드)" 명기). 대화 관찰은 보조 근거로만. 나머지 축(기분변동·주의력·분노·인지왜곡·욕구·웰빙)은 표준 도구가 아니므로 반드시 "탐색 지표(비표준)"임을 evidence 안에 명시하고, 대화·탐색 문항을 근거로 추정하세요. 문항9(자해)가 1 이상이면 referral 에 반드시 반영.
 · 신뢰도: 데이터 신뢰도 플래그가 2개 이상이면 reliability.level 을 "낮음"으로 하고 note 에 "이 데이터는 믿을만하지 못합니다"와 사실 근거(기간·입력 패턴)만 적으세요. 과장·연기·기계적 입력 의심 같은 표현은 절대 금지 — 사람을 비난하지 마세요.
 · 자·타해, 폭력의 위험 신호가 보이면 referral 에 분명히 적고 1393·1577-0199 를 포함하세요.

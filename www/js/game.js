@@ -50,8 +50,11 @@ window.Game = {
       if (window.Growth) window.Growth.renderBadgeCard();
       this.renderShieldShop();
     }
-    // 나의 우렁이(레벨)는 탭 아래 상시 표시
-    if (window.Growth) window.Growth.renderLevelCard();
+    // 나의 우렁이(레벨)는 방 계열 화면에서만 — 농장·퀘스트·서재에선 숨긴다
+    const snailPanel = document.getElementById('my-snail-panel');
+    const showSnail = (view === 'room' || view === 'closet' || view === 'medal');
+    if (snailPanel) snailPanel.style.display = showSnail ? '' : 'none';
+    if (showSnail && window.Growth) window.Growth.renderLevelCard();
     if (view === 'letter') {
       if (window.Dashboard) {
         window.Dashboard.renderTodayMoodChart();
@@ -70,21 +73,82 @@ window.Game = {
   //  돌봄 퀵버튼 — 물이 고이는 다섯 가지 행동 (방·농장에 표시)
   // --------------------------------------------------------------------------
   careBar() {
-    const chip = (emoji, label, water, onclick) => `
-      <button onclick="${onclick}" style="all: unset; box-sizing: border-box; cursor: pointer; flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.32rem 0.6rem; border-radius: 999px; white-space: nowrap;">
-        ${emoji} ${label} <span style="color: #6f97ab; font-weight: 800;">💧+${water}</span>
+    // 5칸 균등 그리드 — 좁은 화면에서도 한눈에, 스크롤 없음
+    const cell = (emoji, label, water, onclick) => `
+      <button onclick="${onclick}" title="${label} · 물 +${water}"
+        style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.45rem 0.15rem 0.4rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
+        <span style="display: block; font-size: 1.05rem; line-height: 1.25;">${emoji}</span>
+        <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${label}</span>
+        <span style="display: block; font-size: 0.58rem; font-weight: 800; color: #6f97ab;">💧+${water}</span>
       </button>`;
     return `
-      <div style="margin: 0.15rem 0 0.65rem;">
+      <div style="margin: 0.7rem 0 0.15rem;">
         <p style="margin: 0 0 0.35rem; font-size: 0.66rem; font-weight: 800; color: var(--text-muted);">💧 물이 고이는 돌봄</p>
-        <div style="display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.15rem;">
-          ${chip('🫶', '체크인', 2, "window.Game.show('quest')")}
-          ${chip('🗡️', '퀘스트', 3, "window.Game.show('quest')")}
-          ${chip('🌙', '하루정리', 4, "window.Growth && window.Growth.startNight()")}
-          ${chip('📝', '사고기록', 4, "window.App.switchTab('record')")}
-          ${chip('🫧', '호흡', 2, "window.Calm && window.Calm.openMenu()")}
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;">
+          ${cell('🫶', '체크인', 2, 'window.Game.openCheckin()')}
+          ${cell('🗡️', '퀘스트', 3, 'window.Game.openQuestSheet()')}
+          ${cell('🌙', '하루정리', 4, "window.Growth && window.Growth.startNight()")}
+          ${cell('📝', '사고기록', 4, "window.App.switchTab('record')")}
+          ${cell('🫧', '호흡', 2, "window.Calm && window.Calm.openMenu()")}
         </div>
+        <div id="game-sheet" class="hidden" style="margin-top: 0.5rem; padding: 0.8rem 0.85rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
       </div>`;
+  },
+
+  // ── 그 자리에서 뜨는 시트 (탭 이동 없이 바로 처리) ──────────────────────
+  closeSheet() {
+    const el = document.getElementById('game-sheet');
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; }
+  },
+
+  _sheet(title, inner) {
+    const el = document.getElementById('game-sheet');
+    if (!el) return;
+    el.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem;">
+        <strong style="font-size: 0.84rem; color: var(--text-primary);">${title}</strong>
+        <button onclick="window.Game.closeSheet()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.35rem;">✕</button>
+      </div>${inner}`;
+    el.classList.remove('hidden');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+
+  openCheckin() {
+    const EMO = [
+      { v: 5, e: '기쁨', s: 'joy', i: '😄' }, { v: 4, e: '편안', s: 'empathy', i: '🙂' },
+      { v: 3, e: '보통', s: 'blank', i: '😐' }, { v: 2, e: '불안', s: 'surprise', i: '😟' },
+      { v: 1.5, e: '우울', s: 'sad', i: '😢' }
+    ];
+    const last = window.Storage._safeGet('cbt_last_mood_ts', 0) || 0;
+    const waitMin = Math.ceil((20 * 60000 - (Date.now() - last)) / 60000);
+    if (Date.now() - last < 20 * 60000) {
+      this._sheet('🫶 지금 마음은 어때요?', `<p style="margin: 0; font-size: 0.78rem; color: var(--text-muted);">방금 마음을 들었어요. ${waitMin}분 뒤에 다시 물어볼게요.</p>`);
+      return;
+    }
+    this._sheet('🫶 지금 마음은 어때요?', `
+      <div class="home-mood" data-mood-row>
+        ${EMO.map(m => `
+          <button class="home-mood__btn" data-emo="${m.e}" onclick="window.App.quickMood(${m.v},'${m.e}','${m.i}'); window.Game.afterCare();">
+            <span data-sticker="${m.s}" data-sticker-size="42"></span>
+            <span class="home-mood__lbl">${m.e === '불안' ? '불안/불편' : m.e === '우울' ? '우울/고통' : m.e}</span>
+          </button>`).join('')}
+      </div>`);
+    if (window.App && window.App.refreshAllStickers) window.App.refreshAllStickers(document.getElementById('game-sheet'));
+  },
+
+  openQuestSheet() {
+    this._sheet('🗡️ 오늘의 퀘스트', '<div data-mission-card></div>');
+    if (window.Missions) window.Missions.renderCard();
+  },
+
+  // 시트에서 뭔가 완료된 뒤 — HUD·화면 갱신
+  afterCare() {
+    setTimeout(() => {
+      this.closeSheet();
+      this.renderHud();
+      if (this._view === 'farm' && window.Farm) window.Farm.render();
+      if (this._view === 'room' && window.Room) window.Room.render();
+    }, 700);
   },
 
   // --------------------------------------------------------------------------
@@ -99,20 +163,25 @@ window.Game = {
     const lv     = window.Growth ? window.Growth.level()    : 1;
     const streak = (window.Storage && window.Storage.getStreak) ? (window.Storage.getStreak() || 0) : 0;
 
-    const chip = (txt, title, onclick, color) => `
+    // 재화 3종을 균등 분할 — 숫자가 커져도 줄바꿈·잘림 없음
+    const money = (icon, val, title, onclick, color) => `
       <button onclick="${onclick}" title="${title}"
-        style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.72rem; font-weight: 800; color: ${color};
-               background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.28rem 0.6rem; border-radius: 999px; white-space: nowrap;">
-        ${txt}</button>`;
+        style="all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 0%; min-width: 0; text-align: center;
+               background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.3rem 0.2rem; border-radius: 10px;">
+        <span style="display: block; font-size: 0.62rem; color: var(--text-muted); line-height: 1.2;">${icon}</span>
+        <span style="display: block; font-size: 0.74rem; font-weight: 800; color: ${color}; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${val}</span>
+      </button>`;
 
     el.innerHTML = `
-      <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center;">
-        ${chip(`Lv.${lv}`, '우렁이 레벨 — 훈장 보기', "window.Game.show('medal')", 'var(--accent-primary)')}
-        ${streak >= 2 ? chip(`🔥 ${streak}일`, '연속 돌봄 스트릭', "window.Game.show('medal')", '#e8590c') : ''}
-        <span style="flex: 1;"></span>
-        ${chip(`💧 ${water}`, '물 — 퀘스트로 모아요', "window.Game.show('quest')", '#6f97ab')}
-        ${chip(`🌰 ${coins.toLocaleString()}`, '씨앗코인 — 농장에서 수확', "window.Game.show('farm')", 'var(--accent-primary)')}
-        ${chip(`💰 ${cash.toLocaleString()}`, '우렁 캐시 — 마이페이지에서 충전', "window.App.switchTab('mypage')", '#c9a227')}
+      <div style="display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
+        <button onclick="window.Game.show('medal')" title="레벨·훈장"
+          style="all: unset; cursor: pointer; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent); padding: 0.22rem 0.6rem; border-radius: 999px;">Lv.${lv}</button>
+        ${streak >= 2 ? `<span style="font-size: 0.72rem; font-weight: 800; color: #e8590c;">🔥 ${streak}일 연속</span>` : ''}
+      </div>
+      <div style="display: flex; gap: 0.35rem;">
+        ${money('💧 물', water, '물 — 돌봄으로 모아요', "window.Game.show('farm')", '#6f97ab')}
+        ${money('🌰 코인', coins.toLocaleString(), '씨앗코인 — 농장 수확', "window.Game.show('farm')", 'var(--accent-primary)')}
+        ${money('💰 캐시', cash.toLocaleString(), '우렁 캐시 — 마이페이지 충전', "window.App.switchTab('mypage')", '#c9a227')}
       </div>`;
   },
 
