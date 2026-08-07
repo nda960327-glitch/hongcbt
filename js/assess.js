@@ -435,7 +435,7 @@ window.Assess = {
 
       <div id="assess-result" style="margin-top: 0.9rem;"></div>
 
-      ${reps.length ? `<p style="margin: 1.1rem 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted);">지난 진단서 — 누르면 펼쳐져요</p>` : ''}
+      ${reps.length ? `<p style="margin: 1.1rem 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted);">지난 리포트 — 누르면 펼쳐져요</p>` : ''}
       <div style="display: flex; flex-direction: column; gap: 0.5rem;">
         ${reps.map(r => `
           <div style="background: var(--bg-tertiary); border-radius: 12px; border-left: 4px solid #c96a5a; overflow: hidden;">
@@ -672,10 +672,10 @@ b{font-weight:800}
     if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: var(--text-primary);">⏳ 표준 검진 점수와 기록 전체를 정밀 분석 중… (30초~1분)</p></div>`;
 
     try {
-      const { json, raw } = await this._generate(m);
+      const { json } = await this._generate(m);
       const reps = this.reports();
       const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts(), body: json ? '' : raw };
+      const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts() };
       reps.unshift(rec);
       this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
       if (window.Sfx) window.Sfx.play('harvest');
@@ -684,7 +684,7 @@ b{font-weight:800}
       if (first) { first.classList.remove('hidden'); first.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     } catch (e) {
       window.Wallet.refund(this.PRICE, 'AI 마음 리포트 생성 실패 환불');
-      if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: #c96a5a;">생성에 실패해서 ${this.PRICE.toLocaleString()}캐시를 환불했어요. 잠시 후 다시 시도해주세요.</p></div>`;
+      if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: #c96a5a;">리포트를 만들지 못해 ${this.PRICE.toLocaleString()}캐시를 <b>전액 환불</b>했어요.${e && e.message === 'PARSE' ? '<br>분석 결과가 중간에 끊겼어요 — 다시 시도하면 대개 성공합니다.' : '<br>잠시 후 다시 시도해주세요.'}</p></div>`;
     }
   },
 
@@ -789,20 +789,77 @@ ${msgs}`;
       model: window.LLM.MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
-      max_tokens: 1500
+      max_tokens: 4000
     });
     if (!res.ok) throw new Error('API');
     const data = await res.json();
     const text = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
     if (!text) throw new Error('EMPTY');
 
-    // JSON 파싱 (코드펜스·앞뒤 잡음 제거). 실패하면 원문 텍스트로라도 보여준다.
-    let json = null;
-    try {
-      let t = text.replace(/^```(?:json)?/m, '').replace(/```\s*$/m, '').trim();
-      const s = t.indexOf('{'), e = t.lastIndexOf('}');
-      if (s >= 0 && e > s) json = JSON.parse(t.slice(s, e + 1));
-    } catch (e) { json = null; }
+    const json = this._parseJson(text);
+    if (!json) throw new Error('PARSE');   // 원문 JSON을 사용자에게 보여주지 않는다
     return { json, raw: text };
+  },
+
+  // 모델 출력에서 JSON 을 최대한 살려낸다 (코드펜스 · 중간 절단 대응)
+  //  ① 펜스 제거 → ② 그대로 파싱 → ③ 닫아서 파싱 →
+  //  ④ 실패하면 마지막 쉼표까지 잘라내며 반복 (불완전한 마지막 항목만 버린다)
+  _parseJson(text) {
+    if (!text) return null;
+    let t = String(text).replace(/```[a-zA-Z]*\s*/g, '').trim();
+    const s0 = t.indexOf('{');
+    if (s0 < 0) return null;
+    t = t.slice(s0);
+
+    const tryParse = str => { try { return JSON.parse(str); } catch (e) { return null; } };
+    const usable = j => j && typeof j === 'object' && (j.headline || j.overall || j.standard || j.summaryLine);
+
+    // 완전한 응답이면 여기서 끝
+    const lastBrace = t.lastIndexOf('}');
+    if (lastBrace > 0) { const j = tryParse(t.slice(0, lastBrace + 1)); if (usable(j)) return j; }
+
+    // 문자열/괄호 상태를 훑어 안전하게 닫아준다
+    const closeUp = str => {
+      let inStr = false, esc = false;
+      const open = [];
+      for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        if (esc) { esc = false; continue; }
+        if (c === '\\') { esc = true; continue; }
+        if (c === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (c === '{' || c === '[') open.push(c);
+        else if (c === '}' || c === ']') open.pop();
+      }
+      let body = str;
+      if (inStr) body += '"';
+      body = body.replace(/[,:]\s*$/, '');
+      for (let i = open.length - 1; i >= 0; i--) body += (open[i] === '{' ? '}' : ']');
+      return body;
+    };
+
+    // 문자열 밖의 마지막 쉼표 위치 (여기서 자르면 불완전한 항목이 통째로 사라진다)
+    const lastComma = str => {
+      let inStr = false, esc = false, pos = -1;
+      for (let i = 0; i < str.length; i++) {
+        const c = str[i];
+        if (esc) { esc = false; continue; }
+        if (c === '\\') { esc = true; continue; }
+        if (c === '"') { inStr = !inStr; continue; }
+        if (!inStr && c === ',') pos = i;
+      }
+      return pos;
+    };
+
+    let base = t;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const closed = closeUp(base);
+      const j = tryParse(closed) || tryParse(closed.replace(/,(\s*[}\]])/g, '$1'));
+      if (usable(j)) return j;
+      const cut = lastComma(base);
+      if (cut <= 0) break;
+      base = base.slice(0, cut);
+    }
+    return null;
   }
 };
