@@ -145,6 +145,43 @@ window.ThoughtRecord = {
     });
   },
   
+  // 상단 인지왜곡 패턴 그래프 — 내가 자주 걸리는 생각의 함정 TOP
+  renderPatternChart(records) {
+    const real = records.filter(r => !String(r.id).startsWith('rec_mock_'));
+    const counts = {};
+    real.forEach(r => (r.distortions || []).forEach(d => { counts[d] = (counts[d] || 0) + 1; }));
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (!entries.length) return null;
+    const max = entries[0][1];
+    const total = real.length;
+    const top = this.distortions.find(d => d.id === entries[0][0]);
+
+    const div = document.createElement('div');
+    div.className = 'glass-card';
+    div.style.cssText = 'padding: 1rem 1.05rem; margin-bottom: 1rem;';
+    div.innerHTML = `
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.2rem;">
+        <strong style="font-size: 0.92rem; color: var(--text-primary);">🧠 나의 생각 함정 패턴</strong>
+        <span style="font-size: 0.68rem; color: var(--text-muted);">기록 ${total}건 기준</span>
+      </div>
+      <p style="margin: 0 0 0.75rem; font-size: 0.74rem; color: var(--text-muted);">가장 자주 걸리는 함정은 <b style="color: var(--accent-secondary);">${top ? top.label : ''}</b>이에요. 패턴을 알면 절반은 이긴 거예요.</p>
+      ${entries.map(([id, n], i) => {
+        const d = this.distortions.find(x => x.id === id);
+        if (!d) return '';
+        const pct = Math.round(n / max * 100);
+        return `
+          <div style="display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.45rem;">
+            <span style="flex-shrink: 0; width: 86px; font-size: 0.72rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${d.label}</span>
+            <div style="flex: 1; height: 14px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;">
+              <div style="height: 100%; width: ${pct}%; border-radius: 999px; background: ${i === 0 ? 'linear-gradient(90deg, var(--accent-secondary), var(--accent-primary))' : 'color-mix(in srgb, var(--accent-primary) ' + (70 - i * 12) + '%, var(--bg-tertiary))'}; transition: width 0.5s;"></div>
+            </div>
+            <span style="flex-shrink: 0; width: 30px; text-align: right; font-size: 0.72rem; font-weight: 800; color: var(--text-secondary);">${n}회</span>
+          </div>`;
+      }).join('')}
+      <button onclick="window.App.switchTab('learn')" style="all: unset; cursor: pointer; margin-top: 0.4rem; font-size: 0.72rem; font-weight: 700; color: var(--accent-primary);">이 함정들 이겨내는 법 배우기 ›</button>`;
+    return div;
+  },
+
   loadRecords() {
     let records = window.Storage.getThoughtRecords() || [];
     const container = document.getElementById('record-list');
@@ -186,6 +223,12 @@ window.ThoughtRecord = {
           <span style="background: var(--accent-primary); color: #fff; font-size: 0.73rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 20px; white-space: nowrap; flex-shrink: 0;">샘플 데이터</span>
         `;
         container.appendChild(noticeBanner);
+      }
+
+      // 상단: 인지왜곡 패턴 그래프 (검색 중이 아닐 때만)
+      if (!this._query) {
+        const chart = this.renderPatternChart(records);
+        if (chart) container.appendChild(chart);
       }
 
       // Sort by descending date

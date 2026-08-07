@@ -1603,3 +1603,40 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 #game-nav button.active { background: color-mix(in srgb, var(--accent-primary) 13%, transparent); }
 #game-nav button.active .game-nav-emoji { filter: none; opacity: 1; }
 #game-nav button.active .game-nav-label { color: var(--accent-primary); }
+
+/* 사고기록 카드 리디자인 */
+.record-card {
+  border-left: 4px solid var(--accent-primary);
+  border-radius: 16px;
+  padding: 1rem 1.05rem;
+}
+.record-card .record-header { margin-bottom: 0.55rem; }
+.record-card .record-date { font-size: 0.7rem; color: var(--text-muted); }
+.record-card .record-section { margin-bottom: 0.5rem; }
+.record-card .record-section strong {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--accent-primary);
+  margin-bottom: 0.15rem;
+}
+.record-card .record-text { margin: 0; font-size: 0.86rem; line-height: 1.6; color: var(--text-primary); }
+.record-card .record-text.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.record-card .record-emotions, .record-card .record-distortions { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
+.record-card .distortion-chip.small { font-size: 0.68rem; padding: 0.2rem 0.55rem; border-radius: 999px; }
+.record-card .btn-expand-record {
+  margin-top: 0.65rem;
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  padding: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+}
+.record-card .record-detail { margin-top: 0.55rem; padding-top: 0.55rem; border-top: 1px dashed var(--glass-border); }
+.record-card .record-detail .record-section strong { color: var(--accent-secondary); }
