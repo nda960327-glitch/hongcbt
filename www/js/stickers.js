@@ -6,13 +6,15 @@
 window.Stickers = {
   list: ['joy', 'surprise', 'empathy', 'sad', 'love', 'cheer', 'blank', 'sleepy', 'proud', 'think', 'detective', 'teacher', 'aha', 'oops',
     'rage', 'bigcry', 'laugh', 'dizzy', 'hungry', 'run', 'hide', 'faint', 'stareyes', 'no', 'ok', 'hmph', 'panic', 'cold', 'hot', 'sing',
-    'dance', 'write', 'hero', 'gift', 'tea', 'muscle', 'rainy', 'party', 'shy', 'judge', 'ghost', 'bow', 'melt', 'peek'],
+    'dance', 'write', 'hero', 'gift', 'tea', 'muscle', 'rainy', 'party', 'shy', 'judge', 'ghost', 'bow', 'melt', 'peek',
+    'watering', 'shelter', 'harvesting', 'farming', 'waiting'],
   labels: { joy: '기쁨', surprise: '놀람', empathy: '공감', sad: '슬픔', love: '사랑', cheer: '응원', blank: '멍때림', sleepy: '졸림', proud: '뿌듯',
     think: '골똘', detective: '탐정', teacher: '선생님', aha: '깨달음', oops: '머쓱',
     rage: '분노', bigcry: '대성통곡', laugh: '폭소', dizzy: '어지러움', hungry: '배고픔', run: '질주', hide: '숨기', faint: '기절',
     stareyes: '반짝', no: '거부', ok: '최고', hmph: '삐짐', panic: '혼비백산', cold: '추움', hot: '더움', sing: '노래',
     dance: '춤', write: '필기', hero: '히어로', gift: '선물', tea: '티타임', muscle: '운동', rainy: '비맞음', party: '파티',
-    shy: '수줍', judge: '심드렁', ghost: '방전', bow: '꾸벅', melt: '녹아내림', peek: '빼꼼' },
+    shy: '수줍', judge: '심드렁', ghost: '방전', bow: '꾸벅', melt: '녹아내림', peek: '빼꼼',
+    watering: '물주기', shelter: '비피하기', harvesting: '수확', farming: '씨뿌리기', waiting: '기다림' },
 
   // ==========================================================================
   //  캐릭터 스킨 — 같은 포즈를 우렁이·햇님·달님·소나무 몸으로 그린다
@@ -151,6 +153,110 @@ window.Stickers = {
 </svg>`;
 
     switch (name) {
+      // ── 기다림: 문 쪽만 보며 하염없이… 눈 깜빡 + 말줄임표 ───────────────
+      case 'waiting': return wrap(`
+        .${p}-eyeL, .${p}-eyeR{animation:${p}-blink 3.2s ease-in-out infinite}
+        .${p}-d1{animation:${p}-dot 1.8s ease-in-out infinite}
+        .${p}-d2{animation:${p}-dot 1.8s ease-in-out 0.3s infinite}
+        .${p}-d3{animation:${p}-dot 1.8s ease-in-out 0.6s infinite}
+        .${p}-body{animation:${p}-sigh 4.5s ease-in-out infinite}
+        @keyframes ${p}-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(0.1)}}
+        @keyframes ${p}-dot{0%,100%{opacity:0.15}50%{opacity:1}}
+        @keyframes ${p}-sigh{0%,100%{transform:translateY(0)}50%{transform:translateY(2px)}}`,
+        this._base(p, `
+          <g class="${p}-eyeL" style="transform-origin:52px 86px"><circle cx="52" cy="86" r="3" fill="#3F352A"/></g>
+          <g class="${p}-eyeR" style="transform-origin:88px 86px"><circle cx="88" cy="86" r="3" fill="#3F352A"/></g>
+          <path d="M64 99 q6 -3 12 0" fill="none" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round"/>`)
+        + `<circle class="${p}-d1" cx="112" cy="38" r="3" fill="#B7A895"/>
+           <circle class="${p}-d2" cx="122" cy="32" r="3.6" fill="#B7A895"/>
+           <circle class="${p}-d3" cx="133" cy="25" r="4.2" fill="#B7A895"/>`);
+
+      // ── 물주기: 물뿌리개 기울여 새싹에 조로록 ───────────────────────────
+      case 'watering': return wrap(`
+        .${p}-can{animation:${p}-tilt 1.6s ease-in-out infinite;transform-origin:104px 66px}
+        .${p}-dr1{animation:${p}-fall 1.6s ease-in infinite}
+        .${p}-dr2{animation:${p}-fall 1.6s ease-in 0.5s infinite}
+        .${p}-spr{animation:${p}-wig 1.6s ease-in-out infinite;transform-origin:126px 130px}
+        @keyframes ${p}-tilt{0%,100%{transform:rotate(0)}40%,75%{transform:rotate(-16deg)}}
+        @keyframes ${p}-fall{0%,35%{opacity:0;transform:translateY(0)}50%{opacity:1}92%{opacity:1;transform:translateY(15px)}100%{opacity:0;transform:translateY(17px)}}
+        @keyframes ${p}-wig{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(4deg)}}`,
+        this._base(p, `
+          <path d="M48 86 q4.5 -5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M83 86 q4.5 -5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <ellipse cx="70" cy="98" rx="3.4" ry="4.2" fill="#C97B72" stroke="#3F352A" stroke-width="2.2"/>`, true)
+        + `<g class="${p}-can">
+             <path d="M92 60 h20 q4 0 4 4 v9 q0 4 -4 4 h-20 q-4 0 -4 -4 v-9 q0 -4 4 -4z" fill="#9FB9C9" stroke="#5F8194" stroke-width="3" stroke-linejoin="round"/>
+             <path d="M116 64 l9 -6 q2 -1 2 1 l-2 10" fill="none" stroke="#5F8194" stroke-width="2.8" stroke-linecap="round"/>
+             <path d="M96 60 q5 -8 12 -1" fill="none" stroke="#5F8194" stroke-width="2.6"/>
+           </g>
+           <g class="${p}-dr1"><circle cx="123" cy="88" r="2.6" fill="#8FC3D9"/></g>
+           <g class="${p}-dr2"><circle cx="128" cy="86" r="2.1" fill="#8FC3D9"/></g>
+           <g class="${p}-spr">
+             <path d="M127 132 v-9" fill="none" stroke="#5C8F6B" stroke-width="2.8" stroke-linecap="round"/>
+             <path d="M127 125 q-8 -2 -9 -9 q8 -1 9 7z" fill="#8FC79B" stroke="#5C8F6B" stroke-width="2"/>
+             <path d="M127 123 q8 -4 10 -10 q-9 -2 -10 8z" fill="#A9DCB2" stroke="#5C8F6B" stroke-width="2"/>
+           </g>`);
+
+      // ── 비피하기: 잎사귀 우산 아래서 포근하게 비를 긋는다 ───────────────
+      case 'shelter': return wrap(`
+        .${p}-rain g{animation:${p}-drop 1.1s linear infinite}
+        .${p}-r2{animation-delay:0.35s!important}
+        .${p}-r3{animation-delay:0.7s!important}
+        .${p}-um{animation:${p}-sway 2.4s ease-in-out infinite;transform-origin:70px 44px}
+        @keyframes ${p}-drop{0%{transform:translateY(-6px);opacity:0}25%{opacity:1}85%{opacity:1}100%{transform:translateY(26px);opacity:0}}
+        @keyframes ${p}-sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}`,
+        this._base(p, `
+          <path d="M48 87 q4.5 3.5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M83 87 q4.5 3.5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M64 98 q6 4 12 0" fill="none" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round"/>`, true)
+        + `<g class="${p}-um">
+             <path d="M70 46 V26" fill="none" stroke="#5C8F6B" stroke-width="3.6" stroke-linecap="round"/>
+             <path d="M22 32 q48 -26 96 0 q-24 11 -48 7 q-24 4 -48 -7z" fill="#8FC79B" stroke="#5C8F6B" stroke-width="3" stroke-linejoin="round"/>
+             <path d="M34 28 q36 -14 72 0" fill="none" stroke="#5C8F6B" stroke-width="2" opacity="0.45"/>
+           </g>
+           <g class="${p}-rain">
+             <g><path d="M12 44 l-3 8" stroke="#8FC3D9" stroke-width="2.6" stroke-linecap="round"/></g>
+             <g class="${p}-r2"><path d="M128 40 l-3 8" stroke="#8FC3D9" stroke-width="2.6" stroke-linecap="round"/></g>
+             <g class="${p}-r3"><path d="M8 84 l-3 8" stroke="#8FC3D9" stroke-width="2.6" stroke-linecap="round"/></g>
+             <g class="${p}-r2"><path d="M133 80 l-3 8" stroke="#8FC3D9" stroke-width="2.6" stroke-linecap="round"/></g>
+             <g class="${p}-r3"><path d="M20 20 l-3 8" stroke="#8FC3D9" stroke-width="2.6" stroke-linecap="round"/></g>
+           </g>`);
+
+      // ── 수확: 당근을 번쩍 들고 콩콩 ─────────────────────────────────────
+      case 'harvesting': return wrap(`
+        .${p}-body{animation:${p}-hop 0.8s ease-in-out infinite}
+        .${p}-car{animation:${p}-wave 1.6s ease-in-out infinite;transform-origin:118px 78px}
+        .${p}-sp{animation:${p}-tw 1.2s ease-in-out infinite}
+        @keyframes ${p}-hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}60%{transform:translateY(-3px)}}
+        @keyframes ${p}-wave{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(8deg)}}
+        @keyframes ${p}-tw{0%,100%{opacity:0;transform:scale(0.5)}50%{opacity:1;transform:scale(1)}}`,
+        this._base(p, `
+          <path d="M48 86 q4.5 -5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M83 86 q4.5 -5 9 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
+          <path d="M62 97 q8 9 16 0 z" fill="#C97B72" stroke="#3F352A" stroke-width="2.6" stroke-linejoin="round"/>`, true)
+        + `<g class="${p}-car">
+             <path d="M122 52 q8 3 7 12 q-2 13 -8 19 q-6 -6 -7 -19 q-1 -9 8 -12z" fill="#E58A47" stroke="#B05F26" stroke-width="2.6" stroke-linejoin="round"/>
+             <path d="M119 52 q-4 -9 -9 -10M122 51 q0 -10 2 -12M125 52 q5 -8 9 -9" fill="none" stroke="#6FA87E" stroke-width="3" stroke-linecap="round"/>
+           </g>
+           <g class="${p}-sp" style="transform-origin:24px 40px"><path d="M24 32 l2.4 5 5 2.4 -5 2.4 -2.4 5 -2.4 -5 -5 -2.4 5 -2.4z" fill="#F5C74E"/></g>`);
+
+      // ── 씨뿌리기: 씨앗을 포물선으로 촥촥 ────────────────────────────────
+      case 'farming': return wrap(`
+        .${p}-s1{animation:${p}-toss 1.5s ease-in infinite}
+        .${p}-s2{animation:${p}-toss 1.5s ease-in 0.25s infinite}
+        .${p}-s3{animation:${p}-toss 1.5s ease-in 0.5s infinite}
+        .${p}-armR{animation:${p}-fling 1.5s ease-in-out infinite;transform-origin:112px 90px}
+        @keyframes ${p}-fling{0%,100%{transform:rotate(0)}20%{transform:rotate(-24deg)}40%{transform:rotate(6deg)}}
+        @keyframes ${p}-toss{0%,18%{opacity:0;transform:translate(0,0)}30%{opacity:1}100%{opacity:0;transform:translate(15px,34px)}}`,
+        this._base(p, `
+          <circle cx="52" cy="86" r="3" fill="#3F352A"/>
+          <circle cx="88" cy="86" r="3" fill="#3F352A"/>
+          <path d="M63 98 h14" fill="none" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round"/>`, true)
+        + `<g class="${p}-s1"><circle cx="116" cy="80" r="2.4" fill="#B98A5E"/></g>
+           <g class="${p}-s2"><circle cx="120" cy="76" r="2.1" fill="#96682F"/></g>
+           <g class="${p}-s3"><circle cx="113" cy="74" r="1.9" fill="#B98A5E"/></g>
+           <path d="M112 128 q6 -4 12 0M122 132 q5 -3 10 0" fill="none" stroke="#8A6F55" stroke-width="2.6" stroke-linecap="round" opacity="0.6"/>`);
+
       // ── 기쁨: 하찮은 눈웃음 + 감자같이 벌린 입 + 콩콩 ──────────────────
       case 'joy': return wrap(`
         .${p}-body{animation:${p}-hop 0.85s ease-in-out infinite}

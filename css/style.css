@@ -1579,3 +1579,26 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .cc-actions .btn-primary { grid-column: 1 / -1; padding: 0.6rem 0.2rem; font-size: 0.9rem; }
 .cc-bottom { flex-direction: column; align-items: stretch; gap: 0.6rem; }
 .cc-price { flex-direction: row !important; justify-content: space-between; align-items: baseline; }
+
+/* ============================================================
+   우렁이 세계 — 게임 컨테이너
+   ============================================================ */
+#game-stage { min-height: 280px; }
+.game-view-tip { font-size: 0.74rem; color: var(--text-muted); margin: 0 0 0.8rem; line-height: 1.5; }
+#game-nav {
+  display: flex; gap: 0.2rem;
+  margin-top: 0.85rem; padding-top: 0.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+#game-nav button {
+  appearance: none; -webkit-appearance: none; background: transparent; border: 0;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  padding: 0.4rem 0 0.45rem; border-radius: 12px; cursor: pointer; font-family: inherit;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+#game-nav button:active { transform: scale(0.94); }
+.game-nav-emoji { font-size: 1.15rem; line-height: 1.2; filter: grayscale(0.65); opacity: 0.75; transition: filter var(--transition-fast), opacity var(--transition-fast); }
+.game-nav-label { font-size: 0.62rem; font-weight: 800; color: var(--text-muted); }
+#game-nav button.active { background: color-mix(in srgb, var(--accent-primary) 13%, transparent); }
+#game-nav button.active .game-nav-emoji { filter: none; opacity: 1; }
+#game-nav button.active .game-nav-label { color: var(--accent-primary); }

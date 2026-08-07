@@ -175,13 +175,20 @@ window.Room = {
       if (!confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
       window.Farm.spendCoins(it.price);
     }
+    if (window.Sfx) window.Sfx.play('buy');
     const o = this._S()._safeGet('cbt_room_owned', {}) || {};
     o[id] = Date.now();
     this._S()._safeSet('cbt_room_owned', o);
     this.place(id);
     if (window.App) {
-      window.App.showRecordToast(`🏡 '${it.name}'을(를) 방에 놓았어요!`);
-      window.App.stickerPop('stareyes', 1500);
+      const thanks = [
+        `'${it.name}'…?! 내 방에?! 고마워, 집들이 하자!! 💚`,
+        `우와 '${it.name}' 생겼다!! 방이 점점 근사해져!`,
+        `'${it.name}' 최고야… 이 은혜 상추로 갚을게 🥬`,
+        `고마워!! '${it.name}' 놓으니까 우리 집 같아졌어`
+      ];
+      window.App.showRecordToast(thanks[Math.floor(Math.random() * thanks.length)]);
+      window.App.stickerPop(['love', 'stareyes', 'dance', 'party'][Math.floor(Math.random() * 4)], 1700);
     }
   },
 
@@ -193,7 +200,40 @@ window.Room = {
     const fixed = (it.slot === 'wallpaper' || it.slot === 'floor');
     p[it.slot] = (!fixed && p[it.slot] === id) ? null : id;
     this._S()._safeSet('cbt_room_placed', p);
+    if (window.Sfx) window.Sfx.play('place');
     this.render();
+  },
+
+  // --------------------------------------------------------------------------
+  //  방 안의 우렁이 — 들어갈 때마다 랜덤한 일상을 보내고 있다
+  //  ("오 오늘은 얘 자고 있네?" 하는 재미. 밤에는 잘 확률이 높다)
+  // --------------------------------------------------------------------------
+  IDLES: [
+    { s: 'sleepy',   cap: '쿨쿨… 자고 있다', night: 3 },
+    { s: 'dance',    cap: '신나서 춤추는 중' },
+    { s: 'sing',     cap: '흥얼흥얼 콘서트 중' },
+    { s: 'tea',      cap: '느긋하게 티타임 중' },
+    { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까' },
+    { s: 'blank',    cap: '대자로 뻗어 멍때리는 중' },
+    { s: 'muscle',   cap: '운동 중 (아직 3분째)' },
+    { s: 'hungry',   cap: '간식 생각하는 중' },
+    { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐' },
+    { s: 'watering', cap: '새싹 돌보는 중' },
+    { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼' },
+    { s: 'waiting',  cap: '문 쪽만 보고 있었다…' }
+  ],
+  _idle: null,
+
+  pickIdle() {
+    const h = new Date().getHours();
+    const nightish = (h >= 22 || h < 7);
+    const pool = [];
+    this.IDLES.forEach(i => {
+      const w = (nightish && i.night) ? i.night : 1;
+      for (let k = 0; k < w; k++) pool.push(i);
+    });
+    this._idle = pool[Math.floor(Math.random() * pool.length)];
+    return this._idle;
   },
 
   // --------------------------------------------------------------------------
@@ -202,7 +242,8 @@ window.Room = {
   scene(width = 320) {
     const p = this.placed();
     const draw = slot => { const it = this.item(p[slot]); return it ? it.svg() : ''; };
-    const snail = window.Stickers ? window.Stickers.svg('joy', 96) : '';
+    const idle = this._idle || this.pickIdle();
+    const snail = window.Stickers ? window.Stickers.svg(idle.s, 96) : '';
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
         <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
@@ -215,6 +256,9 @@ window.Room = {
         </svg>
         <div style="position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 30%; line-height: 0;">
           <div style="width: 100%;">${snail}</div>
+        </div>
+        <div style="position: absolute; left: 50%; top: 5%; transform: translateX(-50%); max-width: 88%; font-size: 0.68rem; font-weight: 700; color: #4a4038; background: rgba(255, 252, 245, 0.88); border: 1px solid rgba(74, 64, 56, 0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${idle.cap}
         </div>
       </div>`;
   },

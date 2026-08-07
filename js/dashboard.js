@@ -390,7 +390,7 @@
     this.renderSummaryReportCard();
   },
 
-  async generateDailySummary() {
+  async generateDailySummary(topic) {
     const container = document.getElementById('chat-insights-content');
     const btn = document.getElementById('btn-generate-summary');
     if (!container) return;
@@ -418,7 +418,7 @@
 
     // 진짜 AI 요약: 최근 대화를 모델이 직접 읽고 요약한다 (템플릿 조합 아님)
     try {
-      const raw = await this._generateAiSummaryText();
+      const raw = await this._generateAiSummaryText(topic);
       // 첫 줄 = "[주요 감정: ...] 제목", 나머지 = 본문
       const lines = raw.split('\n');
       const title = (lines[0] || '').trim();
@@ -434,8 +434,8 @@
       }
       // 지난 리포트 목록에도 쌓는다 (최대 10개 — 무한정 길어지지 않게 자동 정리)
       const reports = (window.Storage._safeGet('cbt_my_reports', []) || []);
-      reports.unshift({ id: 'rep_' + Date.now(), date: dateStr, title, body });
-      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 10));
+      reports.unshift({ id: 'rep_' + Date.now(), date: dateStr, title: (topic ? '[' + topic + '] ' : '') + title, body, topic: topic || null });
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 30));
 
       this.updateSampleBadges();
       this.updateStats();
@@ -459,16 +459,17 @@
   },
 
   // 최근 대화 → AI 요약 본문 (대시보드·마이페이지 리포트가 공용으로 사용)
-  async _generateAiSummaryText() {
+  async _generateAiSummaryText(topic) {
     const messages = (window.Storage && window.Storage.getMessages()) || [];
     const userCount = messages.filter(m => m.role === 'user').length;
     if (userCount < 2 || !window.LLM) throw new Error('NO_CHAT');
 
-    const recent = messages.slice(-40).map(m => `${m.role === 'user' ? '나' : '상담사'}: ${m.text}`).join('\n');
+    const recent = messages.slice(topic ? -120 : -40).map(m => `${m.role === 'user' ? '나' : '상담사'}: ${m.text}`).join('\n');
     const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
 
     const prompt = `아래는 심리상담 앱에서 나눈 최근 대화입니다. 사용자 본인이 나중에 다시 읽어볼 'AI 상담 요약 리포트'를 한국어로 작성하세요.
 
+${topic ? '사용자가 요청한 주제: "' + topic + '" — 이 주제와 관련된 대화만 골라 그 주제를 중심으로 요약하세요. 관련 대화가 거의 없으면 본문 첫 줄에 솔직하게 그렇다고 적으세요.' : ''}
 첫 줄은 반드시 이 형식의 제목: [주요 감정: 감정1, 감정2] 한 줄 제목
 그 다음 줄부터 본문 (각 항목 1~2문장, 마크다운 기호 없이 아래 제목 그대로):
 · 오늘 나눈 이야기: ...
@@ -580,6 +581,31 @@ ${recent}`;
     this.renderMyReports();
   },
 
+  // ===== 리포트 오버레이 =====
+  openReports() {
+    const ov = document.getElementById('report-overlay');
+    if (!ov) return;
+    ov.classList.remove('hidden');
+    this.renderMyReports();
+  },
+
+  closeReports() {
+    const ov = document.getElementById('report-overlay');
+    if (ov) ov.classList.add('hidden');
+  },
+
+  generateFromInput() {
+    const inp = document.getElementById('report-topic-input');
+    const topic = inp ? inp.value.trim() : '';
+    this.generateDailySummary(topic || null);
+  },
+
+  setTopicAndGo(t) {
+    const inp = document.getElementById('report-topic-input');
+    if (inp) inp.value = t;
+    this.generateDailySummary(t || null);
+  },
+
   renderMyReports() {
     const list = document.getElementById('report-list');
     if (!list) return;
@@ -588,32 +614,40 @@ ${recent}`;
     if (note) note.classList.toggle('hidden', reports.length === 0);
     list.innerHTML = '';
 
+    if (reports.length === 0) {
+      list.innerHTML = '<p style="margin: 0.2rem 0 0; font-size: 0.78rem; color: var(--text-muted);">아직 만든 리포트가 없어요. 위에서 첫 리포트를 만들어보세요.</p>';
+      return;
+    }
+
+    // 날짜+제목 행 목록 — 누르면 본문이 펼쳐진다
     reports.forEach(r => {
       const rows = this._formatReportRows(r.body);
       const div = document.createElement('div');
-      div.style.cssText = 'background: var(--bg-tertiary); border-radius: 12px; padding: 1rem; border-left: 4px solid var(--accent-primary); position: relative;';
+      div.style.cssText = 'background: var(--bg-tertiary); border-radius: 12px; border-left: 4px solid var(--accent-primary); overflow: hidden;';
       div.innerHTML = `
-        <button class="rep-del" title="리포트 삭제" style="position: absolute; top: 0.6rem; right: 0.6rem; background: none; border: none; color: var(--text-muted); font-size: 1rem; cursor: pointer; padding: 0.2rem 0.4rem;">✕</button>
-        <div style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 0.3rem; padding-right: 1.6rem;">${r.date} 작성
-          <span style="background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); font-size: 0.66rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.3rem;">AI 생성</span>
-        </div>
-        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.94rem; color: var(--text-primary); line-height: 1.4;"></h4>
-        <div class="rep-rows-head"></div>
-        <div class="rep-rows-rest" style="display: none;"></div>
-        <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
-          <button class="btn-secondary rep-detail" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto;">상세보기</button>
-          <button class="btn-primary rep-share" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto; background: var(--success-color, #10b981); border: none;">상담사에게 전송</button>
+        <button class="rep-head" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.7rem 0.85rem; cursor: pointer;">
+          <span style="flex: 1; min-width: 0;">
+            <span style="display: block; font-size: 0.68rem; color: var(--text-muted);"></span>
+            <strong style="display: block; font-size: 0.86rem; color: var(--text-primary); line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></strong>
+          </span>
+          <span class="rep-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
+        </button>
+        <div class="rep-body" style="display: none; padding: 0 0.85rem 0.8rem;">
+          <div class="rep-rows"></div>
+          <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem;">
+            <button class="btn-primary rep-share" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto; background: var(--success-color, #10b981); border: none;">상담사에게 전송</button>
+            <button class="btn-secondary rep-del" style="font-size: 0.75rem; padding: 0.3rem 0.7rem; width: auto;">삭제</button>
+          </div>
         </div>`;
-      div.querySelector('h4').textContent = r.title || 'AI 상담 요약';
-      div.querySelector('.rep-rows-head').innerHTML = rows.slice(0, 2).join('');
-      div.querySelector('.rep-rows-rest').innerHTML = rows.slice(2).join('');
-      const rest = div.querySelector('.rep-rows-rest');
-      const detailBtn = div.querySelector('.rep-detail');
-      if (rows.length <= 2) detailBtn.style.display = 'none';
-      detailBtn.addEventListener('click', () => {
-        const open = rest.style.display !== 'none';
-        rest.style.display = open ? 'none' : 'block';
-        detailBtn.textContent = open ? '상세보기' : '접기';
+      div.querySelector('.rep-head span span:first-child').textContent = r.date + ' · AI 생성';
+      div.querySelector('.rep-head strong').textContent = r.title || 'AI 상담 요약';
+      div.querySelector('.rep-rows').innerHTML = rows.join('');
+      const body = div.querySelector('.rep-body');
+      const chev = div.querySelector('.rep-chev');
+      div.querySelector('.rep-head').addEventListener('click', () => {
+        const open = body.style.display !== 'none';
+        body.style.display = open ? 'none' : 'block';
+        chev.style.transform = open ? '' : 'rotate(90deg)';
       });
       div.querySelector('.rep-share').addEventListener('click', () => {
         if (window.App && window.App.sendReportToCounselor) window.App.sendReportToCounselor(r);

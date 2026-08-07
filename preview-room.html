@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우렁이의 방 · 옷장 미리보기</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, 'Malgun Gothic', sans-serif; background: #211c17; color: #f0e2ce; margin: 0; padding: 20px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 28px 0 10px; color: #7fc29b; }
+  p.sub { font-size: 13px; color: #a99c8c; margin: 0 0 8px; line-height: 1.6; }
+  .rooms { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; }
+  .rooms figure { margin: 0; }
+  .rooms figcaption { font-size: 13px; color: #d8c9b4; margin-top: 6px; text-align: center; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+  .grid figure { margin: 0; background: #2b251f; border: 1px solid #3a332b; border-radius: 14px; padding: 8px; text-align: center; }
+  .grid figcaption { font-size: 11px; color: #d8c9b4; margin-top: 2px; line-height: 1.45; }
+  .grid small { color: #a99c8c; }
+</style>
+</head>
+<body>
+  <h1>🏡 우렁이의 방 &amp; 👒 옷장 미리보기</h1>
+  <p class="sub">실제 앱에서는 <b>대시보드 탭</b>에 있습니다. 이 페이지는 확인용이라 모든 아이템을 보유한 상태로 그립니다.</p>
+
+  <h2>미니룸 조합 예시</h2>
+  <div id="rooms" class="rooms"></div>
+
+  <h2>옷장 아이템</h2>
+  <div id="outfits" class="grid"></div>
+
+  <h2>방 아이템</h2>
+  <div id="furniture" class="grid"></div>
+
+<script src="js/stickers.js"></script>
+<script src="js/closet.js"></script>
+<script src="js/room.js"></script>
+<script>
+  // 미리보기 전용 저장소 — 실제 앱 데이터(localStorage)를 건드리지 않는다
+  const mem = {};
+  window.Storage = {
+    _safeGet(k, d) { return k in mem ? mem[k] : d; },
+    _safeSet(k, v) { mem[k] = v; }
+  };
+  const R = window.Room, C = window.Closet, S = window.Stickers;
+
+  const allRoom = {}; R.ITEMS.forEach(i => allRoom[i.id] = 1);
+  mem['cbt_room_owned'] = allRoom;
+  const allCloset = {}; C.ITEMS.forEach(i => allCloset[i.id] = 1);
+  mem['cbt_closet_owned'] = allCloset;
+
+  const price = it => it.free ? '기본' : it.quest ? '퀘스트' : it.cash ? it.cash.toLocaleString() + '캐시' : it.price + '코인';
+
+  function scene(placed, equipped) {
+    mem['cbt_room_placed'] = placed;
+    mem['cbt_closet_equipped'] = equipped;
+    return R.scene(320);
+  }
+
+  const combos = [
+    ['기본 방 (무료 시작)', { wallpaper: 'wp_cream', floor: 'fl_wood' }, {}],
+    ['밤하늘 · 네온 · 어항', { wallpaper: 'wp_night', floor: 'fl_tile', wall: 'wl_neon', left: 'lf_lamp', right: 'rt_fish', rug: 'rg_star' }, { hat: 'crown', face: 'stars' }],
+    ['벚꽃 · 창문 · 책장', { wallpaper: 'wp_sakura', floor: 'fl_wood', wall: 'wl_window', left: 'lf_shelf', right: 'rt_table', rug: 'rg_round' }, { hat: 'straw', neck: 'scarf', hand: 'can' }],
+    ['잔디밭 · 기타 · 화분', { wallpaper: 'wp_mint', floor: 'fl_grass', wall: 'wl_clock', left: 'lf_plant', right: 'rt_guitar', rug: 'rg_round' }, { hat: 'beanie', face: 'glasses', hand: 'carrot' }]
+  ];
+
+  document.getElementById('rooms').innerHTML = combos
+    .map(([t, p, e]) => `<figure>${scene(p, e)}<figcaption>${t}</figcaption></figure>`).join('');
+
+  document.getElementById('outfits').innerHTML = C.ITEMS.map(it => {
+    mem['cbt_closet_equipped'] = { [it.slot]: it.id };
+    return `<figure><div style="line-height:0">${S.svg('joy', 104)}</div>
+      <figcaption>${it.name}<br><small>${price(it)}</small></figcaption></figure>`;
+  }).join('');
+
+  mem['cbt_closet_equipped'] = {};
+  document.getElementById('furniture').innerHTML = R.ITEMS.map(it =>
+    `<figure><svg viewBox="0 0 320 210" width="100%" style="display:block;border-radius:8px;background:#2b251f">${it.svg()}</svg>
+      <figcaption>${it.name}<br><small>${price(it)}</small></figcaption></figure>`).join('');
+</script>
+</body>
+</html>

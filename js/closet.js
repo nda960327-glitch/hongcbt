@@ -215,11 +215,18 @@ window.Closet = {
       window.Farm.spendCoins(it.price);
     }
 
+    if (window.Sfx) window.Sfx.play('buy');
     this._grant(id);
     this.equip(id);
     if (window.App) {
-      window.App.showRecordToast(`'${it.name}' 구매 완료! 우렁이가 바로 입었어요`);
-      window.App.stickerPop('stareyes', 1500);
+      const thanks = [
+        `우와아 '${it.name}'…?! 나 주는 거야?! 고마워!! 💚`,
+        `헉 '${it.name}' 진짜 갖고 싶었는데!! 평생 잘 입을게!`,
+        `'${it.name}' 받았다!! 나 오늘 제일 행복한 달팽이야`,
+        `고마워… '${it.name}' 소중하게 아껴 입을게 🥹`
+      ];
+      window.App.showRecordToast(thanks[Math.floor(Math.random() * thanks.length)]);
+      window.App.stickerPop(['love', 'stareyes', 'dance', 'bow'][Math.floor(Math.random() * 4)], 1700);
     }
   },
 
@@ -229,6 +236,7 @@ window.Closet = {
     const e = this.equipped();
     e[it.slot] = (e[it.slot] === id) ? null : id;   // 같은 걸 다시 누르면 벗기
     this._S()._safeSet('cbt_closet_equipped', e);
+    if (window.Sfx) window.Sfx.play('equip');
     this.render();
     if (window.App && window.App.refreshAllStickers) window.App.refreshAllStickers();
   },

@@ -80,6 +80,7 @@ window.Farm = {
     }
     if (!confirm(`💧 물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
     window.Wallet.spend(pack.cash, `농장 · 물 ${pack.water}`);
+    if (window.Sfx) window.Sfx.play('buy');
     this._setWater(this.water() + pack.water);
     if (window.App) window.App.showRecordToast(`💧 물 ${pack.water}개를 채웠어요!`);
     this.render();
@@ -122,6 +123,8 @@ window.Farm = {
     p[i] = { crop: c.id, water: 0, ts: Date.now() };
     this._savePlots(p);
     this.closePicker();
+    if (window.Sfx) window.Sfx.play('plant');
+    if (window.App && window.App.stickerPop) window.App.stickerPop('farming', 1200);
     this.render();
   },
 
@@ -164,17 +167,21 @@ window.Farm = {
 
     // 아니면 물주기
     if (this.water() <= 0) {
+      if (window.Sfx) window.Sfx.play('denied');
       if (window.App) window.App.showRecordToast('💧 물이 없어요 — 체크인·미션·하루정리로 물을 모아요');
       return;
     }
     this._setWater(this.water() - 1);
     slot.water += 1;
     this._savePlots(p);
+    if (window.Sfx) window.Sfx.play('water');
+    if (window.App && window.App.stickerPop) window.App.stickerPop('watering', 850);
 
     const nowRipe = slot.water >= c.need;
     this.render();
 
     if (nowRipe) {
+      if (window.Sfx) window.Sfx.play('ripe');
       if (window.App) {
         window.App.showRecordToast(`${c.emoji} ${c.name}이(가) 다 자랐어요! 눌러서 수확하세요`);
         window.App.stickerPop('stareyes', 1600);
@@ -202,9 +209,10 @@ window.Farm = {
     st.byCrop[c.id] = (st.byCrop[c.id] || 0) + 1;
     this._S()._safeSet('cbt_farm_stats', st);
 
+    if (window.Sfx) window.Sfx.play('harvest');
     if (window.App) {
       window.App.showRecordToast(`${c.emoji} ${c.name} 수확! 🌰 +${c.coin}코인`);
-      window.App.stickerPop('party', 1800);
+      window.App.stickerPop('harvesting', 1800);
     }
 
     this._checkQuests(st, c);

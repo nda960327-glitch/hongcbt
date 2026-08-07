@@ -117,6 +117,19 @@ window.App = {
       }
     });
     
+    // 4.24 오래 자리를 비웠다 돌아오면 — 우렁이가 기다리고 있었다
+    try {
+      const lastV = window.Storage._safeGet('cbt_last_visit', 0) || 0;
+      const gapH = lastV ? (Date.now() - lastV) / 3600000 : 0;
+      window.Storage._safeSet('cbt_last_visit', Date.now());
+      if (gapH >= 48) {
+        setTimeout(() => {
+          this.stickerPop('waiting', 2400);
+          this.showRecordToast(`💚 우렁이가 ${Math.floor(gapH / 24)}일 동안 문 앞에서 기다렸대요`);
+        }, 1200);
+      }
+    } catch (e) {}
+
     // 4.25 우렁이 스티커 하이드레이션 (빈 화면·설치 팝업 등 data-sticker 요소)
     if (window.Stickers) {
       document.querySelectorAll('[data-sticker]').forEach(el => {
@@ -391,19 +404,14 @@ window.App = {
     if (tabName === 'dashboard') {
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
       if (window.Growth) window.Growth.renderNightList();
-      // 우렁이 세계 — 레벨·훈장·농장·옷장·퀘스트
-      if (window.Growth) { window.Growth.renderLevelCard(); window.Growth.renderBadgeCard(); }
-      if (window.Missions) window.Missions.renderCard();
-      if (window.Room) window.Room.render();
-      if (window.Farm) window.Farm.render();
-      if (window.Closet) window.Closet.render();
+      // 우렁이 세계 — 단일 게임 컨테이너 (HUD·내비·현재 화면 렌더)
+      if (window.Game) window.Game.open();
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
     }
     if (tabName === 'mypage') {
       this._setNavBadge('mypage', false); // 답장·예약 변경 확인함
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
-      if (window.Dashboard && window.Dashboard.renderMoodCalendar) window.Dashboard.renderMoodCalendar();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -1668,8 +1676,8 @@ ${memory || '(없음)'}`;
     if (replacing) {
       // 교체 모드: 조용히 바꿨다고만 알리고 끝 (반응 토스트·팝·호흡 권유 생략)
       this.showRecordToast(`${emoji} 방금 체크인을 '${emo}'(으)로 바꿨어요`);
-      document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
-      const rb = document.querySelector(`#quick-mood-row button[data-emo="${emo}"]`);
+      document.querySelectorAll('[data-mood-row] button').forEach(b => b.style.background = '');
+      const rb = document.querySelector(`[data-mood-row] button[data-emo="${emo}"]`);
       if (rb) rb.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
       if (window.Dashboard) window.Dashboard.renderTodayMoodChart();
       return;
@@ -1685,12 +1693,12 @@ ${memory || '(없음)'}`;
     const msgs = reactions[emo] || ['기록했어!'];
     this.showRecordToast(`${emoji} ${msgs[Math.floor(Math.random() * msgs.length)]}`);
     // 우렁이 리액션 팝: 고른 감정에 맞는 표정으로 등장
-    const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'empathy', '우울': 'love' };
+    const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'shelter', '우울': 'shelter' };
     this.stickerPop(popMap[emo] || 'joy', 1300);
     if (window.Farm) window.Farm.addWater(2, '오늘의 마음 체크인');
     // 선택 강조
-    document.querySelectorAll('#quick-mood-row button').forEach(b => b.style.background = '');
-    const btn = document.querySelector(`#quick-mood-row button[data-emo="${emo}"]`);
+    document.querySelectorAll('[data-mood-row] button').forEach(b => b.style.background = '');
+    const btn = document.querySelector(`[data-mood-row] button[data-emo="${emo}"]`);
     if (btn) btn.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
     if (window.Dashboard) { window.Dashboard.renderTodayMoodChart(); }
     // 힘든 감정이면 안정 도구 권유
