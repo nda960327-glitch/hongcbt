@@ -529,6 +529,29 @@
           </button>
         </div>
 
+        <!-- AI 진단서 — 진입 버튼 (참고용, 비의학) -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0;">
+          <button onclick="window.Assess.open()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem; cursor: pointer;">
+            <div style="display: flex; align-items: center; gap: 0.65rem;">
+              <span style="font-size: 1.3rem; line-height: 1;">🔍</span>
+              <div>
+                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">AI 진단서 <span style="font-size: 0.66rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 45%, transparent); padding: 0.08rem 0.4rem; border-radius: 999px; vertical-align: 2px;">30,000캐시</span></strong>
+                <span style="font-size: 0.76rem; color: var(--text-muted);">쌓인 기록 전체를 정밀 분석 — 의학적 진단이 아닌 참고용이에요</span>
+              </div>
+            </div>
+            <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
+          </button>
+        </div>
+
+        <!-- AI 진단서 전체화면 오버레이 -->
+        <div id="assess-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
+          <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
+            <button onclick="window.Assess.close()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
+            <strong style="font-size: 1.05rem; color: var(--text-primary);">🔍 AI 진단서 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 의학적 진단 아님</span></strong>
+          </div>
+          <div id="assess-body" style="padding: 1rem;"></div>
+        </div>
+
         <!-- 리포트 전체화면 오버레이 -->
         <div id="report-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
           <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
@@ -1204,6 +1227,7 @@
   <script defer src="js/learn.js"></script>
   <script defer src="js/sfx.js"></script>
   <script defer src="js/mail.js"></script>
+  <script defer src="js/assess.js"></script>
   <script defer src="js/game.js"></script>
   <script defer src="js/room.js"></script>
   <script defer src="js/farm.js"></script>

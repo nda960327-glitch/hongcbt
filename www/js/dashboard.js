@@ -108,27 +108,33 @@
         : `지난달과 비슷한 흐름이에요 (평균 ${cur.avg.toFixed(1)}/5)`;
     }
 
+    // 한 줄 요약 + 누르면 상세 펼치기
     el.innerHTML = `
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-        <h3 style="margin: 0;">📈 월간 리포트</h3>
-        <div style="display: flex; align-items: center; gap: 0.4rem;">
-          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="window.Dashboard.shiftMonthly(-1)">‹</button>
-          <strong style="font-size: 0.88rem; color: var(--text-primary); min-width: 88px; text-align: center;">${cur.label}</strong>
-          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem; ${this._mrOffset >= 0 ? 'opacity: 0.35; pointer-events: none;' : ''}" onclick="window.Dashboard.shiftMonthly(1)">›</button>
+      <button onclick="const d = document.getElementById('mr-detail'); d.classList.toggle('hidden'); this.querySelector('.mr-chev').style.transform = d.classList.contains('hidden') ? '' : 'rotate(90deg)';"
+        style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.55rem; width: 100%; cursor: pointer;">
+        <strong style="font-size: 0.88rem; color: var(--text-primary); flex-shrink: 0;">📈 ${cur.label}</strong>
+        <span style="flex: 1; min-width: 0; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${moodLine}</span>
+        <span class="mr-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
+      </button>
+      <div id="mr-detail" class="hidden" style="margin-top: 0.7rem;">
+        <div style="display: flex; justify-content: flex-end; align-items: center; gap: 0.4rem; margin-bottom: 0.55rem;">
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="window.Dashboard.shiftMonthly(-1); document.getElementById('mr-detail').classList.remove('hidden');">‹</button>
+          <strong style="font-size: 0.84rem; color: var(--text-primary); min-width: 88px; text-align: center;">${cur.label}</strong>
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem; ${this._mrOffset >= 0 ? 'opacity: 0.35; pointer-events: none;' : ''}" onclick="window.Dashboard.shiftMonthly(1); document.getElementById('mr-detail').classList.remove('hidden');">›</button>
         </div>
-      </div>
-      <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 0.7rem; line-height: 1.55;">${moodLine}<br><span style="font-size: 0.74rem; color: var(--text-muted);">이 달에 나를 돌본 날: <b>${cur.activeDays}일</b> (지난달 ${prev.activeDays}일)</span></p>
-      <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-        ${tile('🫶', '체크인', cur.checkins, diff(cur.checkins, prev.checkins))}
-        ${tile('🌙', '하루 정리', cur.nights, diff(cur.nights, prev.nights))}
-        ${tile('🎯', '미션', cur.missions, diff(cur.missions, prev.missions))}
-        ${tile('📝', '사고 기록', cur.records, diff(cur.records, prev.records))}
-      </div>
-      ${cur.topEmos.length ? `
-        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; align-items: center;">
-          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">자주 만난 감정:</span>
-          ${cur.topEmos.map(([e, c]) => `<span style="font-size: 0.74rem; font-weight: 700; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.18rem 0.6rem;">${MOOD_EMOJI[e] || ''} ${e} ${c}회</span>`).join('')}
-        </div>` : ''}`;
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.6rem;">이 달에 나를 돌본 날: <b>${cur.activeDays}일</b> (지난달 ${prev.activeDays}일)</p>
+        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+          ${tile('🫶', '체크인', cur.checkins, diff(cur.checkins, prev.checkins))}
+          ${tile('🌙', '하루 정리', cur.nights, diff(cur.nights, prev.nights))}
+          ${tile('🎯', '미션', cur.missions, diff(cur.missions, prev.missions))}
+          ${tile('📝', '사고 기록', cur.records, diff(cur.records, prev.records))}
+        </div>
+        ${cur.topEmos.length ? `
+          <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; align-items: center;">
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">자주 만난 감정:</span>
+            ${cur.topEmos.map(([e, c]) => `<span style="font-size: 0.74rem; font-weight: 700; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.18rem 0.6rem;">${MOOD_EMOJI[e] || ''} ${e} ${c}회</span>`).join('')}
+          </div>` : ''}
+      </div>`;
   },
 
   // ==========================================================================
