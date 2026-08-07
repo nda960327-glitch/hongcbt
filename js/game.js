@@ -77,15 +77,15 @@ window.Game = {
     // 5칸 균등 그리드 — 좁은 화면에서도 한눈에, 스크롤 없음
     const cell = (ico, label, water, onclick) => `
       <button onclick="${onclick}" title="${label} · 물 +${water}"
-        style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.45rem 0.15rem 0.4rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
-        <span style="display: block; line-height: 0; margin-bottom: 0.25rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(ico, { size: 22 }) : ''}</span>
-        <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${label}</span>
-        <span style="display: block; font-size: 0.58rem; font-weight: 800; color: #6f97ab;">+${water}</span>
+        style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.55rem 0.1rem 0.5rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
+        <span style="display: block; line-height: 0; margin-bottom: 0.3rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(ico, { size: 24 }) : ''}</span>
+        <span class="care-lbl" style="display: block; font-size: 0.74rem; font-weight: 700; color: var(--text-primary); white-space: nowrap;">${label}</span>
+        <span style="display: block; font-size: 0.68rem; font-weight: 800; color: #6f97ab; margin-top: 0.05rem;">+${water}</span>
       </button>`;
     return `
       <div style="margin: 0.7rem 0 0.15rem;">
-        <p style="margin: 0 0 0.35rem; font-size: 0.66rem; font-weight: 800; color: var(--text-muted); display: flex; align-items: center; gap: 0.25rem;">${window.Icons ? window.Icons.svg('water', { size: 13 }) : ''}물이 고이는 돌봄</p>
-        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.3rem;">
+        <p style="margin: 0 0 0.35rem; font-size: 0.76rem; font-weight: 800; color: var(--text-muted); display: flex; align-items: center; gap: 0.3rem;">${window.Icons ? window.Icons.svg('water', { size: 13 }) : ''}물이 고이는 돌봄</p>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.26rem;">
           ${cell('checkin', '체크인', 2, 'window.Game.openCheckin()')}
           ${cell('quest', '퀘스트', 3, 'window.Game.openQuestSheet()')}
           ${cell('moon', '하루정리', 4, "window.Growth && window.Growth.startNight()")}
@@ -109,7 +109,7 @@ window.Game = {
     if (!el) return;
     el.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem;">
-        <strong style="font-size: 0.84rem; color: var(--text-primary);">${title}</strong>
+        <strong style="font-size: 0.94rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.3rem;">${title}</strong>
         <button onclick="window.Game.closeSheet()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.35rem;">✕</button>
       </div>${inner}`;
     el.classList.remove('hidden');
@@ -170,16 +170,16 @@ window.Game = {
     const money = (ico, label, val, title, onclick, color) => `
       <button onclick="${onclick}" title="${title}"
         style="all: unset; box-sizing: border-box; cursor: pointer; flex: 1 1 0%; min-width: 0; text-align: center;
-               background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.3rem 0.2rem; border-radius: 10px;">
-        <span style="display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.66rem; font-weight: 700; color: var(--text-muted); line-height: 1.2;">${window.Icons ? window.Icons.svg(ico, { size: 15 }) : ''}${label}</span>
-        <span style="display: block; font-size: 0.86rem; font-weight: 800; color: ${color}; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${val}</span>
+               background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.42rem 0.2rem; border-radius: 11px;">
+        <span style="display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.74rem; font-weight: 700; color: var(--text-muted); line-height: 1.25;">${window.Icons ? window.Icons.svg(ico, { size: 15 }) : ''}${label}</span>
+        <span style="display: block; font-size: 1.02rem; font-weight: 800; color: ${color}; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${val}</span>
       </button>`;
 
     el.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.4rem;">
         <button onclick="window.Game.show('medal')" title="레벨·훈장"
-          style="all: unset; cursor: pointer; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent); padding: 0.22rem 0.6rem; border-radius: 999px;">Lv.${lv}</button>
-        ${streak >= 2 ? `<span style="font-size: 0.72rem; font-weight: 800; color: #e8590c;">🔥 ${streak}일 연속</span>` : ''}
+          style="all: unset; cursor: pointer; font-size: 0.8rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, transparent); padding: 0.26rem 0.7rem; border-radius: 999px;">Lv.${lv}</button>
+        ${streak >= 2 ? `<span style="font-size: 0.78rem; font-weight: 800; color: #e8590c; background: color-mix(in srgb, #e8590c 12%, transparent); border: 1px solid color-mix(in srgb, #e8590c 28%, transparent); padding: 0.24rem 0.62rem; border-radius: 999px;">${streak}일 연속</span>` : ''}
       </div>
       <div style="display: flex; gap: 0.35rem;">
         ${money('water', '물', water, '물 — 돌봄으로 모아요', "window.Game.show('farm')", '#6f97ab')}

@@ -396,7 +396,7 @@ window.App = {
       window.Learn.renderCards();
     }
     // 홈·챗봇·상담사매칭·대시보드에서는 상단 로고 헤더와 그 여백까지 제거
-    document.body.classList.toggle('header-hidden', ['home', 'chat', 'counselors', 'dashboard'].includes(tabName));
+    document.body.classList.toggle('header-hidden', ['home', 'chat', 'counselors', 'dashboard', 'mypage'].includes(tabName));
 
     if (tabName === 'chat') {
       this.updateSessionUI();

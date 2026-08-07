@@ -400,11 +400,11 @@
 
     <!-- DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-content">
-      <div class="home-logo">
-        <span class="home-logo__mark" data-sticker="teacher" data-sticker-size="34"></span>
+      <header class="home-top">
+        <span class="home-logo__mark" data-sticker="teacher" data-sticker-size="32"></span>
         <span class="home-logo__t">마음 도구</span>
-      </div>
-      <p class="dash-lede">돌볼수록 자라는 나의 마음 정원</p>
+      </header>
+      <p class="tab-lede">돌볼수록 자라는 나의 마음 정원</p>
 
       <div class="dashboard-grid">
         <!-- ★ 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
@@ -683,13 +683,12 @@
 
     <!-- COUNSELORS TAB -->
     <section id="tab-counselors" class="tab-content">
-      <div class="tab-header" style="display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem;">
-        <div style="min-width: 0;">
-          <h2 class="mk-title" style="margin: 0;">상담사 매칭</h2>
-          <p class="tab-subtitle" style="margin-top: 0.25rem;">검증된 병원 소속 상담사와 연결해드려요</p>
-        </div>
-        <button id="wallet-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기" style="all: unset; box-sizing: border-box; flex-shrink: 0; margin-top: 0.25rem; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.3rem 0.7rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></button>
-      </div>
+      <header class="home-top">
+        <span class="home-logo__mark" data-sticker="counselor" data-sticker-size="32"></span>
+        <span class="home-logo__t">상담사 매칭</span>
+        <button id="wallet-chip" class="head-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기"></button>
+      </header>
+      <p class="tab-lede">검증된 병원 소속 상담사와 연결해드려요</p>
       <div style="padding: 0 1.25rem;">
         <div style="position: relative; margin-bottom: 0.55rem;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.2" stroke-linecap="round" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="7"/><path d="M21 21 l-4.3 -4.3"/></svg>
@@ -785,6 +784,12 @@
 
     <!-- MYPAGE TAB -->
     <section id="tab-mypage" class="tab-content">
+      <header class="home-top">
+        <span class="home-logo__mark" data-sticker="proud" data-sticker-size="32"></span>
+        <span class="home-logo__t">마이</span>
+        <button class="head-chip" onclick="window.App.openSettings()" title="설정">설정</button>
+      </header>
+
       <!-- 프로필 헤더 — 우렁이 아바타 + 이름 + 레벨/스트릭 -->
       <div class="my-hero">
         <span class="my-hero__ava" data-sticker="proud" data-sticker-size="62"></span>

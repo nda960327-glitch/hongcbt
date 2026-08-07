@@ -260,7 +260,7 @@
 
     // 내 캐시 잔액 칩 — 결제 직전에야 잔액 부족을 아는 일이 없게
     const chip = document.getElementById('wallet-chip');
-    if (chip && window.Wallet) chip.textContent = `💰 내 캐시 ${window.Wallet.balance().toLocaleString()} · 충전 ›`;
+    if (chip && window.Wallet) chip.innerHTML = (window.Icons ? window.Icons.svg('cash', { size: 14 }) : '') + ` ${window.Wallet.balance().toLocaleString()}캐시 · 충전 ›`;
 
     // 서버의 실시간 통화 상태 갱신 (10초 캐시)
     if (!this._skipPresenceFetch) this.fetchPresence();

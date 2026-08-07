@@ -1722,7 +1722,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .home-logo__t { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading); letter-spacing: -0.02em; }
 
 /* 대시보드 톤 통일 */
-.dash-lede { margin: 0 1.25rem 0.9rem; font-size: 0.78rem; color: var(--text-muted); }
+
 .my-badge {
   display: inline-block; font-size: 0.62rem; font-weight: 800; color: #c9a227;
   border: 1px solid color-mix(in srgb, #c9a227 45%, transparent);
@@ -1856,3 +1856,38 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .cc2-meta svg, .cc2-book svg, .cc2-live svg, .cc2-links svg { flex-shrink: 0; vertical-align: -2px; }
 .cc2-book b, .cc2-live b { display: inline-flex; align-items: center; gap: 0.25rem; justify-content: center; }
 .cc2-links button { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+/* ============================================================
+   게임 타이포 확대 — 작은 글씨 가독성 (레이아웃 유지)
+   ============================================================ */
+.game-nav-label { font-size: 0.72rem; font-weight: 800; }
+#game-nav button { padding: 0.5rem 0 0.55rem; gap: 0.15rem; }
+.game-nav-emoji svg { width: 23px; height: 23px; }
+
+/* 아주 좁은 폭에서만 돌봄 라벨을 한 단계 줄인다 */
+@media (max-width: 359px) {
+  .care-lbl { font-size: 0.66rem; }
+  .game-nav-label { font-size: 0.66rem; }
+}
+
+/* 서재·마이 리스트 보조문구도 한 단계 위로 */
+.my-row__txt > span { font-size: 0.76rem; }
+.lib-row .lib-body { font-size: 0.86rem; }
+.game-view-tip, .lib-lede { font-size: 0.78rem; }
+
+/* ============================================================
+   탭 헤더 통일 — 모든 탭이 같은 리듬으로 시작한다
+   ============================================================ */
+.tab-lede { margin: 0 1.25rem 0.9rem; font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; flex-shrink: 0; }
+.head-chip {
+  all: unset; box-sizing: border-box; margin-left: auto; flex-shrink: 0; cursor: pointer;
+  font-size: 0.74rem; font-weight: 800; color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  padding: 0.28rem 0.7rem; border-radius: 999px; white-space: nowrap;
+}
+#tab-mypage .my-hero { margin-top: 0.3rem; }
+
+/* 헤더 칩 아이콘 정렬 */
+.head-chip { display: inline-flex; align-items: center; gap: 0.28rem; }
+.head-chip svg { flex-shrink: 0; }
