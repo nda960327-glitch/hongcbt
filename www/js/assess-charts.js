@@ -227,7 +227,58 @@ window.AssessCharts = {
     return `<span style="letter-spacing:1px;font-size:0.7rem;color:${full >= 4 ? this.C.ok : full >= 3 ? this.C.warn : this.C.bad};">${'●'.repeat(full)}<span style="opacity:0.3">${'○'.repeat(5 - full)}</span></span>`;
   },
 
-  // ── ⑧ 수평 막대 (탐색 지표용) ──
+  // ── ⑧-1 3단계 서술 밴드 — 비표준 지표는 숫자 대신 위치로 (색+기호 이중 부호화) ──
+  band(x) {
+    const s = Math.max(0, Math.min(100, x.score | 0));
+    const idx = s >= 67 ? 2 : s >= 34 ? 1 : 0;
+    const LOW = x.good ? ['부족', '보통', '충분'] : ['낮음', '보통', '높음'];
+    const MARK = ['○', '◐', '●'];
+    const col = x.good ? [this.C.bad, this.C.warn, this.C.ok][idx] : [this.C.ok, this.C.warn, this.C.bad][idx];
+    return `
+      <div style="margin-bottom:0.7rem;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:0.5rem;margin-bottom:0.25rem;">
+          <span style="font-size:0.8rem;font-weight:700;">${this.esc(x.name)}</span>
+          <span style="font-size:0.74rem;font-weight:800;color:${col};white-space:nowrap;">${MARK[idx]} ${LOW[idx]}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
+          ${LOW.map((lb, i) => `<div style="text-align:center;padding:0.22rem 0.1rem;border-radius:6px;font-size:0.62rem;font-weight:${i === idx ? '800' : '600'};
+            background:${i === idx ? col : this.C.soft};color:${i === idx ? '#fff' : 'currentColor'};opacity:${i === idx ? 1 : 0.5};">${lb}</div>`).join('')}
+        </div>
+        ${x.evidence ? `<p style="margin:0.25rem 0 0;font-size:0.69rem;opacity:0.68;line-height:1.5;">${this.md(x.evidence)}</p>` : ''}
+      </div>`;
+  },
+
+  // ── ⑧-2 재측정 추이 — 같은 표준검사를 여러 번 봤을 때 (개입 효과) ──
+  retest(series, o) {
+    if (!series || series.length < 2) return '';
+    const W = 320, H = 120, PL = 30, PR = 10, PT = 12, PB = 24;
+    const max = o.max, cuts = o.cuts || [];
+    const xs = i => PL + (W - PL - PR) * (series.length === 1 ? 0.5 : i / (series.length - 1));
+    const ys = v => PT + (H - PT - PB) * (1 - v / max);
+    const bandsBg = cuts.map((c, i) => {
+      const y1 = ys(c.to), y0 = i === 0 ? ys(0) : ys(cuts[i - 1].to);
+      const cols = [this.C.ok, this.C.okL, this.C.warn, this.C.bad, '#a34b3f'];
+      return `<rect x="${PL}" y="${Math.min(y0, y1).toFixed(1)}" width="${W - PL - PR}" height="${Math.abs(y0 - y1).toFixed(1)}" fill="${cols[Math.min(i, 4)]}" fill-opacity="0.13"/>`;
+    }).join('');
+    const pts = series.map((d, i) => [xs(i), ys(d.v)]);
+    const path = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
+    const dots = pts.map(([x, y], i) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="currentColor"/>
+      <text x="${x.toFixed(1)}" y="${(y - 9).toFixed(1)}" font-size="9" font-weight="800" fill="currentColor" text-anchor="middle">${series[i].v}</text>`).join('');
+    const xlab = series.map((d, i) => `<text x="${xs(i).toFixed(1)}" y="${H - 7}" font-size="7.5" fill="currentColor" opacity="0.55" text-anchor="middle">${this.esc(d.label)}</text>`).join('');
+    const delta = series[series.length - 1].v - series[0].v;
+    return `
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;color:inherit" role="img" aria-label="${this.esc(o.name)} 재측정 추이">
+        ${bandsBg}
+        <path d="${path}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        ${dots}${xlab}
+      </svg>
+      <p style="margin:0.25rem 0 0;font-size:0.7rem;text-align:center;">
+        ${this.esc(o.name)} <b style="color:${delta < 0 ? this.C.ok : delta > 0 ? this.C.bad : 'currentColor'};">${delta === 0 ? '변화 없음' : (delta < 0 ? '↓ ' + Math.abs(delta) + '점 감소' : '↑ ' + delta + '점 증가')}</b>
+        <span style="opacity:0.6;">· 배경 띠는 절단점 구간</span>
+      </p>`;
+  },
+
+  // ── ⑧ 수평 막대 (표준 점수 전용) ──
   bar(x) {
     const s = Math.max(0, Math.min(100, x.score | 0));
     const c = x.good ? (s >= 67 ? this.C.ok : s >= 34 ? this.C.warn : this.C.bad) : this.tone(s);

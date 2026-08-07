@@ -104,7 +104,7 @@ window.Mail = {
 · 편지 본문만 출력
 
 [알고 있는 것(기억)]
-${memory.slice(0, 800) || '(없음)'}
+${memory.slice(0, 1600) || '(없음)'}
 
 [받은 편지]
 ${userText}` }],

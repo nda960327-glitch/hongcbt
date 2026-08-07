@@ -260,8 +260,19 @@ window.Assess = {
       </div>
       <p style="margin:0.6rem 0 0;font-size:0.68rem;opacity:0.62;line-height:1.6;">※ 선별검사는 <b>진단이 아니라 위험도 스크리닝</b>입니다. 색 띠는 원 도구의 절단점 구간이에요.</p>`, K.C.ok) : '';
 
+    // ── Ⅰ-1 표준검사 재측정 추이 (개입 효과를 보여주는 가장 신뢰할 만한 근거) ──
+    const hist = (r.history && r.history.length >= 2)
+      ? r.history
+      : (((this._S()._safeGet('cbt_assess_history', []) || []).length >= 2) ? this._S()._safeGet('cbt_assess_history', []) : null);
+    const dlab = h => new Date(h.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+    const retest = hist ? sec('Ⅰ-1', '표준검사 재측정 추이', '같은 도구를 반복 측정한 기록 — 변화를 보는 가장 신뢰할 만한 근거',
+      `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.7rem;">
+        ${card(K.retest(hist.map(h => ({ v: h.phq, label: dlab(h) })), { name: 'PHQ-9', max: 27, cuts: [{ to: 4 }, { to: 9 }, { to: 14 }, { to: 19 }, { to: 27 }] }))}
+        ${card(K.retest(hist.map(h => ({ v: h.gad, label: dlab(h) })), { name: 'GAD-7', max: 21, cuts: [{ to: 4 }, { to: 9 }, { to: 14 }, { to: 21 }] }))}
+      </div>`, K.C.ok) : '';
+
     // ── Ⅱ 실제 기분 추이 (사실 데이터) ──
-    const trend = f.series && f.series.length >= 2 ? sec('Ⅱ', '기분 추이 (최근 3주)', '앱에 기록된 실제 체크인 — AI 추정이 아닌 원자료',
+    const trend = f.series && f.series.length >= 2 ? sec('Ⅱ', '기분 추이 (최근 3주)', '앱 자체 5점 체크인 — 검증된 척도가 아닌 원자료 · 표준검사(2주 단면)와 시간 단위가 다름',
       card(K.line(f.series))) : '';
 
     // ── Ⅲ 요일·시간대 패턴 (사실 데이터) ──
@@ -269,18 +280,19 @@ window.Assess = {
       card(K.heatmap(f.matrix)) + (j.timePattern ? `<p style="margin:0.7rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.timePattern)}</p>` : ''), K.C.blue) : '';
 
     // ── Ⅳ 탐색 지표 (막대) ──
-    const signals = Array.isArray(j.signals) && j.signals.length ? sec('Ⅳ', '탐색 지표', '표준 도구가 아닌 참고 지표 · 기록 관찰 기반',
-      card(j.signals.map(x => K.bar(x)).join('')), K.C.warn) : '';
+    const signals = Array.isArray(j.signals) && j.signals.length ? sec('Ⅳ', '탐색 지표', '검증된 심리검사가 아님 · 3단계 경향으로만 읽어주세요',
+      card(j.signals.map(x => K.band(x)).join('')), K.C.warn) : '';
 
     // ── Ⅴ 욕구 레이더 + 웰빙 레이더 (2열) ──
     const hasNeeds = Array.isArray(j.needs) && j.needs.length;
     const hasWell = Array.isArray(j.wellbeing) && j.wellbeing.length;
     const profile = (hasNeeds || hasWell) ? sec('Ⅴ', '심리적 프로파일', '탐색 지표 · 축의 모양으로 읽어주세요',
       `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.8rem;">
-        ${hasNeeds ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">욕구·동기</p>${K.radar(j.needs, { color: K.C.violet })}`)}</div>` : ''}
-        ${hasWell ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">적응 자원 (높을수록 좋음)</p>${K.radar(j.wellbeing, { color: K.C.ok })}`)}</div>` : ''}
+        ${hasNeeds ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">욕구·동기</p>${K.radar(j.needs, { color: K.C.violet })}<div style="margin-top:0.6rem;">${j.needs.map(x => K.band(x)).join('')}</div>`)}</div>` : ''}
+        ${hasWell ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">적응 자원</p>${K.radar(j.wellbeing, { color: K.C.ok })}<div style="margin-top:0.6rem;">${j.wellbeing.map(x => K.band({ ...x, good: true })).join('')}</div>`)}</div>` : ''}
       </div>
-      ${j.profileRead ? `<p style="margin:0.75rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.profileRead)}</p>` : ''}`, K.C.violet) : '';
+      ${j.profileRead ? `<p style="margin:0.75rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.profileRead)}</p>` : ''}
+      <p style="margin:0.5rem 0 0;font-size:0.68rem;opacity:0.62;line-height:1.6;">※ 이 축들은 <b>표준화된 심리검사가 아닙니다</b>. 규준(비교 집단) 자료가 없어 절대적 위치를 뜻하지 않으며, 같은 기록으로 다시 생성하면 결과가 달라질 수 있습니다.</p>`, K.C.violet) : '';
 
     // ── Ⅵ 인지왜곡 도넛 (사실 데이터) ──
     const dist = f.distortions && f.distortions.length ? sec('Ⅵ', '생각의 함정 분포', `사고기록 ${f.recordCount}편에서 실제 집계`,
@@ -346,13 +358,21 @@ window.Assess = {
         <p style="margin:0 0 0.2rem;font-size:0.72rem;font-weight:800;color:${K.C.bad};">전문가 연계 권고</p>
         <p style="margin:0;font-size:0.84rem;line-height:1.75;">${K.md(j.referral)}</p>
       </div>` : ''}
-      <p style="margin:1rem 0 0;font-size:0.68rem;opacity:0.6;line-height:1.7;">
-        <b>한계 및 고지</b> · ${K.md(j.limits || '')}
-        본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며, 의학적 진단·처방을 대신하지 않습니다.
-        표준 선별검사(PHQ-9·GAD-7) 외의 지표는 검증된 심리검사가 아닌 탐색적 참고치입니다.
-      </p>`;
+      <div style="margin:1.3rem 0 0;border-top:2px solid ${K.C.grid};padding-top:0.9rem;">
+        <p style="margin:0 0 0.5rem;font-size:0.74rem;font-weight:800;">한계 및 고지</p>
+        <div style="font-size:0.69rem;opacity:0.75;line-height:1.75;">
+          <p style="margin:0 0 0.45rem;">${K.md(j.limits || '')}</p>
+          <p style="margin:0 0 0.45rem;"><b>① 사용 도구</b> · PHQ-9(Kroenke, Spitzer &amp; Williams, 2001), GAD-7(Spitzer 외, 2006). 공개 도구이며 원문항·원절단점을 그대로 사용했습니다. 두 도구 모두 <b>선별(screening)</b> 도구로, 점수가 높다고 진단이 되지는 않습니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>② 비표준 지표</b> · 욕구·적응 자원·탐색 지표는 표준화된 심리검사가 아니며 <b>규준(비교 집단) 자료가 없습니다</b>. 절대적 수준이 아니라 상대적 경향으로만 읽어야 합니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>③ 재현성</b> · 해석은 생성형 AI가 작성하므로 <b>같은 기록으로 다시 만들면 표현과 강조점이 달라질 수 있습니다</b>. 재현 가능한 수치는 표준검사 점수뿐입니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>④ 선택 편향</b> · 앱 기록은 <b>힘들 때 더 많이 남는 경향</b>이 있어 부정 정서가 과대 표집될 수 있습니다. 기분 추이는 앱 자체 5점 척도로 검증된 도구가 아닙니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>⑤ 시간 단위</b> · 표준검사는 특정 2주의 <b>단면</b>, 추이 차트는 3주 <b>종단</b>입니다. 나란히 볼 때 해석에 주의가 필요합니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>⑥ 자동 분류·가중치</b> · 인지왜곡 태그는 대화에서 AI가 부여한 것으로 <b>분류 정확도가 검증되지 않았습니다</b>. 데이터 충분도 가중치(대화 30 · 기간 25 · 감정 15 · 기록 15 · 검진 15)는 실무적 판단에 따른 값입니다.</p>
+          <p style="margin:0;">본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며 의학적 진단·처방을 대신하지 않습니다. 위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.</p>
+        </div>
+      </div>`;
 
-    return cover + overall + std + trend + heat + signals + profile + dist + form + ev + plan + strengths + tail;
+    return cover + overall + std + retest + trend + heat + signals + profile + dist + form + ev + plan + strengths + tail;
   },
 
   render() {
@@ -427,6 +447,7 @@ window.Assess = {
         })()}
         <div id="assess-quiz"></div>
       </div>
+      <div id="assess-risk"></div>
 
       <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
         🔍 AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
@@ -447,9 +468,11 @@ window.Assess = {
             </button>
             <div id="as-${r.id}" class="hidden" style="padding: 0 0.85rem 0.85rem;">
               ${this._reportHtml(r)}
-              <div style="display: flex; gap: 0.45rem; margin-top: 0.8rem;">
-                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.download('${r.id}')">📄 파일로 저장</button>
-                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.printPdf('${r.id}')">🖨 인쇄 · PDF</button>
+              <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.8rem;">
+                <button class="btn-primary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; background: var(--success-color, #10b981); border: none;" onclick="window.Assess.sendToCounselor('${r.id}')">📤 상담사에게 보내기</button>
+                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.download('${r.id}')">📄 저장</button>
+                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.printPdf('${r.id}')">🖨 인쇄·PDF</button>
+                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; color: #c96a5a;" onclick="window.Assess.deleteReport('${r.id}')">🗑 삭제</button>
               </div>
             </div>
           </div>`).join('')}
@@ -570,14 +593,90 @@ window.Assess = {
       return;
     }
     this._S()._safeSet('cbt_assess_answers', { ts: Date.now(), map });
+    // 재측정 추이를 위해 점수 이력을 남긴다 (개입 효과 추적)
+    try {
+      const sc0 = this.scores();
+      if (sc0 && sc0.phq != null) {
+        const hist = this._S()._safeGet('cbt_assess_history', []) || [];
+        hist.push({ ts: Date.now(), phq: sc0.phq, gad: sc0.gad, item9: sc0.item9 });
+        this._S()._safeSet('cbt_assess_history', hist.slice(-24));
+      }
+    } catch (e) {}
     if (window.App) window.App.showRecordToast('📝 자가검진 저장 완료');
     if (window.Sfx) window.Sfx.play('ripe');
-    const sc = this.scores();
-    if (sc && sc.item9 > 0) {
-      alert('마지막 우울 문항(자해 관련)에 응답하셨어요.\n\n혼자 견디지 마세요 — 자살예방상담 1393, 정신건강상담 1577-0199 에서 지금 바로 이야기할 수 있어요. 우렁이도 늘 여기 있어요.');
-    }
+    this._riskProtocol();
     const el = document.getElementById('assess-quiz');
     if (el) el.innerHTML = '';
+    this.render();
+  },
+
+  // 위험도 단계별 대응 — 경고 → 안전계획 → 전문가 연계
+  _riskProtocol() {
+    const sc = this.scores();
+    if (!sc) return;
+    const item9 = sc.item9 || 0;
+    const phq = sc.phq || 0;
+    // 3단계: 자해문항 2~3 = 높음 / 자해문항 1 또는 PHQ 20+ = 중간 / PHQ 15~19 = 주의
+    const level = item9 >= 2 ? 3 : (item9 === 1 || phq >= 20) ? 2 : phq >= 15 ? 1 : 0;
+    if (!level) return;
+
+    const box = document.getElementById('assess-risk');
+    const COPY = {
+      3: { t: '지금 바로 도움을 받으셨으면 해요', d: '자해에 대한 생각이 자주 있다고 응답하셨어요. 이건 혼자 견딜 일이 아니에요.', cta: '지금 전화 연결' },
+      2: { t: '전문가와 이야기해볼 시점이에요', d: '지금 상태는 스스로 버티기에 무거운 수준이에요. 도움을 받는 게 빠른 길입니다.', cta: '상담 전화 연결' },
+      1: { t: '혼자 두지 마세요', d: '우울 점수가 높은 편이에요. 안전 계획을 미리 만들어두면 힘든 순간에 나를 지켜줍니다.', cta: '상담 전화 연결' }
+    }[level];
+    const color = level === 3 ? '#c96a5a' : level === 2 ? '#c9a227' : '#6f97ab';
+    if (box) {
+      box.innerHTML = `
+        <div class="glass-card" style="padding: 1rem; border: 2px solid ${color}; background: color-mix(in srgb, ${color} 10%, transparent); margin-bottom: 0.8rem;">
+          <p style="margin: 0 0 0.3rem; font-size: 0.92rem; font-weight: 800; color: ${color};">🛟 ${COPY.t}</p>
+          <p style="margin: 0 0 0.7rem; font-size: 0.8rem; line-height: 1.7; color: var(--text-secondary);">${COPY.d}</p>
+          <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+            <a href="tel:1393" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: #fff; background: ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">📞 ${COPY.cta} (1393)</a>
+            <button onclick="window.Safety && window.Safety.open()" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: ${color}; border: 1px solid ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">🛟 안전 계획 만들기</button>
+            <button onclick="window.App.switchTab('counselors')" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--glass-border); padding: 0.45rem 0.85rem; border-radius: 999px;">전문 상담사 찾기</button>
+          </div>
+        </div>`;
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (level >= 2) {
+      alert(`${COPY.t}\n\n${COPY.d}\n\n자살예방상담 1393 (24시간)\n정신건강상담 1577-0199`);
+    }
+  },
+
+  // 상담사에게 전송 / 삭제
+  sendToCounselor(id) {
+    const r = this.report(id);
+    if (!r) return;
+    const j = r.json || {};
+    if (!confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
+    const lines = [
+      '[우렁의사 AI 마음 리포트 · 참고용 — 진단 아님]',
+      r.date,
+      j.headline ? '— ' + String(j.headline).replace(/\*\*/g, '') : '',
+      (j.standard || []).map(x => `${x.name}: ${x.score}/${x.max} (${x.band})`).join(' · '),
+      j.overall ? '\n[전반] ' + String(j.overall).replace(/\*\*/g, '') : '',
+      j.referral ? '\n[연계] ' + String(j.referral).replace(/\*\*/g, '') : ''
+    ].filter(Boolean).join('\n');
+    if (window.App && window.App.sendReportToCounselor) {
+      window.App.sendReportToCounselor({ date: r.date, title: 'AI 마음 리포트', body: lines });
+    } else if (navigator.share) {
+      navigator.share({ title: 'AI 마음 리포트', text: lines }).catch(() => {});
+    } else {
+      try { navigator.clipboard.writeText(lines); } catch (e) {}
+      alert('리포트 요약을 복사했어요. 상담사에게 붙여넣어 전달하세요.');
+      return;
+    }
+    if (window.App) window.App.showRecordToast('📤 상담사에게 리포트를 보냈어요');
+  },
+
+  deleteReport(id) {
+    const r = this.report(id);
+    if (!r) return;
+    if (!confirm('이 리포트를 삭제할까요?\n되돌릴 수 없어요. (사용한 캐시는 환불되지 않습니다)')) return;
+    this._S()._safeSet('cbt_assessments', this.reports().filter(x => x.id !== id));
+    if (window.App) window.App.showRecordToast('리포트를 삭제했어요');
     this.render();
   },
 
@@ -675,7 +774,8 @@ b{font-weight:800}
       const { json } = await this._generate(m);
       const reps = this.reports();
       const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts() };
+      const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts(),
+                    history: (this._S()._safeGet('cbt_assess_history', []) || []).slice(-8) };
       reps.unshift(rec);
       this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
       if (window.Sfx) window.Sfx.play('harvest');
@@ -711,6 +811,8 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
 · 이 보고서는 임상심리평가 보고서의 표준 구조(배경정보 → 평가도구 → 결과 → 행동관찰 → 요약 및 제언)를 따릅니다. 격식 있는 평가 보고서 문체로 쓰되, 읽는 사람은 내담자 본인이므로 어렵지 않게.
 · 진단 금지의 범위: 병명(우울증·ADHD·양극성장애 등)뿐 아니라 "~장애가 의심됩니다", "~증상입니다" 같은 진단 시사 표현도 금지. 오직 "선별검사 점수", "관찰된 패턴", "경향" 의 언어만 사용.
 · 그 범위 안에서는 겁내지 마세요. "~일 수 있습니다" 남발은 무가치합니다. 관찰된 패턴은 근거와 함께 명확히 서술하세요. 기록 속 실제 표현·사건·반복을 인용해 구체적으로.
+· needs/wellbeing/signals 는 0~100 으로 주되, 앱이 이를 '낮음/보통/높음' 3단계로만 표시합니다. 정밀한 숫자처럼 서술하지 말고 경향으로만 쓰세요.
+· limits 에는 반드시 다음을 포함하세요: 앱 기록은 힘들 때 더 많이 남는 선택 편향이 있다는 점, 표준검사는 2주 단면이고 추이 차트는 3주 종단이라 시간 단위가 다르다는 점.
 · 표준 선별검사(PHQ-9·GAD-7)가 실시됐다면 그 점수와 밴드를 우울·불안 신호의 근거로 그대로 사용하세요(우울 score = PHQ-9/27을 100 환산, 불안 = GAD-7/21 환산, evidence 에 "PHQ-9 X점(밴드)" 명기). 대화 관찰은 보조 근거로만. 나머지 축(기분변동·주의력·분노·인지왜곡·욕구·웰빙)은 표준 도구가 아니므로 반드시 "탐색 지표(비표준)"임을 evidence 안에 명시하고, 대화·탐색 문항을 근거로 추정하세요. 문항9(자해)가 1 이상이면 referral 에 반드시 반영.
 · 신뢰도: 데이터 신뢰도 플래그가 2개 이상이면 reliability.level 을 "낮음"으로 하고 note 에 "이 데이터는 믿을만하지 못합니다"와 사실 근거(기간·입력 패턴)만 적으세요. 과장·연기·기계적 입력 의심 같은 표현은 절대 금지 — 사람을 비난하지 마세요.
 · 자·타해, 폭력의 위험 신호가 보이면 referral 에 분명히 적고 1393·1577-0199 를 포함하세요.
