@@ -890,7 +890,8 @@ textarea:focus { border-color: var(--accent-primary); }
   font-weight: 700;
 }
 .chart-container {
-  height: 220px;
+  height: auto;
+  min-height: 90px;
   width: 100%;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);

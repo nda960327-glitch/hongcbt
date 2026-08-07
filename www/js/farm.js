@@ -241,6 +241,76 @@ window.Farm = {
   },
 
   // --------------------------------------------------------------------------
+  //  야외 밭 풍경 — 오늘의 감정 날씨가 하늘에 그대로 반영된다
+  // --------------------------------------------------------------------------
+  weather() {
+    const moods = this._S()._safeGet('cbt_mood_log', []) || [];
+    const today = new Date().toLocaleDateString('sv-CA');
+    const vals = moods.filter(x => new Date(x.ts).toLocaleDateString('sv-CA') === today)
+      .map(x => x.v ?? x.value ?? 3).filter(v => v != null);
+    if (!vals.length) return 'mild';
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    return avg >= 3.5 ? 'sunny' : avg >= 2.5 ? 'cloudy' : 'rain';
+  },
+
+  scene() {
+    const w = this.weather();
+    const p = this.plots();
+    const uid = 'fw' + Math.floor(Math.random() * 1e6);
+
+    const SKY = { sunny: ['#AEDBEF', '#DDF0F7'], mild: ['#C4E0EA', '#E6F1EF'], cloudy: ['#B9C3C9', '#DDE3E5'], rain: ['#8FA0AE', '#B9C6CE'] }[w];
+    const CAP = {
+      sunny: '오늘 마음 날씨: 맑음 ☀️ — 밭일하기 딱 좋은 날!',
+      mild:  '아직 체크인 전 — 오늘 마음 날씨는 어떨까요?',
+      cloudy: '오늘 마음 날씨: 흐림 ⛅ — 그래도 씨앗은 자라요',
+      rain:  '오늘 마음 날씨: 비 🌧 — 우렁이가 잎사귀 우산을 폈어요'
+    }[w];
+
+    // 하늘 소품
+    let skyArt = '';
+    if (w === 'sunny') skyArt = '<circle cx="272" cy="38" r="17" fill="#F5CE5E"/><g stroke="#F5CE5E" stroke-width="3" stroke-linecap="round"><path d="M272 12 v-1M292 18 l1 -1M298 38 h1M292 58 l1 1M252 18 l-1 -1M246 38 h-1"/></g>';
+    else if (w === 'mild') skyArt = '<circle cx="278" cy="36" r="14" fill="#F5CE5E" opacity="0.85"/><ellipse cx="72" cy="40" rx="30" ry="12" fill="#FFFFFF" opacity="0.8"/>';
+    else if (w === 'cloudy') skyArt = '<ellipse cx="80" cy="38" rx="36" ry="14" fill="#EDF1F2"/><ellipse cx="118" cy="46" rx="26" ry="11" fill="#E2E8EA"/><ellipse cx="240" cy="32" rx="32" ry="12" fill="#EDF1F2"/>';
+    else skyArt = '<ellipse cx="90" cy="34" rx="38" ry="14" fill="#AEB9C0"/><ellipse cx="235" cy="30" rx="34" ry="13" fill="#AEB9C0"/>'
+      + '<g class="' + uid + '-r1"><path d="M60 56 l-4 11M120 52 l-4 11M200 54 l-4 11M280 50 l-4 11" stroke="#D7E4EC" stroke-width="2.6" stroke-linecap="round"/></g>'
+      + '<g class="' + uid + '-r2"><path d="M90 60 l-4 11M160 56 l-4 11M240 58 l-4 11M305 60 l-4 11" stroke="#D7E4EC" stroke-width="2.6" stroke-linecap="round"/></g>';
+
+    // 밭이랑 6개 (실제 밭 상태를 그대로 보여준다)
+    const mounds = p.map((slot, i) => {
+      const x = 34 + (i % 3) * 96, y = i < 3 ? 150 : 180;
+      let art = '<ellipse cx="' + x + '" cy="' + (y + 8) + '" rx="26" ry="8" fill="#9C7550"/>';
+      if (slot) {
+        const c = this.crop(slot.crop);
+        const stage = this._stageEmoji(slot, c);
+        const ripe = slot.water >= c.need;
+        art += '<text x="' + x + '" y="' + (y + 4) + '" font-size="' + (ripe ? 20 : 15) + '" text-anchor="middle"' + (ripe ? ' class="' + uid + '-bounce"' : '') + '>' + stage + '</text>';
+      }
+      return art;
+    }).join('');
+
+    // 우렁이: 비는 비피하기, 익은 작물 있으면 수확 포즈, 물주는 중이면 물주기, 평소엔 기쁨
+    const anyRipe = p.some(s => s && this.crop(s.crop) && s.water >= this.crop(s.crop).need);
+    const anyGrowing = p.some(s => s && this.crop(s.crop) && s.water < this.crop(s.crop).need);
+    const pose = w === 'rain' ? 'shelter' : anyRipe ? 'harvesting' : anyGrowing ? 'watering' : 'joy';
+    const snail = window.Stickers ? window.Stickers.svg(pose, 84) : '';
+
+    return '<div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.8rem;">'
+      + '<svg viewBox="0 0 320 210" width="100%" style="display: block;" role="img" aria-label="우렁이 농장">'
+      + '<style>.' + uid + '-r1{animation:' + uid + 'rain 0.9s linear infinite}.' + uid + '-r2{animation:' + uid + 'rain 0.9s linear 0.45s infinite}@keyframes ' + uid + 'rain{0%{transform:translateY(-8px);opacity:0}30%{opacity:1}100%{transform:translateY(20px);opacity:0}}.' + uid + '-bounce{animation:' + uid + 'bnc 0.9s ease-in-out infinite}@keyframes ' + uid + 'bnc{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}</style>'
+      + '<defs><linearGradient id="' + uid + '-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + SKY[0] + '"/><stop offset="1" stop-color="' + SKY[1] + '"/></linearGradient></defs>'
+      + '<rect width="320" height="132" fill="url(#' + uid + '-sky)"/>'
+      + skyArt
+      + '<path d="M0 120 q60 -14 120 -4 q100 14 200 -6 V132 H0z" fill="#A8C79A" opacity="0.7"/>'
+      + '<rect y="128" width="320" height="82" fill="#B08B63"/>'
+      + '<path d="M0 132 H320" stroke="#9C7550" stroke-width="3"/>'
+      + mounds
+      + '</svg>'
+      + '<div style="position: absolute; right: 4%; bottom: 6%; width: 27%; line-height: 0;">' + snail + '</div>'
+      + '<div style="position: absolute; left: 50%; top: 4%; transform: translateX(-50%); max-width: 92%; font-size: 0.66rem; font-weight: 700; color: #3d4650; background: rgba(255,255,255,0.85); border: 1px solid rgba(61,70,80,0.15); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + CAP + '</div>'
+      + '</div>';
+  },
+
+  // --------------------------------------------------------------------------
   //  렌더
   // --------------------------------------------------------------------------
   _stageEmoji(slot, c) {
@@ -285,7 +355,7 @@ window.Farm = {
         </button>`;
     }).join('');
 
-    el.innerHTML = `
+    el.innerHTML = this.scene() + `
       <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem;">
         <span style="font-size: 0.8rem; font-weight: 800; color: #6f97ab;">💧 물 ${w}</span>
         <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-primary);">🌰 ${this.coins().toLocaleString()}코인</span>

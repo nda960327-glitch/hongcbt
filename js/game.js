@@ -124,21 +124,16 @@ window.Game = {
   },
 
   renderShieldShop() {
+    // 아주 작게 — 한 줄짜리 각주. 스트릭이 2일 이상일 때만 보인다.
     const el = document.getElementById('shield-shop');
     if (!el || !window.Growth) return;
     const G = window.Growth;
-    const n = G.shields();
+    const streak = (window.Storage.getStreak && window.Storage.getStreak()) || 0;
+    if (streak < 2 && G.shields() === 0) { el.innerHTML = ''; return; }
     el.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0.85rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
-        <span style="font-size: 1.6rem; line-height: 1;">🛡️</span>
-        <div style="flex: 1; min-width: 0;">
-          <strong style="font-size: 0.84rem; color: var(--text-primary); display: block;">스트릭 보호권 <span style="color: var(--accent-primary);">${n}개 보유</span></strong>
-          <span style="font-size: 0.7rem; color: var(--text-muted);">하루 걸러도 🔥스트릭이 끊기지 않게 지켜줘요 (최대 ${G.SHIELD_MAX}개)</span>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0;">
-          <button onclick="window.Game.buyShieldWithCoins()" style="all: unset; cursor: pointer; text-align: center; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent); padding: 0.3rem 0.6rem; border-radius: 999px;">🌰 ${this.SHIELD_COIN_PRICE}코인</button>
-          <button onclick="window.Growth.buyShield(); window.Game.renderShieldShop(); window.Game.renderHud();" style="all: unset; cursor: pointer; text-align: center; font-size: 0.7rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 45%, transparent); padding: 0.3rem 0.6rem; border-radius: 999px;">💰 ${(G.SHIELD_PRICE || 0).toLocaleString()}캐시</button>
-        </div>
-      </div>`;
+      <p style="margin: 0; font-size: 0.66rem; color: var(--text-muted); text-align: right;">
+        🛡️ 보호권 ${G.shields()}개
+        <button onclick="window.Game.buyShieldWithCoins()" style="all: unset; cursor: pointer; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--glass-border); margin-left: 0.3rem;">코인으로 채우기</button>
+      </p>`;
   }
 };

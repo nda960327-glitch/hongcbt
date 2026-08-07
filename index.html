@@ -456,8 +456,8 @@
                 <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
               </div>
               <div id="level-card"></div>
-              <div id="shield-shop" style="margin: 0.8rem 0;"></div>
-              <div id="shield-row" style="margin-bottom: 0.8rem;"></div>
+              <div id="shield-shop" style="margin: 0.4rem 0 0.6rem;"></div>
+              <div id="shield-row" class="hidden" style="display: none;"></div>
               <strong style="display: block; font-size: 0.84rem; color: var(--text-primary); margin-bottom: 0.5rem;">🏅 우렁이 훈장</strong>
               <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
             </div>
@@ -477,11 +477,19 @@
               </div>
 
               <div style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--glass-border);">
-                <strong style="font-size: 0.88rem; color: var(--text-primary);">⛅ 오늘의 감정 날씨</strong>
-                <div id="today-mood-chart" class="chart-container" style="min-height: 70px;"></div>
-                <strong style="display: block; margin-top: 1rem; font-size: 0.88rem; color: var(--text-primary);">🌤️ 이번 주 감정 날씨</strong>
-                <div id="mood-chart" class="chart-container"></div>
-                <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin: 0.4rem 0 0;">화면에는 최근 7일이 보이지만, 감정 기록은 계속 쌓이고 있어요. (대화를 지워도 유지)</p>
+                <button onclick="const d = document.getElementById('forecast-detail'); d.classList.toggle('hidden'); this.querySelector('.fc-chev').style.transform = d.classList.contains('hidden') ? '' : 'rotate(90deg)';"
+                  style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.55rem; width: 100%; cursor: pointer;">
+                  <strong style="font-size: 0.88rem; color: var(--text-primary); flex-shrink: 0;">⛅ 감정 일기예보</strong>
+                  <span style="flex: 1; min-width: 0; font-size: 0.72rem; color: var(--text-muted);">오늘의 흐름과 이번 주 날씨</span>
+                  <span class="fc-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
+                </button>
+                <div id="forecast-detail" class="hidden" style="margin-top: 0.7rem;">
+                  <strong style="font-size: 0.8rem; color: var(--text-muted);">오늘</strong>
+                  <div id="today-mood-chart" class="chart-container" style="min-height: 70px;"></div>
+                  <strong style="display: block; margin-top: 0.9rem; font-size: 0.8rem; color: var(--text-muted);">이번 주</strong>
+                  <div id="mood-chart" class="chart-container"></div>
+                  <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin: 0.4rem 0 0;">화면에는 최근 7일이 보이지만, 감정 기록은 계속 쌓이고 있어요. (대화를 지워도 유지)</p>
+                </div>
               </div>
 
               <div style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--glass-border);">
@@ -515,9 +523,9 @@
           </button>
         </div>
 
-        <!-- AI 상담 요약 리포트 — 진입 버튼 (내용은 전체화면 오버레이) -->
+        <!-- AI 상담 요약 리포트 — 진입 버튼 + 바로 요약 (내용은 전체화면 오버레이) -->
         <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0;">
-          <button onclick="window.Dashboard.openReports()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem; cursor: pointer;">
+          <button onclick="window.Dashboard.openReports()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem 0.6rem; cursor: pointer;">
             <div style="display: flex; align-items: center; gap: 0.65rem;">
               <span class="h-ico" data-icon="sparkle" data-icon-size="22"></span>
               <div>
@@ -527,6 +535,10 @@
             </div>
             <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
           </button>
+          <div style="padding: 0 1.15rem 0.9rem;">
+            <button class="btn-primary" style="width: 100%; font-size: 0.84rem; padding: 0.6rem;"
+              onclick="window.Dashboard.openReports(); window.Dashboard.generateDailySummary();">⚡ 최근 대화 바로 요약하기</button>
+          </div>
         </div>
 
         <!-- AI 진단서 — 진입 버튼 (참고용, 비의학) -->
