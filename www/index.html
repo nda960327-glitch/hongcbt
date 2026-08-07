@@ -308,14 +308,20 @@
             <svg viewBox="0 0 24 24" width="17" height="17" fill="#ffffff"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
           </button>
         </div>
-        <div style="display: flex; align-items: center; gap: 0.4rem; margin-top: 0.4rem;">
+        <div style="display: flex; align-items: center; gap: 0.45rem; margin-top: 0.45rem; position: relative;">
           <span id="sub-badge" style="flex: 0 0 auto; font-size: 0.64rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap;"></span>
-          <button id="btn-program" style="all: unset; display: none; box-sizing: border-box; flex: 0 0 auto; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.26rem 0.6rem; border-radius: 999px; cursor: pointer; white-space: nowrap;" onclick="window.Personas.openProgram()"></button>
-          <span style="flex: 1 1 auto;"></span>
-          <button id="btn-chat-search" class="btn-secondary" title="대화 검색" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem;" onclick="window.App.openChatSearch()">🔍</button>
-          <!-- 소리(TTS) 설정은 마이페이지 > 앱 설정에 있음 (중복 버튼 제거) -->
-          <button id="btn-persona-change" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.6rem; white-space: nowrap;">상담사 바꾸기</button>
-          <button id="btn-chat-reset" class="btn-secondary" title="대화 초기화" style="width: auto; flex: 0 0 auto; font-size: 0.7rem; padding: 0.26rem 0.55rem; white-space: nowrap;">초기화</button>
+          <!-- 전문 기법 수업 — 메인 CTA (햇님/달님/소나무일 때만) -->
+          <button id="btn-program" style="all: unset; display: none; box-sizing: border-box; flex: 1 1 auto; align-items: center; justify-content: center; text-align: center; font-size: 0.84rem; font-weight: 800; color: #fff; background: var(--gradient-primary); padding: 0.52rem 0.9rem; border-radius: 999px; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-sm);" onclick="window.Personas.openProgram()"></button>
+          <span id="chat-tools-spacer" style="flex: 1 1 auto;"></span>
+          <!-- 더보기 (검색·상담사 바꾸기·초기화) -->
+          <button id="btn-chat-more" title="더보기" onclick="window.App.toggleChatMenu(event)" style="all: unset; box-sizing: border-box; flex: 0 0 auto; width: 36px; height: 36px; border-radius: 50%; background: var(--bg-tertiary); border: 1px solid var(--glass-border); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+          </button>
+          <div id="chat-more-menu" class="hidden" style="position: absolute; right: 0; top: calc(100% + 6px); z-index: 300; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 14px; box-shadow: var(--shadow-lg); overflow: hidden; min-width: 178px;">
+            <button onclick="window.App.toggleChatMenu(); window.App.openChatSearch()" style="all: unset; box-sizing: border-box; display: block; width: 100%; padding: 0.75rem 1rem; font-size: 0.88rem; font-weight: 600; color: var(--text-primary); cursor: pointer; border-bottom: 1px solid var(--glass-border);">🔍 대화 검색</button>
+            <button onclick="window.App.toggleChatMenu(); window.App.showPersonaModal(true)" style="all: unset; box-sizing: border-box; display: block; width: 100%; padding: 0.75rem 1rem; font-size: 0.88rem; font-weight: 600; color: var(--text-primary); cursor: pointer; border-bottom: 1px solid var(--glass-border);">👥 상담사 바꾸기</button>
+            <button onclick="window.App.toggleChatMenu(); window.App.resetChat()" style="all: unset; box-sizing: border-box; display: block; width: 100%; padding: 0.75rem 1rem; font-size: 0.88rem; font-weight: 600; color: #c0564f; cursor: pointer;">🧹 대화 초기화</button>
+          </div>
         </div>
       </div>
       <div id="chat-messages" class="chat-messages">
@@ -739,6 +745,27 @@
         </div>
       </div>
 
+      <!-- 설정 진입 (마이탭 길이 축소 — 상세 설정은 전체화면 오버레이로) -->
+      <div class="glass-card" style="margin: 1rem; padding: 0;">
+        <button onclick="window.App.openSettings()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 0.65rem;">
+            <span class="h-ico" data-icon="settings" data-icon-size="22"></span>
+            <div>
+              <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">설정</strong>
+              <span style="font-size: 0.76rem; color: var(--text-muted);">테마 · 글자 크기 · 알림 · 앱 잠금 · 백업 · 초기화</span>
+            </div>
+          </div>
+          <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
+        </button>
+      </div>
+
+      <!-- 설정 전체화면 오버레이 -->
+      <div id="settings-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
+        <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
+          <button onclick="window.App.closeSettings()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
+          <strong style="font-size: 1.05rem; color: var(--text-primary);">⚙️ 설정</strong>
+        </div>
+
       <!-- 우렁이의 기억 (백업/복원) -->
       <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
         <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;">
@@ -920,10 +947,11 @@
         </div>
       </div>
 
-      <!-- 운영자 콘솔 진입 (데모 백오피스) -->
-      <p style="text-align: center; margin: 0.4rem 0 1.4rem;">
-        <button onclick="window.Admin && window.Admin.open()" style="all: unset; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; padding: 0.4rem;">🛠️ 운영자 콘솔</button>
-      </p>
+        <!-- 운영자 콘솔 진입 (데모 백오피스) -->
+        <p style="text-align: center; margin: 0.4rem 0 1.4rem;">
+          <button onclick="window.Admin && window.Admin.open()" style="all: unset; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; padding: 0.4rem;">🛠️ 운영자 콘솔</button>
+        </p>
+      </div><!-- /settings-overlay -->
 
       <!-- CBT 요약 리포트는 대시보드 하단으로 이동했습니다 -->
     </section>

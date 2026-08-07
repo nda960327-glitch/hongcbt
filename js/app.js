@@ -730,16 +730,48 @@ window.App = {
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
     if (name) name.textContent = p.name;
     if (tagline) tagline.textContent = p.tagline;
-    // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 MBCT)
+    // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 MBCT) — 있을 땐 CTA가 줄을 채운다
     const progBtn = document.getElementById('btn-program');
+    const spacer = document.getElementById('chat-tools-spacer');
     if (progBtn) {
       const prog = window.Personas.programOf(p.id);
       if (prog) {
         progBtn.style.display = 'inline-flex';
-        progBtn.textContent = `${prog.emoji} ${prog.name}`;
+        progBtn.textContent = `${prog.emoji} ${prog.name} 시작하기`;
+        if (spacer) spacer.style.display = 'none';
       } else {
         progBtn.style.display = 'none';
+        if (spacer) spacer.style.display = '';
       }
+    }
+  },
+
+  // === 설정 전체화면 (마이탭에서 진입) ===
+  openSettings() {
+    const ov = document.getElementById('settings-overlay');
+    if (ov) ov.classList.remove('hidden');
+  },
+
+  closeSettings() {
+    const ov = document.getElementById('settings-overlay');
+    if (ov) ov.classList.add('hidden');
+  },
+
+  // 채팅 도구 더보기 메뉴 (검색·상담사 바꾸기·초기화)
+  toggleChatMenu(e) {
+    if (e) e.stopPropagation();
+    const m = document.getElementById('chat-more-menu');
+    if (!m) return;
+    const willShow = m.classList.contains('hidden');
+    m.classList.toggle('hidden');
+    if (willShow) {
+      setTimeout(() => {
+        const close = ev => {
+          if (!m.contains(ev.target)) m.classList.add('hidden');
+          document.removeEventListener('click', close);
+        };
+        document.addEventListener('click', close);
+      }, 0);
     }
   },
 
