@@ -20,7 +20,9 @@ window.Room = {
   ITEMS: [
     // ── 벽지 ──────────────────────────────────────────────────────────────
     { id: 'wp_cream', slot: 'wallpaper', name: '크림 벽지', free: true,
-      svg: () => `<rect x="0" y="0" width="320" height="140" fill="#F3E9DA"/>` },
+      svg: () => `<rect x="0" y="0" width="320" height="140" fill="#F3E9DA"/>
+        <g opacity="0.5" stroke="#E7DAC6" stroke-width="1">${Array.from({length:16},(_,i)=>`<path d="M${i*21+8} 0 V140"/>`).join('')}</g>
+        <g opacity="0.35" fill="#E2D3BB">${[[28,34],[92,58],[156,26],[220,62],[284,40],[60,102],[188,110],[252,92]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</g>` },
     { id: 'wp_mint', slot: 'wallpaper', name: '민트 줄무늬', price: 25,
       svg: () => `<rect x="0" y="0" width="320" height="140" fill="#DFEFE6"/>
         ${Array.from({length:11},(_,i)=>`<rect x="${i*30+6}" y="0" width="9" height="140" fill="#C8E3D5"/>`).join('')}` },
@@ -208,17 +210,18 @@ window.Room = {
   //  방 안의 우렁이 — 들어갈 때마다 랜덤한 일상을 보내고 있다
   //  ("오 오늘은 얘 자고 있네?" 하는 재미. 밤에는 잘 확률이 높다)
   // --------------------------------------------------------------------------
+  // active: true 면 방 안을 돌아다닌다 (정적인 포즈는 제자리)
   IDLES: [
     { s: 'sleepy',   cap: '쿨쿨… 자고 있다', night: 3 },
-    { s: 'dance',    cap: '신나서 춤추는 중' },
-    { s: 'sing',     cap: '흥얼흥얼 콘서트 중' },
+    { s: 'dance',    cap: '신나서 춤추는 중', active: true },
+    { s: 'sing',     cap: '흥얼흥얼 콘서트 중', active: true },
     { s: 'tea',      cap: '느긋하게 티타임 중' },
     { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까' },
     { s: 'blank',    cap: '대자로 뻗어 멍때리는 중' },
-    { s: 'muscle',   cap: '운동 중 (아직 3분째)' },
-    { s: 'hungry',   cap: '간식 생각하는 중' },
+    { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true },
+    { s: 'hungry',   cap: '간식 찾아 어슬렁거리는 중', active: true },
     { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐' },
-    { s: 'watering', cap: '새싹 돌보는 중' },
+    { s: 'watering', cap: '화분들 물 주러 다니는 중', active: true },
     { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼' },
     { s: 'waiting',  cap: '문 쪽만 보고 있었다…' },
     { s: 'tea',      cap: '☀️ 햇님이 놀러 와서 수다 중!', skin: 'haru' },
@@ -245,6 +248,10 @@ window.Room = {
   scene(width = 320) {
     const p = this.placed();
     const draw = slot => { const it = this.item(p[slot]); return it ? it.svg() : ''; };
+    const uid = 'rm' + Math.floor(Math.random() * 1e6);
+    // 배회 폭·속도를 매번 다르게 (같은 움직임 반복 방지)
+    const far = 42 + Math.floor(Math.random() * 46);
+    const dur = (7 + Math.random() * 5).toFixed(1);
     const idle = this._idle || this.pickIdle();
     const snail = window.Stickers
       ? (idle.skin ? window.Stickers.svgFor(idle.skin, idle.s, 96) : window.Stickers.svg(idle.s, 96))
@@ -252,15 +259,46 @@ window.Room = {
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
         <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
+          <defs>
+            <linearGradient id="${uid}-wallsh" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#000" stop-opacity="0.10"/>
+              <stop offset="0.45" stop-color="#000" stop-opacity="0"/>
+            </linearGradient>
+            <radialGradient id="${uid}-lamp" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0" stop-color="#FFF3D0" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#FFF3D0" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
           ${draw('wallpaper')}
+          <rect x="0" y="0" width="320" height="140" fill="url(#${uid}-wallsh)"/>
           ${draw('floor')}
+          <!-- 원근 마루 이음선 -->
+          <g opacity="0.16" stroke="#5E4530" stroke-width="1.2">
+            <path d="M40 210 L74 143M110 210 L128 143M186 210 L192 143M262 210 L250 143"/>
+          </g>
+          <!-- 걸레받이 (벽-바닥 경계) -->
+          <rect x="0" y="134" width="320" height="9" fill="#EFE6D6"/>
+          <rect x="0" y="134" width="320" height="2.5" fill="#D9CBB4"/>
+          <rect x="0" y="141" width="320" height="2" fill="#000" opacity="0.10"/>
+          <!-- 은은한 조명 웅덩이 -->
+          <ellipse cx="160" cy="176" rx="118" ry="40" fill="url(#${uid}-lamp)"/>
           ${draw('wall')}
+          <!-- 벽 콘센트 (디테일) -->
+          <g opacity="0.5">
+            <rect x="24" y="118" width="13" height="11" rx="2.5" fill="#EFE6D6" stroke="#C6B79E" stroke-width="1.4"/>
+            <circle cx="28" cy="123.5" r="1.2" fill="#B7A88F"/><circle cx="33" cy="123.5" r="1.2" fill="#B7A88F"/>
+          </g>
           ${draw('rug')}
           ${draw('left')}
           ${draw('right')}
+          <!-- 우렁이 접지 그림자 -->
+          <ellipse cx="160" cy="192" rx="30" ry="7.5" fill="#000" opacity="0.13"/>
+          <!-- 코너 비네트 -->
+          <path d="M0 0 h46 q-30 24 -46 66z" fill="#000" opacity="0.05"/>
+          <path d="M320 0 h-46 q30 24 46 66z" fill="#000" opacity="0.05"/>
         </svg>
         <div style="position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 30%; line-height: 0;">
-          <div style="width: 100%;">${snail}</div>
+          <div class="${idle.active ? 'wr-wander' : ''}" style="width: 100%; ${idle.active ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}">${snail}</div>
         </div>
         <div style="position: absolute; left: 50%; top: 5%; transform: translateX(-50%); max-width: 88%; font-size: 0.68rem; font-weight: 700; color: #4a4038; background: rgba(255, 252, 245, 0.88); border: 1px solid rgba(74, 64, 56, 0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           ${idle.cap}
@@ -309,9 +347,9 @@ window.Room = {
     el.innerHTML = `
       ${this.scene()}
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; margin-top: 0.6rem;">
-        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">👒 옷장</button>
-        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">🏅 훈장</button>
-        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.45rem 0.2rem; border-radius: 10px;">${this._shopOpen ? '닫기 ▲' : '🛍 상점'}</button>
+        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">' + (window.Icons ? window.Icons.svg('closet', { size: 15 }) : '') + ' 옷장</button>
+        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.45rem 0.2rem; border-radius: 10px;">' + (window.Icons ? window.Icons.svg('medal', { size: 15 }) : '') + ' 훈장</button>
+        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.74rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.45rem 0.2rem; border-radius: 10px;">${this._shopOpen ? '닫기 ▲' : (window.Icons ? window.Icons.svg('shop', { size: 15 }) : '') + ' 상점'}</button>
       </div>
       <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.6rem;">
         ${this.SLOTS.map(s => {

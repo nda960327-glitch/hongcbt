@@ -16,6 +16,22 @@ window.Weekly = {
     return window.Storage._safeGet('cbt_weekly_letters', []) || [];
   },
 
+  // 다음 주 월요일 0시까지 남은 시간 (주 1회 제한 안내용)
+  nextLetterAt() {
+    const dt = new Date();
+    const day = (dt.getDay() + 6) % 7;
+    dt.setDate(dt.getDate() - day + 7);
+    dt.setHours(0, 0, 0, 0);
+    return dt.getTime();
+  },
+
+  waitText() {
+    const ms = this.nextLetterAt() - Date.now();
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    return d > 0 ? d + '일 ' + h + '시간 뒤' : h + '시간 뒤';
+  },
+
   hasThisWeek() {
     const key = this.weekKey();
     return this.letters().some(l => l.weekKey === key);
@@ -150,10 +166,16 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
   // 하위 호환 별칭
   maybeNudge() { return this.autoDeliver(); },
 
+  // 편지는 한 주에 딱 한 통 — 다시 쓰기 없음 (기다림이 편지의 값어치다)
   async requestLetter() {
+    if (this.hasThisWeek()) {
+      if (window.Sfx) window.Sfx.play('denied');
+      alert(`이번 주 편지는 이미 도착했어요.\n\n우렁이는 한 주에 딱 한 통만 씁니다 — 느리게 쓰는 게 우렁이 방식이라서요.\n다음 편지는 ${this.waitText()} 만나요.`);
+      return;
+    }
     const btn = document.getElementById('weekly-generate');
     if (btn) { btn.disabled = true; btn.textContent = '우렁이가 편지 쓰는 중… ✍️'; }
-    await this.generate(true);
+    await this.generate(false);
     this.renderCard();
   },
 
@@ -242,11 +264,12 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
           <p style="font-size: 0.83rem; color: var(--text-muted); margin: 0.5rem 0 0;">아직 받은 편지가 없어요.<br>일주일을 보내고 나면 우렁이가 편지를 써드려요.</p>
         </div>`}
       <div style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
-        <button id="weekly-generate" class="btn-primary" style="flex: 1.4; font-size: 0.85rem;" onclick="window.Weekly.requestLetter()">
-          ${thisWeek ? '💌 편지 다시 쓰기' : '💌 이번 주 편지 받기'}
+        <button id="weekly-generate" class="btn-primary" style="flex: 1.4; font-size: 0.85rem; ${thisWeek ? 'opacity: 0.5; cursor: default;' : ''}" onclick="window.Weekly.requestLetter()">
+          ${thisWeek ? '✅ 이번 주 편지 도착함' : '💌 이번 주 편지 받기'}
         </button>
         ${latest ? `<button class="btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="window.Weekly.shareCard('${latest.id}')">🖼 카드로 저장</button>` : ''}
       </div>
+      ${thisWeek ? `<p style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; text-align: center;">우렁이는 한 주에 한 통만 써요 · 다음 편지는 ${this.waitText()}</p>` : ''}
       ${list.length > 1 ? `
         <p style="font-size: 0.74rem; color: var(--text-muted); margin: 0.8rem 0 0.4rem; font-weight: 700;">지난 편지들</p>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">${list.slice(1).map(l => letterHtml(l, false)).join('')}</div>` : ''}

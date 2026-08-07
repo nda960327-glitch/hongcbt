@@ -142,6 +142,6 @@ window.Safety = {
 
   renderRow() {
     const btn = document.getElementById('safety-row-btn');
-    if (btn) btn.textContent = this.has() ? '열어보기 🛟' : '만들기 (3분)';
+    if (btn) btn.textContent = this.has() ? '이미 만들어뒀어요 — 눌러서 열어보기' : '힘든 순간 나를 지켜주는 안내서 (3분)';
   }
 };

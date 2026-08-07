@@ -112,7 +112,11 @@
     <!-- Tab Content Sections -->
     <!-- HOME TAB -->
     <section id="tab-home" class="tab-content">
-      <div style="height: 0.9rem;"></div>
+      <!-- 홈 상단 로고 -->
+      <div class="home-logo">
+        <span class="home-logo__mark" data-sticker="joy" data-sticker-size="34"></span>
+        <span class="home-logo__t">우렁의사</span>
+      </div>
 
       <!-- ========== 오늘 ========== -->
       <div class="home-sec">
@@ -398,10 +402,11 @@
 
     <!-- DASHBOARD TAB -->
     <section id="tab-dashboard" class="tab-content">
-      <div class="tab-header">
-        <h2><span class="h-ico" data-icon="dashboard" data-icon-size="24"></span>마음 도구 대시보드</h2>
-        <p class="tab-subtitle">돌볼수록 자라는 나의 마음 정원</p>
+      <div class="home-logo">
+        <span class="home-logo__mark" data-sticker="teacher" data-sticker-size="34"></span>
+        <span class="home-logo__t">마음 도구</span>
       </div>
+      <p class="dash-lede">돌볼수록 자라는 나의 마음 정원</p>
 
       <div class="dashboard-grid">
         <!-- ★ 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
@@ -575,48 +580,29 @@
           </div>
         </div>
 
-        <!-- 사고 기록지 바로가기 -->
-        <div style="grid-column: 1 / -1; border-radius: 18px; overflow: hidden; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)) 0%, var(--bg-secondary) 65%); box-shadow: var(--shadow-sm);">
-          <button onclick="window.App.switchTab('record')" style="all: unset; display: flex; align-items: center; gap: 0.9rem; padding: 0.85rem 1.1rem; width: 100%; box-sizing: border-box; cursor: pointer; transition: transform 0.12s;"
-                  onmousedown="this.style.transform='scale(0.985)'" onmouseup="this.style.transform=''" onmouseleave="this.style.transform=''">
-            <span data-sticker="proud" data-sticker-size="58" style="line-height: 0; flex-shrink: 0;"></span>
-            <span style="flex: 1; min-width: 0;">
-              <strong style="display: block; font-size: 1rem; color: var(--text-primary);">사고 기록지</strong>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">우렁이가 대화에서 정리해둔 마음 기록 보러가기</span>
-            </span>
-            <span style="width: 32px; height: 32px; border-radius: 50%; background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.05rem; flex-shrink: 0; box-shadow: var(--shadow-sm);">›</span>
+        <!-- 기록·분석 메뉴 (마이탭과 같은 리스트 언어) -->
+        <p class="my-sec" style="grid-column: 1 / -1; margin-left: 0; margin-right: 0;">기록과 분석</p>
+        <div class="my-group" style="grid-column: 1 / -1; margin: 0;">
+          <button class="my-row" onclick="window.App.switchTab('record')">
+            <span class="my-row__ico">📝</span>
+            <span class="my-row__txt"><b>사고 기록지</b><span>우렁이가 대화에서 정리해둔 마음 기록</span></span>
+            <span class="my-row__go">›</span>
           </button>
-        </div>
 
-        <!-- AI 상담 요약 리포트 — 진입 버튼 + 바로 요약 (내용은 전체화면 오버레이) -->
-        <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0;">
-          <button onclick="window.Dashboard.openReports()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem 0.6rem; cursor: pointer;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <span class="h-ico" data-icon="sparkle" data-icon-size="22"></span>
-              <div>
-                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">AI 상담 요약 리포트</strong>
-                <span style="font-size: 0.76rem; color: var(--text-muted);">"회사 스트레스에 관한 요약 만들어줘" — 주제별 리포트도 가능</span>
-              </div>
-            </div>
-            <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
+          <button class="my-row" onclick="window.Dashboard.openReports()">
+            <span class="my-row__ico">✨</span>
+            <span class="my-row__txt"><b>AI 상담 요약 리포트</b><span>주제별 요약도 가능 · "회사 스트레스 요약해줘"</span></span>
+            <span class="my-row__go">›</span>
           </button>
-          <div style="padding: 0 1.15rem 0.9rem;">
-            <button class="btn-primary" style="width: 100%; font-size: 0.84rem; padding: 0.6rem;"
+          <div class="my-row__body">
+            <button class="btn-primary" style="width: 100%; font-size: 0.82rem; padding: 0.55rem;"
               onclick="window.Dashboard.openReports(); window.Dashboard.generateDailySummary();">⚡ 최근 대화 바로 요약하기</button>
           </div>
-        </div>
 
-        <!-- AI 진단서 — 진입 버튼 (참고용, 비의학) -->
-        <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0;">
-          <button onclick="window.Assess.open()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem; cursor: pointer;">
-            <div style="display: flex; align-items: center; gap: 0.65rem;">
-              <span style="font-size: 1.3rem; line-height: 1;">🔍</span>
-              <div>
-                <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">AI 마음 리포트 <span style="font-size: 0.66rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 45%, transparent); padding: 0.08rem 0.4rem; border-radius: 999px; vertical-align: 2px;">30,000캐시</span></strong>
-                <span style="font-size: 0.76rem; color: var(--text-muted);">표준 검진(PHQ-9·GAD-7) + 기록 정밀 분석 — 진단이 아닌 참고용</span>
-              </div>
-            </div>
-            <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
+          <button class="my-row" onclick="window.Assess.open()">
+            <span class="my-row__ico">🔍</span>
+            <span class="my-row__txt"><b>AI 마음 리포트 <span class="my-badge">30,000캐시</span></b><span>표준 검진(PHQ-9·GAD-7) + 기록 정밀 분석 · 참고용</span></span>
+            <span class="my-row__go">›</span>
           </button>
         </div>
 
@@ -801,85 +787,71 @@
 
     <!-- MYPAGE TAB -->
     <section id="tab-mypage" class="tab-content">
-      <div class="tab-header">
-        <h2><span class="h-ico" data-icon="user" data-icon-size="24"></span>마이페이지</h2>
-        <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
-      </div>
-      
-      <!-- 구독 관리 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
-        <h3 style="margin: 0 0 0.6rem 0;">🌱 우렁의사 구독</h3>
-        <div id="sub-card-body"></div>
-      </div>
-
-      <!-- 우렁 캐시 지갑 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
-        <h3 style="margin: 0 0 0.6rem 0;">💰 우렁 캐시</h3>
-        <div id="wallet-card-body"></div>
-        <p style="margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--text-muted);">캐시는 상담 예약 결제와 보이스톡(30초당 150캐시)에 사용돼요.</p>
-      </div>
-
-
-
-      <!-- 예약된 상담 내역 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h3 style="margin: 0;">나의 상담 내역</h3>
-          <button id="btn-booking-history" class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="document.getElementById('booking-history-full').classList.toggle('hidden'); this.textContent = document.getElementById('booking-history-full').classList.contains('hidden') ? '전체 내역 보기' : '접기';">전체 내역 보기</button>
+      <!-- 프로필 헤더 — 우렁이 아바타 + 이름 + 레벨/스트릭 -->
+      <div class="my-hero">
+        <span class="my-hero__ava" data-sticker="proud" data-sticker-size="62"></span>
+        <div class="my-hero__txt">
+          <strong id="my-name">나</strong>
+          <span id="my-sub">우렁이와 함께한 기록</span>
         </div>
-        <!-- 예정된 상담 (실데이터) -->
-        <div id="my-bookings" style="display: flex; flex-direction: column; gap: 0.7rem;"></div>
-        <!-- 지난 상담 (실데이터, 전체 내역 보기로 토글) -->
-        <div id="booking-history-full" class="hidden" style="margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem;"></div>
-        <!-- 상담사 등록 신청 현황 -->
-        <div id="my-counselor-apps" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정">✎</button>
       </div>
 
-      <!-- 나의 안전 계획 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, #cf6b60 25%, transparent);">
-        <div style="display: flex; align-items: center; gap: 0.8rem;">
-          <span data-sticker="hero" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
-          <div style="flex: 1; min-width: 0;">
-            <h3 style="margin: 0;">🛟 나의 안전 계획</h3>
-            <p style="margin: 0.25rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">괜찮은 지금 미리 적어두면, 마음이 무너지는 순간 나를 지켜주는 안내서가 돼요.</p>
-          </div>
-          <button id="safety-row-btn" class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="window.Safety && window.Safety.open()">만들기 (3분)</button>
+      <!-- 재화 2분할 -->
+      <div class="my-money">
+        <div class="my-money__card">
+          <p class="my-money__t">🌱 구독</p>
+          <div id="sub-card-body"></div>
+        </div>
+        <div class="my-money__card">
+          <p class="my-money__t">💰 우렁 캐시</p>
+          <div id="wallet-card-body"></div>
+          <p class="my-money__note">예약 결제·보이스톡(30초 150캐시)에 사용돼요.</p>
         </div>
       </div>
 
-      <!-- 우렁이와의 비밀 (프라이버시 안심) -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 22%, transparent);">
-        <div style="display: flex; align-items: center; gap: 0.7rem;">
-          <span data-sticker="empathy" data-sticker-size="50" style="flex-shrink: 0; line-height: 0;"></span>
-          <div>
-            <h3 style="margin: 0;">🔒 우렁이와의 비밀</h3>
-            <p style="margin: 0.3rem 0 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 그 누구에게도 공유되지 않아요. 답변을 만드는 순간에만 안전하게 처리될 뿐, 흔적은 남지 않습니다. 당신과 우렁이, 둘만의 비밀이에요.</p>
-          </div>
+      <!-- 상담 내역 -->
+      <p class="my-sec">상담</p>
+      <div class="my-group">
+        <div class="my-row my-row--static">
+          <span class="my-row__ico">📅</span>
+          <span class="my-row__txt"><b>나의 상담 내역</b><span>예약·지난 상담을 확인해요</span></span>
+          <button id="btn-booking-history" class="my-row__btn" onclick="const f=document.getElementById('booking-history-full'); f.classList.toggle('hidden'); this.textContent = f.classList.contains('hidden') ? '전체 보기' : '접기';">전체 보기</button>
+        </div>
+        <div class="my-row__body">
+          <div id="my-bookings" style="display: flex; flex-direction: column; gap: 0.7rem;"></div>
+          <div id="booking-history-full" class="hidden" style="margin-top: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem;"></div>
+          <div id="my-counselor-apps" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
         </div>
       </div>
 
-      <!-- 상담사 입점 안내 (홈에서 이동 — 공급자용 기능이라 마이페이지가 맞다) -->
-      <div class="glass-card" style="margin: 1rem; padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
-        <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
-        <div style="flex: 1; min-width: 0;">
-          <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
-          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
-        </div>
-        <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
-      </div>
-
-      <!-- 설정 진입 (마이탭 길이 축소 — 상세 설정은 전체화면 오버레이로) -->
-      <div class="glass-card" style="margin: 1rem; padding: 0;">
-        <button onclick="window.App.openSettings()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 1rem 1.15rem; cursor: pointer;">
-          <div style="display: flex; align-items: center; gap: 0.65rem;">
-            <span class="h-ico" data-icon="settings" data-icon-size="22"></span>
-            <div>
-              <strong style="font-size: 0.95rem; color: var(--text-primary); display: block;">설정</strong>
-              <span style="font-size: 0.76rem; color: var(--text-muted);">테마 · 글자 크기 · 알림 · 앱 잠금 · 백업 · 초기화</span>
-            </div>
-          </div>
-          <span style="color: var(--text-muted); font-size: 1.15rem; font-weight: 700;">›</span>
+      <!-- 나의 마음 -->
+      <p class="my-sec">나의 마음</p>
+      <div class="my-group">
+        <button class="my-row" onclick="window.Safety && window.Safety.open()">
+          <span class="my-row__ico">🛟</span>
+          <span class="my-row__txt"><b>나의 안전 계획</b><span id="safety-row-btn">힘든 순간 나를 지켜주는 안내서 (3분)</span></span>
+          <span class="my-row__go">›</span>
         </button>
+        <button class="my-row" onclick="window.App.switchTab('dashboard')">
+          <span class="my-row__ico">📊</span>
+          <span class="my-row__txt"><b>마음 도구 대시보드</b><span>농장·일기장·리포트 보러가기</span></span>
+          <span class="my-row__go">›</span>
+        </button>
+      </div>
+
+      <!-- 앱 -->
+      <p class="my-sec">앱</p>
+      <div class="my-group">
+        <button class="my-row" onclick="window.App.openSettings()">
+          <span class="my-row__ico">⚙️</span>
+          <span class="my-row__txt"><b>설정</b><span>프로필 · 테마 · 알림 · 앱 잠금 · 백업</span></span>
+          <span class="my-row__go">›</span>
+        </button>
+        <div class="my-row my-row--static my-row--privacy">
+          <span class="my-row__ico">🔒</span>
+          <span class="my-row__txt"><b>우렁이와의 비밀</b><span>여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 누구에게도 공유되지 않아요.</span></span>
+        </div>
       </div>
 
       <!-- 설정 전체화면 오버레이 -->
@@ -915,6 +887,16 @@
           </div>
           <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">💾 프로필 저장</button>
         </div>
+      </div>
+
+      <!-- 상담사 입점 안내 (마이탭에서 설정으로 이동 — 공급자용 기능) -->
+      <div class="glass-card" style="margin: 1rem; padding: 1rem; display: flex; align-items: center; gap: 0.8rem;">
+        <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
+        <div style="flex: 1; min-width: 0;">
+          <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
+        </div>
+        <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
       </div>
 
       <!-- 우렁이의 기억 (백업/복원) -->

@@ -1651,3 +1651,101 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 #game-stage { padding-top: 0.7rem; }
 #game-nav { margin-top: 0.7rem; }
 #game-sheet .home-mood__btn { padding: 0.3rem 0 0.25rem; }
+
+/* ============================================================
+   마이탭 리디자인 — 프로필 헤더 + 재화 카드 + 메뉴 리스트
+   ============================================================ */
+.my-hero {
+  display: flex; align-items: center; gap: 0.85rem;
+  margin: 1rem 1.25rem 0.9rem; padding: 1rem 1.1rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)), var(--bg-secondary));
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+.my-hero__ava { line-height: 0; flex-shrink: 0; }
+.my-hero__txt { flex: 1 1 0%; min-width: 0; }
+.my-hero__txt strong { display: block; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading); }
+.my-hero__txt span { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; }
+.my-hero__edit {
+  all: unset; flex-shrink: 0; cursor: pointer;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; color: var(--text-muted);
+  background: var(--bg-tertiary); border: 1px solid var(--glass-border);
+}
+
+.my-money { display: grid; grid-template-columns: 1fr; gap: 0.6rem; margin: 0 1.25rem 0.4rem; }
+@media (min-width: 520px) { .my-money { grid-template-columns: 1fr 1fr; } }
+.my-money__card {
+  background: var(--bg-secondary); border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg); padding: 0.9rem 1rem; box-shadow: var(--shadow-sm);
+}
+.my-money__t { margin: 0 0 0.55rem; font-size: 0.85rem; font-weight: 800; color: var(--text-primary); }
+.my-money__note { margin: 0.55rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5; }
+
+.my-sec { margin: 1.3rem 1.25rem 0.45rem; font-size: 0.72rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.04em; }
+.my-group {
+  margin: 0 1.25rem; background: var(--bg-secondary);
+  border: 1px solid var(--glass-border); border-radius: var(--radius-lg);
+  overflow: hidden; box-shadow: var(--shadow-sm);
+}
+.my-row {
+  all: unset; box-sizing: border-box; cursor: pointer;
+  display: flex; align-items: center; gap: 0.75rem;
+  width: 100%; padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--glass-border);
+  transition: background var(--transition-fast);
+}
+.my-group > *:last-child { border-bottom: 0; }
+.my-row:active { background: var(--bg-tertiary); }
+.my-row--static { cursor: default; }
+.my-row__ico { flex-shrink: 0; font-size: 1.15rem; line-height: 1; width: 26px; text-align: center; }
+.my-row__txt { flex: 1 1 0%; min-width: 0; }
+.my-row__txt b { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.my-row__txt > span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.5; }
+.my-row__txt > span b { display: inline; font-size: inherit; color: var(--text-secondary); }
+.my-row__go { flex-shrink: 0; color: var(--text-muted); font-size: 1.1rem; font-weight: 700; }
+.my-row__btn {
+  all: unset; flex-shrink: 0; cursor: pointer;
+  font-size: 0.72rem; font-weight: 700; color: var(--accent-primary);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  padding: 0.25rem 0.6rem; border-radius: 999px;
+}
+.my-row__body { padding: 0 1rem 0.9rem; }
+.my-row__body:empty { display: none; }
+.my-row--privacy .my-row__txt > span { color: var(--text-secondary); }
+
+/* 홈 상단 로고 */
+.home-logo { display: flex; align-items: center; gap: 0.45rem; margin: 0.9rem 1.25rem 0.2rem; }
+.home-logo__mark { line-height: 0; flex-shrink: 0; }
+.home-logo__t { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading); letter-spacing: -0.02em; }
+
+/* 대시보드 톤 통일 */
+.dash-lede { margin: 0 1.25rem 0.9rem; font-size: 0.78rem; color: var(--text-muted); }
+.my-badge {
+  display: inline-block; font-size: 0.62rem; font-weight: 800; color: #c9a227;
+  border: 1px solid color-mix(in srgb, #c9a227 45%, transparent);
+  padding: 0.05rem 0.38rem; border-radius: 999px; vertical-align: 1px; margin-left: 0.2rem;
+}
+.dashboard-grid { padding: 0 1.25rem 1rem; }
+.dashboard-grid > .dash-card { border-radius: var(--radius-lg); }
+#tab-dashboard .my-group { box-shadow: var(--shadow-sm); }
+
+/* 우렁이 배회 — 활발한 포즈일 때만 방 안을 오간다 */
+.wr-wander { will-change: transform; }
+@keyframes wr-stroll {
+  0%   { transform: translateX(0) scaleX(1); }
+  44%  { transform: translateX(var(--wr-far, 60px)) scaleX(1); }
+  50%  { transform: translateX(var(--wr-far, 60px)) scaleX(-1); }
+  94%  { transform: translateX(0) scaleX(-1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+@keyframes wr-bob { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-3px) } }
+@media (prefers-reduced-motion: reduce) { .wr-wander { animation: none !important; } }
+
+/* 게임 아이콘 정렬 — 라인 아이콘을 텍스트와 같은 줄에 맞춘다 */
+#tab-dashboard button svg { vertical-align: -3px; }
+.game-nav-emoji { line-height: 0; filter: none; opacity: 0.55; color: var(--text-muted); }
+#game-nav button.active .game-nav-emoji { opacity: 1; color: var(--accent-primary); }
+#game-hud svg, #room-body svg.wr-ico { vertical-align: -2px; }

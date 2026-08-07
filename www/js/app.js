@@ -412,6 +412,7 @@ window.App = {
       this._setNavBadge('mypage', false); // 답장·예약 변경 확인함
       if (window.Wallet) window.Wallet.renderCard();
       if (window.Subscription) window.Subscription.renderCard();
+      this.renderMyHero();
       this.renderMyBookings();
       this.renderCounselorApps();
     }
@@ -994,6 +995,21 @@ window.App = {
   // 알림 종류별 on/off (설정 > 알림 받기)
   _notifOn(key) {
     return window.Storage._safeGet('cbt_notif_' + key, true) !== false;
+  },
+
+  // 마이탭 프로필 헤더 — 이름·레벨·스트릭
+  renderMyHero() {
+    const nameEl = document.getElementById('my-name');
+    const subEl = document.getElementById('my-sub');
+    if (!nameEl || !subEl) return;
+    const name = window.Storage._safeGet('cbt_user_name', '') || '';
+    nameEl.textContent = name ? name + ' 님' : '이름을 알려주세요';
+    const lv = window.Growth ? window.Growth.level() : 1;
+    const streak = (window.Storage.getStreak && window.Storage.getStreak()) || 0;
+    const info = window.Growth ? window.Growth.levelInfo(lv) : null;
+    subEl.innerHTML = 'Lv.' + lv + (info ? ' ' + info.name : '') + (streak >= 2 ? ' · 🔥 ' + streak + '일 연속' : '');
+    const ava = document.querySelector('.my-hero__ava');
+    if (ava && window.Stickers && info) ava.innerHTML = window.Stickers.svg(info.sticker, 62);
   },
 
   // 서재 책장 — 한 번에 한 칸만 펼친다

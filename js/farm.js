@@ -325,12 +325,32 @@ window.Farm = {
       + '<defs><linearGradient id="' + uid + '-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + SKY[0] + '"/><stop offset="1" stop-color="' + SKY[1] + '"/></linearGradient></defs>'
       + '<rect width="320" height="132" fill="url(#' + uid + '-sky)"/>'
       + skyArt
-      + '<path d="M0 120 q60 -14 120 -4 q100 14 200 -6 V132 H0z" fill="#A8C79A" opacity="0.7"/>'
+      + '<path d="M0 118 q46 -16 92 -6 q54 12 108 -4 q60 -16 120 -2 V132 H0z" fill="#93B98A"/>'
+      + '<path d="M0 124 q60 -12 120 -3 q100 12 200 -5 V132 H0z" fill="#A8C79A"/>'
+      // 먼 나무 몇 그루
+      + '<g opacity="0.55">'
+        + '<path d="M36 118 v-9M36 109 l-7 9h14z" stroke="#6E9268" stroke-width="2.4" fill="#6E9268"/>'
+        + '<path d="M282 116 v-11M282 105 l-8 11h16z" stroke="#6E9268" stroke-width="2.4" fill="#6E9268"/>'
+        + '<path d="M212 119 v-7M212 112 l-6 7h12z" stroke="#7CA275" stroke-width="2.2" fill="#7CA275"/>'
+      + '</g>'
       + '<rect y="128" width="320" height="82" fill="#B08B63"/>'
+      // 흙 결 + 자잘한 돌
+      + '<g opacity="0.22" stroke="#7A5B3C" stroke-width="1.1">'
+        + '<path d="M0 146 H320M0 168 H320M0 190 H320"/>'
+      + '</g>'
+      + '<g opacity="0.3" fill="#8C6A47">'
+        + '<circle cx="52" cy="160" r="2"/><circle cx="148" cy="196" r="1.6"/><circle cx="238" cy="172" r="2.2"/><circle cx="296" cy="144" r="1.5"/>'
+      + '</g>'
       + '<path d="M0 132 H320" stroke="#9C7550" stroke-width="3"/>'
+      + '<path d="M0 135 H320" stroke="#000" stroke-opacity="0.08" stroke-width="2"/>'
       + mounds
       + '</svg>'
-      + '<div style="position: absolute; right: 4%; bottom: 6%; width: 27%; line-height: 0;">' + snail + '</div>'
+      // 비 오는 날은 제자리에서 비를 긋고, 그 외에는 밭을 오간다
+      + '<div style="position: absolute; right: 4%; bottom: 6%; width: 27%; line-height: 0;">'
+        + (w === 'rain'
+            ? snail
+            : '<div class="wr-wander" style="--wr-far: -' + (40 + Math.floor(Math.random() * 60)) + 'px; animation: wr-stroll ' + (8 + Math.random() * 5).toFixed(1) + 's ease-in-out infinite;">' + snail + '</div>')
+      + '</div>'
       + '<div style="position: absolute; left: 50%; top: 4%; transform: translateX(-50%); max-width: 92%; font-size: 0.66rem; font-weight: 700; color: #3d4650; background: rgba(255,255,255,0.85); border: 1px solid rgba(61,70,80,0.15); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + CAP + '</div>'
       + '</div>';
   },
