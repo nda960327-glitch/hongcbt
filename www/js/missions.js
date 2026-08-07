@@ -33,7 +33,38 @@ window.Missions = {
     { id: 'grateful3', emoji: '✨', text: '오늘 감사한 것 3가지를 마음속으로 떠올려보기', cat: '마음' },
     { id: 'phonefree', emoji: '📵', text: '10분만 휴대폰 내려놓고 멍때리기', cat: '마음' },
     { id: 'praise',    emoji: '🏅', text: '오늘 내가 해낸 일 하나를 인정해주기 (작아도 OK)', cat: '마음' },
-    { id: 'slowmeal',  emoji: '🍚', text: '한 끼만 천천히, 맛을 느끼면서 먹어보기', cat: '마음' }
+    { id: 'slowmeal',  emoji: '🍚', text: '한 끼만 천천히, 맛을 느끼면서 먹어보기', cat: '마음' },
+    // 확장 — 움직임
+    { id: 'tiptoe',    emoji: '🦶', text: '발끝 들기 10번. 종아리가 깨어나요', cat: '움직임' },
+    { id: 'doorstep',  emoji: '🚪', text: '현관문 밖에 나가 1분만 서 있다 오기', cat: '움직임' },
+    { id: 'shakeout',  emoji: '🤲', text: '손목·발목 30초씩 털어서 긴장 흘려보내기', cat: '움직임' },
+    { id: 'newroad',   emoji: '🗺️', text: '평소 안 가던 길로 딱 한 블록 걸어보기', cat: '움직임' },
+    { id: 'neckroll',  emoji: '🙂', text: '목을 천천히 크게 3바퀴 돌려주기', cat: '움직임' },
+    // 확장 — 즐거움
+    { id: 'oldpic',    emoji: '🖼️', text: '사진첩에서 좋았던 순간 하나 1분 구경하기', cat: '즐거움' },
+    { id: 'funny',     emoji: '😂', text: '웃긴 영상 하나 보고 소리 내서 웃어보기', cat: '즐거움' },
+    { id: 'doodle',    emoji: '🖍️', text: '아무 종이에 1분 낙서하기. 잘 그릴 필요 없어', cat: '즐거움' },
+    { id: 'scent',     emoji: '🌸', text: '좋아하는 향(커피, 비누, 향수) 한 번 깊게 맡기', cat: '즐거움' },
+    { id: 'skywatch',  emoji: '🌇', text: '노을이나 밤하늘을 잠깐 올려다보기', cat: '즐거움' },
+    { id: 'hum',       emoji: '🎶', text: '아는 노래 한 소절 흥얼거려보기', cat: '즐거움' },
+    // 확장 — 연결
+    { id: 'family',    emoji: '🏠', text: '가족(또는 가까운 사람)에게 오늘 있었던 일 하나 말해보기', cat: '연결' },
+    { id: 'petpat',    emoji: '🐾', text: '반려동물이나 인형을 1분 쓰다듬어주기', cat: '연결' },
+    { id: 'oldfriend', emoji: '👋', text: '연락 뜸했던 친구에게 이모티콘 하나라도 보내보기', cat: '연결' },
+    { id: 'kindact',   emoji: '🤝', text: '작은 친절 하나 베풀기 (문 잡아주기도 충분해)', cat: '연결' },
+    { id: 'hugself',   emoji: '🫂', text: '팔을 교차해 나를 10초 안아주기 (나비 포옹)', cat: '연결' },
+    // 확장 — 돌봄
+    { id: 'nails',     emoji: '💅', text: '손톱 정리하기. 나를 돌보는 작은 의식', cat: '돌봄' },
+    { id: 'socks',     emoji: '🧦', text: '포근한 양말 신고 발을 따뜻하게 해주기', cat: '돌봄' },
+    { id: 'trash3',    emoji: '🗑️', text: '눈에 보이는 쓰레기 딱 3개만 버리기', cat: '돌봄' },
+    { id: 'lotion',    emoji: '🧴', text: '핸드크림 바르면서 손 꾹꾹 마사지하기', cat: '돌봄' },
+    { id: 'airout',    emoji: '🪟', text: '창문 활짝 열고 방 공기 1분 갈아주기', cat: '돌봄' },
+    // 확장 — 마음
+    { id: 'sound3',    emoji: '👂', text: '지금 들리는 소리 3가지 찾아보기 (지금 여기로)', cat: '마음' },
+    { id: 'shoulder',  emoji: '💆', text: '어깨에 들어간 힘, 후— 하고 한 번에 빼보기', cat: '마음' },
+    { id: 'futureme',  emoji: '💌', text: '내일의 나에게 응원 한 줄 남겨보기 (메모장 OK)', cat: '마음' },
+    { id: 'nofeed',    emoji: '🔕', text: '뉴스·SNS 피드를 30분만 멀리하기', cat: '마음' },
+    { id: 'onething',  emoji: '🎯', text: '미뤄둔 일 중 제일 작은 것 하나만 5분 해보기', cat: '마음' }
   ],
 
   _today() {
@@ -169,14 +200,17 @@ window.Missions = {
     if (window.Growth) window.Growth.checkAwards();
   },
 
-  // 하루 1회, 완료 전에만 다른 미션으로 교체 (맞춤 미션도 해제)
+  // 완료 전엔 몇 번이든 다른 미션으로 교체 — 그날 이미 본 미션은 다시 안 나온다
   reroll() {
     const s = this.state();
-    if (!s || s.done || s.rerolled) return;
-    const pool = this.POOL.filter(m => m.id !== s.id);
+    if (!s || s.done) return;
+    s.seen = Array.isArray(s.seen) ? s.seen : [s.id];
+    let pool = this.POOL.filter(m => !s.seen.includes(m.id));
+    if (!pool.length) { s.seen = [s.id]; pool = this.POOL.filter(m => m.id !== s.id); } // 다 봤으면 한 바퀴 리셋
     const pick = pool[Math.floor(Math.random() * pool.length)];
     s.id = pick.id;
-    s.rerolled = true;
+    s.seen.push(pick.id);
+    s.rerolled = true; // AI 맞춤 미션이 뒤늦게 덮어쓰지 않게 하는 플래그
     delete s.custom;
     window.Storage._safeSet('cbt_daily_mission', s);
     this.renderCard();
@@ -208,7 +242,7 @@ window.Missions = {
         </div>
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.6rem;" onclick="window.Missions.complete()">했어요! ✅</button>
-          ${m.rerolled ? '' : `<button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="오늘 한 번만 바꿀 수 있어요">🔄 다른 거</button>`}
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="마음에 드는 미션이 나올 때까지 바꿔보세요">🔄 다른 거</button>
         </div>`;
     }
   }
