@@ -141,24 +141,29 @@ window.App = {
     if (phoneInput && window.Storage) phoneInput.value = window.Storage._safeGet('cbt_user_phone', '');
     if (genderSelect && window.Storage) genderSelect.value = window.Storage._safeGet('cbt_user_gender', 'none');
 
+    // 전화번호: 숫자만 입력해도 010-1234-5678 형태로 자동 하이픈
+    if (phoneInput) {
+      phoneInput.addEventListener('input', () => {
+        const d = phoneInput.value.replace(/\D/g, '').slice(0, 11);
+        phoneInput.value = d.length > 7 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
+          : d.length > 3 ? `${d.slice(0, 3)}-${d.slice(3)}` : d;
+      });
+    }
+
     if (profileSaveBtn) {
       profileSaveBtn.addEventListener('click', () => {
         const nameVal = nameInput ? nameInput.value.trim() : '';
         const phoneVal = phoneInput ? phoneInput.value.trim() : '';
         const genderVal = genderSelect ? genderSelect.value : 'none';
-
-        if (window.Storage) {
-          window.Storage._safeSet('cbt_user_name', nameVal);
-          window.Storage._safeSet('cbt_user_phone', phoneVal);
-          window.Storage._safeSet('cbt_user_gender', genderVal);
+        if (phoneVal && phoneVal.replace(/\D/g, '').length < 10) {
+          this.showRecordToast('전화번호를 다시 확인해주세요 (10~11자리)');
+          return;
         }
-
-        const msg = nameVal ? `프로필 정보(이름: ${nameVal})가 성공적으로 저장되었어요!` : '프로필 정보가 저장되었어요!';
-        if (typeof this.showToast === 'function') {
-          this.showToast('✅ ' + msg);
-        } else {
-          alert('✅ ' + msg);
-        }
+        window.Storage._safeSet('cbt_user_name', nameVal);
+        window.Storage._safeSet('cbt_user_phone', phoneVal);
+        window.Storage._safeSet('cbt_user_gender', genderVal);
+        this.showRecordToast(nameVal ? `✅ 프로필 저장! ${nameVal}님이라고 부를게요` : '✅ 프로필이 저장되었어요');
+        this.renderHomeGreeting();
       });
     }
 
@@ -245,6 +250,10 @@ window.App = {
     if (window.Safety) window.Safety.renderRow();
     const soundCb = document.getElementById('setting-sound');
     if (soundCb) soundCb.checked = window.Storage._safeGet('cbt_sound_on', true) !== false;
+    ['chat', 'booking', 'letter'].forEach(k => {
+      const cb = document.getElementById('notif-' + k);
+      if (cb) cb.checked = this._notifOn(k);
+    });
     if (window.Weekly) window.Weekly.autoDeliver();
     this._maybeBackupNudge();
     // 기존 사용자(이미 상담사 선택함)는 온보딩을 건너뛴 것으로 처리
@@ -721,6 +730,17 @@ window.App = {
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
     if (name) name.textContent = p.name;
     if (tagline) tagline.textContent = p.tagline;
+    // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 MBCT)
+    const progBtn = document.getElementById('btn-program');
+    if (progBtn) {
+      const prog = window.Personas.programOf(p.id);
+      if (prog) {
+        progBtn.style.display = 'inline-flex';
+        progBtn.textContent = `${prog.emoji} ${prog.name}`;
+      } else {
+        progBtn.style.display = 'none';
+      }
+    }
   },
 
   updateLastActiveTime() {
@@ -916,6 +936,11 @@ window.App = {
     document.body.appendChild(el);
     requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translate(-50%,-50%) scale(1)'; });
     setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-50%) scale(0.7)'; setTimeout(() => el.remove(), 300); }, ms);
+  },
+
+  // 알림 종류별 on/off (설정 > 알림 받기)
+  _notifOn(key) {
+    return window.Storage._safeGet('cbt_notif_' + key, true) !== false;
   },
 
   // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
@@ -1419,8 +1444,7 @@ ${memory || '(없음)'}`;
         if (rv.reply && (!seen[rv.bookingId] || seen[rv.bookingId].ts !== rv.reply.ts)) {
           seen[rv.bookingId] = { text: rv.reply.text, ts: rv.reply.ts, counselor: rv.counselorName };
           changed = true;
-          this.notify(`💌 ${rv.counselorName}님의 답글`, rv.reply.text);
-          this.playWoorung();
+          if (this._notifOn('chat')) { this.notify(`💌 ${rv.counselorName}님의 답글`, rv.reply.text); this.playWoorung(); }
           this.showRecordToast(`💌 ${rv.counselorName}님이 리뷰에 답글을 남겼어요`);
           this._setNavBadge('mypage', true);
         }
@@ -1511,8 +1535,7 @@ ${memory || '(없음)'}`;
         window.Storage._safeSet(key, cur.slice(-200));
         const c = window.Marketplace ? window.Marketplace.getCounselor(cid) : null;
         const name = (c && c.name) || fresh[0].counselorName || '상담사';
-        this.notify(`💬 ${name}님의 답장`, fresh[fresh.length - 1].text);
-        this.playWoorung();
+        if (this._notifOn('chat')) { this.notify(`💬 ${name}님의 답장`, fresh[fresh.length - 1].text); this.playWoorung(); }
         this.showRecordToast(`💬 ${name}님이 답장했어요 (마이페이지 › 채팅)`);
         this._setNavBadge('mypage', true);
       }
@@ -1539,8 +1562,7 @@ ${memory || '(없음)'}`;
           b.refunded = b.price;
           changed = true;
           if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 예약 취소(상담사 사정) 전액 환불`);
-          this.notify('예약 취소 안내', `${b.name}님 사정으로 [${b.time}] 예약이 취소되어 전액 환불되었어요.`);
-          this.playWoorung();
+          if (this._notifOn('booking')) { this.notify('예약 취소 안내', `${b.name}님 사정으로 [${b.time}] 예약이 취소되어 전액 환불되었어요.`); this.playWoorung(); }
           this.showRecordToast(`😥 ${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
         }
       });
@@ -1576,8 +1598,7 @@ ${memory || '(없음)'}`;
       if (diff > 0 && diff <= 30 * 60000) {
         reminded.push(b.id);
         window.Storage._safeSet('cbt_booking_reminded', reminded.slice(-50));
-        this.notify('상담 예약 알림 ⏰', `${b.name}님과의 상담이 30분 뒤에 시작돼요.`);
-        this.playWoorung();
+        if (this._notifOn('booking')) { this.notify('상담 예약 알림 ⏰', `${b.name}님과의 상담이 30분 뒤에 시작돼요.`); this.playWoorung(); }
         this.showRecordToast(`⏰ ${b.name}님과의 상담이 30분 뒤 시작돼요`);
       }
     });

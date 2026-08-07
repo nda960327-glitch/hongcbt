@@ -36,11 +36,99 @@
     this.renderMoodChart();
     this.renderTodayMoodChart();
     this.renderMoodCalendar();
+    this.renderMonthlyReport();
     this.renderMyReports();
     this.renderChatInsights();
     this.renderCareFootprint();
     if (window.Weekly) window.Weekly.renderCard();
     if (window.Growth) window.Growth.renderNightList();
+  },
+
+  // ==========================================================================
+  //  월간 리포트 — 한 달을 숫자와 감정으로 돌아보고, 지난달과 비교한다
+  // ==========================================================================
+  _mrOffset: 0,
+
+  shiftMonthly(d) {
+    this._mrOffset = Math.min(0, this._mrOffset + d);
+    this.renderMonthlyReport();
+  },
+
+  _monthStats(offset) {
+    const base = new Date();
+    base.setDate(1);
+    base.setMonth(base.getMonth() + offset);
+    const y = base.getFullYear(), m = base.getMonth();
+    const inMonth = ts => { const d = new Date(ts); return d.getFullYear() === y && d.getMonth() === m; };
+    const S = window.Storage;
+    const moods = (S._safeGet('cbt_mood_log', []) || []).filter(x => inMonth(x.ts));
+    const emoCnt = {};
+    moods.forEach(x => { if (x.emo) emoCnt[x.emo] = (emoCnt[x.emo] || 0) + 1; });
+    return {
+      y, m,
+      label: `${y}년 ${m + 1}월`,
+      checkins: moods.length,
+      avg: moods.length ? moods.reduce((s, x) => s + (x.v || 3), 0) / moods.length : null,
+      topEmos: Object.entries(emoCnt).sort((a, b) => b[1] - a[1]).slice(0, 3),
+      nights: (S._safeGet('cbt_night_journal', []) || []).filter(x => inMonth(x.ts)).length,
+      missions: ((S._safeGet('cbt_mission_log', []) || []).filter(x => x.done && inMonth(x.ts))).length,
+      records: (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && inMonth(new Date(r.date).getTime())).length,
+      activeDays: (S._safeGet('cbt_active_days', []) || []).filter(d => { const t = new Date(d + 'T00:00:00'); return t.getFullYear() === y && t.getMonth() === m; }).length
+    };
+  },
+
+  renderMonthlyReport() {
+    const el = document.getElementById('monthly-report');
+    if (!el) return;
+    const cur = this._monthStats(this._mrOffset);
+    const prev = this._monthStats(this._mrOffset - 1);
+    const MOOD_EMOJI = { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢', '뿌듯': '😊', '분노': '😠', '외로움': '🥲', '좌절': '😞' };
+
+    const diff = (a, b) => {
+      if (b === 0 && a === 0) return '';
+      const d = a - b;
+      if (d > 0) return `<span style="color: var(--accent-primary); font-size: 0.62rem; font-weight: 800;">▲${d}</span>`;
+      if (d < 0) return `<span style="color: var(--text-muted); font-size: 0.62rem;">▼${-d}</span>`;
+      return '<span style="color: var(--text-muted); font-size: 0.62rem;">—</span>';
+    };
+    const tile = (emoji, label, v, cmp) => `
+      <div style="flex: 1; min-width: 74px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.6rem 0.4rem; text-align: center;">
+        <div style="font-size: 1.05rem;">${emoji}</div>
+        <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">${v} ${cmp}</div>
+        <div style="font-size: 0.64rem; color: var(--text-muted);">${label}</div>
+      </div>`;
+
+    let moodLine;
+    if (cur.avg == null) moodLine = '이 달엔 기분 기록이 없어요.';
+    else if (prev.avg == null) moodLine = `평균 기분 <b>${cur.avg.toFixed(1)}</b>/5로 한 달을 보냈어요.`;
+    else {
+      const d = cur.avg - prev.avg;
+      moodLine = d >= 0.3 ? `지난달보다 마음이 <b style="color: var(--accent-primary);">한결 가벼워졌어요</b> (${prev.avg.toFixed(1)} → ${cur.avg.toFixed(1)})`
+        : d <= -0.3 ? `지난달보다 조금 무거운 달이었어요 (${prev.avg.toFixed(1)} → ${cur.avg.toFixed(1)}) — 그래도 ${cur.checkins}번이나 마음을 들여다봤어요`
+        : `지난달과 비슷한 흐름이에요 (평균 ${cur.avg.toFixed(1)}/5)`;
+    }
+
+    el.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+        <h3 style="margin: 0;">📈 월간 리포트</h3>
+        <div style="display: flex; align-items: center; gap: 0.4rem;">
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="window.Dashboard.shiftMonthly(-1)">‹</button>
+          <strong style="font-size: 0.88rem; color: var(--text-primary); min-width: 88px; text-align: center;">${cur.label}</strong>
+          <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem; ${this._mrOffset >= 0 ? 'opacity: 0.35; pointer-events: none;' : ''}" onclick="window.Dashboard.shiftMonthly(1)">›</button>
+        </div>
+      </div>
+      <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 0.7rem; line-height: 1.55;">${moodLine}<br><span style="font-size: 0.74rem; color: var(--text-muted);">이 달에 나를 돌본 날: <b>${cur.activeDays}일</b> (지난달 ${prev.activeDays}일)</span></p>
+      <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+        ${tile('🫶', '체크인', cur.checkins, diff(cur.checkins, prev.checkins))}
+        ${tile('🌙', '하루 정리', cur.nights, diff(cur.nights, prev.nights))}
+        ${tile('🎯', '미션', cur.missions, diff(cur.missions, prev.missions))}
+        ${tile('📝', '사고 기록', cur.records, diff(cur.records, prev.records))}
+      </div>
+      ${cur.topEmos.length ? `
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.7rem; align-items: center;">
+          <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 700;">자주 만난 감정:</span>
+          ${cur.topEmos.map(([e, c]) => `<span style="font-size: 0.74rem; font-weight: 700; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.18rem 0.6rem;">${MOOD_EMOJI[e] || ''} ${e} ${c}회</span>`).join('')}
+        </div>` : ''}`;
   },
 
   // ==========================================================================

@@ -125,8 +125,10 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     await this.generate();
     this.renderCard();
     if (window.App) {
-      if (window.App.notify) window.App.notify('💌 우렁이의 주간 편지', '이번 주를 돌아본 편지가 도착했어요');
-      if (window.App.playWoorung) window.App.playWoorung();
+      if (window.App._notifOn && window.App._notifOn('letter')) {
+        if (window.App.notify) window.App.notify('💌 우렁이의 주간 편지', '이번 주를 돌아본 편지가 도착했어요');
+        if (window.App.playWoorung) window.App.playWoorung();
+      }
       if (window.App.showRecordToast) window.App.showRecordToast('💌 주간 편지가 도착했어요 (대시보드)');
       if (window.App._setNavBadge) window.App._setNavBadge('dashboard', true);
     }

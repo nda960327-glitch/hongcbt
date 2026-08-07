@@ -178,11 +178,11 @@ window.Admin = {
           <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">💼 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
             <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
-            상담사 55% · 병원 35% · 플랫폼 10% — PG 수수료(~3%)는 플랫폼 부담 → <b style="color: var(--accent-primary);">플랫폼 실수익 7%</b><br>
+            플랫폼 <b style="color: var(--accent-primary);">7%</b> · PG 수수료 3~4%(실비) · 병원 10% · <b style="color: var(--text-primary);">상담사 나머지 약 80%</b><br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
-              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산은 구글 순액(85%) 기준 55/35/10 → 상담사 몫이 예약 상담 대비 분당 약 +6%
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 80 · 병원 10 · 플랫폼 7 · PG 실비)
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
@@ -259,7 +259,7 @@ window.Admin = {
       const now = Date.now();
       const done = (d.items || []).filter(b => b.status !== 'cancelled' && b.whenTs <= now);
       const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.55).toLocaleString()} · 병원 ${Math.round(gross * 0.35).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.07).toLocaleString()}</b> (PG ${Math.round(gross * 0.03).toLocaleString()})`;
+      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.80).toLocaleString()} · 병원 ${Math.round(gross * 0.10).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.07).toLocaleString()}</b> (PG 실비 ${Math.round(gross * 0.03).toLocaleString()})`;
     }).catch(() => {});
   }
 };

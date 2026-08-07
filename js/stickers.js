@@ -198,8 +198,8 @@ window.Stickers = {
           <path d="M47 83 l8 6 M55 83 l-8 6" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round"/>
           <path d="M85 83 l8 6 M93 83 l-8 6" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round"/>
           <path d="M56 99 q4 -4 7 0 q3 4 7 0 q3 -4 7 0 q3 4 7 0" fill="none" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round"/>`)
-        + `<g class="${p}-t1"><path d="M42 94 q4 6.5 0 9.5 q-4 -3 0 -9.5" fill="#A9CDEC"/></g>
-           <g class="${p}-t2"><path d="M98 94 q4 6.5 0 9.5 q-4 -3 0 -9.5" fill="#A9CDEC"/></g>`);
+        + `<g class="${p}-t1"><path d="M46 90 q4 6.5 0 9.5 q-4 -3 0 -9.5" fill="#A9CDEC"/></g>
+           <g class="${p}-t2"><path d="M94 90 q4 6.5 0 9.5 q-4 -3 0 -9.5" fill="#A9CDEC"/></g>`);
 
       // ── 사랑: 점눈 + 배시시 + 몽글몽글 하트 ────────────────────────────
       case 'love': return wrap(`
@@ -389,8 +389,8 @@ window.Stickers = {
           <path d="M46 84 q6 4 12 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
           <path d="M82 84 q6 4 12 0" fill="none" stroke="#3F352A" stroke-width="3" stroke-linecap="round"/>
           <path d="M58 96 q12 12 24 0 q-12 6 -24 0z" fill="#C97B72" stroke="#3F352A" stroke-width="2.6" stroke-linejoin="round"/>`)
-        + `<g class="${p}-f1" style="--dx:-16px"><path d="M40 88 q-7 2 -9 8 q6 2 9 -3z" fill="#A9CDEC"/></g>
-           <g class="${p}-f2" style="--dx:16px"><path d="M100 88 q7 2 9 8 q-6 2 -9 -3z" fill="#A9CDEC"/></g>`);
+        + `<g class="${p}-f1" style="--dx:-16px"><path d="M45 83 q-7 2 -9 8 q6 2 9 -3z" fill="#A9CDEC"/></g>
+           <g class="${p}-f2" style="--dx:16px"><path d="M95 83 q7 2 9 8 q-6 2 -9 -3z" fill="#A9CDEC"/></g>`);
 
       // ── 폭소: >< 눈 + 데굴데굴 구르는 몸 + ㅋㅋㅋ ─────────────────────
       case 'laugh': return wrap(`
@@ -399,8 +399,8 @@ window.Stickers = {
         @keyframes ${p}-roll{0%,100%{transform:rotate(-9deg)}50%{transform:rotate(9deg)}}
         @keyframes ${p}-kk{0%,100%{opacity:0.4;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}`,
         this._base(p, `
-          <path d="M46 84 l8 4 -8 4 M55 84 l-8 4" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-          <path d="M94 84 l-8 4 8 4 M85 84 l8 4" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+          <path d="M46 83 l9 5 -9 5" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M94 83 l-9 5 9 5" stroke="#3F352A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           <path d="M56 95 q14 14 28 0 q-14 7 -28 0z" fill="#C97B72" stroke="#3F352A" stroke-width="2.6" stroke-linejoin="round"/>`)
         + `<g class="${p}-k"><text x="100" y="34" font-size="16" font-weight="900" fill="#B7A38B" font-family="sans-serif" transform="rotate(12 100 34)">ㅋㅋ</text>
            <text x="16" y="46" font-size="13" font-weight="900" fill="#CBB89D" font-family="sans-serif" transform="rotate(-10 16 46)">ㅋ</text></g>`);
@@ -705,8 +705,8 @@ window.Stickers = {
         @keyframes ${p}-jump2{0%,100%{transform:translateY(0)}45%{transform:translateY(-6px)}}
         @keyframes ${p}-conf{0%{transform:translateY(-4px) rotate(0);opacity:0}25%{opacity:1}100%{transform:translateY(22px) rotate(200deg);opacity:0}}`,
         this._base(p, `
-          <path d="M46 84 l8 4 -8 4 M55 84 l-8 4" stroke="#3F352A" stroke-width="2.4" stroke-linecap="round" fill="none"/>
-          <path d="M94 84 l-8 4 8 4 M85 84 l8 4" stroke="#3F352A" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+          <path d="M46 83 l9 5 -9 5" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <path d="M94 83 l-9 5 9 5" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           <path d="M58 96 q12 11 24 0 q-12 6 -24 0z" fill="#C97B72" stroke="#3F352A" stroke-width="2.6" stroke-linejoin="round"/>
           <path d="M58 46 l12 -22 12 22 q-12 6 -24 0z" fill="#F2A0A9" stroke="#C97B85" stroke-width="2.6" stroke-linejoin="round"/>
           <circle cx="70" cy="23" r="3.4" fill="#F5C74E"/>`)

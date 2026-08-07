@@ -245,23 +245,23 @@
       loadSchedule();
     }
 
-    // 정산: 완료된 상담(취소 제외, 시간 경과)의 55%가 상담사 몫
+    // 정산: 완료된 상담(취소 제외, 시간 경과)의 80%가 상담사 몫 (플랫폼 7% · 병원 10% · PG 3% 차감)
     function renderSettlement(items) {
       const el = document.getElementById('settlement');
       const now = Date.now();
       const done = items.filter(b => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'noshow' && b.whenTs <= now);
       const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      const mine = Math.round(gross * 0.55);
+      const mine = Math.round(gross * 0.80);
       el.innerHTML = `
         <div class="card" style="background: linear-gradient(135deg, #eef6f0, #ffffff);">
           <div class="item-head" style="cursor: default;">
             <strong>💰 정산 현황</strong>
-            <span class="muted">상담사 55% · 병원 35% · 플랫폼 10% (결제수수료는 플랫폼 부담)</span>
+            <span class="muted">상담사 80% · 병원 10% · 플랫폼 7% · PG 수수료 3~4% 실비</span>
           </div>
           <div style="display: flex; gap: 1.2rem; margin-top: 0.6rem; flex-wrap: wrap;">
             <div><div class="muted">완료 상담</div><strong style="font-size: 1.15rem;">${done.length}건</strong></div>
             <div><div class="muted">총 결제액</div><strong style="font-size: 1.15rem;">${gross.toLocaleString()}캐시</strong></div>
-            <div><div class="muted">내 정산금 (55%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
+            <div><div class="muted">내 정산금 (80%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
           </div>
           <button class="btn" style="margin-top: 0.8rem; ${mine ? '' : 'opacity: 0.5; pointer-events: none;'}" onclick="alert('출금 신청이 접수되었습니다. (데모)\\n실서비스에서는 등록 계좌로 정산됩니다.')">출금 신청 (데모)</button>
         </div>`;

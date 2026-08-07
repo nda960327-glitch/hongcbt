@@ -106,6 +106,7 @@ window.Growth = {
       if (window.App.playNotify) window.App.playNotify();
       if (window.App.stickerPop) window.App.stickerPop('party', 1600);
     }
+    this.checkLevelUp();
     this.renderStreakChip();
   },
 
@@ -117,7 +118,69 @@ window.Growth = {
     el.style.display = st >= 2 ? '' : 'none';
   },
 
+  // ==========================================================================
+  //  우렁이 우정 레벨 — 마음을 돌본 모든 행동이 XP가 되어 우렁이가 함께 자란다
+  // ==========================================================================
+  xp() {
+    const s = this.stats();
+    return s.chats * 2 + s.moods * 3 + s.nights * 10 + s.missions * 8 + s.records * 10 + s.breaths * 5;
+  },
+
+  level() {
+    return Math.min(30, Math.floor(Math.sqrt(this.xp() / 30)) + 1);
+  },
+
+  levelInfo(lv) {
+    if (lv <= 2) return { name: '알에서 갓 깬 우렁이', sticker: 'sleepy' };
+    if (lv <= 4) return { name: '새싹 우렁이', sticker: 'joy' };
+    if (lv <= 7) return { name: '단짝 우렁이', sticker: 'cheer' };
+    if (lv <= 11) return { name: '든든 우렁이', sticker: 'proud' };
+    if (lv <= 15) return { name: '마음지기 우렁이', sticker: 'hero' };
+    if (lv <= 20) return { name: '현자 우렁이', sticker: 'teacher' };
+    return { name: '전설의 우렁이', sticker: 'party' };
+  },
+
+  checkLevelUp() {
+    const lv = this.level();
+    const seen = window.Storage._safeGet('cbt_level_seen', 1) || 1;
+    if (lv > seen) {
+      window.Storage._safeSet('cbt_level_seen', lv);
+      if (window.App) {
+        const info = this.levelInfo(lv);
+        window.App.showRecordToast(`🎉 레벨 업! Lv.${lv} '${info.name}'가 됐어요`);
+        window.App.stickerPop(info.sticker, 1800);
+        window.App.playWoorung();
+      }
+    }
+  },
+
+  renderLevelCard() {
+    const el = document.getElementById('level-card');
+    if (!el) return;
+    const xp = this.xp();
+    const lv = this.level();
+    const info = this.levelInfo(lv);
+    const curBase = 30 * Math.pow(lv - 1, 2);   // 현재 레벨 시작 XP
+    const nextAt = 30 * Math.pow(lv, 2);        // 다음 레벨 XP
+    const pct = lv >= 30 ? 100 : Math.min(100, Math.round((xp - curBase) / (nextAt - curBase) * 100));
+    el.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.8rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary)), var(--bg-tertiary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent); border-radius: 14px; padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
+        <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(info.sticker, 62) : '🐌'}</span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 0.4rem;">
+            <strong style="font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-heading);">Lv.${lv} ${info.name}</strong>
+          </div>
+          <div style="height: 7px; border-radius: 99px; background: var(--bg-secondary); overflow: hidden; margin: 0.4rem 0 0.25rem;">
+            <div style="height: 100%; width: ${pct}%; border-radius: 99px; background: var(--gradient-primary); transition: width 0.6s;"></div>
+          </div>
+          <span style="font-size: 0.68rem; color: var(--text-muted);">${lv >= 30 ? '최고 레벨! 우렁이가 당신을 자랑스러워해요' : `다음 레벨까지 ${(nextAt - xp).toLocaleString()} XP — 대화·체크인·미션이 전부 경험치예요`}</span>
+        </div>
+      </div>`;
+  },
+
   renderBadgeCard() {
+    this.renderLevelCard();
+    this.checkLevelUp();
     const line = document.getElementById('growth-streak-line');
     if (line) {
       const st = this.stats().streak;

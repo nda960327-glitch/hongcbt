@@ -196,10 +196,10 @@
     this.renderCounselors();
   },
 
-  // === 정렬·필터 상태 (칩 UI) ===
+  // === 정렬·필터 상태 — 대중적 패턴: 정렬은 드롭다운(바텀시트) 하나, 필터는 토글 칩 ===
   _sort: 'distance',
   _availOnly: false,
-  SORTS: [['distance', '📍 가까운 순'], ['rating', '⭐ 별점 높은'], ['reviews', '💬 후기 많은'], ['price_low', '💸 가격 낮은']],
+  SORTS: [['distance', '가까운 순'], ['rating', '별점 높은 순'], ['reviews', '후기 많은 순'], ['price_low', '가격 낮은 순']],
 
   setSort(v) {
     this._sort = v;
@@ -212,13 +212,39 @@
   },
 
   renderFilterBar() {
-    const pills = document.getElementById('cc-sort-pills');
-    if (pills) {
-      pills.innerHTML = this.SORTS.map(([v, label]) =>
-        `<button class="cc-chip ${this._sort === v ? 'on' : ''}" onclick="window.Marketplace.setSort('${v}')">${label}</button>`).join('');
-    }
-    const avail = document.getElementById('cc-avail-pill');
-    if (avail) avail.classList.toggle('on', this._availOnly);
+    const row = document.getElementById('cc-filter-row');
+    if (!row) return;
+    const sortLabel = (this.SORTS.find(s => s[0] === this._sort) || this.SORTS[0])[1];
+    const caret = '<svg width="10" height="10" viewBox="0 0 10 10" style="flex-shrink: 0;"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    row.innerHTML = `
+      <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.Marketplace.openSortSheet()">↕ ${sortLabel} ${caret}</button>
+      <button class="cc-chip ${this._availOnly ? 'on' : ''}" style="flex-shrink: 0;" onclick="window.Marketplace.toggleAvail()">🟢 바로상담 가능만</button>
+      <button class="cc-chip" style="flex-shrink: 0;" onclick="window.Marketplace.requestUserLocation()"><span id="gps-status-text">${this.hasGps ? '📍 내 위치 ✓' : '📍 내 위치'}</span></button>`;
+  },
+
+  // 정렬 바텀시트 — 배달앱처럼 아래에서 올라오는 선택지
+  openSortSheet() {
+    if (document.getElementById('cc-sort-sheet')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'cc-sort-sheet';
+    wrap.style.cssText = 'position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end;';
+    wrap.innerHTML = `
+      <div style="width: 100%; background: var(--bg-secondary); border-radius: 20px 20px 0 0; padding: 0.8rem 1.25rem calc(1.4rem + env(safe-area-inset-bottom)); animation: slideUp 0.22s ease;">
+        <div style="width: 38px; height: 4px; border-radius: 2px; background: var(--glass-border); margin: 0 auto 0.9rem;"></div>
+        <strong style="font-size: 0.98rem; color: var(--text-primary); display: block; margin-bottom: 0.3rem;">정렬</strong>
+        ${this.SORTS.map(([v, label], i) => `
+          <button onclick="window.Marketplace.pickSort('${v}')" style="all: unset; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0.8rem 0.15rem; font-size: 0.93rem; cursor: pointer; color: ${this._sort === v ? 'var(--accent-primary)' : 'var(--text-primary)'}; font-weight: ${this._sort === v ? '800' : '500'}; ${i < this.SORTS.length - 1 ? 'border-bottom: 1px solid var(--glass-border);' : ''}">
+            <span>${label}</span>${this._sort === v ? '<span style="font-weight: 900;">✓</span>' : ''}
+          </button>`).join('')}
+      </div>`;
+    wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+    document.body.appendChild(wrap);
+  },
+
+  pickSort(v) {
+    const sheet = document.getElementById('cc-sort-sheet');
+    if (sheet) sheet.remove();
+    this.setSort(v);
   },
 
   renderCounselors() {

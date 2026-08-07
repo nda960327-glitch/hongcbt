@@ -141,11 +141,11 @@
           </button>
           <button data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
             <span data-sticker="surprise" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">불안</span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">불안/불편</span>
           </button>
           <button data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.05rem; padding: 0.35rem 0 0.3rem; border-radius: 12px; cursor: pointer;">
             <span data-sticker="sad" data-sticker-size="50" style="line-height: 0;"></span>
-            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">우울</span>
+            <span style="font-size: 0.68rem; font-weight: 700; color: var(--text-muted);">우울/고통</span>
           </button>
         </div>
       </div>
@@ -440,6 +440,11 @@
           <div id="mood-calendar"></div>
         </div>
 
+        <!-- 월간 리포트 -->
+        <div class="dash-card glass-card" style="grid-column: 1 / -1;">
+          <div id="monthly-report"></div>
+        </div>
+
         <!-- 인지왜곡 패턴 차트 제거 — 인사이트는 주간 편지·상담 자료 요약에 녹아 있음 -->
         <div class="dash-card glass-card stats-card">
           <div id="care-footprint"></div>
@@ -538,18 +543,13 @@
 
     <!-- COUNSELORS TAB -->
     <section id="tab-counselors" class="tab-content">
-      <div class="tab-header">
+      <div class="tab-header" style="position: relative;">
         <h2><span class="h-ico" data-icon="counselor" data-icon-size="24"></span>상담사 매칭</h2>
         <p class="tab-subtitle">검증된 병원 소속 상담사들과 함께하세요</p>
+        <button id="wallet-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기" style="all: unset; box-sizing: border-box; position: absolute; right: 1.25rem; top: 50%; transform: translateY(-50%); font-size: 0.74rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.3rem 0.7rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></button>
       </div>
       <div style="padding: 0 1.25rem;">
-        <div id="cc-sort-pills" style="display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.2rem;"></div>
-        <div style="display: flex; align-items: center; gap: 0.35rem; margin: 0.45rem 0 0.85rem;">
-          <button id="cc-avail-pill" class="cc-chip" onclick="window.Marketplace.toggleAvail()">🟢 지금 상담 가능</button>
-          <button class="cc-chip" onclick="window.Marketplace.requestUserLocation()"><span id="gps-status-text">📍 내 위치</span></button>
-          <span style="flex: 1;"></span>
-          <button id="wallet-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기" style="all: unset; box-sizing: border-box; font-size: 0.74rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.3rem 0.7rem; border-radius: 999px; cursor: pointer; white-space: nowrap;"></button>
-        </div>
+        <div id="cc-filter-row" style="display: flex; align-items: center; gap: 0.4rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.85rem;"></div>
       </div>
       <div id="counselors-list" style="padding: 0 1.25rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.1rem;">
         <!-- Counselor cards inserted dynamically -->
@@ -643,7 +643,6 @@
         <p class="tab-subtitle">나의 상담 및 기록을 관리하세요</p>
       </div>
       
-<<<<<<< HEAD
       <!-- 구독 관리 -->
       <div class="glass-card" style="margin: 1rem; padding: 1.1rem; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">
         <h3 style="margin: 0 0 0.6rem 0;">🌱 우렁의사 구독</h3>
@@ -664,39 +663,26 @@
           <span id="growth-streak-line" style="font-size: 0.78rem; font-weight: 800; color: #e8590c;"></span>
         </div>
         <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.3rem 0 0.85rem;">우렁이와 함께한 발자국이 뱃지로 쌓여요. 매일 들러 체크인만 해도 스트릭이 이어집니다.</p>
+        <div id="level-card"></div>
         <div id="shield-row" style="margin-bottom: 0.85rem;"></div>
         <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
       </div>
 
-      <!-- 내 이름(별명) 설정 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1rem;">
-        <h3 style="margin-top:0;">내 이름(별명)</h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.7rem;">AI 상담사들이 당신을 이 이름으로 기억하고 불러드려요.</p>
-        <div style="display: flex; gap: 0.5rem;">
-          <input type="text" id="user-name-input" maxlength="12" placeholder="예: 민지, 곰돌이"
-            style="flex: 1; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
-          <button id="btn-save-name" class="btn-primary" style="width: auto; padding: 0.55rem 1rem; font-size: 0.85rem;">저장</button>
-=======
-      <!-- 내 프로필 정보 설정 (이름/별명, 전화번호, 성별) -->
+      <!-- 내 프로필 (이름·전화번호·성별) -->
       <div class="glass-card" style="margin: 1rem; padding: 1.15rem;">
-        <h3 style="margin-top:0; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;">
-          👤 내 프로필 정보
-        </h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">AI 상담사 및 전문 상담사 매칭 시 활용되는 프로필 정보입니다.</p>
-        
+        <h3 style="margin-top: 0; margin-bottom: 0.35rem;">👤 내 프로필</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">AI 상담사가 이 이름으로 불러드리고, 전문 상담사 예약·연락에 활용돼요.</p>
         <div style="display: flex; flex-direction: column; gap: 0.9rem;">
           <div>
             <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">이름(별명)</label>
             <input type="text" id="user-name-input" maxlength="12" placeholder="예: 민지, 곰돌이"
               style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
           </div>
-
           <div>
             <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">전화번호</label>
             <input type="tel" id="user-phone-input" maxlength="13" placeholder="예: 010-1234-5678"
               style="width: 100%; box-sizing: border-box; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.9rem;">
           </div>
-
           <div>
             <label style="display: block; font-size: 0.83rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">성별</label>
             <select id="user-gender-select"
@@ -706,11 +692,7 @@
               <option value="male">남성</option>
             </select>
           </div>
-
-          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem; font-weight: 700; border-radius: 10px; cursor: pointer;">
-            💾 내 프로필 정보 저장
-          </button>
->>>>>>> f220410 (feat/profile: Add phone number and gender settings to My Profile card)
+          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">💾 프로필 저장</button>
         </div>
       </div>
 
@@ -832,6 +814,26 @@
               <span style="font-size: 0.78rem; color: var(--text-muted);">답장·예약·편지 도착 시 우렁 차임을 울려요. (진동은 유지)</span>
             </div>
             <input type="checkbox" id="setting-sound" checked onchange="window.Storage._safeSet('cbt_sound_on', this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
+          </div>
+
+          <!-- 알림 종류별 설정 -->
+          <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">📬 알림 받기</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.55rem;">받고 싶은 알림만 골라서 켜두세요.</span>
+            <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
+                💬 상담사 답장·리뷰 답글
+                <input type="checkbox" id="notif-chat" checked onchange="window.Storage._safeSet('cbt_notif_chat', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
+                📅 예약 리마인더·변경
+                <input type="checkbox" id="notif-booking" checked onchange="window.Storage._safeSet('cbt_notif_booking', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
+              </label>
+              <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
+                💌 주간 편지 도착
+                <input type="checkbox" id="notif-letter" checked onchange="window.Storage._safeSet('cbt_notif_letter', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
+              </label>
+            </div>
           </div>
 
           <!-- 앱 잠금 -->
