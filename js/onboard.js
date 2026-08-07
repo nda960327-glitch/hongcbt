@@ -72,7 +72,31 @@ window.Onboard = {
         if (i >= 0) { d.concerns.splice(i, 1); b.style.borderColor = 'var(--glass-border)'; b.style.background = 'var(--bg-secondary)'; b.style.color = 'var(--text-primary)'; }
         else { d.concerns.push(id); b.style.borderColor = 'var(--accent-primary)'; b.style.background = 'color-mix(in srgb, var(--accent-primary) 14%, transparent)'; b.style.color = 'var(--accent-primary)'; }
       }));
-      document.getElementById('ob-next').addEventListener('click', () => this._step(3));
+      document.getElementById('ob-next').addEventListener('click', () => this._step(25));
+
+    } else if (n === 25) {
+      // 프로필 (선택) — 상담사 예약·연락에 쓰인다. 부담 없게 건너뛰기 허용
+      this._wrap(`
+        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('write', 96) : '📝'}</span>
+        <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.2rem;">연락처를 남겨둘까요?</h2>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 1.1rem; line-height: 1.6;">전문 상담사 예약과 연락에만 쓰여요.<br>지금 건너뛰고 나중에 설정에서 적어도 돼요.</p>
+        <input id="ob-phone" type="tel" maxlength="13" placeholder="전화번호 (예: 010-1234-5678)"
+          style="width: 100%; box-sizing: border-box; padding: 0.8rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.92rem; text-align: center;">
+        <select id="ob-gender" style="width: 100%; box-sizing: border-box; margin-top: 0.6rem; padding: 0.8rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.92rem; cursor: pointer;">
+          <option value="none">성별 (선택 안 함)</option>
+          <option value="female">여성</option>
+          <option value="male">남성</option>
+        </select>
+        <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
+        <button id="ob-skip" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.8rem; color: var(--text-muted); cursor: pointer;">건너뛰기</button>`);
+      document.getElementById('ob-next').addEventListener('click', () => {
+        const ph = document.getElementById('ob-phone').value.trim();
+        const ge = document.getElementById('ob-gender').value;
+        if (ph) window.Storage._safeSet('cbt_user_phone', ph);
+        if (ge && ge !== 'none') window.Storage._safeSet('cbt_user_gender', ge);
+        this._step(3);
+      });
+      document.getElementById('ob-skip').addEventListener('click', () => this._step(3));
 
     } else if (n === 3) {
       // 고민 → 상담사 투표: 최다 득표 페르소나 추천 (기본 우렁의사)

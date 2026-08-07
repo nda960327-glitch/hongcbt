@@ -845,20 +845,15 @@ window.App = {
               ${isActive ? `<span style="font-size:0.72rem; background: color-mix(in srgb, ${p.color} 20%, transparent); color: ${p.color}; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700;">● 현재 활성 상담사</span>` : ''}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;">${p.tagline}</div>
-            <div style="margin-top: 0.35rem; display: flex; gap: 0.3rem; flex-wrap: wrap;">
-              ${p.tags.map(t => `<span style="font-size: 0.66rem; background: color-mix(in srgb, ${p.color} 15%, transparent); color: ${p.color}; padding: 0.12rem 0.42rem; border-radius: 999px; font-weight: 700;">${t}</span>`).join('')}
-            </div>
           </div>
         </div>
-        <p style="margin: 0.65rem 0 0.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">${p.desc}</p>
         ${p.method ? `
         <div style="margin-top: 0.55rem; border-radius: 12px; background: color-mix(in srgb, ${p.color} 7%, var(--bg-tertiary)); border: 1px solid color-mix(in srgb, ${p.color} 22%, transparent); padding: 0.7rem 0.8rem;">
           <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
             <span style="font-size: 0.66rem; font-weight: 800; color: #fff; background: ${p.color}; padding: 0.14rem 0.5rem; border-radius: 999px;">${p.method}</span>
             ${p.lesson ? `<span style="font-size: 0.64rem; font-weight: 800; color: ${p.color}; border: 1px solid color-mix(in srgb, ${p.color} 45%, transparent); padding: 0.12rem 0.45rem; border-radius: 999px;">${p.lesson} 코스 보유</span>` : ''}
           </div>
-          <p style="margin: 0 0 0.45rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.55;"><b style="color: var(--text-primary);">왜 효과 있나요?</b> ${p.why || ''}</p>
-          <p style="margin: 0 0 0.2rem; font-size: 0.7rem; font-weight: 800; color: var(--text-primary);">이렇게 쓰면 좋아요</p>
+          <p style="margin: 0 0 0.45rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.55;">${p.why || ''}</p>
           <ol style="margin: 0; padding-left: 1.05rem; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.65;">
             ${(p.howto || []).map(h => `<li>${h}</li>`).join('')}
           </ol>
@@ -875,10 +870,10 @@ window.App = {
 
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
   personaGreetings: {
-    woorung: '안녕하세요, 우렁의사예요. 지금부터 제가 함께할게요. 편하게 이야기해요. 오늘 마음은 어떠세요?',
-    haru: '안녕! 나 햇님이야. 마음에 그늘진 생각이 있으면 보여줘, 같이 햇볕에 말려보자. 요즘 어떤 생각이 자꾸 맴돌아?',
-    dalnim: '…안녕하세요, 달님이에요. 여기서는 좋은 사람인 척 안 해도 돼요. 못난 마음, 미운 마음까지 전부 쏟아내도 괜찮아요. 다 받아줄게요.',
-    sonamu: '반갑습니다, 소나무입니다. 잠시 숨 한 번 고르고… 천천히 시작해볼까요. 요즘 마음은 어떤가요?'
+    woorung: '안녕하세요, 우렁의사예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
+    haru: '안녕! 나는 생각 교정 전문(CBT) 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 하고 싶으면 "햇살 수업 시작"이라고 해봐 — 6단계로 이끌어줄게.',
+    dalnim: '…안녕하세요, 달님이에요. 저는 조언하지 않고 다 받아주는 감정 수용(DBT) 상담사예요. ||| 어디에도 못 꺼낸 말, 미움도 욕도 다듬지 말고 그냥 쏟아내세요. 판단하지 않아요. ||| 감정이 너무 벅차서 다스리고 싶어지면 "달빛 수업 시작"이라고 말해주세요.',
+    sonamu: '반갑습니다, 소나무입니다. 저는 같은 생각을 곱씹느라 지친 머리를 쉬게 하는 마음챙김(MBCT) 상담사예요. ||| "머리가 시끄러워요"라고만 하셔도, 3분 호흡으로 지금 이 순간에 닻을 내리는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면 "솔숲 수업 시작"이라고 해보세요.'
   },
 
   // 영어/일본어 모드용 첫 인사
@@ -999,6 +994,21 @@ window.App = {
   // 알림 종류별 on/off (설정 > 알림 받기)
   _notifOn(key) {
     return window.Storage._safeGet('cbt_notif_' + key, true) !== false;
+  },
+
+  // 서재 책장 — 한 번에 한 칸만 펼친다
+  toggleLib(id, btn) {
+    const target = document.getElementById(id);
+    if (!target) return;
+    const wasOpen = !target.classList.contains('hidden');
+    document.querySelectorAll('#gv-letter .lib-body').forEach(b => b.classList.add('hidden'));
+    document.querySelectorAll('#gv-letter .lib-chev').forEach(c => { c.style.transform = ''; });
+    if (!wasOpen) {
+      target.classList.remove('hidden');
+      const chev = btn && btn.querySelector('.lib-chev');
+      if (chev) chev.style.transform = 'rotate(90deg)';
+      if (window.Sfx) window.Sfx.play('nav');
+    }
   },
 
   // 옷을 갈아입으면 화면에 이미 그려진 우렁이들을 전부 다시 그린다
@@ -1683,6 +1693,16 @@ ${memory || '(없음)'}`;
 
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
   quickMood(v, emo, emoji) {
+    // 연속 클릭 방지 — 체크인은 20분에 한 번
+    {
+      const last = window.Storage._safeGet('cbt_last_mood_ts', 0) || 0;
+      const waitMin = Math.ceil((20 * 60000 - (Date.now() - last)) / 60000);
+      if (Date.now() - last < 20 * 60000) {
+        this.showRecordToast(`🕐 방금 마음을 들었어요 — ${waitMin}분 뒤에 다시 물어볼게요`);
+        return;
+      }
+      window.Storage._safeSet('cbt_last_mood_ts', Date.now());
+    }
     const log = window.Storage._safeGet('cbt_mood_log', []) || [];
     // 연타 방지: 1분 안에 다시 누르면 새 기록 대신 마지막 '홈 체크인'을 교체.
     // (하루정리·대화에서 남은 기분 기록은 교체 대상에서 제외 — 덮어쓰기 사고 방지)

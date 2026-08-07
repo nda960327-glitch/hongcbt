@@ -201,6 +201,68 @@ window.Missions = {
     if (window.Farm) window.Farm.addWater(3, '오늘의 미션 완료');
   },
 
+  // 완료 후 보너스 퀘스트 (하루 3개까지)
+  more() {
+    const s = this.state();
+    if (!s || !s.done || (s.bonus || 0) >= 3) return;
+    const seen = window.Storage._safeGet('cbt_mission_seen_' + this._today(), []) || [];
+    const pool = this.POOL.filter(mm => !seen.includes(mm.id) && mm.id !== s.id);
+    const pick = pool.length ? pool[Math.floor(Math.random() * pool.length)] : this.POOL[Math.floor(Math.random() * this.POOL.length)];
+    seen.push(pick.id);
+    window.Storage._safeSet('cbt_mission_seen_' + this._today(), seen);
+    window.Storage._safeSet('cbt_daily_mission', { date: this._today(), id: pick.id, done: false, rerolled: false, bonus: (s.bonus || 0) + 1 });
+    if (window.Sfx) window.Sfx.play('ripe');
+    if (window.App) window.App.showRecordToast('🎁 새 퀘스트가 도착했어요!');
+    this.renderCard();
+  },
+
+  // 우렁이 맞춤 숙제 — 최근 대화·장기기억을 읽고 이 사람에게 진짜 필요한 행동 하나
+  async aiQuest() {
+    const s = this.state();
+    if (s && s.done && (s.bonus || 0) >= 3) { if (window.App) window.App.showRecordToast('오늘 퀘스트는 여기까지! 내일 또 받아요'); return; }
+    if (!window.LLM) return;
+    if (window.App) window.App.showRecordToast('🐌 우렁이가 딱 맞는 숙제를 고르는 중…');
+    try {
+      const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
+      const recent = (window.Storage.getMessages() || []).slice(-16).map(x => `${x.role === 'user' ? '내담자' : '상담사'}: ${x.text}`).join('\n');
+      const res = await window.LLM._chatCompletion({
+        model: window.LLM.MEMORY_MODEL,
+        messages: [{ role: 'user', content: `아래는 심리상담 앱 사용자의 기록입니다. 이 사람의 최근 고민에 직접 연결되는 '오늘 실행 가능한 행동 숙제' 하나를 처방하세요.
+
+규칙:
+- 최근 대화의 실제 주제와 연결될 것 (행동활성화·노출·경계설정·관계 연습 등 치료적 근거 있게)
+- 오늘 안에 30분 이내로 끝나는 구체적 행동. 측정 가능하게 ("~에게 ~라고 말해보기", "~를 10분 하기")
+- 생각 숙제 말고 행동 숙제. 위험하거나 부담 큰 것 금지
+- 출력은 JSON 한 줄만: {"emoji": "이모지1개", "text": "숙제 문장 (40자 이내)"}
+
+[장기기억]
+${memory.slice(0, 800)}
+
+[최근 대화]
+${recent}` }],
+        temperature: 0.7,
+        max_tokens: 120
+      });
+      if (!res.ok) throw new Error('api');
+      const data = await res.json();
+      let t = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim();
+      const m1 = t.indexOf('{'), m2 = t.lastIndexOf('}');
+      const j = JSON.parse(t.slice(m1, m2 + 1));
+      if (!j.text) throw new Error('empty');
+      const prev = this.state() || { date: this._today(), bonus: 0 };
+      window.Storage._safeSet('cbt_daily_mission', {
+        date: this._today(), id: 'ai_' + Date.now(), done: false, rerolled: false,
+        bonus: prev.done ? (prev.bonus || 0) + 1 : (prev.bonus || 0),
+        custom: { emoji: j.emoji || '🐌', text: j.text }
+      });
+      if (window.Sfx) window.Sfx.play('ripe');
+      if (window.App) { window.App.showRecordToast('🐌 우렁이의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
+      this.renderCard();
+    } catch (e) {
+      if (window.App) window.App.showRecordToast('숙제를 가져오지 못했어요 — 잠시 후 다시 시도해주세요');
+    }
+  },
+
   // 완료 전엔 몇 번이든 다른 미션으로 교체 — 그날 이미 본 미션은 다시 안 나온다
   reroll() {
     const s = this.state();
@@ -225,14 +287,22 @@ window.Missions = {
     const m = this.todayMission();
     const total = this.doneCount();
     if (m.done) {
+      const s = this.state() || {};
+      const bonus = s.bonus || 0;
       el.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.8rem;">
           <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('proud', 62) : '🎉'}</span>
           <div style="flex: 1; min-width: 0;">
-            <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">오늘 미션 완료! ${m.emoji}</strong>
+            <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">퀘스트 완료! ${m.emoji}</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted);">${m.text}</span>
             <span style="display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem;">지금까지 ${total}개의 작은 승리를 모았어요</span>
           </div>
+        </div>
+        <div style="display: flex; gap: 0.45rem; margin-top: 0.6rem;">
+          ${bonus < 3
+            ? `<button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.more()">🎁 퀘스트 더 받기 (${bonus}/3)</button>`
+            : `<span style="flex: 1; text-align: center; font-size: 0.72rem; color: var(--text-muted); padding: 0.5rem 0;">오늘의 보너스 퀘스트를 다 했어요! 내일 또 만나요</span>`}
+          <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">🐌 맞춤 숙제 받기</button>
         </div>`;
     } else {
       el.innerHTML = `

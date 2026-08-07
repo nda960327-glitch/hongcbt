@@ -250,6 +250,55 @@ window.Growth = {
   // 대시보드 '지난 밤들' — 하루 정리 아카이브
   MOOD_EMOJI: { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢' },
 
+  // 일기장 내보내기 — 다이어리 양식의 독립 문서 (download: html 파일 / print: PDF)
+  exportDiary(mode) {
+    const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
+    if (!journal.length) { alert('아직 일기가 없어요. 오늘 밤 첫 일기를 써볼까요?'); return; }
+    const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const name = window.Storage._safeGet('cbt_user_name', '') || '';
+    const entries = [...journal].sort((a, b) => a.ts - b.ts).map(j => {
+      const d = new Date(j.ts);
+      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : '🌙';
+      return `<div class="entry">
+        <div class="ehead"><span class="edate">${d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}</span>
+        <span class="eweather">마음 날씨 ${emoji}${j.mood && j.mood.emo ? ' ' + esc(j.mood.emo) : ''}</span></div>
+        ${j.moment ? `<p class="emoment">${esc(j.moment)}</p>` : ''}
+        ${j.note ? `<p class="enote">✎ 나에게: ${esc(j.note)}</p>` : ''}
+      </div>`;
+    }).join('');
+    const doc = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<title>${esc(name)} 마음 일기장</title>
+<style>
+body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fbf7f0;color:#3a342e;max-width:640px;margin:0 auto;padding:32px 24px;line-height:1.7}
+h1{font-size:22px;margin:0}p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px}
+.entry{border-bottom:1.5px dashed #ddd2c2;padding:18px 4px}
+.ehead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.edate{font-weight:800;font-size:14px}.eweather{font-size:12px;color:#8a8073}
+.emoment{margin:8px 0 0;font-size:14px}
+.enote{margin:6px 0 0;font-size:12.5px;color:#7d6f5d;background:#f4ede1;border-radius:8px;padding:8px 12px}
+@media print{body{padding:0}}
+</style></head><body>
+<h1>📓 ${esc(name) || '나'}의 마음 일기장</h1>
+<p class="meta">우렁이와 함께 쓴 밤의 기록 ${journal.length}편 · 우렁의사 앱</p>
+${entries}
+<p style="font-size:11px;color:#a99c8c;margin-top:24px">— 느리지만 계속 가고 있는 기록. 🐌</p>
+</body></html>`;
+    if (mode === 'print') {
+      const w = window.open('', '_blank');
+      if (!w) { alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+      w.document.write(doc); w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+    } else {
+      const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `마음일기장_${new Date().toLocaleDateString('sv-CA')}.html`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      if (window.App) window.App.showRecordToast('📓 일기장을 파일로 저장했어요');
+    }
+  },
+
   renderNightList() {
     const card = document.getElementById('night-journal-card');
     const list = document.getElementById('night-journal-list');
@@ -257,6 +306,8 @@ window.Growth = {
     const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     card.classList.toggle('hidden', journal.length === 0);
+    const emptyNote = document.getElementById('diary-empty-note');
+    if (emptyNote) emptyNote.style.display = journal.length ? 'none' : '';
     if (journal.length === 0) return;
     list.innerHTML = journal.slice(0, 14).map(j => {
       const d = new Date(j.ts);
