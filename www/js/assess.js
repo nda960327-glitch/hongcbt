@@ -167,64 +167,192 @@ window.Assess = {
     if (ov) ov.classList.add('hidden');
   },
 
-  _scoreBar(x) {
-    const score = Math.max(0, Math.min(100, x.score | 0));
-    const color = score >= 67 ? '#c96a5a' : score >= 34 ? '#c9a227' : 'var(--accent-primary)';
-    return `
-      <div style="margin-bottom: 0.6rem;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.15rem;">
-          <span style="font-size: 0.76rem; font-weight: 700; color: var(--text-primary);">${x.name}</span>
-          <span style="font-size: 0.72rem; font-weight: 800; color: ${color};">${x.level || ''} ${score}</span>
-        </div>
-        <div style="height: 9px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;">
-          <div style="height: 100%; width: ${score}%; border-radius: 999px; background: ${color};"></div>
-        </div>
-        ${x.evidence ? `<p style="margin: 0.2rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.45;">${x.evidence}</p>` : ''}
-      </div>`;
+  // ── 로컬 데이터에서 사실 차트를 계산한다 (AI가 만든 수치가 아님) ──
+  factCharts() {
+    const S = this._S();
+    const moods = (S._safeGet('cbt_mood_log', []) || []).filter(m => m.ts);
+    const out = {};
+
+    // 일자별 평균 기분 (최근 21일)
+    const byDay = {};
+    moods.forEach(m => {
+      const k = new Date(m.ts).toLocaleDateString('sv-CA');
+      const v = m.v ?? m.value ?? m.score;
+      if (v == null) return;
+      (byDay[k] = byDay[k] || []).push(v);
+    });
+    const days = Object.keys(byDay).sort().slice(-21);
+    out.series = days.map(k => ({
+      label: k.slice(5).replace('-', '/'),
+      v: byDay[k].reduce((a, b) => a + b, 0) / byDay[k].length
+    }));
+
+    // 요일 × 시간대 히트맵
+    const M = Array.from({ length: 7 }, () => Array.from({ length: 6 }, () => ({ n: 0, sum: 0 })));
+    const slotOf = h => h < 5 ? 0 : h < 9 ? 1 : h < 13 ? 2 : h < 17 ? 3 : h < 21 ? 4 : 5;
+    moods.forEach(m => {
+      const v = m.v ?? m.value ?? m.score;
+      if (v == null) return;
+      const d = new Date(m.ts);
+      const row = (d.getDay() + 6) % 7;   // 월=0
+      const cell = M[row][slotOf(d.getHours())];
+      cell.n++; cell.sum += v;
+    });
+    out.matrix = M.map(r => r.map(c => ({ n: c.n, avg: c.n ? c.sum / c.n : 0 })));
+
+    // 인지왜곡 분포 (사고기록에서 집계)
+    const recs = (S.getThoughtRecords ? S.getThoughtRecords() : []).filter(r => !String(r.id).startsWith('rec_mock_'));
+    const dmap = {};
+    recs.forEach(r => (r.distortions || []).forEach(d => { dmap[d] = (dmap[d] || 0) + 1; }));
+    const NAMES = (window.ThoughtRecord && window.ThoughtRecord.distortions) || [];
+    out.distortions = Object.entries(dmap).sort((a, b) => b[1] - a[1]).slice(0, 6)
+      .map(([id, n]) => ({ name: (NAMES.find(x => x.id === id) || {}).label || id, pct: n }));
+    out.recordCount = recs.length;
+    out.moodCount = moods.length;
+    return out;
   },
 
-  // 웰빙 지표는 높을수록 좋으니 색을 반대로
-  _goodBar(x) {
-    const score = Math.max(0, Math.min(100, x.score | 0));
-    const color = score >= 67 ? 'var(--accent-primary)' : score >= 34 ? '#c9a227' : '#c96a5a';
-    return `
-      <div style="margin-bottom: 0.55rem;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.15rem;">
-          <span style="font-size: 0.76rem; font-weight: 700; color: var(--text-primary);">${x.name}</span>
-          <span style="font-size: 0.72rem; font-weight: 800; color: ${color};">${score}</span>
-        </div>
-        <div style="height: 9px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;">
-          <div style="height: 100%; width: ${score}%; border-radius: 999px; background: ${color};"></div>
-        </div>
-      </div>`;
-  },
-
-  // 구조화 리포트 HTML (json 있으면 그래프형, 없으면 옛 텍스트형)
+  // ── 구조화 리포트 HTML (json 없으면 옛 텍스트형 폴백) ──
   _reportHtml(r) {
-    if (!r.json) return `<div style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7; white-space: pre-wrap;">${(r.body || '').replace(/</g, '&lt;')}</div>`;
+    const K = window.AssessCharts;
+    if (!r.json || !K) return '<div style="font-size:0.84rem;line-height:1.8;white-space:pre-wrap;">' + String(r.body || '').replace(/</g, '&lt;') + '</div>';
     const j = r.json;
-    const esc = t => String(t == null ? '' : t).replace(/</g, '&lt;');
-    const sec = (title, inner) => `<div style="margin-top: 1rem;"><strong style="display: block; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0.5rem;">${title}</strong>${inner}</div>`;
-    const relColor = j.reliability && /낮/.test(j.reliability.level || '') ? '#c96a5a' : /보통/.test((j.reliability || {}).level || '') ? '#c9a227' : 'var(--accent-primary)';
-    return `
-      ${j.headline ? `<p style="margin: 0 0 0.7rem; padding: 0.75rem 0.9rem; border-left: 4px solid var(--accent-secondary); background: color-mix(in srgb, var(--accent-secondary) 8%, transparent); border-radius: 0 12px 12px 0; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); line-height: 1.55;">"${esc(j.headline)}"</p>` : ''}
-      ${j.reliability ? `<p style="margin: 0 0 0.6rem; font-size: 0.74rem;"><b style="color: ${relColor};">데이터 신뢰도: ${esc(j.reliability.level)}</b> <span style="color: var(--text-muted);">${esc(j.reliability.note)}</span></p>` : ''}
-      ${j.overall ? sec('Ⅰ. 전반적 인상 <span style="font-weight: 600; font-size: 0.7rem; color: var(--text-muted);">(임상적 인상 · 진단 아님)</span>', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.overall)}</p>`) : ''}
-      ${Array.isArray(j.signals) && j.signals.length ? sec('Ⅱ. 평가 결과 — 표준 선별검사 및 관찰 지표', j.signals.map(x => this._scoreBar(x)).join('')) : ''}
-      ${Array.isArray(j.needs) && j.needs.length ? sec('Ⅲ. 심리적 역동 — 욕구·동기 <span style="font-weight: 600; font-size: 0.7rem; color: var(--text-muted);">(탐색 지표 · 비표준)</span>', j.needs.map(x => this._scoreBar(x)).join('')) : ''}
-      ${Array.isArray(j.wellbeing) && j.wellbeing.length ? sec('Ⅳ. 적응 자원 — 웰빙 지표', j.wellbeing.map(x => this._goodBar(x)).join('')) : ''}
-      ${j.strengths ? sec('Ⅳ-1. 강점 및 보호요인', `<p style="margin: 0; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.strengths)}</p>`) : ''}
-      ${j.hiddenPattern ? sec('Ⅴ. 행동 관찰 — 반복되는 패턴', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-primary); line-height: 1.7; background: var(--bg-tertiary); border-radius: 12px; padding: 0.8rem 0.9rem;">${esc(j.hiddenPattern)}</p>`) : ''}
-      ${j.coreHypothesis ? sec('Ⅴ-1. 사례 개념화 (가설)', `<p style="margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${esc(j.coreHypothesis)}</p>`) : ''}
-      ${(Array.isArray(j.whatYouNeed) && j.whatYouNeed.length) || (Array.isArray(j.happinessRx) && j.happinessRx.length) ? sec('Ⅵ. 요약 및 제언',
-        (Array.isArray(j.whatYouNeed) && j.whatYouNeed.length ? `<p style="margin: 0 0 0.3rem; font-size: 0.74rem; font-weight: 800; color: var(--text-muted);">지금 필요한 것</p><ul style="margin: 0 0 0.7rem; padding-left: 1.1rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.8;">${j.whatYouNeed.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '')
-        + (Array.isArray(j.happinessRx) && j.happinessRx.length ? `<p style="margin: 0 0 0.3rem; font-size: 0.74rem; font-weight: 800; color: var(--text-muted);">4주 실행 계획</p>` + j.happinessRx.map(x => `
-        <div style="display: flex; gap: 0.6rem; margin-bottom: 0.45rem;">
-          <span style="flex-shrink: 0; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border-radius: 999px; padding: 0.2rem 0.55rem; height: fit-content;">${esc(x.week)}</span>
-          <span style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">${esc(x.do)}</span>
-        </div>`).join('') : '')) : ''}
-      ${j.referral ? `<p style="margin: 1rem 0 0; font-size: 0.76rem; color: var(--text-primary); background: color-mix(in srgb, #c96a5a 9%, transparent); border: 1px solid color-mix(in srgb, #c96a5a 25%, transparent); border-radius: 12px; padding: 0.7rem 0.85rem; line-height: 1.6;">Ⅶ. 전문가 연계 권고 — ${esc(j.referral)}</p>` : ''}
-      ${j.limits ? `<p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">한계 및 고지: ${esc(j.limits)} 본 보고서는 심리평가 보고서의 구조를 참고한 참고용 자료이며, 의학적 진단·처방을 대신할 수 없습니다.</p>` : ''}`;
+    const f = r.facts || this.factCharts();
+
+    // 공통 섹션 껍데기 — 번호 + 제목 + 부제
+    const sec = (no, title, sub, inner, tint) => `
+      <section style="margin-top:1.4rem;">
+        <div style="display:flex;align-items:baseline;gap:0.5rem;padding-bottom:0.4rem;border-bottom:2px solid ${tint || K.C.grid};margin-bottom:0.85rem;">
+          <span style="font-size:0.72rem;font-weight:800;color:${tint || K.C.ok};letter-spacing:0.06em;">${no}</span>
+          <h3 style="margin:0;font-size:1rem;font-weight:800;letter-spacing:-0.01em;">${title}</h3>
+        </div>
+        ${sub ? `<p style="margin:-0.5rem 0 0.75rem;font-size:0.7rem;opacity:0.6;">${sub}</p>` : ''}
+        ${inner}
+      </section>`;
+
+    const card = (inner, pad) => `<div style="border:1px solid ${K.C.grid};border-radius:14px;padding:${pad || '0.9rem'};">${inner}</div>`;
+
+    // ── 표지: 헤드라인 + 신뢰도 배지 ──
+    const relLow = j.reliability && /낮/.test(j.reliability.level || '');
+    const relMid = j.reliability && /보통/.test(j.reliability.level || '');
+    const relColor = relLow ? K.C.bad : relMid ? K.C.warn : K.C.ok;
+    const cover = `
+      <div style="border-radius:16px;padding:1.1rem 1.15rem;background:linear-gradient(135deg, color-mix(in srgb, ${K.C.ok} 14%, transparent), transparent);border:1px solid ${K.C.grid};">
+        <p style="margin:0 0 0.4rem;font-size:0.64rem;font-weight:800;letter-spacing:0.12em;opacity:0.55;">MIND REPORT · 참고용 심리 리포트</p>
+        <p style="margin:0 0 0.6rem;font-size:1.22rem;font-weight:800;line-height:1.5;letter-spacing:-0.02em;word-break:keep-all;">${K.md(j.headline || '')}</p>
+        ${j.summaryLine ? `<p style="margin:0 0 0.75rem;font-size:0.86rem;line-height:1.7;opacity:0.85;">${K.md(j.summaryLine)}</p>` : ''}
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:0.68rem;font-weight:800;padding:0.22rem 0.6rem;border-radius:999px;background:${relColor};color:#fff;">신뢰도 ${K.esc((j.reliability || {}).level || '-')}</span>
+          <span style="font-size:0.68rem;font-weight:700;padding:0.22rem 0.6rem;border-radius:999px;border:1px solid ${K.C.grid};">데이터 ${f.moodCount}건 · 기록 ${f.recordCount}편</span>
+          <span style="font-size:0.68rem;font-weight:700;padding:0.22rem 0.6rem;border-radius:999px;border:1px solid ${K.C.grid};">${K.esc(r.date || '')}</span>
+        </div>
+        ${(j.reliability || {}).note ? `<p style="margin:0.6rem 0 0;font-size:0.72rem;line-height:1.6;opacity:0.75;">${K.md(j.reliability.note)}</p>` : ''}
+      </div>`;
+
+    // ── Ⅰ 표준 선별검사: 게이지 2개 나란히 ──
+    const std = Array.isArray(j.standard) && j.standard.length ? sec('Ⅰ', '표준 선별검사 결과', '국제 표준 도구 · 원 절단점 그대로 적용',
+      `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.7rem;">
+        ${j.standard.map(x => `<div style="border:1px solid ${K.C.grid};border-radius:14px;padding:0.8rem 0.5rem 0.6rem;text-align:center;">
+          <p style="margin:0 0 0.15rem;font-size:0.74rem;font-weight:800;">${K.esc(x.name)}</p>
+          ${K.gauge({ score: x.score, max: x.max, band: x.band, bands: x.bands || [], label: x.name })}
+          ${x.note ? `<p style="margin:0.3rem 0 0;font-size:0.68rem;opacity:0.7;line-height:1.5;">${K.md(x.note)}</p>` : ''}
+        </div>`).join('')}
+      </div>
+      <p style="margin:0.6rem 0 0;font-size:0.68rem;opacity:0.62;line-height:1.6;">※ 선별검사는 <b>진단이 아니라 위험도 스크리닝</b>입니다. 색 띠는 원 도구의 절단점 구간이에요.</p>`, K.C.ok) : '';
+
+    // ── Ⅱ 실제 기분 추이 (사실 데이터) ──
+    const trend = f.series && f.series.length >= 2 ? sec('Ⅱ', '기분 추이 (최근 3주)', '앱에 기록된 실제 체크인 — AI 추정이 아닌 원자료',
+      card(K.line(f.series))) : '';
+
+    // ── Ⅲ 요일·시간대 패턴 (사실 데이터) ──
+    const heat = f.moodCount >= 6 ? sec('Ⅲ', '언제 무너지는가 — 요일·시간대 지도', '같은 하루 안에서도 취약한 시간대가 있어요',
+      card(K.heatmap(f.matrix)) + (j.timePattern ? `<p style="margin:0.7rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.timePattern)}</p>` : ''), K.C.blue) : '';
+
+    // ── Ⅳ 탐색 지표 (막대) ──
+    const signals = Array.isArray(j.signals) && j.signals.length ? sec('Ⅳ', '탐색 지표', '표준 도구가 아닌 참고 지표 · 기록 관찰 기반',
+      card(j.signals.map(x => K.bar(x)).join('')), K.C.warn) : '';
+
+    // ── Ⅴ 욕구 레이더 + 웰빙 레이더 (2열) ──
+    const hasNeeds = Array.isArray(j.needs) && j.needs.length;
+    const hasWell = Array.isArray(j.wellbeing) && j.wellbeing.length;
+    const profile = (hasNeeds || hasWell) ? sec('Ⅴ', '심리적 프로파일', '탐색 지표 · 축의 모양으로 읽어주세요',
+      `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:0.8rem;">
+        ${hasNeeds ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">욕구·동기</p>${K.radar(j.needs, { color: K.C.violet })}`)}</div>` : ''}
+        ${hasWell ? `<div>${card(`<p style="margin:0 0 0.2rem;font-size:0.76rem;font-weight:800;text-align:center;">적응 자원 (높을수록 좋음)</p>${K.radar(j.wellbeing, { color: K.C.ok })}`)}</div>` : ''}
+      </div>
+      ${j.profileRead ? `<p style="margin:0.75rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.profileRead)}</p>` : ''}`, K.C.violet) : '';
+
+    // ── Ⅵ 인지왜곡 도넛 (사실 데이터) ──
+    const dist = f.distortions && f.distortions.length ? sec('Ⅵ', '생각의 함정 분포', `사고기록 ${f.recordCount}편에서 실제 집계`,
+      card(K.donut(f.distortions, f.distortions[0] ? f.distortions[0].name.slice(0, 4) : ''))
+      + (j.distortionRead ? `<p style="margin:0.7rem 0 0;font-size:0.84rem;line-height:1.75;">${K.md(j.distortionRead)}</p>` : ''), K.C.bad) : '';
+
+    // ── Ⅶ 사례개념화 흐름도 ──
+    const fm = j.formulation;
+    const form = fm ? sec('Ⅶ', '사례 개념화 (가설)', '반복되는 고리를 하나의 문장으로 — 검증 대상인 가설입니다',
+      card(K.flow([
+        { k: '핵심 신념', v: fm.belief || '' },
+        { k: '그래서 두려운 것', v: fm.fear || '' },
+        { k: '그래서 하는 행동', v: fm.behavior || '' },
+        { k: '그 결과', v: fm.result || '' }
+      ]), '1rem'), K.C.violet) : '';
+
+    // ── Ⅷ 근거 추적표 ──
+    const ev = Array.isArray(j.evidence) && j.evidence.length ? sec('Ⅷ', '근거 추적', '각 판단이 어떤 기록에서 나왔는지 · ●는 근거 강도',
+      j.evidence.map(e => `
+        <div style="border-left:3px solid ${K.C.grid};padding:0 0 0 0.75rem;margin-bottom:0.8rem;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.5rem;">
+            <p style="margin:0;font-size:0.84rem;font-weight:700;line-height:1.6;">${K.md(e.claim || '')}</p>
+            <span style="flex-shrink:0;">${K.strength(e.strength)}</span>
+          </div>
+          ${(e.quotes || []).map(q => `<p style="margin:0.3rem 0 0;font-size:0.76rem;opacity:0.75;line-height:1.6;font-style:italic;">"${K.esc(q)}"</p>`).join('')}
+        </div>`).join('')) : '';
+
+    // ── Ⅸ 요약 및 제언: 필요한 것 + 4주 타임라인 ──
+    const needList = Array.isArray(j.whatYouNeed) && j.whatYouNeed.length ? `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0.5rem;margin-bottom:0.9rem;">
+        ${j.whatYouNeed.map((t, i) => `<div style="border:1px solid ${K.C.grid};border-radius:12px;padding:0.65rem 0.75rem;">
+          <span style="font-size:0.62rem;font-weight:800;opacity:0.5;">NEED ${i + 1}</span>
+          <p style="margin:0.15rem 0 0;font-size:0.82rem;line-height:1.6;">${K.md(t)}</p>
+        </div>`).join('')}
+      </div>` : '';
+    const rx = Array.isArray(j.happinessRx) && j.happinessRx.length ? `
+      <div style="position:relative;padding-left:0.2rem;">
+        ${j.happinessRx.map((x, i) => `
+          <div style="display:flex;gap:0.7rem;">
+            <div style="flex-shrink:0;width:44px;text-align:center;">
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:color-mix(in srgb, ${K.C.ok} ${18 + i * 14}%, transparent);font-size:0.68rem;font-weight:800;">${K.esc(x.week)}</span>
+              ${i < j.happinessRx.length - 1 ? `<div style="width:2px;height:22px;background:${K.C.grid};margin:2px auto;"></div>` : ''}
+            </div>
+            <div style="flex:1 1 0%;min-width:0;padding-top:0.35rem;padding-bottom:0.5rem;">
+              <p style="margin:0;font-size:0.85rem;font-weight:700;line-height:1.6;">${K.md(x.do || '')}</p>
+              ${x.why ? `<p style="margin:0.15rem 0 0;font-size:0.72rem;opacity:0.66;line-height:1.55;">${K.md(x.why)}</p>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+    const plan = (needList || rx) ? sec('Ⅸ', '요약 및 제언', '오늘부터 4주, 실행 가능한 것만', needList + rx, K.C.ok) : '';
+
+    // ── Ⅹ 강점 / 연계 / 한계 ──
+    const strengths = j.strengths ? sec('Ⅹ', '강점 및 보호요인', '',
+      `<div style="border-radius:14px;padding:0.9rem 1rem;background:color-mix(in srgb, ${K.C.ok} 10%, transparent);border:1px solid color-mix(in srgb, ${K.C.ok} 30%, transparent);">
+        <p style="margin:0;font-size:0.86rem;line-height:1.8;">${K.md(j.strengths)}</p>
+      </div>`, K.C.ok) : '';
+
+    const overall = j.overall ? sec('0', '전반적 인상', '임상적 인상 · 진단 아님',
+      `<p style="margin:0;font-size:0.9rem;line-height:1.85;">${K.md(j.overall)}</p>`) : '';
+
+    const tail = `
+      ${j.referral ? `<div style="margin-top:1.3rem;border-radius:14px;padding:0.9rem 1rem;background:color-mix(in srgb, ${K.C.bad} 9%, transparent);border:1px solid color-mix(in srgb, ${K.C.bad} 28%, transparent);">
+        <p style="margin:0 0 0.2rem;font-size:0.72rem;font-weight:800;color:${K.C.bad};">전문가 연계 권고</p>
+        <p style="margin:0;font-size:0.84rem;line-height:1.75;">${K.md(j.referral)}</p>
+      </div>` : ''}
+      <p style="margin:1rem 0 0;font-size:0.68rem;opacity:0.6;line-height:1.7;">
+        <b>한계 및 고지</b> · ${K.md(j.limits || '')}
+        본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며, 의학적 진단·처방을 대신하지 않습니다.
+        표준 선별검사(PHQ-9·GAD-7) 외의 지표는 검증된 심리검사가 아닌 탐색적 참고치입니다.
+      </p>`;
+
+    return cover + overall + std + trend + heat + signals + profile + dist + form + ev + plan + strengths + tail;
   },
 
   render() {
@@ -459,6 +587,8 @@ window.Assess = {
   _docHtml(r) {
     // 파일·인쇄용 독립 문서 (밝은 배경, 앱 CSS 변수 인라인 치환)
     const inner = this._reportHtml(r)
+      .replace(/color-mix\(in srgb, #4f8a6b (\d+)%, transparent\)/g, '#e8f1eb')
+      .replace(/color-mix\(in srgb, #c96a5a (\d+)%, transparent\)/g, '#faeeec')
       .replace(/var\(--text-primary\)/g, '#2b2620')
       .replace(/var\(--text-secondary\)/g, '#4a443c')
       .replace(/var\(--text-muted\)/g, '#8a8073')
@@ -471,10 +601,15 @@ window.Assess = {
       .replace(/color-mix\(in srgb, #c57c54 8%, transparent\)/g, '#f8efe9');
     return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <title>우렁의사 AI 마음 리포트 — ${r.date}</title>
-<style>body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fffdf9;color:#2b2620;max-width:680px;margin:0 auto;padding:28px 22px;line-height:1.6}
-h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 18px}
-.box{border:1px solid #e5ddd0;border-radius:14px;padding:16px 18px;margin-bottom:14px}
-@media print{body{padding:0}}</style></head><body>
+<style>
+body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fffdf9;color:#2b2620;max-width:720px;margin:0 auto;padding:30px 24px;line-height:1.75;font-size:15px}
+h1{font-size:22px;margin:0 0 2px;letter-spacing:-0.02em}
+p.meta{font-size:12px;color:#8a8073;margin:0 0 20px}
+.box{padding:0}
+section{break-inside:avoid}
+b{font-weight:800}
+@media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
+</style></head><body>
 <h1>🔍 우렁의사 AI 마음 리포트</h1>
 <p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 1393 / 1577-0199</p>
 <div class="box">${inner}</div>
@@ -540,7 +675,7 @@ h1{font-size:20px;margin:0 0 2px}p.meta{font-size:12px;color:#8a8073;margin:0 0 
       const { json, raw } = await this._generate(m);
       const reps = this.reports();
       const date = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-      const rec = { id: 'as_' + Date.now(), date, json, body: json ? '' : raw };
+      const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts(), body: json ? '' : raw };
       reps.unshift(rec);
       this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
       if (window.Sfx) window.Sfx.play('harvest');
@@ -565,6 +700,10 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
       : '(표준 검진 미실시)';
     const qaTxt = qa ? this.QUESTIONS.map(q => `[${q.axis}] ${q.t} → ${this.SCALE[qa.map[q.id]] || '무응답'}`).join('\n') : '(자가검진 안 함)';
     const moods = (S._safeGet('cbt_mood_log', []) || []).slice(-60).map(x => `${new Date(x.ts).toLocaleDateString('sv-CA')} ${x.emo || ''} ${x.v ?? ''}`).join(', ') || '(없음)';
+    const F = this.factCharts();
+    const DAYK = ['월','화','수','목','금','토','일'], SLOTK = ['새벽','아침','점심','오후','저녁','밤'];
+    const heatTxt = F.matrix.map((row, d) => row.map((c, s) => c.n ? `${DAYK[d]}${SLOTK[s]}:${c.avg.toFixed(1)}(${c.n})` : '').filter(Boolean).join(' ')).filter(Boolean).join(' | ') || '(자료 부족)';
+    const distTxt = F.distortions.length ? F.distortions.map(d => `${d.name} ${d.pct}회`).join(', ') : '(사고기록 없음)';
 
     const prompt = `당신은 20년 경력의 임상심리 전문가입니다. 심리상담 앱에 쌓인 한 사람의 기록 전체를 읽고, 그 사람 자신도 몰랐던 것을 짚어주는 심층 패턴 리포트를 작성합니다.
 
@@ -581,29 +720,49 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
 신뢰도 플래그: ${m.flags.length ? m.flags.join(' · ') : '없음'}
 ${m.total < 60 ? '(충분도 60% 미만 — overall 첫 문장에 데이터가 제한적임을 한 번만 언급하고, 그 뒤로는 위축되지 말고 분석하세요)' : ''}
 
+[문체 규칙]
+· 본문에서 **핵심 어구만** 별표 두 개로 감싸 강조하세요 (예: **거절이 두려워** 먼저 내줍니다). 한 문단에 1~2개만.
+· 문장은 짧게 끊고, 어려운 임상 용어는 괄호로 풀어 쓰세요.
+
 [출력 형식 — 반드시 아래 JSON 만, 코드펜스·설명 없이]
 {
  "reliability": {"level": "높음|보통|낮음", "note": "한 문장"},
- "headline": "이 사람을 관통하는 한 문장 통찰 (점쟁이처럼, 30자 내외)",
+ "headline": "이 사람을 관통하는 한 문장 통찰 (25자 내외, **강조** 사용 가능)",
+ "summaryLine": "헤드라인을 풀어주는 한 문장",
  "overall": "전반적 인상 4~6문장. 단정적으로, 구체적 근거를 섞어서.",
+ "standard": [
+   {"name": "PHQ-9 우울", "score": <제공된 PHQ 총점 그대로>, "max": 27, "band": "<제공된 밴드 그대로>",
+    "bands": [{"to":4,"label":"정상"},{"to":9,"label":"경도"},{"to":14,"label":"중등도"},{"to":19,"label":"중등도이상"},{"to":27,"label":"심함"}],
+    "note": "이 점수가 뜻하는 바 한 문장"},
+   {"name": "GAD-7 불안", "score": <제공된 GAD 총점 그대로>, "max": 21, "band": "<제공된 밴드 그대로>",
+    "bands": [{"to":4,"label":"정상"},{"to":9,"label":"경도"},{"to":14,"label":"중등도"},{"to":21,"label":"심함"}],
+    "note": "한 문장"}
+ ],
+ "timePattern": "제공된 '요일·시간대 분포' 원자료를 보고 언제 취약한지 2~3문장. 데이터가 적으면 그렇다고 쓸 것.",
  "signals": [
-   {"name": "우울·무기력", "score": 0-100, "level": "낮음|중간|높음", "evidence": "실제 표현 인용 포함 근거 한 문장"},
-   {"name": "불안·걱정", ...}, {"name": "기분 변동", ...}, {"name": "주의력·충동", ...}, {"name": "분노·공격성", ...}, {"name": "인지왜곡 강도", ...}
+   {"name": "기분 변동", "score": 0-100, "level": "낮음|중간|높음", "evidence": "근거 한 문장"},
+   {"name": "주의력·충동", ...}, {"name": "분노·공격성", ...}, {"name": "반추(곱씹기)", ...}
  ],
  "needs": [
-   {"name": "인정 욕구", "score": 0-100, "evidence": "..."}, {"name": "거절·버림 두려움", ...}, {"name": "소속·연결 열망", ...}, {"name": "통제·완벽", ...}, {"name": "자율", ...}, {"name": "안전", ...}
+   {"name": "인정", "score": 0-100}, {"name": "거절두려움", ...}, {"name": "소속", ...}, {"name": "통제·완벽", ...}, {"name": "자율", ...}, {"name": "안전", ...}
  ],
  "wellbeing": [
-   {"name": "행복도", "score": 0-100}, {"name": "에너지", "score": ...}, {"name": "회복탄력성", "score": ...}, {"name": "자기효능감", "score": ...}, {"name": "관계 만족", "score": ...}
+   {"name": "행복도", "score": 0-100}, {"name": "에너지", ...}, {"name": "회복탄력성", ...}, {"name": "자기효능감", ...}, {"name": "관계만족", ...}
  ],
- "hiddenPattern": "본인은 인식 못 했을 가능성이 큰 패턴 1~2개를 과감하게. '당신은 ~할 때마다 ~하는 버릇이 있습니다' 식으로.",
- "coreHypothesis": "핵심 신념 → 두려움 → 대처 행동 → 결과, 한 문장으로.",
- "whatYouNeed": ["지금 이 사람에게 실제로 필요한 것 3~5개 — 구체적으로"],
- "happinessRx": [{"week": "1주차", "do": "구체적 행동 처방"}, {"week": "2주차", ...}, {"week": "3주차", ...}, {"week": "4주차", ...}],
+ "profileRead": "위 두 레이더의 '모양'을 해석한 3~4문장. 어느 축이 튀고 어느 축이 꺼졌는지, 그 조합이 뜻하는 것.",
+ "distortionRead": "제공된 인지왜곡 집계를 보고 2~3문장. 집계가 비어 있으면 이 필드는 빈 문자열.",
+ "formulation": {"belief": "핵심 신념 한 문장", "fear": "그래서 두려운 것", "behavior": "그래서 하는 행동", "result": "그 결과"},
+ "evidence": [
+   {"claim": "리포트의 주요 판단 한 줄", "quotes": ["기록에서 실제로 나온 표현 1~2개"], "strength": 1-5}
+ ],
+ "whatYouNeed": ["지금 실제로 필요한 것 3~4개 — 짧고 구체적으로"],
+ "happinessRx": [{"week": "1주차", "do": "구체적 행동", "why": "왜 이게 듣는지 한 줄"}, {"week": "2주차", ...}, {"week": "3주차", ...}, {"week": "4주차", ...}],
  "strengths": "기록에서 확인된 강점·보호요인 2~3문장",
  "referral": "전문가 상담이 필요한 시점과 이유 (위험 신호 있으면 여기에 명시)",
  "limits": "이 리포트가 놓칠 수 있는 것, 한 문장"
 }
+· standard 의 score/band 는 아래 제공된 표준 검사 결과를 **그대로 옮기세요**. 임의로 계산하지 마세요.
+· evidence 는 3~5개. strength 는 근거가 반복 관찰되면 4~5, 한두 번이면 2~3, 추론이면 1.
 
 [장기기억 요약]
 ${memory.slice(0, 1500)}
@@ -616,6 +775,12 @@ ${qaTxt}
 
 [기분 체크인 흐름]
 ${moods}
+
+[요일·시간대 분포 — 평균(횟수)]
+${heatTxt}
+
+[인지왜곡 집계 — 사고기록에서]
+${distTxt}
 
 [최근 대화]
 ${msgs}`;
