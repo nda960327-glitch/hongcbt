@@ -9,6 +9,7 @@ window.Calm = {
   _cycles: 0,
 
   openMenu() {
+    if (window.Sfx) window.Sfx.play('pop');
     this._overlay(`
       <div style="text-align: center; max-width: 300px;">
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('empathy', 96) : ''}</span>

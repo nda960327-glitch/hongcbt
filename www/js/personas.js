@@ -170,6 +170,7 @@ window.Personas = {
       </div>`;
     wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
     document.body.appendChild(wrap);
+    if (window.Sfx) window.Sfx.play('pop');
   },
 
   startProgram() {

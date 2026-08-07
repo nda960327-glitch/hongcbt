@@ -215,7 +215,7 @@ window.Closet = {
       window.Farm.spendCoins(it.price);
     }
 
-    if (window.Sfx) window.Sfx.play('buy');
+    if (window.Sfx) window.Sfx.hit('buy');
     this._grant(id);
     this.equip(id);
     if (window.App) {
@@ -236,7 +236,7 @@ window.Closet = {
     const e = this.equipped();
     e[it.slot] = (e[it.slot] === id) ? null : id;   // 같은 걸 다시 누르면 벗기
     this._S()._safeSet('cbt_closet_equipped', e);
-    if (window.Sfx) window.Sfx.play('equip');
+    if (window.Sfx) window.Sfx.hit('equip');
     this.render();
     if (window.App && window.App.refreshAllStickers) window.App.refreshAllStickers();
   },
@@ -285,7 +285,7 @@ window.Closet = {
 
   scene() {
     const pose = this.POSES[Math.floor(Math.random() * this.POSES.length)];
-    const snail = window.Stickers ? window.Stickers.svg(pose.s, 92) : '';
+    const snail = window.Stickers ? window.Stickers.svgDressed(null, pose.s, 92) : '';
     return `
       <div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.7rem;">
         <svg viewBox="0 0 320 200" width="100%" style="display: block;" role="img" aria-label="우렁이 탈의실">

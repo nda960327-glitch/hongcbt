@@ -47,7 +47,7 @@ window.AppLock = {
 
   _renderRow() {
     const btn = document.getElementById('lock-setup-btn');
-    if (btn) btn.textContent = this.enabled() ? '잠금 끄기 🔓' : '잠금 켜기 🔒';
+    if (btn) btn.textContent = this.enabled() ? '잠금 끄기' : '잠금 켜기';
   },
 
   init() {

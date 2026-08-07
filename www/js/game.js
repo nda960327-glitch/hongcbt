@@ -113,6 +113,7 @@ window.Game = {
         <button onclick="window.Game.closeSheet()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.35rem;">✕</button>
       </div>${inner}`;
     el.classList.remove('hidden');
+    if (window.Sfx) window.Sfx.play('pop');
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
@@ -212,7 +213,7 @@ window.Game = {
     if (!confirm(`🛡️ 스트릭 보호권 1개를 ${this.SHIELD_COIN_PRICE}코인에 살까요?`)) return;
     window.Farm.spendCoins(this.SHIELD_COIN_PRICE);
     window.Storage._safeSet('cbt_streak_shields', G.shields() + 1);
-    if (window.Sfx) window.Sfx.play('shield');
+    if (window.Sfx) window.Sfx.hit('shield');
     if (window.App) window.App.showRecordToast('🛡️ 스트릭 보호권을 손에 넣었어요!');
     this.renderShieldShop();
     this.renderHud();

@@ -69,7 +69,7 @@ window.Wallet = {
         <span style="font-size: 0.85rem; color: var(--text-muted);">보유 캐시</span>
         <strong style="font-size: 1.5rem; color: var(--accent-primary);">${bal.toLocaleString()}<span style="font-size: 0.85rem;"> 캐시</span></strong>
       </div>
-      <p style="margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--text-muted);">충전 금액이 클수록 보너스 캐시가 커져요 🎁</p>
+      <p style="margin: 0 0 0.4rem; font-size: 0.72rem; color: var(--text-muted);">충전 금액이 클수록 보너스 캐시가 커져요</p>
       <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; margin-bottom: 0.6rem;">
         ${this.PACKAGES.map(p =>
           `<button class="btn-secondary" style="width: 100%; font-size: 0.76rem; padding: 0.45rem 0.15rem; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; ${p.bonus ? 'border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);' : ''}" onclick="window.Wallet.charge(${p.pay}, ${p.bonus})">

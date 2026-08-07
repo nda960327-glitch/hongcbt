@@ -571,7 +571,7 @@ ${recent}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
         if (window.App && window.App.showToast) {
-          window.App.showToast('📋 요약 리포트가 클립보드에 복사되었습니다!');
+          window.App.showToast('요약 리포트를 클립보드에 복사했어요');
         } else {
           alert('📋 요약 리포트가 클립보드에 복사되었습니다!');
         }

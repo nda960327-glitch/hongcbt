@@ -420,6 +420,7 @@ window.ThoughtRecord = {
       newEmotions
     };
     
+    if (window.Sfx) window.Sfx.hit('save');
     window.Storage.saveThoughtRecord(record);
     
     // Update distortion stats
@@ -800,6 +801,7 @@ window.ThoughtRecord = {
         window.Storage._safeSet('cbt_distortion_stats', stats);
       }
     }
+    if (window.Sfx) window.Sfx.hit('save');
     window.Storage.saveThoughtRecord(record);
     w.distortions.forEach(id => window.Storage.incrementDistortion(id));
     if (!editing && w.emotions.length > 0) {

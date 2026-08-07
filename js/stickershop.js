@@ -160,6 +160,7 @@ window.StickerShop = {
       window.Storage.markDayActive();
       window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
     }
+    if (window.Sfx) window.Sfx.play('send');
     App.displayMessage({ role: 'user', sticker: name, stickerSkin: skin || '' });
     // 히스토리에는 텍스트로 남겨 우렁이(LLM)가 알아보게 한다
     window.Storage.saveMessage({ role: 'user', sticker: name, stickerSkin: skin || '', text: `('${label}' 이모티콘을 보냈다)`, timestamp: new Date().toISOString() });

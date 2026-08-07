@@ -81,7 +81,7 @@ window.Farm = {
     }
     if (!confirm(`💧 물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
     window.Wallet.spend(pack.cash, `농장 · 물 ${pack.water}`);
-    if (window.Sfx) window.Sfx.play('buy');
+    if (window.Sfx) window.Sfx.hit('buy');
     this._setWater(this.water() + pack.water);
     if (window.App) window.App.showRecordToast(`💧 물 ${pack.water}개를 채웠어요!`);
     this.render();
@@ -95,7 +95,7 @@ window.Farm = {
     const cash = window.Wallet ? window.Wallet.balance() : 0;
     el.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.55rem;">
-        <strong style="font-size: 0.84rem; color: var(--text-primary);">💧 물 충전소</strong>
+        <strong style="font-size: 0.84rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.3rem;">${window.Icons ? window.Icons.svg('water', { size: 16 }) : ''}물 충전소</strong>
         <span style="font-size: 0.72rem; color: var(--text-muted);">보유 ${cash.toLocaleString()}캐시</span>
       </div>
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem;">
@@ -191,7 +191,7 @@ window.Farm = {
     this.render();
 
     if (nowRipe) {
-      if (window.Sfx) window.Sfx.play('ripe');
+      if (window.Sfx) window.Sfx.hit('ripe');
       if (window.App) {
         window.App.showRecordToast(`${c.emoji} ${c.name}이(가) 다 자랐어요! 눌러서 수확하세요`);
         window.App.stickerPop('stareyes', 1600);
@@ -234,7 +234,7 @@ window.Farm = {
     st.byCrop[c.id] = (st.byCrop[c.id] || 0) + 1;
     this._S()._safeSet('cbt_farm_stats', st);
 
-    if (window.Sfx) window.Sfx.play('harvest');
+    if (window.Sfx) window.Sfx.hit('harvest');
     if (window.App) {
       window.App.showRecordToast(`${c.emoji} ${c.name} 수확! 🌰 +${c.coin}코인`);
       window.App.stickerPop('harvesting', 1800);
@@ -285,10 +285,10 @@ window.Farm = {
 
     const SKY = { sunny: ['#AEDBEF', '#DDF0F7'], mild: ['#C4E0EA', '#E6F1EF'], cloudy: ['#B9C3C9', '#DDE3E5'], rain: ['#8FA0AE', '#B9C6CE'] }[w];
     const CAP = {
-      sunny: '오늘 마음 날씨: 맑음 ☀️ — 밭일하기 딱 좋은 날!',
+      sunny: '오늘 마음 날씨: 맑음 — 밭일하기 딱 좋은 날!',
       mild:  '아직 체크인 전 — 오늘 마음 날씨는 어떨까요?',
-      cloudy: '오늘 마음 날씨: 흐림 ⛅ — 그래도 씨앗은 자라요',
-      rain:  '오늘 마음 날씨: 비 🌧 — 우렁이가 잎사귀 우산을 폈어요'
+      cloudy: '오늘 마음 날씨: 흐림 — 그래도 씨앗은 자라요',
+      rain:  '오늘 마음 날씨: 비 — 우렁이가 잎사귀 우산을 폈어요'
     }[w];
 
     // 하늘 소품
@@ -317,7 +317,7 @@ window.Farm = {
     const anyRipe = p.some(s => s && this.crop(s.crop) && s.water >= this.crop(s.crop).need);
     const anyGrowing = p.some(s => s && this.crop(s.crop) && s.water < this.crop(s.crop).need);
     const pose = w === 'rain' ? 'shelter' : anyRipe ? 'harvesting' : anyGrowing ? 'watering' : 'joy';
-    const snail = window.Stickers ? window.Stickers.svg(pose, 84) : '';
+    const snail = window.Stickers ? window.Stickers.svgDressed(null, pose, 84) : '';
 
     return '<div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.8rem;">'
       + '<svg viewBox="0 0 320 210" width="100%" style="display: block;" role="img" aria-label="우렁이 농장">'
@@ -405,13 +405,13 @@ window.Farm = {
     el.innerHTML = this.scene() + `
       <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.15rem 0 0.6rem;">
         <span style="font-size: 0.72rem; color: var(--text-muted);">누적 수확 ${st.harvested || 0}개</span>
-        <button onclick="window.Farm.toggleShop()" style="all: unset; cursor: pointer; margin-left: auto; font-size: 0.72rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 40%, transparent); padding: 0.25rem 0.7rem; border-radius: 999px;">💧 물 충전</button>
+        <button onclick="window.Farm.toggleShop()" style="all: unset; cursor: pointer; margin-left: auto; font-size: 0.72rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 40%, transparent); padding: 0.25rem 0.7rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.28rem;">${window.Icons ? window.Icons.svg('water', { size: 14 }) : ''}물 충전</button>
       </div>
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">${cells}</div>
       <div id="farm-shop" class="hidden" style="margin-top: 0.7rem; padding: 0.75rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
       <div id="farm-picker" class="hidden" style="margin-top: 0.7rem; padding: 0.75rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
       <p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-        체크인·미션·하루정리·사고기록·호흡을 하면 💧물이 고여요. 밭을 눌러 물을 주고, 다 자라면 눌러서 수확하세요.
+        체크인·미션·하루정리·사고기록·호흡을 하면 물이 고여요. 밭을 눌러 물을 주고, 다 자라면 눌러서 수확하세요.
         방치해도 시들지 않으니 안심하세요.
       </p>` + (window.Game ? window.Game.careBar() : '');
   }

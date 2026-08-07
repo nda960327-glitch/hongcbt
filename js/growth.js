@@ -148,7 +148,8 @@ window.Growth = {
       window.Storage._safeSet('cbt_level_seen', lv);
       if (window.App) {
         const info = this.levelInfo(lv);
-        window.App.showRecordToast(`🎉 레벨 업! Lv.${lv} '${info.name}'가 됐어요`);
+        if (window.Sfx) window.Sfx.hit('levelup');
+        window.App.showRecordToast(`레벨 업! Lv.${lv} '${info.name}'가 됐어요`, null);
         window.App.stickerPop(info.sticker, 1800);
         window.App.playWoorung();
       }
@@ -391,7 +392,7 @@ ${entries}
       a.download = `마음일기장_${new Date().toLocaleDateString('sv-CA')}.html`;
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-      if (window.App) window.App.showRecordToast('📓 일기장을 파일로 저장했어요');
+      if (window.App) window.App.showRecordToast('일기장을 파일로 저장했어요');
     }
   },
 

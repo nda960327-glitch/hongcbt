@@ -211,7 +211,7 @@ window.Missions = {
     seen.push(pick.id);
     window.Storage._safeSet('cbt_mission_seen_' + this._today(), seen);
     window.Storage._safeSet('cbt_daily_mission', { date: this._today(), id: pick.id, done: false, rerolled: false, bonus: (s.bonus || 0) + 1 });
-    if (window.Sfx) window.Sfx.play('ripe');
+    if (window.Sfx) window.Sfx.hit('ripe');
     if (window.App) window.App.showRecordToast('🎁 새 퀘스트가 도착했어요!');
     this.renderCard();
   },
@@ -255,7 +255,7 @@ ${recent}` }],
         bonus: prev.done ? (prev.bonus || 0) + 1 : (prev.bonus || 0),
         custom: { emoji: j.emoji || '🐌', text: j.text }
       });
-      if (window.Sfx) window.Sfx.play('ripe');
+      if (window.Sfx) window.Sfx.hit('ripe');
       if (window.App) { window.App.showRecordToast('🐌 우렁이의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
       this.renderCard();
     } catch (e) {

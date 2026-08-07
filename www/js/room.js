@@ -177,7 +177,7 @@ window.Room = {
       if (!confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
       window.Farm.spendCoins(it.price);
     }
-    if (window.Sfx) window.Sfx.play('buy');
+    if (window.Sfx) window.Sfx.hit('buy');
     const o = this._S()._safeGet('cbt_room_owned', {}) || {};
     o[id] = Date.now();
     this._S()._safeSet('cbt_room_owned', o);
@@ -202,7 +202,7 @@ window.Room = {
     const fixed = (it.slot === 'wallpaper' || it.slot === 'floor');
     p[it.slot] = (!fixed && p[it.slot] === id) ? null : id;
     this._S()._safeSet('cbt_room_placed', p);
-    if (window.Sfx) window.Sfx.play('place');
+    if (window.Sfx) window.Sfx.hit('place');
     this.render();
   },
 
@@ -255,7 +255,7 @@ window.Room = {
     const dur = (16 + Math.random() * 10).toFixed(1);   // 대부분 제자리, 가끔 한 바퀴
     const idle = this._idle || this.pickIdle();
     const snail = window.Stickers
-      ? (idle.skin ? window.Stickers.svgFor(idle.skin, idle.s, 96) : window.Stickers.svg(idle.s, 96))
+      ? window.Stickers.svgDressed(idle.skin || null, idle.s, 96)
       : '';
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">

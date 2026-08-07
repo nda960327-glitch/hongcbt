@@ -419,7 +419,7 @@
 
             <!-- 🌱 농장 -->
             <div class="game-view hidden" id="gv-farm">
-              <p class="game-view-tip">체크인·퀘스트·하루정리·사고기록·호흡을 하면 💧물이 고여요. 밭에 물을 주고, 다 자라면 거둬서 🌰씨앗코인을 모으세요.</p>
+              <p class="game-view-tip">체크인·퀘스트·하루정리·사고기록·호흡을 하면 물이 고여요. 밭에 물을 주고, 다 자라면 거둬서 씨앗코인을 모으세요.</p>
               <div id="farm-body"></div>
             </div>
 
@@ -797,7 +797,7 @@
           <strong id="my-name">나</strong>
           <span id="my-sub">우렁이와 함께한 기록</span>
         </div>
-        <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정">✎</button>
+        <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정" aria-label="프로필 수정"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15.6 4.4 19.6 8.4 8.6 19.4l-4.8.8.8-4.8Z"/><path d="m14.2 5.8 4 4"/></svg></button>
       </div>
 
       <!-- 재화 2분할 -->
@@ -861,12 +861,12 @@
       <div id="settings-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
         <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
           <button onclick="window.App.closeSettings()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
-          <strong style="font-size: 1.05rem; color: var(--text-primary);">⚙️ 설정</strong>
+          <strong style="font-size: 1.05rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;" data-ic="settings" data-ic-size="18">설정</strong>
         </div>
 
       <!-- 내 프로필 (이름·전화번호·성별) -->
       <div class="glass-card" style="margin: 1rem; padding: 1.15rem;">
-        <h3 style="margin-top: 0; margin-bottom: 0.35rem;">👤 내 프로필</h3>
+        <h3 style="margin-top: 0; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 0.4rem;" data-ic="care" data-ic-size="18">내 프로필</h3>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">AI 상담사가 이 이름으로 불러드리고, 전문 상담사 예약·연락에 활용돼요.</p>
         <div style="display: flex; flex-direction: column; gap: 0.9rem;">
           <div>
@@ -888,7 +888,7 @@
               <option value="male">남성</option>
             </select>
           </div>
-          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">💾 프로필 저장</button>
+          <button id="btn-save-profile" class="btn-primary" style="width: 100%; margin-top: 0.3rem; padding: 0.65rem; font-size: 0.88rem;">프로필 저장</button>
         </div>
       </div>
 
@@ -933,7 +933,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">화면 테마 설정</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">다크 모드와 라이트 모드를 전환합니다.</span>
             </div>
-            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleTheme()">테마 변경 🌙</button>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleTheme()">테마 변경</button>
           </div>
 
           <!-- 1.5 글자 크기 -->
@@ -955,7 +955,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">전체화면 보기</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">화면을 꽉 채워 몰입해서 사용합니다.</span>
             </div>
-            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleFullscreen()">전체화면 ⛶</button>
+            <button class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.App.toggleFullscreen()">전체화면</button>
           </div>
 
           <!-- 3. 음성(TTS) 설정 -->
@@ -979,27 +979,35 @@
           <!-- 알림음 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
-              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">🔔 알림음 (우렁!)</strong>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;" data-ic="bubble" data-ic-size="16">알림음 (우렁!)</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">답장·예약·편지 도착 시 우렁 차임을 울려요. (진동은 유지)</span>
             </div>
             <input type="checkbox" id="setting-sound" checked onchange="window.Storage._safeSet('cbt_sound_on', this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
           </div>
 
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;" data-ic="bolt" data-ic-size="16">진동</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">감정 기록·저장·레벨 업처럼 손끝 반응이 필요한 순간에만 울려요.</span>
+            </div>
+            <input type="checkbox" id="setting-haptic" checked onchange="window.Storage._safeSet('cbt_haptic_on', this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
+          </div>
+
           <!-- 알림 종류별 설정 -->
           <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
-            <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">📬 알림 받기</strong>
+            <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;" data-ic="letter" data-ic-size="16">알림 받기</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.55rem;">받고 싶은 알림만 골라서 켜두세요.</span>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
               <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
-                💬 상담사 답장·리뷰 답글
+                상담사 답장·리뷰 답글
                 <input type="checkbox" id="notif-chat" checked onchange="window.Storage._safeSet('cbt_notif_chat', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
               </label>
               <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
-                📅 예약 리마인더·변경
+                예약 리마인더·변경
                 <input type="checkbox" id="notif-booking" checked onchange="window.Storage._safeSet('cbt_notif_booking', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
               </label>
               <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
-                💌 주간 편지 도착
+                주간 편지 도착
                 <input type="checkbox" id="notif-letter" checked onchange="window.Storage._safeSet('cbt_notif_letter', this.checked)" style="width: 17px; height: 17px; accent-color: var(--accent-primary);">
               </label>
             </div>
@@ -1008,10 +1016,10 @@
           <!-- 앱 잠금 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
-              <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">🔒 앱 잠금 (PIN)</strong>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;" data-ic="lock" data-ic-size="16">앱 잠금 (PIN)</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">앱을 열 때 PIN 4자리를 물어봐요. 내 마음 기록을 지켜요.</span>
             </div>
-            <button id="lock-setup-btn" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.AppLock && window.AppLock.setup()">잠금 켜기 🔒</button>
+            <button id="lock-setup-btn" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem;" onclick="window.AppLock && window.AppLock.setup()">잠금 켜기</button>
           </div>
 
           <!-- 문의하기 -->
@@ -1020,7 +1028,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">문의하기</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">불편한 점, 제안, 결제 문의 모두 환영해요.</span>
             </div>
-            <a href="mailto:3663hong@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">📧 메일 보내기</a>
+            <a href="mailto:3663hong@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
           </div>
 
           <!-- 로그아웃 -->
@@ -1070,14 +1078,14 @@
           <div style="padding: 0.95rem; background: color-mix(in srgb, #ef4444 10%, var(--bg-tertiary)); border-radius: 10px; border: 1px solid color-mix(in srgb, #ef4444 35%, transparent);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
               <strong style="font-size: 0.92rem; color: #ef4444; display: flex; align-items: center; gap: 0.35rem;">
-                ⚠️ 전체 앱 데이터 초기화
+                전체 앱 데이터 초기화
               </strong>
             </div>
             <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0 0 0.8rem 0; line-height: 1.4;">
               대화 내역, 사고 기록지, 기분 통계, 장기기억, 예약 정보 등 <strong>앱의 모든 데이터가 완전히 삭제되고 초기 상태로 리셋</strong>됩니다.
             </p>
             <button class="btn-primary" style="background: #ef4444; border: none; font-size: 0.85rem; padding: 0.55rem 1rem; border-radius: 8px; width: 100%; font-weight: 700; color: #fff;" onclick="window.App.resetAllAppData()">
-              🗑️ 앱 모든 데이터 초기화하기
+              앱 모든 데이터 초기화하기
             </button>
           </div>
         </div>
@@ -1085,7 +1093,7 @@
 
         <!-- 운영자 콘솔 진입 (데모 백오피스) -->
         <p style="text-align: center; margin: 0.4rem 0 1.4rem;">
-          <button onclick="window.Admin && window.Admin.open()" style="all: unset; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; padding: 0.4rem;">🛠️ 운영자 콘솔</button>
+          <button onclick="window.Admin && window.Admin.open()" style="all: unset; font-size: 0.72rem; color: var(--text-muted); cursor: pointer; padding: 0.4rem;">운영자 콘솔</button>
         </p>
       </div><!-- /settings-overlay -->
 

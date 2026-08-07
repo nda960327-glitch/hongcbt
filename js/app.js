@@ -263,6 +263,8 @@ window.App = {
     if (window.Safety) window.Safety.renderRow();
     const soundCb = document.getElementById('setting-sound');
     if (soundCb) soundCb.checked = window.Storage._safeGet('cbt_sound_on', true) !== false;
+    const hapticCb = document.getElementById('setting-haptic');
+    if (hapticCb) hapticCb.checked = window.Storage._safeGet('cbt_haptic_on', true) !== false;
     ['chat', 'booking', 'letter'].forEach(k => {
       const cb = document.getElementById('notif-' + k);
       if (cb) cb.checked = this._notifOn(k);
@@ -456,6 +458,7 @@ window.App = {
     if (window.Subscription && !window.Subscription.hasAccess()) window.Subscription.bumpChat();
 
     // Display user message
+    if (window.Sfx) window.Sfx.play('send');
     this.displayMessage({ role: 'user', text: text });
     window.Storage.saveMessage({ role: 'user', text: text, timestamp: new Date().toISOString() });
 
@@ -497,6 +500,7 @@ window.App = {
         this.removeTypingIndicator();
       }
       
+      if (window.Sfx) window.Sfx.play('recv');
       if (response.sticker) {
         // 우렁이 스티커 말풍선 (음성 없음)
         this.displayMessage({ role: 'bot', sticker: response.sticker });
@@ -784,11 +788,15 @@ window.App = {
   openSettings() {
     const ov = document.getElementById('settings-overlay');
     if (ov) ov.classList.remove('hidden');
+    // 설정 화면도 초기 아이콘 심기 대상이 아니어서, 열 때 한 번 채운다
+    if (ov) this.hydrateInlineIcons(ov);
+    if (window.Sfx) window.Sfx.play('pop');
   },
 
   closeSettings() {
     const ov = document.getElementById('settings-overlay');
     if (ov) ov.classList.add('hidden');
+    if (window.Sfx) window.Sfx.play('close');
   },
 
   // 채팅 도구 더보기 메뉴 (검색·상담사 바꾸기·초기화)
@@ -888,6 +896,7 @@ window.App = {
       listEl.appendChild(card);
     });
     modal.classList.remove('hidden');
+    if (window.Sfx) window.Sfx.play('pop');
   },
 
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
@@ -970,7 +979,7 @@ window.App = {
   // ==========================================================================
   //  조용한 알림 — 사고 기록 등이 생기면 대화를 끊지 않고 토스트 + 탭 배지로
   // ==========================================================================
-  showRecordToast(text) {
+  showRecordToast(text, sfx = 'toast') {
     let toast = document.getElementById('record-toast');
     if (!toast) {
       toast = document.createElement('div');
@@ -985,6 +994,7 @@ window.App = {
     const miniSticker = window.Stickers ? window.Stickers.svg('joy', 30) : '📝';
     toast.innerHTML = `<span style="line-height:0; flex-shrink:0;">${miniSticker}</span> <span></span> <span style="color: var(--accent-primary); font-weight: 800;">대시보드 ›</span>`;
     toast.querySelectorAll('span')[1].textContent = text;
+    if (sfx && window.Sfx) window.Sfx.play(sfx);
     requestAnimationFrame(() => { toast.style.transform = 'translateX(-50%) translateY(0)'; });
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => { toast.style.transform = 'translateX(-50%) translateY(-90px)'; }, 5000);
@@ -1013,6 +1023,7 @@ window.App = {
     const pid = window.Personas ? window.Personas.getActive().id : 'woorung';
     el.innerHTML = window.Stickers.svgFor ? window.Stickers.svgFor(pid, name, 150) : window.Stickers.svg(name, 150);
     document.body.appendChild(el);
+    if (window.Sfx) window.Sfx.play('appear');
     requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translate(-50%,-50%) scale(1)'; });
     setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translate(-50%,-50%) scale(0.7)'; setTimeout(() => el.remove(), 300); }, ms);
   },
@@ -1746,6 +1757,7 @@ ${memory || '(없음)'}`;
 
   // === 원탭 기분 체크인 (홈) — 대화 없이도 감정 데이터가 쌓인다 ===
   quickMood(v, emo, emoji) {
+    if (window.Sfx) window.Sfx.hit('mood');
     // 연속 클릭 방지 — 체크인은 20분에 한 번
     {
       const last = window.Storage._safeGet('cbt_last_mood_ts', 0) || 0;

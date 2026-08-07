@@ -85,7 +85,18 @@ window.Stickers = {
     }
   },
   _skinId: 'woorung',
+  // true 일 때만 옷장 아이템을 겹쳐 그린다 (svgDressed 가 잠깐 켠다)
+  _outfit: false,
   _skin() { return this.SKINS[this._skinId] || this.SKINS.woorung; },
+
+  // 옷을 입은 우렁이 — 방 화면과 탈의실 전용
+  svgDressed(charId, name, size = 96) {
+    const prev = this._outfit;
+    this._outfit = true;
+    try {
+      return charId ? this.svgFor(charId, name, size) : this.svg(name, size);
+    } finally { this._outfit = prev; }
+  },
 
   // 특정 캐릭터(페르소나)의 몸으로 스티커 그리기
   svgFor(charId, name, size = 96) {
@@ -159,8 +170,9 @@ window.Stickers = {
         ${face}
         <!-- 얼굴 위에 얹히는 시그니처 (안경처럼 눈을 가리면 안 되는 것) -->
         ${sk.decoTop || ''}
-        <!-- 옷장에서 착용한 아이템 (모자·안경·목도리·소품) -->
-        ${(window.Closet && window.Closet.layer) ? window.Closet.layer() : ''}
+        <!-- 옷장에서 착용한 아이템 — 방 안 우렁이와 탈의실에서만 입는다.
+             채팅 아바타·이모티콘까지 옷이 따라다니면 표정이 묻힌다. -->
+        ${(this._outfit && window.Closet && window.Closet.layer) ? window.Closet.layer() : ''}
       </g>`;
   },
 

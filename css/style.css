@@ -1937,3 +1937,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* 채팅 탭은 상담사 바가 곧 헤더다 — 그 위에 빈 10px 을 두지 않는다 */
+/* 채팅 탭 상단 붙이기 */
+body.header-hidden #tab-chat { padding-top: 0; }
