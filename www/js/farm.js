@@ -382,7 +382,7 @@ window.Farm = {
         </button>`;
     }).join('');
 
-    el.innerHTML = this.scene() + `
+    el.innerHTML = this.scene() + (window.Game ? window.Game.careBar() : '') + `
       <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.7rem;">
         <span style="font-size: 0.8rem; font-weight: 800; color: #6f97ab;">💧 물 ${w}</span>
         <span style="font-size: 0.8rem; font-weight: 800; color: var(--accent-primary);">🌰 ${this.coins().toLocaleString()}코인</span>

@@ -6,10 +6,10 @@
 // ============================================================================
 window.Game = {
 
+  // 옷장은 탭이 아니라 방 안의 하위 화면 (방 -> 👒 옷장 버튼으로 진입)
   VIEWS: [
     { id: 'room',   emoji: '🏡', name: '방' },
     { id: 'farm',   emoji: '🌱', name: '농장' },
-    { id: 'closet', emoji: '👒', name: '옷장' },
     { id: 'quest',  emoji: '🗡️', name: '퀘스트' },
     { id: 'medal',  emoji: '🏅', name: '훈장' },
     { id: 'letter', emoji: '💌', name: '서재' }
@@ -31,8 +31,10 @@ window.Game = {
     document.querySelectorAll('.game-view').forEach(el => {
       el.classList.toggle('hidden', el.id !== 'gv-' + view);
     });
+    // 옷장은 방의 하위 화면이라 내비에서는 '방'을 켜둔다
+    const navView = view === 'closet' ? 'room' : view;
     document.querySelectorAll('#game-nav button').forEach(b => {
-      b.classList.toggle('active', b.dataset.view === view);
+      b.classList.toggle('active', b.dataset.view === navView);
     });
 
     if (!force && window.Sfx) window.Sfx.play('nav');
@@ -61,6 +63,27 @@ window.Game = {
       if (window.Growth) window.Growth.renderNightList();
     }
     this.renderHud();
+  },
+
+  // --------------------------------------------------------------------------
+  //  돌봄 퀵버튼 — 물이 고이는 다섯 가지 행동 (방·농장에 표시)
+  // --------------------------------------------------------------------------
+  careBar() {
+    const chip = (emoji, label, water, onclick) => `
+      <button onclick="${onclick}" style="all: unset; box-sizing: border-box; cursor: pointer; flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.7rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.32rem 0.6rem; border-radius: 999px; white-space: nowrap;">
+        ${emoji} ${label} <span style="color: #6f97ab; font-weight: 800;">💧+${water}</span>
+      </button>`;
+    return `
+      <div style="margin: 0.15rem 0 0.65rem;">
+        <p style="margin: 0 0 0.35rem; font-size: 0.66rem; font-weight: 800; color: var(--text-muted);">💧 물이 고이는 돌봄</p>
+        <div style="display: flex; gap: 0.35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.15rem;">
+          ${chip('🫶', '체크인', 2, "window.Game.show('quest')")}
+          ${chip('🗡️', '퀘스트', 3, "window.Game.show('quest')")}
+          ${chip('🌙', '하루정리', 4, "window.Growth && window.Growth.startNight()")}
+          ${chip('📝', '사고기록', 4, "window.App.switchTab('record')")}
+          ${chip('🫧', '호흡', 2, "window.Calm && window.Calm.openMenu()")}
+        </div>
+      </div>`;
   },
 
   // --------------------------------------------------------------------------

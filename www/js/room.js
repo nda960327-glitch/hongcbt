@@ -308,10 +308,14 @@ window.Room = {
 
     el.innerHTML = `
       ${this.scene()}
-      <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.8rem 0 0;">
+      ${window.Game ? window.Game.careBar() : ''}
+      <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.15rem 0 0;">
         <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
         <span style="font-size: 0.72rem; color: var(--text-muted);">💰 ${cash.toLocaleString()}캐시</span>
-        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; margin-left: auto; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
+        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; margin-left: auto; font-size: 0.76rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.35rem 0.8rem; border-radius: 999px;">
+          👒 옷장
+        </button>
+        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
           ${this._shopOpen ? '상점 닫기 ▲' : '🛍 가구 상점 ▼'}
         </button>
       </div>

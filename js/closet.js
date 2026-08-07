@@ -351,6 +351,7 @@ window.Closet = {
     };
 
     el.innerHTML = `
+      <button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>
       ${this.scene()}
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
         <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
