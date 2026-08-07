@@ -33,37 +33,46 @@ window.Stickers = {
           <circle cx="44" cy="42" r="2.6" fill="#C9D8E2"/>
         </g>`
     },
-    haru: { // 햇님: 살구빛 몸 + 삐뚤한 햇살 왕관 + 옆에 미니 해
-      body: '#FFF3DA', line: '#B8813C', cheek: '#F7B48A',
+    haru: { // 햇님: 노을빛 몸 + 사방으로 뻗는 큰 햇살 갈기 + 볼에 태양 문양
+      body: '#FFE9B8', line: '#C97F2E', cheek: '#F5A15E',
       deco: `
-        <g transform="rotate(-6 70 44)">
-          <path d="M52 46 l4 -9 5 8 M66 42 l3 -10 5 9 M81 43 l4 -9 4 9" fill="none" stroke="#E8A54B" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <g stroke="#F0A93C" stroke-width="4.4" stroke-linecap="round">
+          <path d="M70 40 v-14 M46 45 l-9 -11 M94 45 l9 -11 M31 62 l-13 -6 M109 62 l13 -6"/>
         </g>
-        <g>
-          <circle cx="106" cy="50" r="11" fill="#FBD679" stroke="#D9A93C" stroke-width="2.8"/>
-          <path d="M106 35 v-4 M117 39 l3 -3 M121 50 h4 M117 61 l3 3" stroke="#E8B04B" stroke-width="2.4" stroke-linecap="round"/>
-        </g>`
+        <g stroke="#F7C65E" stroke-width="3" stroke-linecap="round">
+          <path d="M57 41 l-5 -12 M83 41 l5 -12 M37 52 l-12 -9 M103 52 l12 -9"/>
+        </g>
+        <circle cx="70" cy="30" r="4.5" fill="#F7C65E" stroke="#C97F2E" stroke-width="2"/>
+        <path d="M34 74 q3 -5 8 -3 M106 74 q-3 -5 -8 -3" fill="none" stroke="#E8934B" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>`
     },
-    dalnim: { // 달님: 라벤더빛 몸 + 초승달 머리핀 + 잔별
-      body: '#F5F1FB', line: '#7B6FA8', cheek: '#EBC6DB',
+    dalnim: { // 달님: 밤하늘 남보라 몸 + 수면모자 + 껴안은 큰 초승달 + 잔별
+      body: '#E6E0F5', line: '#5D5490', cheek: '#D8B4D8',
       deco: `
-        <g transform="rotate(10 100 46)">
-          <path d="M104 34 a10 10 0 1 0 8 16 a7.5 7.5 0 1 1 -8 -16z" fill="#F2E6A8" stroke="#C9B96A" stroke-width="2.4" stroke-linejoin="round"/>
+        <g transform="rotate(-14 58 36)">
+          <path d="M40 46 q10 -22 40 -16 q-4 -8 -18 -9 q-20 -1 -26 17 q-1 5 4 8z" fill="#8A7FC0" stroke="#5D5490" stroke-width="3" stroke-linejoin="round"/>
+          <circle cx="36" cy="30" r="6.5" fill="#F2E6A8" stroke="#C9B96A" stroke-width="2.6"/>
         </g>
-        <path d="M40 40 l1.6 3.4 3.4 1.6 -3.4 1.6 -1.6 3.4 -1.6 -3.4 -3.4 -1.6 3.4 -1.6z" fill="#D9CBEF"/>
-        <circle cx="30" cy="56" r="2" fill="#D9CBEF"/>`
+        <g transform="rotate(14 108 66)">
+          <path d="M112 46 a15 15 0 1 0 12 24 a11 11 0 1 1 -12 -24z" fill="#F2E6A8" stroke="#C9B96A" stroke-width="2.8" stroke-linejoin="round"/>
+        </g>
+        <path d="M30 46 l2 4.2 4.2 2 -4.2 2 -2 4.2 -2 -4.2 -4.2 -2 4.2 -2z" fill="#B9A8E8"/>
+        <circle cx="45" cy="34" r="2.2" fill="#B9A8E8"/>
+        <circle cx="24" cy="66" r="1.8" fill="#B9A8E8"/>`
     },
-    sonamu: { // 소나무: 연둣빛 몸 + 머리 위 솔가지 + 작은 솔방울
-      body: '#F0F7EE', line: '#5C8272', cheek: '#C4DCA9',
+    sonamu: { // 소나무: 이끼빛 몸 + 층층 소나무 왕관 + 솔방울 귀걸이 + 나이테 배
+      body: '#DCEBD8', line: '#3F6B52', cheek: '#A8CC90',
       deco: `
-        <g transform="rotate(-5 70 42)">
-          <path d="M58 44 q12 -10 26 -2" fill="none" stroke="#7FA78C" stroke-width="3" stroke-linecap="round"/>
-          <path d="M62 41 l-2 -6 M68 38 l-1 -7 M75 37 l1 -7 M81 39 l3 -6" stroke="#5fae7f" stroke-width="2.6" stroke-linecap="round"/>
-        </g>
         <g>
-          <ellipse cx="104" cy="52" rx="8.5" ry="11" fill="#C9A876" stroke="#8A6F55" stroke-width="2.6"/>
-          <path d="M98 46 h12 M97 52 h14 M99 58 h10" stroke="#8A6F55" stroke-width="1.6" opacity="0.65"/>
-        </g>`
+          <path d="M70 44 V22" stroke="#8A6039" stroke-width="4.4" stroke-linecap="round"/>
+          <path d="M70 12 l-14 11 h28z" fill="#4F8A5B" stroke="#336040" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M70 19 l-19 14 h38z" fill="#5FA06B" stroke="#336040" stroke-width="2.6" stroke-linejoin="round"/>
+          <path d="M70 27 l-24 17 h48z" fill="#74B57F" stroke="#336040" stroke-width="2.6" stroke-linejoin="round"/>
+        </g>
+        <g transform="rotate(12 112 78)">
+          <ellipse cx="112" cy="78" rx="6.5" ry="9" fill="#C9A876" stroke="#8A6F55" stroke-width="2.4"/>
+          <path d="M107 74 h10 M106 79 h12 M108 84 h8" stroke="#8A6F55" stroke-width="1.4" opacity="0.65"/>
+        </g>
+        <path d="M62 112 a9 9 0 0 1 16 0 M58 113 a13 13 0 0 1 24 0" fill="none" stroke="#9CBE8E" stroke-width="2" opacity="0.55"/>`
     }
   },
   _skinId: 'woorung',

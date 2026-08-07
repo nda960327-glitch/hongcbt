@@ -220,7 +220,10 @@ window.Room = {
     { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐' },
     { s: 'watering', cap: '새싹 돌보는 중' },
     { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼' },
-    { s: 'waiting',  cap: '문 쪽만 보고 있었다…' }
+    { s: 'waiting',  cap: '문 쪽만 보고 있었다…' },
+    { s: 'tea',      cap: '☀️ 햇님이 놀러 와서 수다 중!', skin: 'haru' },
+    { s: 'sing',     cap: '🌙 달님이 자장가를 불러주고 있다…', skin: 'dalnim' },
+    { s: 'think',    cap: '🌲 소나무 아저씨와 조용한 시간', skin: 'sonamu' }
   ],
   _idle: null,
 
@@ -243,7 +246,9 @@ window.Room = {
     const p = this.placed();
     const draw = slot => { const it = this.item(p[slot]); return it ? it.svg() : ''; };
     const idle = this._idle || this.pickIdle();
-    const snail = window.Stickers ? window.Stickers.svg(idle.s, 96) : '';
+    const snail = window.Stickers
+      ? (idle.skin ? window.Stickers.svgFor(idle.skin, idle.s, 96) : window.Stickers.svg(idle.s, 96))
+      : '';
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
         <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">

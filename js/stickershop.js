@@ -18,8 +18,25 @@ window.StickerShop = {
       stickers: ['hungry', 'run', 'cold', 'hot', 'sing', 'dance', 'tea', 'party'] },
     { id: 'special', name: '스페셜 팩', emoji: '🦸', price: 2500,
       desc: '히어로·탐정·선물… 우렁이의 특별한 모습들',
-      stickers: ['hero', 'detective', 'gift', 'muscle', 'write', 'aha', 'peek', 'love', 'proud', 'surprise'] }
+      stickers: ['hero', 'detective', 'gift', 'muscle', 'write', 'aha', 'peek', 'love', 'proud', 'surprise'] },
+    { id: 'haru_pack', name: '햇님 팩', emoji: '☀️', price: 2000, skin: 'haru',
+      desc: '햇살 캐릭터 햇님의 표정 모음',
+      stickers: ['joy', 'cheer', 'laugh', 'ok', 'stareyes', 'proud', 'dance', 'love'] },
+    { id: 'dalnim_pack', name: '달님 팩', emoji: '🌙', price: 2000, skin: 'dalnim',
+      desc: '포근한 밤의 달님 표정 모음',
+      stickers: ['empathy', 'sad', 'sleepy', 'tea', 'shy', 'love', 'blank', 'bow'] },
+    { id: 'sonamu_pack', name: '소나무 팩', emoji: '🌲', price: 2000, skin: 'sonamu',
+      desc: '단단한 소나무의 표정 모음',
+      stickers: ['think', 'ok', 'empathy', 'proud', 'tea', 'write', 'aha', 'bow'] }
   ],
+
+  _tab: 'basic',
+
+  setTab(id) {
+    this._tab = id;
+    if (window.Sfx) window.Sfx.play('nav');
+    this.renderDrawer();
+  },
 
   owned() {
     const o = window.Storage._safeGet('cbt_sticker_packs', {}) || {};
@@ -90,41 +107,47 @@ window.StickerShop = {
   },
 
   renderDrawer() {
+    // 카카오톡식: 아래 팩 탭을 눌러 전환, 한 번에 한 팩만 표시
     const panel = document.getElementById('sticker-drawer');
     if (!panel || !window.Stickers) return;
     const owned = this.owned();
+    const pack = this.PACKS.find(p => p.id === this._tab) || this.PACKS[0];
+    const has = !!owned[pack.id];
+    const draw = s => pack.skin ? window.Stickers.svgFor(pack.skin, s, 62) : window.Stickers.svg(s, 62);
+
     panel.innerHTML = `
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; position: sticky; top: -0.6rem; background: var(--bg-secondary); padding: 0.4rem 0; z-index: 1;">
-        <strong style="font-size: 0.85rem; color: var(--text-primary);">😊 우렁이 이모티콘</strong>
+      <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.45rem; position: sticky; top: -0.6rem; background: var(--bg-secondary); padding: 0.4rem 0; z-index: 1;">
+        <strong style="font-size: 0.82rem; color: var(--text-primary);">${pack.emoji} ${pack.name}</strong>
+        ${has
+          ? (pack.price ? '<span style="font-size: 0.62rem; font-weight: 800; color: var(--accent-primary);">보유 중</span>' : '')
+          : `<button onclick="window.StickerShop.buy('${pack.id}')" style="all: unset; font-size: 0.68rem; font-weight: 800; color: #fff; background: var(--accent-secondary); padding: 0.2rem 0.6rem; border-radius: 999px; cursor: pointer;">🔓 ${pack.price.toLocaleString()}캐시로 열기</button>`}
+        <span style="flex: 1;"></span>
         <button onclick="window.StickerShop.closeDrawer()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;">✕</button>
-      </div>` + this.PACKS.map(pack => {
-      const has = !!owned[pack.id];
-      return `
-        <div style="margin-bottom: 0.7rem;">
-          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
-            <strong style="font-size: 0.8rem; color: var(--text-primary);">${pack.emoji} ${pack.name}</strong>
-            ${has
-              ? (pack.price ? '<span style="font-size: 0.62rem; font-weight: 800; color: var(--accent-primary);">보유 중</span>' : '')
-              : `<button onclick="window.StickerShop.buy('${pack.id}')" style="all: unset; font-size: 0.66rem; font-weight: 800; color: #fff; background: var(--accent-secondary); padding: 0.16rem 0.55rem; border-radius: 999px; cursor: pointer;">🔓 ${pack.price.toLocaleString()}캐시</button>`}
-            <span style="flex: 1;"></span>
-            ${!has ? `<span style="font-size: 0.62rem; color: var(--text-muted);">${pack.desc}</span>` : ''}
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem;">
-            ${pack.stickers.map(s => `
-              <button ${has ? `onclick="window.StickerShop.send('${s}')"` : `onclick="window.StickerShop.buy('${pack.id}')"`}
-                title="${window.Stickers.labels[s] || s}"
-                style="all: unset; box-sizing: border-box; cursor: pointer; border-radius: 12px; padding: 0.25rem 0.1rem 0.35rem; text-align: center; ${has ? '' : 'filter: grayscale(1); opacity: 0.4;'}"
-                onmousedown="this.style.background='var(--bg-tertiary)'" onmouseup="this.style.background=''" onmouseleave="this.style.background=''">
-                <span style="display: block; line-height: 0;">${window.Stickers.svg(s, 62)}</span>
-                <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-muted); margin-top: 0.15rem;">${window.Stickers.labels[s] || s}</span>
-              </button>`).join('')}
-          </div>
-        </div>`;
-    }).join('') + `<p style="margin: 0.2rem 0 0; font-size: 0.62rem; color: var(--text-muted); text-align: center;">이모티콘을 보내면 우렁이가 반응해요 · 잠긴 팩은 캐시로 열 수 있어요</p>`;
+      </div>
+      ${!has ? `<p style="margin: 0 0 0.4rem; font-size: 0.64rem; color: var(--text-muted);">${pack.desc}</p>` : ''}
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; min-height: 150px;">
+        ${pack.stickers.map(s => `
+          <button ${has ? `onclick="window.StickerShop.send('${s}', '${pack.skin || ''}')"` : `onclick="window.StickerShop.buy('${pack.id}')"`}
+            title="${window.Stickers.labels[s] || s}"
+            style="all: unset; box-sizing: border-box; cursor: pointer; border-radius: 12px; padding: 0.25rem 0.1rem 0.35rem; text-align: center; ${has ? '' : 'filter: grayscale(1); opacity: 0.4;'}"
+            onmousedown="this.style.background='var(--bg-tertiary)'" onmouseup="this.style.background=''" onmouseleave="this.style.background=''">
+            <span style="display: block; line-height: 0;">${draw(s)}</span>
+            <span style="display: block; font-size: 0.62rem; font-weight: 700; color: var(--text-muted); margin-top: 0.15rem;">${window.Stickers.labels[s] || s}</span>
+          </button>`).join('')}
+      </div>
+      <div style="display: flex; gap: 0.15rem; margin-top: 0.5rem; padding-top: 0.45rem; border-top: 1px solid var(--glass-border); position: sticky; bottom: -0.8rem; background: var(--bg-secondary); padding-bottom: 0.2rem;">
+        ${this.PACKS.map(p => `
+          <button onclick="window.StickerShop.setTab('${p.id}')" title="${p.name}${owned[p.id] ? '' : ' (잠김)'}"
+            style="all: unset; box-sizing: border-box; cursor: pointer; flex: 1; text-align: center; font-size: 1.05rem; padding: 0.3rem 0; border-radius: 10px; position: relative;
+                   background: ${p.id === pack.id ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'transparent'};
+                   ${owned[p.id] ? '' : 'opacity: 0.55;'}">
+            ${p.emoji}${owned[p.id] ? '' : '<span style="position: absolute; top: 1px; right: 4px; font-size: 0.5rem;">🔒</span>'}
+          </button>`).join('')}
+      </div>`;
   },
 
   // 스티커 전송 → 우렁이가 반응 (일반 메시지와 같은 파이프라인)
-  send(name) {
+  send(name, skin) {
     if (window.Subscription && !window.Subscription.guardChat()) return;
     const App = window.App;
     if (!App) return;
@@ -137,9 +160,9 @@ window.StickerShop = {
       window.Storage.markDayActive();
       window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
     }
-    App.displayMessage({ role: 'user', sticker: name });
+    App.displayMessage({ role: 'user', sticker: name, stickerSkin: skin || '' });
     // 히스토리에는 텍스트로 남겨 우렁이(LLM)가 알아보게 한다
-    window.Storage.saveMessage({ role: 'user', sticker: name, text: `('${label}' 이모티콘을 보냈다)`, timestamp: new Date().toISOString() });
+    window.Storage.saveMessage({ role: 'user', sticker: name, stickerSkin: skin || '', text: `('${label}' 이모티콘을 보냈다)`, timestamp: new Date().toISOString() });
     if (window.Growth) window.Growth.checkAwards();
 
     App.showTypingIndicator();

@@ -546,7 +546,7 @@ window.App = {
         wrapper.style.justifyContent = 'flex-end';
         wrapper.innerHTML = `
           <div style="background: none; border: none; box-shadow: none; padding: 0; text-align: right;">
-            ${window.Stickers.svg(msg.sticker, 96)}
+            ${msg.stickerSkin ? window.Stickers.svgFor(msg.stickerSkin, msg.sticker, 96) : window.Stickers.svg(msg.sticker, 96)}
             <span class="message-time" style="display: block; text-align: center;">${time}</span>
           </div>
         `;
@@ -851,8 +851,20 @@ window.App = {
           </div>
         </div>
         <p style="margin: 0.65rem 0 0.25rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.45;">${p.desc}</p>
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; padding-top: 0.4rem; border-top: 1px dashed var(--glass-border);">
-          <span style="font-size: 0.74rem; color: var(--text-muted); flex: 1; padding-right: 0.5rem;"><b>추천:</b> ${p.fit}</span>
+        ${p.method ? `
+        <div style="margin-top: 0.55rem; border-radius: 12px; background: color-mix(in srgb, ${p.color} 7%, var(--bg-tertiary)); border: 1px solid color-mix(in srgb, ${p.color} 22%, transparent); padding: 0.7rem 0.8rem;">
+          <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
+            <span style="font-size: 0.66rem; font-weight: 800; color: #fff; background: ${p.color}; padding: 0.14rem 0.5rem; border-radius: 999px;">${p.method}</span>
+            ${p.lesson ? `<span style="font-size: 0.64rem; font-weight: 800; color: ${p.color}; border: 1px solid color-mix(in srgb, ${p.color} 45%, transparent); padding: 0.12rem 0.45rem; border-radius: 999px;">${p.lesson} 코스 보유</span>` : ''}
+          </div>
+          <p style="margin: 0 0 0.45rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.55;"><b style="color: var(--text-primary);">왜 효과 있나요?</b> ${p.why || ''}</p>
+          <p style="margin: 0 0 0.2rem; font-size: 0.7rem; font-weight: 800; color: var(--text-primary);">이렇게 쓰면 좋아요</p>
+          <ol style="margin: 0; padding-left: 1.05rem; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.65;">
+            ${(p.howto || []).map(h => `<li>${h}</li>`).join('')}
+          </ol>
+        </div>` : ''}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.55rem; padding-top: 0.4rem; border-top: 1px dashed var(--glass-border);">
+          <span style="font-size: 0.74rem; color: var(--text-muted); flex: 1; padding-right: 0.5rem;"><b>이럴 때:</b> ${p.fit}</span>
           <button class="btn-primary" style="font-size: 0.76rem; padding: 0.35rem 0.85rem; border-radius: var(--radius-full); width: auto; flex-shrink: 0; background: ${p.color}; border: none;">${isActive ? '대화 계속하기 ›' : '상담사 선택 ›'}</button>
         </div>`;
       card.addEventListener('click', () => this.selectPersona(p.id));
@@ -1423,7 +1435,15 @@ ${memory || '(없음)'}`;
 
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1.05rem; display: flex; align-items: center; gap: 0.75rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary)), var(--bg-secondary));">
-        <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(sticker, 56) : '🐌'}</span>
+        <span style="line-height: 0; flex-shrink: 0;">${(() => {
+          if (!window.Stickers) return '🐌';
+          // 가끔(15%) 햇님·달님·소나무가 대신 인사한다
+          if (Math.random() < 0.15) {
+            const friends = ['haru', 'dalnim', 'sonamu'];
+            return window.Stickers.svgFor(friends[Math.floor(Math.random() * 3)], sticker, 56);
+          }
+          return window.Stickers.svg(sticker, 56);
+        })()}</span>
         <div style="flex: 1; min-width: 0;">
           <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; font-family: var(--font-heading);">${hello}</strong>
           <span style="font-size: 0.78rem; color: var(--text-secondary);">${sub}</span>
