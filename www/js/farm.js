@@ -447,9 +447,6 @@ window.Farm = {
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">${cells}</div>
       <div id="farm-shop" class="hidden" style="margin-top: 0.7rem; padding: 0.75rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
       <div id="farm-picker" class="hidden" style="margin-top: 0.7rem; padding: 0.75rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border);"></div>
-      <p style="margin: 0.7rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-        체크인·미션·하루정리·사고기록·호흡을 하면 물이 고여요. 밭을 눌러 물을 주고, 다 자라면 눌러서 수확하세요.
-        방치해도 시들지 않으니 안심하세요.
-      </p>` + (window.Game ? window.Game.careBar() : '');
+      ` + (window.Game ? window.Game.careBar() : '');
   }
 };

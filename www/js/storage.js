@@ -63,8 +63,10 @@
 
   setUserMemory(text) {
     // Guard against runaway growth of the injected memory blob.
-    if (typeof text === 'string' && text.length > 6000) {
-      text = text.slice(0, 6000);
+    // 3000단어 요약이 들어온다. 한국어 3000단어면 대략 11,000자.
+    //  잘릴 때 문장 중간에서 끊기지 않도록 여유를 둔다.
+    if (typeof text === 'string' && text.length > 13000) {
+      text = text.slice(0, 13000);
     }
     this._safeSet('cbt_user_memory', text || '');
   },

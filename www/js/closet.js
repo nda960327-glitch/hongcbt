@@ -377,9 +377,6 @@ window.Closet = {
               ${items.map(cell).join('')}
             </div>`;
         }).join('')}
-        <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-          코인은 밭에서 작물을 수확하면 모여요. 회색 아이템을 누르면 구매, 가진 아이템을 누르면 입고 벗을 수 있어요.
-        </p>
       </div>`;
   }
 };

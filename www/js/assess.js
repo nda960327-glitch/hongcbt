@@ -475,7 +475,7 @@ window.Assess = {
                 : st.state === 'partial' ? '아직 안 끝났어요 — 이어서 답해주세요'
                 : 'PHQ-9(우울)·GAD-7(불안) 표준 검사. 한 문항씩 천천히 답하면 돼요.'; })()}</p>
           </div>
-          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.85rem; flex-shrink: 0;" onclick="window.Assess.openQuiz()">${this.qaStatus().ok ? '다시 하기' : '시작하기 ›'}</button>
+          <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.85rem; flex-shrink: 0;" onclick="window.Assess.openQuiz()">${this.qaFresh().ok ? '다시 하기' : '검진하기 ›'}</button>
         </div>
         ${(() => {
           const sc = this.scores();
@@ -799,6 +799,22 @@ b{font-weight:800}
   // --------------------------------------------------------------------------
   //  생성 (유료)
   // --------------------------------------------------------------------------
+  // 이번 리포트에 쓸 검진이 "지금"의 것인가.
+  //  지난 리포트 이후에 다시 잰 검진만 인정한다 — 리포트 1개 = 검진 1개.
+  qaFresh() {
+    const qa = this.answers();
+    if (!qa || !qa.ts) return { ok: false, why: 'none' };
+    const st = this.qaStatus();
+    if (!st.ok) return { ok: false, why: st.state, days: st.days };   // 없음·미완료·만료
+    const last = this.reports()[0];
+    if (!last) return { ok: true, first: true };
+    const lastTs = Number(String(last.id).replace('as_', '')) || 0;
+    if (qa.ts <= lastTs) {
+      return { ok: false, why: 'stale', days: Math.floor((Date.now() - qa.ts) / 86400000) };
+    }
+    return { ok: true };
+  },
+
   // 다음 리포트까지 남은 일수 (0 이면 지금 가능)
   cooldownLeft() {
     const last = this.reports()[0];
@@ -812,33 +828,60 @@ b{font-weight:800}
   async generate() {
     const m = this.metrics();
     const st = this.qaStatus();
-    // 연속 생성 차단 — 새 기록이 쌓여야 새 결과가 의미를 가진다
-    const left = this.cooldownLeft();
-    if (left > 0) {
+
+    // ── 관문: 이번 리포트를 위한 검진을 지금 다시 잰다 ─────────────
+    //  예전 점수로 지금을 설명할 수는 없다. 5분이면 끝나고, 그래야 추이도 쌓인다.
+    const fresh = this.qaFresh();
+    if (!fresh.ok) {
       if (window.Sfx) window.Sfx.play('denied');
-      alert(`다음 리포트는 ${left}일 뒤에 만들 수 있어요.\n\n짧은 간격으로 다시 만들면 표현만 달라진 결과가 나와요. 그걸 변화로 착각하면 오히려 손해예요.\n\n표준 검진(PHQ-9·GAD-7)은 지난 2주를 묻는 도구라, 2주는 지나야 비교가 됩니다.\n그동안 케어플랜을 실행하고 체크인을 쌓아주세요 — 그게 다음 리포트의 재료예요.`);
-      return;
-    }
-    if (!st.ok) {
-      if (window.Sfx) window.Sfx.play('denied');
-      const msg = st.state === 'expired'
-        ? `표준 자가검진을 ${st.days}일 전에 하셨어요.\n\nPHQ-9·GAD-7은 '지난 2주'의 상태를 묻는 검사라, 2주가 지나면 지금의 당신을 설명하지 못해요.\n검진을 다시 해주세요. (5분)`
-        : '표준 자가검진(PHQ-9·GAD-7)을 먼저 해주세요.\n\n이 검진 없이는 우울·불안을 표준 기준으로 판단할 수 없어서, 리포트를 만들지 않습니다. 한 문항씩 천천히 답하면 5분이면 끝나요.';
+      const msg = {
+        none:    '표준 자가검진(PHQ-9·GAD-7)을 먼저 해주세요.\n\n이 검진 없이는 우울·불안을 표준 기준으로 판단할 수 없어요.\n한 문항씩 답하면 5분이면 끝나요.',
+        partial: '자가검진이 중간에 멈춰 있어요.\n\n남은 문항까지 마쳐야 점수가 나옵니다. (5분)',
+        expired: `표준 검진을 ${fresh.days}일 전에 하셨어요.\n\nPHQ-9·GAD-7은 '지난 2주'를 묻는 검사라, 그 답은 지금의 당신이 아니에요.\n다시 재고 리포트를 만들게요. (5분)`,
+        stale:   `이 검진 점수는 지난 리포트에 이미 쓴 것이에요.\n\n같은 점수로 새 리포트를 만들면 '지금'이 아니라 그때를 다시 설명하게 돼요.\n지금 상태로 다시 재야 무엇이 달라졌는지 볼 수 있어요. (5분)`
+      }[fresh.why] || '표준 자가검진을 먼저 해주세요. (5분)';
       alert(msg);
       this.openQuiz();
       return;
     }
-    if (m.total < this.MIN_TOTAL) {
-      if (window.Sfx) window.Sfx.play('denied');
-      alert(`데이터가 아직 ${m.total}%예요. (최소 ${this.MIN_TOTAL}%)\n\n얕은 데이터로 만든 리포트는 당신을 오해하게 됩니다.\n우렁이와 더 대화하고, 매일 체크인·하루정리를 쌓아주세요.`);
-      return;
-    }
+
     if (!window.Wallet || window.Wallet.balance() < this.PRICE) {
       alert(`우렁 캐시가 부족해요. (${this.PRICE.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
       return;
     }
-    const warn = m.total < 90 ? `\n\n(데이터 충분도 ${m.total}%)` : '';
-    if (!confirm(`AI 마음 리포트를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${warn}`)) return;
+
+    // ── 경고하는 것: 결과가 나빠질 조건 ─────────────────────────────
+    //  막지는 않는다. 무엇이 어떻게 나빠지는지만 정확히 알리고 본인이 고르게 한다.
+    const warns = [];
+
+    const left = this.cooldownLeft();
+    if (left > 0) {
+      const passed = this.COOLDOWN_DAYS - left;
+      warns.push(
+        `· 지난 리포트로부터 ${passed}일 지났어요 (권장 ${this.COOLDOWN_DAYS}일)\n`
+        + `  같은 기록으로 다시 만드는 셈이라, 표현만 달라진 결과가 나오기 쉬워요.\n`
+        + `  그 차이를 '나아졌다' 로 읽으면 오히려 손해예요.`);
+    }
+
+    if (m.total < this.MIN_TOTAL) {
+      warns.push(
+        `· 데이터 충분도가 ${m.total}%예요 (권장 ${this.MIN_TOTAL}% 이상)\n`
+        + `  기록이 얕으면 AI가 당신을 오해한 채로 단정할 수 있어요.\n`
+        + `  대화·체크인·하루정리를 더 쌓으면 훨씬 정확해져요.`);
+    }
+
+    if (warns.length) {
+      if (window.Sfx) window.Sfx.play('denied');
+      const ok = confirm(
+        `잠깐, 이 상태로 만들면 리포트 품질이 떨어져요.\n\n`
+        + warns.join('\n\n')
+        + `\n\n그래도 지금 ${this.PRICE.toLocaleString()}캐시로 만드시겠어요?`);
+      if (!ok) return;
+    } else {
+      const note = m.total < 90 ? `\n(데이터 충분도 ${m.total}%)` : '';
+      if (!confirm(`AI 마음 리포트를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${note}`)) return;
+    }
+
     if (!window.Wallet.spend(this.PRICE, 'AI 마음 리포트 생성')) return;
 
     const box = document.getElementById('assess-result');
@@ -995,7 +1038,8 @@ ${distTxt}
 ${msgs}`;
 
     const res = await window.LLM._chatCompletion({
-      model: window.LLM.MODEL,
+      // 리포트는 품질이 곧 신뢰다 — 여기는 상위 모델을 쓴다
+      model: window.LLM.MODEL_HIGH || window.LLM.MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
       max_tokens: 4000

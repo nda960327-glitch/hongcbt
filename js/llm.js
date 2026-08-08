@@ -6,8 +6,17 @@
   //  사람처럼 관계를 쌓아가는 동반자로 설계되었습니다.
   // ==========================================================================
 
-  MODEL: "gpt-4o",            // 대화 생성 (최고 품질 우선)
+  // 일상 대화. 대부분의 턴이 여기로 간다.
+  MODEL: "gpt-4o-mini",
+  // 품질이 곧 안전인 곳에만 쓰는 상위 모델.
+  //  위기 턴 · 리포트 생성 · 장기기억 정리. 여기서 아끼면 사람이 다친다.
+  MODEL_HIGH: "gpt-4o",
   MEMORY_MODEL: "gpt-4o",     // 장기기억 정리 (비동기, 사용자 대기 없음)
+
+  // 보내기 전에 규칙으로 먼저 훑는 위기 신호.
+  //  모델 응답의 '위험감지' 만 믿으면 이미 낮은 모델이 답을 쓴 뒤라 늦다.
+  //  놓치는 것보다 과하게 잡는 편이 낫다 — 비용은 몇 원, 놓치면 사람이다.
+  RISK_RE: /죽고\s?싶|죽어버리|자살|목숨|목\s?매|뛰어내리|사라지고\s?싶|없어지고\s?싶|없어졌으면|살기\s?싫|살고\s?싶지\s?않|자해|손목|칼로|약을?\s?(모으|삼키|먹)|번개탄|유서|다\s?끝내|끝내고\s?싶|죽여버리|해치고\s?싶|다\s?죽|폭발할\s?것|못\s?견디|버틸\s?수\s?없|한계|무너질\s?것/,
   HISTORY_WINDOW: 30,         // 프롬프트에 넣는 최근 대화 수
 
   // Cloudflare Worker 프록시 주소. 키는 Worker 시크릿에만 있고 앱에는 없다.
@@ -305,6 +314,10 @@ DBT 대인관계 효율 기술이 여기 있습니다 — DEAR MAN(원하는 걸
     // ── 항상: 핵심 정체성·치료 원칙 ──
     let prompt = this.CORE_PROMPT;
 
+    // 요청마다 바뀌는 것은 여기 모았다가 맨 뒤에 붙인다.
+    //  앞쪽이 매번 똑같아야 프롬프트 캐시가 걸리고 입력 비용이 절반이 된다.
+    let tail = '';
+
     // ── 조건부: 앱 가이드 (사용법 질문 · 초반 5턴) ──
     if (ctx.appHelp || ctx.turns < 6) prompt += this.APP_GUIDE;
 
@@ -357,8 +370,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     const sp = (window.SafetyPlan && window.SafetyPlan.promptContext()) || '';
     const hw = (window.Homework && window.Homework.promptContext()) || '';
     if (care || goals || prog || sp || hw) {
-      prompt += '\n\n' + [hw, care, goals, prog, sp].filter(Boolean).join('\n\n');
-      prompt += `\n\n[치료 동기 — 매우 중요]
+      tail += '\n\n' + [hw, care, goals, prog, sp].filter(Boolean).join('\n\n');
+      tail += `\n\n[치료 동기 — 매우 중요]
 이 사람이 계속하려면 "이걸 하면 정말 나아진다"는 믿음이 있어야 합니다. 그 믿음은 설득이 아니라 근거로 만듭니다.
 · 격려할 땐 반드시 구체적 근거를 대세요. "잘하고 있어" (X) → "지난주에 세 번 다 했잖아. 그때 기분이 2에서 4로 올랐고." (O)
 · 왜 이 방법이 듣는지 한 문장으로 설명해주세요. 이유를 아는 사람이 끝까지 합니다.
@@ -370,7 +383,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     // 먼저 꺼낼 후속 질문 — 안부가 아니라 리포트에서 세운 가설의 확인이다
     const fu = (window.CarePlan && window.CarePlan.dueFollowUp && window.CarePlan.dueFollowUp()) || null;
     if (fu) {
-      prompt += `\n\n[먼저 물어볼 것 — ${fu.day}일차 확인]
+      tail += `\n\n[먼저 물어볼 것 — ${fu.day}일차 확인]
 "${fu.q}"
 · 대화 흐름이 급하지 않다면 이번 응답 안에서 이 질문을 자연스럽게 꺼내세요. 취조하듯 말고, 기억하고 있었다는 느낌으로.
 · 사용자가 지금 힘든 이야기를 하는 중이면 이 질문은 미루세요. 그쪽이 먼저입니다.`;
@@ -379,12 +392,12 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     // 한국 명절·기념일 감각
     const holidayNote = this._holidayNote();
     if (holidayNote) {
-      prompt += `\n\n[다가오는 날] ${holidayNote}\n명절·연휴·기념일이 다가오면 먼저 알고 자연스럽게 화제로 삼으세요. ("추석 때 본가 가?", "연휴에 뭐 해?") 시각은 사용자 기기 기준이므로 해외에 있다면 그 나라 시간이 맞습니다.`;
+      tail += `\n\n[다가오는 날] ${holidayNote}\n명절·연휴·기념일이 다가오면 먼저 알고 자연스럽게 화제로 삼으세요. ("추석 때 본가 가?", "연휴에 뭐 해?") 시각은 사용자 기기 기준이므로 해외에 있다면 그 나라 시간이 맞습니다.`;
     }
 
     // ── 조건부: 안정 도구 안내 (불안·공황 신호가 보일 때만) ──
     if (ctx.distress) {
-      prompt += `\n\n[앱 안정 도구 안내]
+      tail += `\n\n[앱 안정 도구 안내]
 사용자의 불안·공황·격한 감정이 느껴지면, 앱에 내장된 '마음 안정' 도구(홈 화면 > 마음 안정: 박스 호흡, 4-7-8 호흡, 5-4-3-2-1 그라운딩)를 자연스럽게 권할 수 있습니다. ("홈에 있는 마음 안정 눌러서 나랑 같이 호흡 한 번 하고 올래? 여기서 기다릴게")`;
     }
 
@@ -408,7 +421,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 
     // ── 조건부: 주제별 리포트 (요청했거나 대화가 충분히 쌓였을 때) ──
     if (ctx.reportAsk || ctx.turns >= 20) {
-      prompt += `\n\n[주제별 요약 리포트]
+      tail += `\n\n[주제별 요약 리포트]
 사용자가 특정 주제에 대해 "지금까지 얘기했던 거 요약해줘 / 리포트로 만들어줘"라고 하면, 짧게 승낙하고 응답 맨 끝에 [주제리포트: 주제명] 표식을 붙이세요. 시스템이 리포트를 만들어 대시보드에 저장합니다. 표식은 사용자에게 보이지 않습니다.
 그리고 '당신이 먼저' 제안도 하세요: ① 한 주제를 여러 번에 걸쳐 깊게 다뤘을 때 ② 사용자가 인간 상담사를 만날 예정일 때 ③ 스스로 돌아보고 싶어하는 눈치일 때. 거절하면 다시 조르지 않습니다.`;
     }
@@ -433,10 +446,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 · 진지한 위로·위기 상황에서는 의성어 금지.`;
     }
 
-    if (nowStr) prompt += `\n\n[현재 시각] ${nowStr}\n반드시 지금 시각에 맞게 말하세요. 한낮에 "잘 자", 아침에 "저녁 먹었어?" 같은 엇박자는 즉시 AI 티가 납니다. 밤 인사는 실제로 밤이거나 사용자가 자러 간다고 할 때만.`;
+    if (nowStr) tail += `\n\n[현재 시각] ${nowStr}\n반드시 지금 시각에 맞게 말하세요. 한낮에 "잘 자", 아침에 "저녁 먹었어?" 같은 엇박자는 즉시 AI 티가 납니다. 밤 인사는 실제로 밤이거나 사용자가 자러 간다고 할 때만.`;
 
     if (window.Voice && (window.Voice.isListening || window.Voice.isTtsEnabled)) {
-      prompt += `\n\n============================================================
+      tail += `\n\n============================================================
 [음성 대화 모드 지침 — 매우 중요]
 ============================================================
 현재 사용자와 음성(마이크/TTS)으로 대화 중입니다.
@@ -445,11 +458,27 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 · 한 마디 공감이나 가벼운 핑퐁 질문으로 상대가 쉽게 다음 말을 이어할 수 있게 하세요.`;
     }
 
-    if (sessionNote) prompt += `\n\n${sessionNote}`;
-    prompt += `\n\n[장기기억]\n` + (memory && memory.trim()
+    if (sessionNote) tail += `\n\n${sessionNote}`;
+    tail += `\n\n[장기기억]\n` + (memory && memory.trim()
       ? memory.trim()
       : "(아직 이 사람에 대해 아는 것이 없습니다. 이번 대화에서 이름과 이야기를 자연스럽게 알아가세요. 처음 만난 것처럼, 그러나 반갑게.)");
-    return prompt;
+    // 고정부 + 가변부. 이 순서가 캐시 적중률을 결정한다.
+    return prompt + tail;
+  },
+
+  // 이 턴을 상위 모델로 올려야 하는가.
+  //  방금 보낸 말 + 최근 3개 발화를 함께 본다 (위기는 한 문장에 다 담기지 않는다).
+  _isRiskyTurn(userMessage) {
+    try {
+      const recent = ((window.Storage && window.Storage.getMessages()) || [])
+        .filter(m => m.role === 'user').slice(-3).map(m => m.text || '').join(' ');
+      const text = String(userMessage || '') + ' ' + recent;
+      if (this.RISK_RE.test(text)) return true;
+      // 표준 검진 문항9(자해 사고)에 응답이 있었다면 이 사람은 계속 상위 모델로 본다.
+      const sc = (window.Assess && window.Assess.scores) ? window.Assess.scores() : null;
+      if (sc && sc.item9 >= 1) return true;
+    } catch (e) {}
+    return false;
   },
 
   _buildMessages(sessionNote) {
@@ -491,8 +520,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     const messages = this._buildMessages(sessionNote);
 
     try {
+      // 이 턴이 위험해 보이면 상위 모델로 올린다. 최근 발화와 방금 보낸 말을 함께 본다.
+      const risky = this._isRiskyTurn(userText);
       const response = await this._chatCompletion({
-        model: this.MODEL,
+        model: risky ? this.MODEL_HIGH : this.MODEL,
         messages: messages,
         temperature: 0.9,       // 따뜻함·유머·자연스러움
         max_tokens: 700,
@@ -830,7 +861,7 @@ ${transcript}`;
   async _updateMemory(userText, botText) {
     try {
       if (!window.Storage) return;
-      const prevMemory = window.Storage.getUserMemory() || "(아직 없음)";   // 1500단어까지 누적된다
+      const prevMemory = window.Storage.getUserMemory() || "(아직 없음)";   // 3000단어까지 누적된다
 
       const history = window.Storage.getMessages() || [];
       const recent = history.slice(-12).map(m =>
@@ -855,7 +886,7 @@ ${transcript}`;
 - 중요한 날짜·약속·다음에 물어볼 것 (예: "다음엔 면접 결과 물어보기")
 - 감정 흐름: 시간에 따른 변화, 위험 신호 유무
 
-전체 1500단어 이내로 작성하세요. 이전보다 넉넉해졌으니 **구체적인 디테일을 살려서** 적으세요 — 사람 이름, 날짜, 실제로 한 말, 사건의 경과 같은 것들이 다음 대화의 재료가 됩니다.
+전체 3000단어 이내로 작성하세요. 분량이 넉넉하니 **구체적인 디테일을 살려서** 적으세요 — 사람 이름, 날짜, 실제로 한 말, 사건의 경과 같은 것들이 다음 대화의 재료가 됩니다.
 · 압축하되 뭉개지 마세요. "직장 스트레스" 대신 "3월부터 팀장 김OO의 반복적 공개 지적 → 4월 초 발표 후 자책 심화"처럼.
 · 다만 오래되어 더 이상 유효하지 않은 정보(이미 해결된 걱정, 지난 약속)는 정리하거나 '(해결됨)'을 붙이세요.
 · 반복 등장하는 인물·주제는 지우지 말고 누적하세요. 관계의 역사가 라포의 자산입니다.
@@ -873,7 +904,7 @@ ${transcript}
         model: this.MEMORY_MODEL,
         messages: [{ role: "user", content: memoryPrompt }],
         temperature: 0.2,
-        max_tokens: 3000
+        max_tokens: 6000
       });
 
       if (!res.ok) return;

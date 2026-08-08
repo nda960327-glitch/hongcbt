@@ -390,7 +390,7 @@ window.Room = {
       : '';
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
-        <svg viewBox="0 0 320 232" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
+        <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
           <defs>
             <linearGradient id="${uid}-wallsh" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stop-color="#000" stop-opacity="0.10"/>
