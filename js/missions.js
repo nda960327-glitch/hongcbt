@@ -311,6 +311,11 @@ ${recent}` }],
       if (window.Sfx) window.Sfx.hit('save');
       if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '처방 미션 완료');
       if (window.Storage.markDayActive) window.Storage.markDayActive();
+      // 케어플랜 체크와 똑같이 전후 기분을 남긴다 —
+      //  같은 행동인데 어디서 체크했느냐에 따라 기록이 갈리면 안 된다.
+      const wk = (window.CarePlan && window.CarePlan.currentWeek) ? window.CarePlan.currentWeek() : null;
+      const tech = wk && wk.technique ? wk.technique : '';
+      if (window.Progress) setTimeout(() => window.Progress.askAfter(text, tech, null), 260);
     }
     window.Storage._safeSet('cbt_rx_mission_log', log);
     this.renderCard();
@@ -319,12 +324,22 @@ ${recent}` }],
   // 오늘 보여줄 처방 미션 목록
   rxToday() {
     const out = [];
+    // 케어플랜 카드에 이미 떠 있는 할 일은 여기서 또 보여주지 않는다.
+    //  (할 일이 비면 weekActions 가 quests 를 끌어다 쓰기 때문에 그대로 두면 겹친다)
+    let planActs = [];
+    try {
+      if (window.CarePlan && window.CarePlan.active()) {
+        planActs = window.CarePlan.weekActions(window.CarePlan.currentWeek()) || [];
+      }
+    } catch (e) {}
     // 사람 상담사가 낸 숙제가 가장 앞. AI 제안보다 우선한다.
     if (window.Homework && window.Homework.questSeeds) {
       window.Homework.questSeeds().forEach(q => out.push({ ...q, src: 'hw' }));
     }
     if (window.CarePlan && window.CarePlan.questsFor) {
-      window.CarePlan.questsFor(this._today(), 2).forEach(q => out.push({ ...q, src: 'plan' }));
+      window.CarePlan.questsFor(this._today(), 2)
+        .filter(q => planActs.indexOf(q.text) < 0)
+        .forEach(q => out.push({ ...q, src: 'plan' }));
     }
     if (window.Goals && window.Goals.questSeeds) {
       window.Goals.questSeeds().slice(0, 1).forEach(q => out.push({ ...q, src: 'goal' }));
