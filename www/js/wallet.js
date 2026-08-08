@@ -41,7 +41,7 @@ window.Wallet = {
     this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
     this.renderCard();
     this._syncHud();
-    if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`🎁 보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
+    if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
     return true;
   },
 

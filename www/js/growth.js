@@ -66,7 +66,7 @@ window.Growth = {
     window.Storage._safeSet('cbt_active_days', days);
     window.Storage._safeSet('cbt_streak_shields', shields - gap);
     setTimeout(() => {
-      if (window.App && window.App.showRecordToast) window.App.showRecordToast(`🛡️ 스트릭 보호권 ${gap}개가 빠진 날을 지켜줬어요!`);
+      if (window.App && window.App.showRecordToast) window.App.showRecordToast(`스트릭 보호권 ${gap}개가 빠진 날을 지켜줬어요!`);
     }, 1200);
   },
 
@@ -80,7 +80,7 @@ window.Growth = {
       return;
     }
     window.Storage._safeSet('cbt_streak_shields', this.shields() + 1);
-    if (window.App && window.App.showRecordToast) window.App.showRecordToast('🛡️ 스트릭 보호권을 손에 넣었어요!');
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('스트릭 보호권을 손에 넣었어요!');
     this.renderBadgeCard();
   },
 
@@ -297,7 +297,7 @@ window.Growth = {
     if (window.Farm) window.Farm.addWater(3, '자유 일기 한 편');
     if (window.Storage.markDayActive) window.Storage.markDayActive();
     if (window.Sfx) window.Sfx.play('ripe');
-    if (window.App) window.App.showRecordToast('📓 일기를 꽂았어요 — 우렁이가 읽고 있어요');
+    if (window.App) window.App.showRecordToast('일기를 꽂았어요 — 우렁이가 읽고 있어요');
     this.renderNightList();
     this._diaryReply(ts);
   },
@@ -329,7 +329,7 @@ window.Growth = {
       target.reply = reply;
       window.Storage._safeSet('cbt_night_journal', jr);
       this.renderNightList();
-      if (window.App) window.App.showRecordToast('🐌 우렁이가 일기에 답글을 달았어요');
+      if (window.App) window.App.showRecordToast('우렁이가 일기에 답글을 달았어요');
     } catch (e) {}
   },
 

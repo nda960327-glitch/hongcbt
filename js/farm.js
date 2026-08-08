@@ -296,7 +296,7 @@ window.Farm = {
       return c && s.water >= c.need;
     }).length;
     if (ripe > 0 && window.App && window.App.showRecordToast) {
-      setTimeout(() => window.App.showRecordToast(`🧺 밭에 수확할 작물이 ${ripe}개 있어요`), 1800);
+      setTimeout(() => window.App.showRecordToast(`밭에 수확할 작물이 ${ripe}개 있어요`), 1800);
     }
   },
 

@@ -31,7 +31,7 @@ window.Mail = {
     }
     this._setStamps(this.stamps() + 1);
     if (window.Sfx) window.Sfx.hit('buy');
-    if (window.App) window.App.showRecordToast('🪶 달팽이 우표 1장을 샀어요');
+    if (window.App) window.App.showRecordToast('달팽이 우표 1장을 샀어요');
     this.render();
     if (window.Game) window.Game.renderHud();
   },
@@ -80,7 +80,7 @@ window.Mail = {
     if (ov) ov.remove();
     if (window.Sfx) window.Sfx.hit('coin');
     if (window.App) {
-      window.App.showRecordToast('📮 편지를 부쳤어요! 우렁이가 읽고 답장을 쓸 거예요');
+      window.App.showRecordToast('편지를 부쳤어요! 우렁이가 읽고 답장을 쓸 거예요');
       window.App.stickerPop('gift', 1500);
     }
     this.render();
@@ -123,7 +123,7 @@ ${userText}` }],
     b.unshift({ id: 'ml_' + Date.now(), dir: 'recv', ts: Date.now(), text: replyText, replyTo });
     this._saveBox(b);
     if (window.App) {
-      window.App.showRecordToast('💌 우렁이의 답장이 도착했어요! (대시보드 › 서재)');
+      window.App.showRecordToast('우렁이의 답장이 도착했어요! (대시보드 › 서재)');
       if (window.App.notify) window.App.notify('💌 우렁이네 우편함', '답장이 도착했어요!');
       if (window.App.playWoorung) window.App.playWoorung();
     }

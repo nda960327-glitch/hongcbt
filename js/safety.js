@@ -91,7 +91,7 @@ window.Safety = {
     const ov = document.getElementById('safety-edit');
     if (ov) ov.remove();
     if (window.App) {
-      window.App.showRecordToast('🛟 안전 계획을 저장했어요. 필요할 때 늘 여기 있을게요');
+      window.App.showRecordToast('안전 계획을 저장했어요. 필요할 때 늘 여기 있을게요');
       window.App.stickerPop('hero', 1500);
     }
     this.renderRow();

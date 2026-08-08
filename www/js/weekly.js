@@ -158,7 +158,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
         if (window.App.notify) window.App.notify('💌 우렁이의 주간 편지', '이번 주를 돌아본 편지가 도착했어요');
         if (window.App.playWoorung) window.App.playWoorung();
       }
-      if (window.App.showRecordToast) window.App.showRecordToast('💌 주간 편지가 도착했어요 (대시보드)');
+      if (window.App.showRecordToast) window.App.showRecordToast('주간 편지가 도착했어요 (대시보드)');
       if (window.App._setNavBadge) window.App._setNavBadge('dashboard', true);
     }
   },
@@ -234,7 +234,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
         a.download = '우렁이_주간편지.png';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-        if (window.App) window.App.showRecordToast('🖼 편지 카드를 저장했어요');
+        if (window.App) window.App.showRecordToast('편지 카드를 저장했어요');
       }
     }, 'image/png');
   },

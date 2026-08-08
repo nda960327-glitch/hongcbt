@@ -860,7 +860,7 @@ window.Assess = {
       alert('리포트 요약을 복사했어요. 상담사에게 붙여넣어 전달하세요.');
       return;
     }
-    if (window.App) window.App.showRecordToast('📤 상담사에게 리포트를 보냈어요');
+    if (window.App) window.App.showRecordToast('상담사에게 리포트를 보냈어요');
   },
 
   deleteReport(id) {
@@ -918,7 +918,7 @@ b{font-weight:800}
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-    if (window.App) window.App.showRecordToast('📄 진단서 파일을 저장했어요 (브라우저로 열 수 있어요)');
+    if (window.App) window.App.showRecordToast('진단서 파일을 저장했어요 (브라우저로 열 수 있어요)');
   },
 
   printPdf(id) {

@@ -64,12 +64,16 @@ window.App = {
       chatSend.addEventListener('click', () => this.sendMessage());
 
       // 키보드가 올라오면(입력 중): 하단바 숨김 + 그 여백 제거 → 입력창이 키보드 바로 위에 붙는다
-      chatInput.addEventListener('focus', () => document.body.classList.add('kb-open'));
-      chatInput.addEventListener('blur', () => setTimeout(() => document.body.classList.remove('kb-open'), 150));
+      // 시작할 때 한 번, 그리고 창 크기가 바뀔 때마다 다시 잰다
+      setTimeout(() => this.syncChatInputHeight(), 300);
+      window.addEventListener('resize', () => this.syncChatInputHeight());
+      chatInput.addEventListener('focus', () => { document.body.classList.add('kb-open'); setTimeout(() => this.syncChatInputHeight(), 120); });
+      chatInput.addEventListener('blur', () => setTimeout(() => { document.body.classList.remove('kb-open'); this.syncChatInputHeight(); }, 150));
       if (window.visualViewport) {
         window.visualViewport.addEventListener('resize', () => {
           const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.72;
           document.body.classList.toggle('kb-open', keyboardOpen && document.activeElement === chatInput);
+          this.syncChatInputHeight();
         });
       }
     }
@@ -403,6 +407,7 @@ window.App = {
     if (tabName === 'chat') {
       this.updateSessionUI();
       this._setNavBadge('chat', false); // 확인했으니 미확인 표시 제거
+      setTimeout(() => this.syncChatInputHeight(), 60);
     }
     if (tabName === 'dashboard') {
       if (window.Assess && window.Assess.ctaCard) window.Assess.ctaCard();
@@ -730,12 +735,23 @@ window.App = {
     }
   },
   
+  // 입력 영역 높이를 재서 CSS 변수로 넘긴다.
+  //  기기·키보드 상태·입력 줄 수에 따라 높이가 달라지는데,
+  //  고정값으로 여백을 주면 마지막 말풍선이 입력창 뒤로 잘린다.
+  syncChatInputHeight() {
+    const area = document.getElementById('chat-input-area');
+    if (!area) return;
+    const h = Math.round(area.getBoundingClientRect().height);
+    if (h > 0) document.documentElement.style.setProperty('--chat-input-h', h + 'px');
+  },
+
   autoResizeTextarea() {
     const el = document.getElementById('chat-input');
     if (!el) return;
     el.style.height = 'auto';
     const newHeight = Math.min(el.scrollHeight, 100); // approx 4 lines
     el.style.height = newHeight + 'px';
+    this.syncChatInputHeight();
   },
   
   showCrisisModal() {

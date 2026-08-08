@@ -190,7 +190,7 @@ window.Missions = {
     this.renderCard();
     if (window.App && window.App.showRecordToast) {
       const cheers = ['우와, 해냈다! 🎉', '역시 당신이야!', '몸이 움직이면 마음이 따라와요', '오늘의 작은 승리 +1'];
-      window.App.showRecordToast(`✅ ${cheers[Math.floor(Math.random() * cheers.length)]}`);
+      window.App.showRecordToast(`${cheers[Math.floor(Math.random() * cheers.length)]}`);
     }
     if (window.App && window.App.stickerPop) {
       const pops = ['hero', 'party', 'proud', 'ok', 'dance'];
@@ -212,7 +212,7 @@ window.Missions = {
     window.Storage._safeSet('cbt_mission_seen_' + this._today(), seen);
     window.Storage._safeSet('cbt_daily_mission', { date: this._today(), id: pick.id, done: false, rerolled: false, bonus: (s.bonus || 0) + 1 });
     if (window.Sfx) window.Sfx.hit('ripe');
-    if (window.App) window.App.showRecordToast('🎁 새 퀘스트가 도착했어요!');
+    if (window.App) window.App.showRecordToast('새 퀘스트가 도착했어요!');
     this.renderCard();
   },
 
@@ -221,7 +221,7 @@ window.Missions = {
     const s = this.state();
     if (s && s.done && (s.bonus || 0) >= 3) { if (window.App) window.App.showRecordToast('오늘 퀘스트는 여기까지! 내일 또 받아요'); return; }
     if (!window.LLM) return;
-    if (window.App) window.App.showRecordToast('🐌 우렁이가 딱 맞는 숙제를 고르는 중…');
+    if (window.App) window.App.showRecordToast('우렁이가 딱 맞는 숙제를 고르는 중…');
     try {
       const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
       const recent = (window.Storage.getMessages() || []).slice(-16).map(x => `${x.role === 'user' ? '내담자' : '상담사'}: ${x.text}`).join('\n');
@@ -256,7 +256,7 @@ ${recent}` }],
         custom: { emoji: j.emoji || '🐌', text: j.text }
       });
       if (window.Sfx) window.Sfx.hit('ripe');
-      if (window.App) { window.App.showRecordToast('🐌 우렁이의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
+      if (window.App) { window.App.showRecordToast('우렁이의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
       this.renderCard();
     } catch (e) {
       if (window.App) window.App.showRecordToast('숙제를 가져오지 못했어요 — 잠시 후 다시 시도해주세요');

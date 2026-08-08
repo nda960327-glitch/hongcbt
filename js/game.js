@@ -219,7 +219,7 @@ window.Game = {
     window.Farm.spendCoins(this.SHIELD_COIN_PRICE);
     window.Storage._safeSet('cbt_streak_shields', G.shields() + 1);
     if (window.Sfx) window.Sfx.hit('shield');
-    if (window.App) window.App.showRecordToast('🛡️ 스트릭 보호권을 손에 넣었어요!');
+    if (window.App) window.App.showRecordToast('스트릭 보호권을 손에 넣었어요!');
     this.renderShieldShop();
     this.renderHud();
     if (window.Growth) window.Growth.renderBadgeCard();

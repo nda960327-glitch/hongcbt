@@ -1951,5 +1951,5 @@ body.header-hidden #tab-chat { padding-top: 0; }
   padding-top: 0.75rem;
   background: var(--bg-primary);
 }
-#tab-chat .chat-messages { padding-bottom: 7rem; }
-body.kb-open #tab-chat .chat-messages { padding-bottom: 5.2rem; }
+#tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h, 158px) + 1rem); }
+body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h, 96px) + 0.8rem); }

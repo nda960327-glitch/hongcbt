@@ -191,7 +191,7 @@
   toggleFav(id) {
     let f = this.favs();
     if (f.includes(id)) { f = f.filter(x => x !== id); if (window.App) window.App.showRecordToast('즐겨찾기에서 뺐어요'); }
-    else { f.push(id); if (window.App) window.App.showRecordToast('♥ 즐겨찾기! 항상 맨 위에 보여드릴게요'); }
+    else { f.push(id); if (window.App) window.App.showRecordToast('즐겨찾기! 항상 맨 위에 보여드릴게요'); }
     window.Storage._safeSet('cbt_favs', f);
     this.renderCounselors();
   },

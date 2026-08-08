@@ -26,7 +26,7 @@ window.AppLock = {
         if (this._hash(pin) !== window.Storage._safeGet('cbt_lock_pin', '')) return false;
         window.Storage._safeSet('cbt_lock_on', false);
         window.Storage._safeSet('cbt_lock_pin', null);
-        if (window.App) window.App.showRecordToast('🔓 앱 잠금을 껐어요');
+        if (window.App) window.App.showRecordToast('앱 잠금을 껐어요');
         this._renderRow();
         return true;
       }, true);
@@ -36,7 +36,7 @@ window.AppLock = {
           if (pin1 !== pin2) { if (window.App) window.App.showRecordToast('두 입력이 달라요. 처음부터 다시 해주세요'); return true; }
           window.Storage._safeSet('cbt_lock_pin', this._hash(pin1));
           window.Storage._safeSet('cbt_lock_on', true);
-          if (window.App) window.App.showRecordToast('🔒 앱 잠금을 켰어요. 다음 실행부터 PIN을 물어봐요');
+          if (window.App) window.App.showRecordToast('앱 잠금을 켰어요. 다음 실행부터 PIN을 물어봐요');
           this._renderRow();
           return true;
         }, true);

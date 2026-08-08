@@ -1131,12 +1131,10 @@ ${transcript}`;
       distortions.forEach(d => window.Storage.incrementDistortion(d));
       console.log("세션 사고 기록 저장 완료");
 
-      // 조용한 알림: 대화 흐름을 끊는 말풍선 대신, 토스트 + 대시보드 탭 배지
+      // 알리지 않는다 — 사고 기록은 우렁이가 알아서 정리해 넣는 것이지
+      //  사용자가 확인해야 할 일이 아니다. 궁금하면 사고 기록지에서 보면 된다.
+      //  대화 중 튀어나오는 토스트는 흐름을 끊는다.
       try {
-        const t = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-        if (window.App && window.App.showRecordToast) {
-          window.App.showRecordToast(`사고 기록이 정리됐어요 (${t})`);
-        }
         if (window.ThoughtRecord && window.ThoughtRecord._inited) window.ThoughtRecord.loadRecords();
         if (window.Dashboard && window.Dashboard.updateStats) window.Dashboard.updateStats();
       } catch (e) {}
