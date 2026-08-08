@@ -764,6 +764,32 @@
           </div>
           <input id="creg-hosp-addr2" placeholder="상세 주소 (층·호수 등)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
           <input id="creg-hosp-tel" placeholder="병원 전화번호" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+
+          <!-- 정산 계좌 — 승인 후 상담료를 받을 곳 -->
+          <p style="margin: 0.9rem 0 0.2rem; font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">정산 계좌</p>
+          <p style="margin: 0 0 0.5rem; font-size: 0.72rem; line-height: 1.55; color: var(--text-muted);">
+            상담 완료 7일 뒤 이 계좌로 입금돼요. 예금주는 상담사 본인 명의여야 해요.
+          </p>
+          <select id="creg-bank" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; font-family: inherit;">
+            <option value="">은행 선택</option>
+            <option>국민은행</option><option>신한은행</option><option>우리은행</option>
+            <option>하나은행</option><option>농협은행</option><option>기업은행</option>
+            <option>카카오뱅크</option><option>토스뱅크</option><option>새마을금고</option>
+            <option>SC제일은행</option><option>대구은행</option><option>부산은행</option>
+            <option>광주은행</option><option>전북은행</option><option>경남은행</option>
+            <option>제주은행</option><option>수협은행</option><option>우체국</option>
+            <option>케이뱅크</option><option>산업은행</option><option>씨티은행</option>
+          </select>
+          <input id="creg-account" inputmode="numeric" placeholder="계좌번호 (- 없이 숫자만)"
+            style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem;">
+          <input id="creg-holder" placeholder="예금주명"
+            style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem;">
+          <input id="creg-bizno" inputmode="numeric" placeholder="사업자등록번호 (선택 · 없으면 비워두세요)"
+            style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem;">
+          <p style="margin: 0.1rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
+            사업자등록번호가 없으면 개인으로 보고 지급 시 사업소득세 3.3%를 원천징수해요.
+            계좌 정보는 이 기기에만 저장되고, 정산이 시작될 때만 사용돼요.
+          </p>
           <!-- 다음 우편번호 검색이 여기 펼쳐진다 -->
           <div id="creg-postcode-layer" class="hidden" style="border: 1px solid var(--glass-border); border-radius: 10px; overflow: hidden; height: 380px;"></div>
         </div>
@@ -1041,7 +1067,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">문의하기</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">불편한 점, 제안, 결제 문의 모두 환영해요.</span>
             </div>
-            <a href="mailto:3663hong@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
+            <a href="mailto:nda960327@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
           </div>
 
           <!-- 로그아웃 -->

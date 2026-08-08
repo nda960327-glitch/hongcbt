@@ -2288,8 +2288,18 @@ ${memory || '(없음)'}`;
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
     const name = v('creg-name'), license = v('creg-license'), price = v('creg-price');
     const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
+    const bank = v('creg-bank'), account = v('creg-account').replace(/[^0-9]/g, ''), holder = v('creg-holder');
     if (!name || !license || !price || !hospital || !addr) {
       alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
+      return;
+    }
+    // 정산 계좌가 없으면 승인돼도 돈을 보낼 수 없다
+    if (!bank || !account || !holder) {
+      alert('정산 계좌(은행·계좌번호·예금주)를 입력해주세요.\n승인 후 상담료를 보내드릴 곳이에요.');
+      return;
+    }
+    if (account.length < 8) {
+      alert('계좌번호를 다시 확인해주세요.');
       return;
     }
     const tags = [...document.querySelectorAll('#creg-tags button[data-on="1"]')].map(b => b.dataset.tag);
