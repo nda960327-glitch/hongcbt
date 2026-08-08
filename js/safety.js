@@ -68,7 +68,7 @@ window.Safety = {
             <p style="font-size: 0.74rem; color: var(--text-muted); margin: 0.2rem 0 0.4rem;">나에게 소중한 것, 지키고 싶은 것, 기다리는 것</p>
             ${ta('sf-reasons', '예: 우리 강아지, 내년 봄 여행, 아직 못 해본 것들…', p.reasons)}
           </div>
-          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">전문 기관 연락처(1393·1577-0199·109)는 자동으로 함께 담겨요. 이 계획은 이 기기에만 저장됩니다.</p>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">전문 기관 연락처(109·1577-0199·1366)는 자동으로 함께 담겨요. 이 계획은 이 기기에만 저장됩니다.</p>
           <div style="display: flex; gap: 0.5rem;">
             <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('safety-edit').remove()">닫기</button>
             <button class="btn-primary" style="flex: 1.4;" onclick="window.Safety.save()">안전 계획 저장 🛟</button>
@@ -133,7 +133,7 @@ window.Safety = {
             </div>` : ''}
           <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1rem 1.1rem;">
             <strong style="font-size: 0.85rem; color: var(--accent-primary);">🏥 전문가는 24시간 기다리고 있어요</strong>
-            <a href="tel:1393" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">자살예방상담전화</span><b style="color: var(--accent-primary);">1393</b></a>
+            <a href="tel:109" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">자살예방상담전화</span><b style="color: var(--accent-primary);">109</b></a>
             <a href="tel:15770199" style="display: flex; justify-content: space-between; margin-top: 0.4rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">정신건강위기상담</span><b style="color: var(--accent-primary);">1577-0199</b></a>
           </div>
           ${sec('💌', '그래도 살아갈 이유 — 당신이 쓴 것', p.reasons)}

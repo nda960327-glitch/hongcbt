@@ -98,6 +98,18 @@ window.CarePlan = {
     return true;
   },
 
+  // 새 리포트 계획을 권했을 때 "지금 것 유지"를 고른 경우.
+  //  그 리포트에 대해서만 배너를 접는다 — 다음 리포트가 나오면 다시 묻는다.
+  keepCurrent() {
+    const p = this.active();
+    const r = this.latestPlanReport();
+    if (!p || !r) return;
+    p.skipReportId = r.id;
+    this._S()._safeSet('cbt_careplan', p);
+    if (window.Sfx) window.Sfx.play('close');
+    this.render();
+  },
+
   discard() {
     const p = this.active();
     if (!p) return;
@@ -501,8 +513,28 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
       ${ifThen}
 `;
 
+    // 지금 계획보다 새로운 리포트가 계획을 갖고 있으면 갈아탈 길을 연다.
+    //  전에는 이 경로가 없어서, 두 번째 리포트를 만들어도 첫 계획에 갇혔다.
+    //  (리포트 생성 시 adopt 가 실패했거나, 기본 코스로 시작해 둔 경우가 여기 걸린다)
+    const newer = this.latestPlanReport();
+    const newerBanner = (newer && newer.id !== p.reportId && p.skipReportId !== newer.id) ? `
+      <div style="margin: 0 0 0.7rem; padding: 0.65rem 0.7rem; border-radius: 12px;
+                  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+                  border: 1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent);">
+        <p style="margin: 0 0 0.5rem; font-size: 0.78rem; line-height: 1.55; color: var(--text-primary); font-weight: 700;">
+          새 리포트가 처방한 2주 계획이 준비됐어요</p>
+        <div style="display: flex; gap: 0.35rem;">
+          <button class="btn-primary" style="flex: 1 1 0%; padding: 0.5rem; font-size: 0.78rem;"
+            onclick="window.CarePlan.adoptLatest()">새 계획으로 바꾸기</button>
+          <button style="all: unset; flex-shrink: 0; cursor: pointer; padding: 0.5rem 0.7rem; border-radius: 10px;
+                         font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: var(--bg-tertiary);"
+            onclick="window.CarePlan.keepCurrent()">지금 계획 유지</button>
+        </div>
+      </div>` : '';
+
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1rem; border-left: 4px solid var(--accent-primary);">
+        ${newerBanner}
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
           <span style="line-height: 0; color: var(--accent-primary);">${this.ic('target', 17)}</span>
           <strong style="font-size: 0.92rem; color: var(--text-primary);">나의 케어플랜</strong>

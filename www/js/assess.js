@@ -545,7 +545,7 @@ window.Assess = {
           <p style="margin:0 0 0.45rem;"><b>④ 선택 편향</b> · 앱 기록은 <b>힘들 때 더 많이 남는 경향</b>이 있어 부정 정서가 과대 표집될 수 있습니다. 기분 추이는 앱 자체 5점 척도로 검증된 도구가 아닙니다.</p>
           <p style="margin:0 0 0.45rem;"><b>⑤ 시간 단위</b> · 표준검사는 특정 2주의 <b>단면</b>, 추이 차트는 3주 <b>종단</b>입니다. 나란히 볼 때 해석에 주의가 필요합니다.</p>
           <p style="margin:0 0 0.45rem;"><b>⑥ 자동 분류·가중치</b> · 인지왜곡 태그는 대화에서 AI가 부여한 것으로 <b>분류 정확도가 검증되지 않았습니다</b>. 데이터 충분도 가중치(대화 30 · 기간 25 · 감정 15 · 기록 15 · 검진 15)는 실무적 판단에 따른 값입니다.</p>
-          <p style="margin:0;">본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며 의학적 진단·처방을 대신하지 않습니다. 위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.</p>
+          <p style="margin:0;">본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며 의학적 진단·처방을 대신하지 않습니다. 위기 시 자살예방상담 <b>109</b>, 정신건강상담 <b>1577-0199</b>.</p>
         </div>
       </div>`;
 
@@ -575,7 +575,7 @@ window.Assess = {
       <div class="glass-card" style="padding: 0.95rem; border: 1.5px solid color-mix(in srgb, #c96a5a 25%, transparent); margin-bottom: 0.8rem;">
         <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
           ⚠️ <b>이것은 진단이 아니라 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
-          나머지는 기록 기반의 탐색 지표입니다. 마음이 걱정되면 전문가를 만나보세요. 위기 순간엔 <b>1393</b>, <b>1577-0199</b>.
+          나머지는 기록 기반의 탐색 지표입니다. 마음이 걱정되면 전문가를 만나보세요. 위기 순간엔 <b>109</b>, <b>1577-0199</b>.
         </p>
       </div>
 
@@ -825,7 +825,7 @@ window.Assess = {
           <p style="margin: 0 0 0.3rem; font-size: 0.92rem; font-weight: 800; color: ${color};">🛟 ${COPY.t}</p>
           <p style="margin: 0 0 0.7rem; font-size: 0.8rem; line-height: 1.7; color: var(--text-secondary);">${COPY.d}</p>
           <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-            <a href="tel:1393" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: #fff; background: ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">📞 ${COPY.cta} (1393)</a>
+            <a href="tel:109" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: #fff; background: ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">📞 ${COPY.cta} (109)</a>
             <button onclick="window.Safety && window.Safety.open()" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: ${color}; border: 1px solid ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">🛟 안전 계획 만들기</button>
             <button onclick="window.App.switchTab('counselors')" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--glass-border); padding: 0.45rem 0.85rem; border-radius: 999px;">전문 상담사 찾기</button>
           </div>
@@ -833,7 +833,7 @@ window.Assess = {
       box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     if (level >= 2) {
-      alert(`${COPY.t}\n\n${COPY.d}\n\n자살예방상담 1393 (24시간)\n정신건강상담 1577-0199`);
+      alert(`${COPY.t}\n\n${COPY.d}\n\n자살예방상담 109 (24시간)\n정신건강상담 1577-0199`);
     }
   },
 
@@ -902,7 +902,7 @@ b{font-weight:800}
 @media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
 </style></head><body>
 <h1>🔍 우렁의사 AI 마음 리포트</h1>
-<p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 1393 / 1577-0199</p>
+<p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 109 / 1577-0199</p>
 <div class="box">${inner}</div>
 <p style="font-size:11px;color:#8a8073">이 리포트는 우렁의사 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
 </body></html>`;
@@ -1132,7 +1132,7 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
 · limits 에는 반드시 다음을 포함하세요: 앱 기록은 힘들 때 더 많이 남는 선택 편향이 있다는 점, 표준검사는 2주 단면이고 추이 차트는 3주 종단이라 시간 단위가 다르다는 점.
 · 표준 선별검사(PHQ-9·GAD-7)가 실시됐다면 그 점수와 밴드를 우울·불안 신호의 근거로 그대로 사용하세요(우울 score = PHQ-9/27을 100 환산, 불안 = GAD-7/21 환산, evidence 에 "PHQ-9 X점(밴드)" 명기). 대화 관찰은 보조 근거로만. 나머지 축(기분변동·주의력·분노·인지왜곡·욕구·웰빙)은 표준 도구가 아니므로 반드시 "탐색 지표(비표준)"임을 evidence 안에 명시하고, 대화·탐색 문항을 근거로 추정하세요. 문항9(자해)가 1 이상이면 referral 에 반드시 반영.
 · 신뢰도: 데이터 신뢰도 플래그가 2개 이상이면 reliability.level 을 "낮음"으로 하고 note 에 "이 데이터는 믿을만하지 못합니다"와 사실 근거(기간·입력 패턴)만 적으세요. 과장·연기·기계적 입력 의심 같은 표현은 절대 금지 — 사람을 비난하지 마세요.
-· 자·타해, 폭력의 위험 신호가 보이면 referral 에 분명히 적고 1393·1577-0199 를 포함하세요.
+· 자·타해, 폭력의 위험 신호가 보이면 referral 에 분명히 적고 109·1577-0199 를 포함하세요.
 
 [데이터 요약]
 기간 ${m.spanDays}일 · 활동일 ${m.activeDays}일 · 발화 ${m.userMsgs}개 · 체크인 ${m.moods}회 · 깊은기록 ${m.records + m.nights}개 · 충분도 ${m.total}%
@@ -1208,7 +1208,7 @@ ${m.total < 60 ? '(충분도 60% 미만 — overall 첫 문장에 데이터가 �
 · quests 는 4~6개. 게임 미션으로 나가므로 하루 안에 끝나는 크기로.
 · followUps 는 day 3·7·14 세 개. 안부(밥 먹었어?)가 아니라 이 리포트에서 세운 가설을 확인하는 질문이어야 합니다.
   나쁜 예: "요즘 어때?" / 좋은 예: "지난번에 사람들 표정을 자주 살핀다고 했잖아. 이번 주에도 그런 순간 있었어?"
-· 자·타해 위험이 있으면 carePlan 을 가볍게 만들지 말고, redFlag 에 분명히 적고 1393 을 포함하세요.
+· 자·타해 위험이 있으면 carePlan 을 가볍게 만들지 말고, redFlag 에 분명히 적고 109 를 포함하세요.
 
 [장기기억 요약]
 ${memory.slice(0, 1500)}
