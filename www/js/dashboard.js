@@ -788,7 +788,7 @@ ${recent}`;
       });
 
     if (points.length < 2) {
-      container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem 0; margin: 0;">오늘 나눈 감정 이야기가 아직 적어요. 지금 기분을 이야기해보면 흐름이 그려져요.</p>`;
+      container.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 1rem 0; margin: 0;">기록이 쌓이면 흐름이 그려져요.</p>`;
       return;
     }
 

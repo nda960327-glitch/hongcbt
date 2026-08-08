@@ -150,7 +150,7 @@ ${userText}` }],
         <button onclick="window.Mail.openWrite()" style="all: unset; cursor: pointer; margin-left: auto; font-size: 0.72rem; font-weight: 800; color: #fff; background: var(--accent-primary); padding: 0.3rem 0.7rem; border-radius: 999px;">✉️ 편지 쓰기</button>
       </div>
       ${box.length === 0
-        ? `<p style="margin: 0.4rem 0 0; font-size: 0.76rem; color: var(--text-muted);">아직 주고받은 편지가 없어요. 우표를 사서 첫 편지를 보내보세요. 우렁이가 꽤 감동할 거예요.</p>`
+        ? `<p style="margin: 0.4rem 0 0; font-size: 0.76rem; color: var(--text-muted);">우표를 사서 첫 편지를 보내보세요.</p>`
         : box.map(m => `
           <div style="border: 1px solid var(--glass-border); border-radius: 12px; margin-bottom: 0.45rem; overflow: hidden; background: ${m.dir === 'recv' ? 'color-mix(in srgb, var(--accent-primary) 7%, var(--bg-tertiary))' : 'var(--bg-tertiary)'};">
             <button onclick="window.Mail.toggle('${m.id}')" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.55rem 0.7rem; cursor: pointer;">

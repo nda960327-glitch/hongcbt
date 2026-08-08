@@ -336,16 +336,15 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
           <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
             <span style="line-height: 0; color: var(--accent-primary);">${this.ic('target', 17)}</span>
             <strong style="font-size: 0.92rem; color: var(--text-primary);">2주 케어플랜</strong>
+            <span style="margin-left: auto; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary);">무료</span>
           </div>
-          <p style="margin: 0 0 0.7rem; font-size: 0.8rem; line-height: 1.7; color: var(--text-secondary);">
-            아직 진행 중인 계획이 없어요. <b>지금 바로 시작할 수 있어요 — 무료예요.</b><br>
-            지금 기록으로 보면 <b>${label}</b> 쪽에 맞춘 기본 코스가 어울려요.
+          <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">
+            <b>${label}</b>에 맞춘 2주 코스를 무료로 시작할 수 있어요.
           </p>
           <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.87rem;"
-            onclick="window.CarePlan.startStarter()">기본 계획으로 2주 시작하기</button>
-          <p style="margin: 0.55rem 0 0; padding-top: 0.5rem; border-top: 1px dashed var(--glass-border); font-size: 0.72rem; line-height: 1.6; color: var(--text-muted);">
-            기본 계획은 누구에게나 근거가 있는 방법으로 짰어요. 
-            <b>AI 마음 리포트</b>를 만들면 내 기록에 맞춰 다시 짜여요 — 하지만 그때까지 기다릴 필요는 없어요.
+            onclick="window.CarePlan.startStarter()">2주 시작하기</button>
+          <p style="margin: 0.5rem 0 0; font-size: 0.72rem; line-height: 1.55; color: var(--text-muted); text-align: center;">
+            AI 마음 리포트를 만들면 내 기록에 맞게 바뀌어요
           </p>
         </div>`;
       return;
@@ -390,8 +389,8 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
 
     // 2주가 끝나면 카드가 '재검사 하러 가기'로 바뀐다
     const body = over ? `
-      <p style="margin: 0 0 0.7rem; font-size: 0.83rem; line-height: 1.7; color: var(--text-secondary);">
-        2주 과정을 마쳤어요. 이제 <b>같은 검진을 다시 받아</b> 무엇이 달라졌는지 확인할 차례예요.
+      <p style="margin: 0 0 0.7rem; font-size: 0.83rem; line-height: 1.6; color: var(--text-secondary);">
+        2주 완료. 같은 검진을 다시 받아 변화를 확인할 차례예요.
       </p>
       <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.86rem;"
         onclick="window.Assess && window.Assess.startRetest()">검진 다시 하고 변화 보기</button>
@@ -405,8 +404,8 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
         <span style="flex-shrink: 0; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);">${rate}%</span>
       </div>
       <p style="margin: 0 0 0.5rem; font-size: 0.82rem; line-height: 1.65; color: var(--text-primary); font-weight: 700;">${esc(w ? w.goal : '')}</p>
-      ${w && w.technique ? `<p style="margin: 0 0 0.6rem; font-size: 0.72rem; line-height: 1.55; color: var(--text-muted);">
-        <b style="color: var(--accent-primary);">${esc(w.technique)}</b>${techNote ? ' — ' + esc(techNote) : ''}</p>` : ''}
+      ${w && w.technique ? `<p style="margin: 0 0 0.6rem; font-size: 0.72rem; line-height: 1.55;">
+        <b style="color: var(--accent-primary);">${esc(w.technique)}</b>${techNote ? `<span title="${esc(techNote)}" style="color: var(--text-muted);"> · 자세히는 길게 눌러보세요</span>` : ''}</p>` : ''}
       ${actions}
       ${w && w.measure ? `<p style="margin: 0.45rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.55;">확인 방법 · ${esc(w.measure)}</p>` : ''}
       ${ifThen}`;

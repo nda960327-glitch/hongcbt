@@ -627,7 +627,7 @@
           <span style="flex: 1;"></span>
           <button onclick="window.Marketplace.openReviews('${counselor.id}')" style="all: unset; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">전체 ${counselor.reviews}개 보기 ›</button>
         </div>
-        <p style="margin: -0.4rem 0 0.7rem; font-size: 0.67rem; color: var(--text-muted); line-height: 1.5;">내용이 자세하고 최근에 쓰인 후기를 뽑되, 아쉬웠다는 후기도 함께 보여드려요.</p>
+        <p style="margin: -0.4rem 0 0.7rem; font-size: 0.67rem; color: var(--text-muted); line-height: 1.5;">자세하고 최근인 후기 · 아쉬운 후기도 함께</p>
         <div style="display: flex; flex-direction: column; gap: 0.8rem;">
           ${this.pickHighlights(this.allReviews(counselor), 2).map(r => `
             <div style="background: var(--bg-tertiary); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border);">

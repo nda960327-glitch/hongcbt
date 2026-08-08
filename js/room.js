@@ -136,7 +136,44 @@ window.Room = {
         <ellipse cx="160" cy="188" rx="70" ry="18" fill="#7E8FC0" stroke="#5B6A98" stroke-width="3"/>
         ${[[126,186],[160,181],[194,187],[143,193],[178,193]].map(([x,y])=>
           `<path d="M${x} ${y-5} l1.7 3.6 3.6 1.7 -3.6 1.7 -1.7 3.6 -1.7 -3.6 -3.6 -1.7 3.6 -1.7z" fill="#F2E7B8"/>`).join('')}
-      </g>` }
+      </g>` },
+
+    // ── 후반부 전용 (Lv.15~30) — 오래 함께한 사람에게만 열리는 것들 ──
+    { id: 'wp_spring', slot: 'wallpaper', name: '봄 벚꽃', price: 180, lv: 15,
+      svg: () => '<rect x="0" y="0" width="320" height="150" fill="#FBE9EE"/>'
+        + '<g fill="#F5C6D3">' + [30,80,130,180,230,280].map((x, k) => '<circle cx="' + x + '" cy="' + (28 + (k % 3) * 34) + '" r="7"/>').join('') + '</g>'
+        + '<g fill="#EFB3C4" opacity="0.7">' + [55,105,155,205,255,305].map((x, k) => '<circle cx="' + x + '" cy="' + (48 + (k % 3) * 32) + '" r="5"/>').join('') + '</g>' },
+
+    { id: 'wp_autumn', slot: 'wallpaper', name: '가을 단풍', price: 180, lv: 18,
+      svg: () => '<rect x="0" y="0" width="320" height="150" fill="#F7EBD9"/>'
+        + '<g fill="#D98A4A" opacity="0.75">' + [40,110,180,250].map((x, k) => '<path d="M' + x + ' ' + (30 + k * 26) + ' q10 -12 20 0 q-10 14 -20 0z"/>').join('') + '</g>'
+        + '<g fill="#C25E3A" opacity="0.6">' + [75,145,215,285].map((x, k) => '<path d="M' + x + ' ' + (52 + k * 24) + ' q9 -11 18 0 q-9 13 -18 0z"/>').join('') + '</g>' },
+
+    { id: 'wp_winter', slot: 'wallpaper', name: '겨울 눈밤', price: 220, lv: 22,
+      svg: () => '<rect x="0" y="0" width="320" height="150" fill="#2E3A52"/>'
+        + '<g fill="#FFFFFF" opacity="0.85">' + [25,70,115,160,205,250,295].map((x, k) => '<circle cx="' + x + '" cy="' + (22 + (k % 4) * 30) + '" r="' + (2 + (k % 3)) + '"/>').join('') + '</g>'
+        + '<circle cx="262" cy="36" r="16" fill="#F2E6A8"/><circle cx="254" cy="32" r="14" fill="#2E3A52"/>' },
+
+    { id: 'fl_wood2', slot: 'floor', name: '헤링본 마루', price: 200, lv: 20,
+      svg: () => '<rect x="0" y="150" width="320" height="60" fill="#C99A6B"/>'
+        + '<g stroke="#A87B50" stroke-width="1.6">' + Array.from({length: 11}, (_, k) => '<path d="M' + (k * 30) + ' 150 l16 60 M' + (k * 30 + 16) + ' 150 l-16 60"/>').join('') + '</g>' },
+
+    { id: 'lf_piano', slot: 'left', name: '업라이트 피아노', price: 260, lv: 24,
+      svg: () => '<rect x="14" y="96" width="58" height="62" rx="4" fill="#4A3B33"/>'
+        + '<rect x="18" y="120" width="50" height="13" fill="#FFF9F0"/>'
+        + '<g fill="#3A2E28">' + [22,30,38,46,54,62].map(x => '<rect x="' + x + '" y="120" width="3" height="8"/>').join('') + '</g>'
+        + '<rect x="14" y="92" width="58" height="6" rx="3" fill="#5C4A40"/>' },
+
+    { id: 'rt_fire', slot: 'right', name: '벽난로', price: 280, lv: 27,
+      svg: () => '<rect x="244" y="92" width="62" height="66" rx="4" fill="#8A6F55"/>'
+        + '<rect x="254" y="110" width="42" height="40" rx="3" fill="#2E241E"/>'
+        + '<path d="M275 146 q-9 -12 0 -22 q4 8 9 4 q6 9 -1 18z" fill="#E8934B"/>'
+        + '<path d="M275 146 q-5 -7 0 -13 q3 5 5 2 q3 6 -1 11z" fill="#F5CE5E"/>' },
+
+    { id: 'rt_telescope', slot: 'right', name: '천체망원경', price: 320, lv: 30,
+      svg: () => '<path d="M258 152 l16 -8 M282 152 l-8 -8 M274 144 v-6" stroke="#6B5A4A" stroke-width="3.4" stroke-linecap="round" fill="none"/>'
+        + '<g transform="rotate(-28 276 118)"><rect x="252" y="110" width="52" height="15" rx="7" fill="#5D5490"/>'
+        + '<rect x="298" y="107" width="10" height="21" rx="3" fill="#8A7FC0"/></g>' }
   ],
 
   // --------------------------------------------------------------------------
@@ -161,6 +198,12 @@ window.Room = {
   buy(id) {
     const it = this.item(id);
     if (!it || this.has(id)) return;
+    // 레벨 조건이 붙은 물건 — 돈이 있어도 아직은 못 산다
+    if (it.lv && this.level() < it.lv) {
+      if (window.Sfx) window.Sfx.hit('denied');
+      alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${this.level()})`);
+      return;
+    }
     if (it.cash) {
       if (!window.Wallet || window.Wallet.balance() < it.cash) {
         alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
@@ -228,7 +271,24 @@ window.Room = {
     { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true, lv: 11 },
     { s: 'tea',      cap: '햇님이 놀러 와서 수다 중!', skin: 'haru', lv: 12 },
     { s: 'sing',     cap: '달님이 자장가를 불러주고 있다…', skin: 'dalnim', lv: 13 },
-    { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 14 }
+    { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 14 },
+    // ── 후반부 (Lv.15~30) — 여기까지 오면 우렁이가 제법 다양해진다 ──
+    { s: 'stareyes', cap: '뭔가 발견하고 눈이 반짝', lv: 15 },
+    { s: 'shy',      cap: '칭찬받은 게 부끄러운지 배배 꼬는 중', lv: 16 },
+    { s: 'gift',     cap: '뭔가 포장하는 중… 누구 주려나', active: true, lv: 17 },
+    { s: 'detective',cap: '돋보기 들고 뭘 찾는 중', active: true, lv: 18 },
+    { s: 'cold',     cap: '이불 속에서 안 나오는 중', night: 2, lv: 19 },
+    { s: 'aha',      cap: '아! 뭔가 깨달은 표정', lv: 20 },
+    { s: 'bow',      cap: '거울 보고 인사 연습 중', lv: 21 },
+    { s: 'judge',    cap: '팔짱 끼고 심드렁하게 앉아있다', lv: 22 },
+    { s: 'run',      cap: '이유 없이 방을 뛰어다니는 중', active: true, lv: 23 },
+    { s: 'melt',     cap: '더운지 흐물흐물 녹는 중', lv: 24 },
+    { s: 'teacher',  cap: '허공에 대고 뭔가 설명하는 중', lv: 25 },
+    { s: 'party',    cap: '혼자 파티 중 (이유는 모름)', active: true, lv: 26 },
+    { s: 'ok',       cap: '엄지 척. 오늘은 만족스러운가 보다', lv: 27 },
+    { s: 'hero',     cap: '망토 두르고 뭔가 결심한 표정', lv: 28 },
+    { s: 'ghost',    cap: '방전됐다… 충전이 필요해', night: 2, lv: 29 },
+    { s: 'love',     cap: '온 방에 하트가 둥둥 떠다닌다', lv: 30 }
   ],
   _idle: null,
 
@@ -395,8 +455,9 @@ window.Room = {
     const cell = (it) => {
       const has = !!owned[it.id];
       const on = p[it.slot] === it.id;
-      const tag = it.free ? '기본' : it.cash ? `${it.cash.toLocaleString()}캐시` : `${it.price}코인`;
-      const tagColor = it.free ? 'var(--text-muted)' : it.cash ? '#c9a227' : 'var(--accent-primary)';
+      const locked = it.lv && this.level() < it.lv;
+      const tag = locked ? `Lv.${it.lv} 부터` : it.free ? '기본' : it.cash ? `${it.cash.toLocaleString()}캐시` : `${it.price}코인`;
+      const tagColor = locked ? 'var(--text-muted)' : it.free ? 'var(--text-muted)' : it.cash ? '#c9a227' : 'var(--accent-primary)';
       return `
         <button onclick="window.Room.${has ? `place('${it.id}')` : `buy('${it.id}')`}" title="${it.name}"
           style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.2rem; padding: 0.4rem 0.25rem; border-radius: 12px; text-align: center;

@@ -105,9 +105,8 @@ window.Progress = {
     const sc = this.screeningChange();
     let scBlock;
     if (!sc) {
-      scBlock = `<p style="margin:0;font-size:0.79rem;line-height:1.65;color:${MUTE};">
-        표준 검진(PHQ-9·GAD-7)을 <b>두 번 이상</b> 받아야 변화를 볼 수 있어요.
-        지금은 첫 번째 기록만 있어요 — 2주 뒤에 다시 받으면 여기에 이전과 이후가 나란히 나옵니다.</p>`;
+      scBlock = `<p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">
+        검진을 두 번 받으면 여기에 이전·지금이 나란히 나와요.</p>`;
     } else {
       const line = (label, a, b, d, verdict, max) => {
         const col = verdict === 'better' ? OK : verdict === 'worse' ? BAD : MUTE;
@@ -145,9 +144,8 @@ window.Progress = {
     const md = this.moodDelta();
     let mdBlock;
     if (!md) {
-      mdBlock = `<p style="margin:0;font-size:0.79rem;line-height:1.65;color:${MUTE};">
-        케어플랜의 할 일을 체크할 때 <b>하기 전과 후의 기분</b>을 물어봐요.
-        그게 쌓이면 "이게 나한테 실제로 듣는가"를 남의 말이 아니라 내 데이터로 알 수 있어요.</p>`;
+      mdBlock = `<p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">
+        케어플랜 할 일을 체크할 때 자동으로 기록돼요.</p>`;
     } else {
       const up = md.delta > 0;
       const col = up ? OK : md.delta < 0 ? BAD : MUTE;
@@ -186,11 +184,9 @@ window.Progress = {
             <span style="flex-shrink:0;font-size:0.72rem;font-weight:800;color:${t.avg >= 0 ? OK : BAD};">${t.avg > 0 ? '+' : ''}${t.avg.toFixed(1)}</span>
             <span style="flex-shrink:0;font-size:0.64rem;color:${MUTE};">${t.n}회</span>
           </div>`).join('')}
-        <p style="margin:0.35rem 0 0;font-size:0.72rem;line-height:1.6;color:${MUTE};">
-          같은 노력이면 잘 듣는 쪽에 쓰는 게 낫습니다. 다음 리포트가 이 결과를 반영해요.
-        </p>
-      </div>` : `<p style="margin:0;font-size:0.79rem;line-height:1.65;color:${MUTE};">
-        기법마다 2번 이상 기록되면, 어떤 방법이 <b>나에게</b> 잘 듣는지 여기서 비교돼요.</p>`;
+        <p style="margin:0.35rem 0 0;font-size:0.71rem;color:${MUTE};">다음 리포트가 이 결과를 반영해요.</p>
+      </div>` : `<p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">
+        기법별로 2번씩 쌓이면 무엇이 잘 듣는지 비교돼요.</p>`;
 
     const sect = (num, title, body) => `
       <div style="padding:0.8rem 0;border-top:1px solid var(--glass-border);">
@@ -208,9 +204,7 @@ window.Progress = {
           <span style="line-height:0;color:var(--accent-primary);">${ic('dashboard', 17)}</span>
           <strong style="font-size:0.92rem;color:var(--text-primary);">나의 변화</strong>
         </div>
-        <p style="margin:0.25rem 0 0;font-size:0.74rem;line-height:1.6;color:${MUTE};">
-          좋아졌다는 말 대신 기록으로 봅니다. 나빠졌으면 나빠졌다고 씁니다.
-        </p>
+
         ${sect('1', '표준 검진 · 이전과 지금', scBlock)}
         ${sect('2', '실천 전후 기분 — 내가 만든 증거', mdBlock)}
         ${sect('3', '나에게 잘 듣는 방법', techBlock)}
@@ -235,9 +229,7 @@ window.Progress = {
         <div style="width:38px;height:4px;border-radius:2px;background:var(--glass-border);margin:0 auto 0.9rem;"></div>
         <p style="margin:0 0 0.15rem;font-size:0.74rem;color:var(--text-muted);line-height:1.5;">${esc(action)}</p>
         <p style="margin:0 0 0.15rem;font-size:0.95rem;font-weight:800;color:var(--text-primary);">${title}</p>
-        <p style="margin:0 0 0.8rem;font-size:0.72rem;color:var(--text-muted);line-height:1.55;">
-          두 번만 누르면 끝나요. 이게 쌓여서 "이 방법이 나한테 듣는가"의 답이 됩니다.
-        </p>
+        <p style="margin:0 0 0.8rem;font-size:0.72rem;color:var(--text-muted);">두 번만 누르면 끝나요</p>
         <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.35rem;">
           ${this.MOODS.map(m => `
             <button onclick="window.Progress._pick(${m.v})"

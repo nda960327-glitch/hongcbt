@@ -127,12 +127,12 @@ window.Goals = {
           <strong style="font-size: 0.92rem; color: var(--text-primary);">내가 고치고 싶은 것</strong>
           <button onclick="window.Goals.promptAdd()" class="head-chip" style="margin-left: auto;">+ 추가</button>
         </div>
-        <p style="margin: 0 0 0.6rem; font-size: 0.74rem; line-height: 1.6; color: var(--text-muted);">
-          여기 적어두면 우렁이가 계속 기억하고, 대화 중에 관련된 순간이 오면 짚어줘요.
+        <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">
+          적어두면 우렁이가 기억하고 대화에서 짚어줘요.
         </p>
         ${open.length ? open.map(row).join('') : `
-          <p style="margin: 0.2rem 0 0.4rem; font-size: 0.79rem; color: var(--text-muted); line-height: 1.6;">
-            아직 적어둔 게 없어요. 거창하지 않아도 괜찮아요 — "화나면 바로 말해버리는 것" 처럼요.
+          <p style="margin: 0.2rem 0 0.4rem; font-size: 0.79rem; color: var(--text-muted); line-height: 1.55;">
+            예) 화나면 바로 말해버리는 것
           </p>`}
         ${done.length ? `
           <details style="margin-top: 0.5rem;">

@@ -485,7 +485,7 @@ window.Assess = {
             <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">PHQ-9 <b style="color: ${sc.phq >= 10 ? '#c96a5a' : sc.phq >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.phq}/27</b> · ${sc.phqBand}</span>
             <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">GAD-7 <b style="color: ${sc.gad >= 10 ? '#c96a5a' : sc.gad >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.gad}/21</b> · ${sc.gadBand}</span>
           </div>
-          <p style="margin: 0.4rem 0 0; font-size: 0.66rem; color: var(--text-muted);">표준 선별검사 점수예요. 선별은 진단이 아니며, 10점 이상이면 전문가와 이야기해보길 권해요.</p>`;
+          <p style="margin: 0.4rem 0 0; font-size: 0.66rem; color: var(--text-muted);">선별검사 점수 · 진단이 아니에요. 10점 이상이면 전문가와 상담을 권해요.</p>`;
         })()}
         <div id="assess-quiz"></div>
       </div>
@@ -494,7 +494,7 @@ window.Assess = {
       <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
         🔍 AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
       </button>
-      <p style="margin: 0.4rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">깊은 분석에 고성능 AI가 오래 돌아가는 유료 기능이에요. 생성 실패 시 전액 자동 환불.</p>
+      <p style="margin: 0.4rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불</p>
 
       <div id="assess-result" style="margin-top: 0.9rem;"></div>
 

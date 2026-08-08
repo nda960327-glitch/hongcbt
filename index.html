@@ -57,7 +57,7 @@
   <div id="persona-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card" style="max-width: 420px; max-height: 82vh; overflow-y: auto;">
       <h2 style="margin-top: 0;">AI 상담사 선택</h2>
-      <p style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 1rem;">상담사마다 성격과 상담 스타일이 달라요. 지금 마음에 맞는 상담사를 골라보세요. 나눈 이야기와 기억은 모든 상담사가 함께 이어받습니다.</p>
+      <p style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 1rem;">기억은 모든 상담사가 함께 이어받아요.</p>
       <div id="persona-card-list" style="display: flex; flex-direction: column; gap: 0.8rem;"></div>
       <label style="display: flex; align-items: center; gap: 0.45rem; margin-top: 0.9rem; font-size: 0.8rem; color: var(--text-muted); cursor: pointer; user-select: none;">
         <input type="checkbox" id="persona-dont-ask" style="accent-color: var(--accent-primary); width: 16px; height: 16px;">
@@ -90,7 +90,7 @@
       <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent-primary); margin: 0.6rem 0 1rem;"><span id="sub-paywall-price">월 9,900원</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">· 무제한 대화 + 보이스톡</span></p>
       <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.Subscription.subscribe()">구독하고 대화 이어가기</button>
       <button class="btn-secondary" style="width: 100%;" onclick="document.getElementById('sub-paywall-modal').classList.add('hidden')">나중에</button>
-      <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.7rem 0 0;">구독하지 않아도 매일 무료 대화 30회와 기록·기억·사고기록지는 계속 이용할 수 있어요.</p>
+      <p style="font-size: 0.68rem; color: var(--text-muted); margin: 0.7rem 0 0;">구독 없이도 매일 30회 대화와 기록은 그대로 쓸 수 있어요.</p>
     </div>
   </div>
 
@@ -419,7 +419,7 @@
 
             <!-- 🌱 농장 -->
             <div class="game-view hidden" id="gv-farm">
-              <p class="game-view-tip">체크인·퀘스트·하루정리·사고기록·호흡을 하면 물이 고여요. 밭에 물을 주고, 다 자라면 거둬서 씨앗코인을 모으세요.</p>
+              <p class="game-view-tip">나를 돌보면 물이 고여요. 물을 주고 거두면 코인이 돼요.</p>
               <div id="farm-body"></div>
             </div>
 
@@ -462,7 +462,6 @@
             <!-- 💌 서재 (편지·리포트·감정날씨·지난밤들) -->
             <!-- 돌봄 — 치료가 실제로 굴러가는 화면. 계획·변화·목표를 한자리에. -->
             <div class="game-view hidden" id="gv-care">
-              <p class="game-view-tip">리포트가 처방한 계획을 실행하고, 좋아지고 있는지 내 기록으로 확인해요.</p>
               <div id="careplan-card" class="hidden" style="margin-bottom: 0.7rem;"></div>
               <div id="progress-card" style="margin-bottom: 0.7rem;"></div>
               <div id="goals-card"></div>
@@ -666,7 +665,7 @@
         <span data-sticker="teacher" data-sticker-size="96" style="line-height: 0; flex-shrink: 0;"></span>
         <div class="learn-hero__bubble">
           <strong>우렁 선생님의 마음 수업</strong>
-          <p>누구나 생각의 함정에 빠져요. 함정의 이름을 알면, 빠져나오는 길도 보인답니다. 카드를 눌러 하나씩 배워봐요!</p>
+          <p>생각의 함정에 이름을 붙이면 빠져나오기 쉬워져요.</p>
         </div>
       </div>
 
@@ -779,7 +778,7 @@
     <div id="avail-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card" style="max-width: 430px; max-height: 86vh; overflow-y: auto;">
         <h2 style="margin-top: 0;">상담 가능 시간 설정</h2>
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.9rem;">내담자가 예약할 수 있는 시간대를 켜고 끄세요. 입점 승인 후 예약 캘린더에 그대로 반영됩니다.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.9rem;">예약 가능한 시간대를 켜고 끄세요.</p>
         <div id="avail-grid" style="display: flex; flex-direction: column; gap: 0.55rem;"></div>
         <div class="form-actions" style="margin-top: 1rem; display: flex; gap: 0.5rem;">
           <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('avail-modal').classList.add('hidden')">닫기</button>
@@ -925,7 +924,7 @@
             <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">걱정 마세요, 우렁이는 당신을 잊지 않아요.</p>
           </div>
         </div>
-        <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.6;">대화를 지워도, 앱을 껐다 켜도, 리포트가 오래되어 정리돼도 — 당신과 나눈 이야기는 전부 우렁이의 기억 속에 그대로 있어요.</p>
+        <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.6;">대화를 지워도 우렁이의 기억은 남아요.</p>
         <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.55;">다만 <b>휴대폰을 바꾸거나 앱을 완전히 삭제할 때</b>를 대비해, 기억을 파일 하나로 간직해둘 수 있어요. 새 폰에서 이 파일을 불러오면 우렁이는 당신을 처음처럼이 아니라 <b>어제처럼</b> 기억해냅니다. 파일은 봉인되어 우렁이만 읽을 수 있어요.</p>
         <div style="display: flex; gap: 0.5rem;">
           <button id="btn-memory-export" class="btn-primary" style="flex: 1;">기억 간직하기 (백업)</button>
@@ -1070,7 +1069,7 @@
           <!-- 4. 먼저 말 걸기 (체크인) -->
           <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">상담사가 먼저 말 걸기</strong>
-            <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.6rem;">지난 대화를 기억하고 친구처럼 먼저 안부를 물어요. ("우울한 건 좀 괜찮아?", "강아지랑 산책 갔다왔어?") 알림과 채팅으로 도착합니다.</span>
+            <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.6rem;">지난 대화를 기억하고 먼저 안부를 물어요.</span>
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
               <select id="setting-checkin-count" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.6rem; font-size: 0.84rem; outline: none;">
                 <option value="0">안 함</option>

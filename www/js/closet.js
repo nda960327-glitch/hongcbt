@@ -196,6 +196,12 @@ window.Closet = {
   buy(id) {
     const it = this.item(id);
     if (!it || this.has(id)) return;
+    const lv = (window.Growth && window.Growth.level) ? window.Growth.level() : 1;
+    if (it.lv && lv < it.lv) {
+      if (window.Sfx) window.Sfx.hit('denied');
+      alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${lv})`);
+      return;
+    }
     if (it.quest) { alert(`'${it.name}'은(는) 살 수 없어요.\n${it.quest} 받을 수 있어요.`); return; }
 
     if (it.cash) {
