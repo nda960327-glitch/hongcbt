@@ -64,6 +64,21 @@ window.CarePlan = {
     return true;
   },
 
+  // 계획이 안 맞을 때 언제든 갈아탄다.
+  //  안 맞는 계획을 붙들고 실패를 쌓는 것보다, 다시 고르는 편이 낫다.
+  restart() {
+    const p = this.active();
+    if (!p) { this.startStarter(); return; }
+    if (!confirm('지금 계획을 접고 새로 시작할까요?\n\n지금까지 체크한 것은 기록에 남아요.')) return;
+    const hist = this._S()._safeGet('cbt_careplan_history', []) || [];
+    hist.unshift({ ...p, endedAt: Date.now(), restarted: true });
+    this._S()._safeSet('cbt_careplan_history', hist.slice(0, 6));
+    this._S()._safeSet('cbt_careplan', null);
+    if (window.Sfx) window.Sfx.play('close');
+    this.render();
+    if (window.Missions) window.Missions.renderCard();
+  },
+
   discard() {
     const p = this.active();
     if (!p) return;
@@ -395,7 +410,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
       <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.86rem;"
         onclick="window.Assess && window.Assess.startRetest()">검진 다시 하고 변화 보기</button>
       <button class="btn-secondary" style="width: 100%; margin-top: 0.35rem; padding: 0.5rem; font-size: 0.76rem;"
-        onclick="window.CarePlan.discard()">이 계획 접기</button>`
+        onclick="window.CarePlan.restart()">새 계획 시작하기</button>`
       : `
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
         <div style="flex: 1 1 0%; height: 6px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;">
@@ -408,7 +423,10 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
         <b style="color: var(--accent-primary);">${esc(w.technique)}</b></p>` : ''}
       ${actions}
       ${w && w.measure ? `<p style="margin: 0.45rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.55;">확인 방법 · ${esc(w.measure)}</p>` : ''}
-      ${ifThen}`;
+      ${ifThen}
+      <button onclick="window.CarePlan.restart()"
+        style="all: unset; display: block; width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer;
+               font-size: 0.73rem; font-weight: 700; color: var(--text-muted);">계획이 안 맞아요 · 다시 짜기</button>`;
 
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1rem; border-left: 4px solid var(--accent-primary);">

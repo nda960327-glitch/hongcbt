@@ -125,8 +125,18 @@ window.Progress = {
     const sc = this.screeningChange();
     let scBlock;
     if (!sc) {
-      scBlock = `<p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">
-        검진을 두 번 받으면 여기에 이전·지금이 나란히 나와요.</p>`;
+      // 아직 한 번뿐이어도 텅 비어 보이지 않게, 지금 점수는 보여준다.
+      const one = this.screenings().filter(x => x && x.phq != null).slice(-1)[0];
+      scBlock = one
+        ? `<div style="display:flex;gap:0.8rem;margin-bottom:0.4rem;">
+             <div><div style="font-size:0.66rem;color:${MUTE};">우울 (PHQ-9)</div>
+               <div style="font-size:1.15rem;font-weight:800;color:var(--text-primary);">${one.phq}<span style="font-size:0.7rem;color:${MUTE};"> / 27</span></div></div>
+             <div><div style="font-size:0.66rem;color:${MUTE};">불안 (GAD-7)</div>
+               <div style="font-size:1.15rem;font-weight:800;color:var(--text-primary);">${one.gad ?? 0}<span style="font-size:0.7rem;color:${MUTE};"> / 21</span></div></div>
+           </div>
+           <p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">첫 기록이에요. 한 번 더 받으면 무엇이 달라졌는지 나란히 볼 수 있어요.</p>`
+        : `<p style="margin:0;font-size:0.78rem;line-height:1.6;color:${MUTE};">
+            표준 검진을 받으면 여기서 변화를 추적해요.</p>`;
     } else {
       const line = (label, a, b, d, verdict, max) => {
         const col = verdict === 'better' ? OK : verdict === 'worse' ? BAD : MUTE;
