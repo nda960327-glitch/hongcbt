@@ -300,7 +300,7 @@ ${recent}` }],
 
   rxDone(text) { return !!this.rxLog()[this.rxKey(text)]; },
 
-  rxToggle(text) {
+  rxToggle(text, src) {
     const log = this.rxLog();
     const k = this.rxKey(text);
     if (log[k]) {
@@ -311,11 +311,15 @@ ${recent}` }],
       if (window.Sfx) window.Sfx.hit('save');
       if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '처방 미션 완료');
       if (window.Storage.markDayActive) window.Storage.markDayActive();
-      // 케어플랜 체크와 똑같이 전후 기분을 남긴다 —
-      //  같은 행동인데 어디서 체크했느냐에 따라 기록이 갈리면 안 된다.
-      const wk = (window.CarePlan && window.CarePlan.currentWeek) ? window.CarePlan.currentWeek() : null;
-      const tech = wk && wk.technique ? wk.technique : '';
-      if (window.Progress) setTimeout(() => window.Progress.askAfter(text, tech, null), 260);
+      // 전후 기분은 '기법을 실천했을 때' 만 의미가 있다.
+      //  케어플랜에서 나온 미션은 특정 개입의 효과를 재는 것이지만,
+      //  본인이 적어둔 개선 목표나 상담사 숙제는 습관·과제라
+      //  같은 축으로 재면 '나에게 잘 듣는 방법' 집계가 오염된다.
+      if (src === 'plan' && window.Progress) {
+        const wk = (window.CarePlan && window.CarePlan.currentWeek) ? window.CarePlan.currentWeek() : null;
+        const tech = wk && wk.technique ? wk.technique : '';
+        setTimeout(() => window.Progress.askAfter(text, tech, null), 260);
+      }
     }
     window.Storage._safeSet('cbt_rx_mission_log', log);
     this.renderCard();
@@ -363,7 +367,7 @@ ${recent}` }],
         ${rows.map(r => {
           const done = this.rxDone(r.text);
           return `
-          <button onclick="window.Missions.rxToggle('${String(r.text).replace(/'/g, "\\'")}')"
+          <button onclick="window.Missions.rxToggle('${String(r.text).replace(/'/g, "\\'")}', '${r.src}')"
             style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;
                    padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
                    background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};

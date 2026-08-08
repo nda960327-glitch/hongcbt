@@ -141,7 +141,7 @@ window.Subscription = {
         desc.innerHTML = '우렁이와 목소리로 나누는 통화는<br>구독하면 바로 이용할 수 있어요.';
       } else if (kind === 'chat') {
         title.textContent = `오늘 무료 대화 ${this.FREE_DAILY_CHATS}회를 다 썼어요`;
-        desc.innerHTML = '내일이 되면 다시 30회가 채워져요.<br>구독하면 횟수 걱정 없이 계속 이야기할 수 있어요.';
+        desc.innerHTML = `내일이 되면 다시 ${this.FREE_DAILY_CHATS}회가 채워져요.<br>구독하면 횟수 걱정 없이 계속 이야기할 수 있어요.`;
       } else {
         title.textContent = '일주일 무료 체험이 끝났어요';
         desc.innerHTML = `이제 매일 ${this.FREE_DAILY_CHATS}회 무료로 대화할 수 있어요.<br>구독하면 무제한 대화 + 보이스톡이 열립니다.`;
@@ -183,7 +183,6 @@ window.Subscription = {
     } else {
       el.innerHTML = `
         <p style="margin: 0 0 0.35rem; font-size: 0.9rem; color: var(--text-primary);"><b style="color: #c14a4a;">무료 플랜</b> · 오늘 대화 ${this.chatUsedToday()}/${this.FREE_DAILY_CHATS}회 사용</p>
-        <p style="margin: 0 0 0.6rem; font-size: 0.76rem; color: var(--text-muted);">구독하면 <b>무제한 대화</b>에 <b>보이스톡(음성 통화)</b>까지 열려요.</p>
         <button class="btn-primary" style="width: 100%; font-size: 0.85rem;" onclick="window.Subscription.subscribe()">구독 시작하기 (월 ${this.PRICE.toLocaleString()}원)</button>`;
     }
   }
