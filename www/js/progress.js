@@ -54,7 +54,22 @@ window.Progress = {
   //  표준 검진 이전 → 이후
   // --------------------------------------------------------------------------
   //  Assess 가 검진을 마칠 때마다 스냅샷을 남긴다.
-  screenings() { return this._S()._safeGet('cbt_assess_history', []) || []; },
+  // 검진 이력. 이력 저장 기능이 생기기 전에 검진한 사람은 여기가 비어 있어서,
+  //  분명히 검진을 했는데도 화면에 아무것도 안 나온다. 현재 답안으로 한 번 메워준다.
+  screenings() {
+    let h = this._S()._safeGet('cbt_assess_history', []) || [];
+    if (!h.length && window.Assess) {
+      try {
+        const qa = window.Assess.answers();
+        const sc = window.Assess.scores();
+        if (qa && qa.ts && sc && sc.phq != null) {
+          h = [{ ts: qa.ts, phq: sc.phq, gad: sc.gad, item9: sc.item9 }];
+          this._S()._safeSet('cbt_assess_history', h);
+        }
+      } catch (e) {}
+    }
+    return h;
+  },
 
   // 임상에서 '의미 있는 변화'로 보는 최소 폭. 이보다 작으면 변화라고 말하지 않는다.
   //  (PHQ-9 5점, GAD-7 4점 — 널리 쓰이는 최소 임상적 중요 차이)

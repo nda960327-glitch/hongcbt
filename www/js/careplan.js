@@ -241,6 +241,16 @@ window.CarePlan = {
     return !!p && this.dayIndex() > this.DAYS;
   },
 
+  // 이번 주에 체크할 할 일.
+  //  리포트가 actions 를 비워 보내는 일이 있는데, 그러면 체크할 게 없어
+  //  실행률이 영영 0% 다. 그럴 땐 같은 계획의 퀘스트를 할 일로 쓴다.
+  weekActions(w) {
+    if (w && Array.isArray(w.actions) && w.actions.length) return w.actions;
+    const p = this.active();
+    const qs = (p && Array.isArray(p.quests)) ? p.quests : [];
+    return qs.slice(0, 3).map(q => q.text).filter(Boolean);
+  },
+
   currentWeek() {
     const p = this.active();
     if (!p) return null;
@@ -281,10 +291,12 @@ window.CarePlan = {
   progress() {
     const p = this.active();
     const w = this.currentWeek();
-    if (!p || !w || !Array.isArray(w.actions) || !w.actions.length) return 0;
+    if (!p || !w) return 0;
     const wi = this.weekIndex();
-    const done = w.actions.filter((_, i) => this.isDone(wi, i)).length;
-    return done / w.actions.length;
+    const acts = this.weekActions(w);
+    if (!acts.length) return 0;
+    const done = acts.filter((_, i) => this.isDone(wi, i)).length;
+    return done / acts.length;
   },
 
   // --------------------------------------------------------------------------
@@ -338,7 +350,7 @@ window.CarePlan = {
       return `[케어플랜] 2주 과정이 끝났습니다(${d}일차). 초점은 "${p.focus}"였습니다.`
         + ` 잘 지킨 것과 못 지킨 것을 같이 돌아보고, 표준 검진(PHQ-9·GAD-7) 재검사를 권해 변화를 확인하세요.`;
     }
-    const acts = (w && w.actions || []).map((a, i) => `${this.isDone(this.weekIndex(), i) ? '✓' : '·'} ${a}`).join(' / ');
+    const acts = this.weekActions(w).map((a, i) => `${this.isDone(this.weekIndex(), i) ? '✓' : '·'} ${a}`).join(' / ');
     const rate = Math.round(this.progress() * 100);
     return `[케어플랜 ${d}일차 · ${this.weekIndex()}주차]
 초점: ${p.focus}
@@ -409,7 +421,8 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
     const rate = Math.round(this.progress() * 100);
     const techNote = w && this.TECHNIQUES[w.technique] ? this.TECHNIQUES[w.technique] : '';
 
-    const actions = (w && Array.isArray(w.actions) ? w.actions : []).map((a, i) => {
+    const actList = this.weekActions(w);
+    const actions = actList.map((a, i) => {
       const done = this.isDone(wi, i);
       return `
         <button onclick="window.CarePlan.toggle(${wi}, ${i})"
@@ -456,12 +469,11 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
       <p style="margin: 0 0 0.5rem; font-size: 0.82rem; line-height: 1.65; color: var(--text-primary); font-weight: 700;">${esc(w ? w.goal : '')}</p>
       ${w && w.technique ? `<p style="margin: 0 0 0.6rem; font-size: 0.72rem; line-height: 1.55;">
         <b style="color: var(--accent-primary);">${esc(w.technique)}</b></p>` : ''}
-      ${actions}
+      ${actions || `<p style="margin:0.2rem 0 0;font-size:0.78rem;line-height:1.6;color:var(--text-muted);">
+        이번 주 할 일이 비어 있어요. 다음 리포트에서 채워집니다.</p>`}
       ${w && w.measure ? `<p style="margin: 0.45rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.55;">확인 방법 · ${esc(w.measure)}</p>` : ''}
       ${ifThen}
-      <button onclick="window.CarePlan.restart()"
-        style="all: unset; display: block; width: 100%; text-align: center; margin-top: 0.6rem; cursor: pointer;
-               font-size: 0.73rem; font-weight: 700; color: var(--text-muted);">계획이 안 맞아요 · 다시 짜기</button>`;
+`;
 
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1rem; border-left: 4px solid var(--accent-primary);">
