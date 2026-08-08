@@ -163,6 +163,57 @@ window.Admin = {
       </div>`;
   },
 
+  // 정산표 — 완료된 상담을 누구에게 얼마씩 보내야 하는지.
+  //  비율은 Payout.SPLIT 한 곳에서만 정의된다.
+  payoutSection() {
+    if (!window.Payout) return '';
+    const bookings = (window.Storage._safeGet('cbt_bookings', []) || []).filter(b => b && b.price);
+    const esc = t => String(t || '').replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const P = window.Payout;
+    const w = n => P.won(n);
+
+    const sum = { total: 0, counselor: 0, hospital: 0, pg: 0, platform: 0 };
+    bookings.forEach(b => {
+      const x = P.breakdown(b.price);
+      sum.total += x.total; sum.counselor += x.counselor;
+      sum.hospital += x.hospital; sum.pg += x.pg; sum.platform += x.platform;
+    });
+
+    const rows = bookings.slice(0, 20).map(b => {
+      const x = P.breakdown(b.price);
+      return `
+      <div style="display: flex; align-items: baseline; gap: 0.4rem; padding: 0.4rem 0; border-bottom: 1px dashed var(--glass-border); font-size: 0.74rem;">
+        <span style="flex: 1 1 0%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(b.name)}</span>
+        <span style="flex-shrink: 0; color: var(--text-muted);">${w(x.total)}</span>
+        <span style="flex-shrink: 0; font-weight: 800;">${w(x.counselor)}</span>
+        <span style="flex-shrink: 0; color: var(--text-muted);">${w(x.hospital)}</span>
+        <span style="flex-shrink: 0; color: var(--accent-primary); font-weight: 800;">${w(x.platform)}</span>
+      </div>`;
+    }).join('');
+
+    return `
+      <div style="margin-top: 1.2rem;">
+        <h3 style="margin: 0 0 0.2rem; font-size: 0.95rem;">상담 정산</h3>
+        <p style="margin: 0 0 0.7rem; font-size: 0.72rem; color: var(--text-muted);">
+          상담사 ${P.SPLIT.counselor}% · 기관 ${P.SPLIT.hospital}% · PG ${P.SPLIT.pg}% · 우렁의사 ${P.SPLIT.platform}%
+          · 완료 ${P.SETTLE_DAYS}일 뒤 지급
+        </p>
+        ${bookings.length ? `
+          <div style="display: flex; gap: 0.4rem; font-size: 0.64rem; font-weight: 800; color: var(--text-muted); padding-bottom: 0.3rem;">
+            <span style="flex: 1 1 0%;">상담</span><span>결제</span><span>상담사</span><span>기관</span><span>우렁의사</span>
+          </div>
+          ${rows}
+          <div style="display: flex; align-items: baseline; gap: 0.4rem; padding-top: 0.55rem; font-size: 0.78rem; font-weight: 800;">
+            <span style="flex: 1 1 0%;">합계 (${bookings.length}건)</span>
+            <span style="color: var(--text-muted);">${w(sum.total)}</span>
+            <span>${w(sum.counselor)}</span>
+            <span style="color: var(--text-muted);">${w(sum.hospital)}</span>
+            <span style="color: var(--accent-primary);">${w(sum.platform)}</span>
+          </div>
+        ` : '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">아직 정산할 상담이 없어요.</p>'}
+      </div>`;
+  },
+
   _render() {
     this.close();
     const S = window.Storage;
@@ -267,6 +318,7 @@ window.Admin = {
 
         <div>
           ${this.reviewSection()}
+          ${this.payoutSection()}
         </div>
 
         <div>

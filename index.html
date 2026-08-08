@@ -711,6 +711,7 @@
       <div class="modal-content glass-card" style="max-width: 430px; max-height: 86vh; overflow-y: auto;">
         <h2 style="margin-top: 0;">상담사 등록 신청</h2>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 상담료는 카드결제(PG)로 받아 <b>상담사 55% · 소속병원 35%</b>를 정산해드려요. 플랫폼 수수료는 10%이며 <b>결제수수료(약 3%)는 플랫폼이 부담</b>합니다.</p>
+        <div data-payout-notice="100000" style="margin-bottom: 1rem;"></div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem;">
           <input id="creg-name" placeholder="이름" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
           <select id="creg-license" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
@@ -911,7 +912,7 @@
           <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
           <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
         </div>
-        <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden')">등록 신청</button>
+        <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="document.getElementById('counselor-reg-modal').classList.remove('hidden'); window.Payout && window.Payout.render();">등록 신청</button>
       </div>
 
       <!-- 우렁이의 기억 (백업/복원) -->
@@ -1311,6 +1312,7 @@
   <script defer src="js/learn.js"></script>
   <script defer src="js/sfx.js"></script>
   <script defer src="js/mail.js"></script>
+  <script defer src="js/payout.js"></script>
   <script defer src="js/careplan.js"></script>
   <script defer src="js/goals.js"></script>
   <script defer src="js/progress.js"></script>
