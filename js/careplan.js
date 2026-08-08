@@ -405,7 +405,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
       </div>
       <p style="margin: 0 0 0.5rem; font-size: 0.82rem; line-height: 1.65; color: var(--text-primary); font-weight: 700;">${esc(w ? w.goal : '')}</p>
       ${w && w.technique ? `<p style="margin: 0 0 0.6rem; font-size: 0.72rem; line-height: 1.55;">
-        <b style="color: var(--accent-primary);">${esc(w.technique)}</b>${techNote ? `<span title="${esc(techNote)}" style="color: var(--text-muted);"> · 자세히는 길게 눌러보세요</span>` : ''}</p>` : ''}
+        <b style="color: var(--accent-primary);">${esc(w.technique)}</b></p>` : ''}
       ${actions}
       ${w && w.measure ? `<p style="margin: 0.45rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.55;">확인 방법 · ${esc(w.measure)}</p>` : ''}
       ${ifThen}`;

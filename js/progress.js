@@ -60,6 +60,26 @@ window.Progress = {
   //  (PHQ-9 5점, GAD-7 4점 — 널리 쓰이는 최소 임상적 중요 차이)
   MCID: { phq: 5, gad: 4 },
 
+  // 3회 이상이면 두 시점 비교가 아니라 흐름을 봐야 한다.
+  TREND_MIN: 3,
+
+  // 표준 절단점 — 그래프 배경 띠로 깔아 지금 어느 구간인지 바로 보이게
+  CUTS: {
+    phq: [{ to: 4, label: "정상" }, { to: 9, label: "경도" }, { to: 14, label: "중등도" }, { to: 19, label: "중등도이상" }, { to: 27, label: "심함" }],
+    gad: [{ to: 4, label: "정상" }, { to: 9, label: "경도" }, { to: 14, label: "중등도" }, { to: 21, label: "심함" }]
+  },
+
+  // 재측정 추이 — AssessCharts.retest 를 그대로 쓴다 (절단점 띠 + 꺾은선)
+  _trend(key, name, max) {
+    const h = this.screenings().filter(x => x && x[key] != null);
+    if (h.length < this.TREND_MIN || !window.AssessCharts || !window.AssessCharts.retest) return "";
+    const series = h.map(x => ({
+      v: x[key],
+      label: new Date(x.ts).toLocaleDateString("ko-KR", { month: "numeric", day: "numeric" })
+    }));
+    return window.AssessCharts.retest(series, { name, max, cuts: this.CUTS[key] });
+  },
+
   screeningChange() {
     const h = this.screenings().filter(x => x && x.phq != null);
     if (h.length < 2) return null;
@@ -130,10 +150,15 @@ window.Progress = {
       };
       const anyBetter = sc.phqVerdict === 'better' || sc.gadVerdict === 'better';
       const anyWorse = sc.phqVerdict === 'worse' || sc.gadVerdict === 'worse';
-      scBlock = line('우울 (PHQ-9)', sc.first.phq, sc.last.phq, sc.dPhq, sc.phqVerdict, 27)
-        + line('불안 (GAD-7)', sc.first.gad ?? 0, sc.last.gad ?? 0, sc.dGad, sc.gadVerdict, 21)
-        + `<p style="margin:0.2rem 0 0;font-size:0.73rem;line-height:1.65;color:${MUTE};">
-            ${sc.days}일 사이 ${sc.count}번 측정했어요.
+      // 3회 이상이면 막대 두 개가 아니라 흐름을 보여준다
+      const trendPhq = this._trend("phq", "우울 (PHQ-9)", 27);
+      const trendGad = this._trend("gad", "불안 (GAD-7)", 21);
+      scBlock = (trendPhq || trendGad)
+        ? trendPhq + (trendGad ? '<div style="margin-top:0.8rem;">' + trendGad + '</div>' : '')
+        : line('우울 (PHQ-9)', sc.first.phq, sc.last.phq, sc.dPhq, sc.phqVerdict, 27)
+          + line('불안 (GAD-7)', sc.first.gad ?? 0, sc.last.gad ?? 0, sc.dGad, sc.gadVerdict, 21)
+      scBlock += `<p style="margin:0.45rem 0 0;font-size:0.73rem;line-height:1.65;color:${MUTE};">
+            ${sc.days}일 사이 ${sc.count}번 측정 · 첫 회 대비.
             ${anyBetter ? `점수가 <b style="color:${OK};">임상에서 의미 있다고 보는 폭</b>만큼 내려갔어요 (PHQ-9 5점·GAD-7 4점 기준).`
               : anyWorse ? `점수가 올라갔어요. 이건 실패가 아니라 <b>지금 도움이 더 필요하다는 신호</b>예요 — 상담사 연결을 권해요.`
               : `아직 기준선을 넘는 변화는 아니에요. 2주는 짧아요 — 계속 쌓이면 여기서 보입니다.`}
@@ -293,6 +318,11 @@ window.Progress = {
         const word = v === "better" ? "감소" : v === "worse" ? "증가" : "유의한 변화 없음";
         return `<div style="display:flex;align-items:baseline;gap:0.5rem;padding:0.3rem 0;border-bottom:1px dashed ${GRID};">          <span style="flex:0 0 100px;font-size:0.8rem;font-weight:700;">${label}</span>          <span style="font-size:0.82rem;">${a} &rarr; <b style="color:${col};">${b}</b> / ${max}</span>          <span style="margin-left:auto;font-size:0.75rem;font-weight:800;color:${col};white-space:nowrap;">${d > 0 ? "+" : ""}${d}점 ${word}</span>        </div>`;
       };
+      // 3회 이상이면 추이 그래프를 먼저, 그 아래 첫 회 대비 수치
+      const tPhq = this._trend("phq", "PHQ-9 우울", 27);
+      const tGad = this._trend("gad", "GAD-7 불안", 21);
+      if (tPhq) rows.push('<div style="margin-bottom:0.55rem;">' + tPhq + '</div>');
+      if (tGad) rows.push('<div style="margin-bottom:0.75rem;">' + tGad + '</div>');
       rows.push(one("PHQ-9 우울", sc.first.phq, sc.last.phq, sc.dPhq, sc.phqVerdict, 27));
       rows.push(one("GAD-7 불안", sc.first.gad || 0, sc.last.gad || 0, sc.dGad, sc.gadVerdict, 21));
       rows.push(`<p style="margin:0.5rem 0 0;font-size:0.76rem;line-height:1.7;opacity:0.8;">        ${sc.days}일 간격 ${sc.count}회 측정. 판정 기준은 최소 임상적 중요 차이(PHQ-9 5점 · GAD-7 4점)이며, 그보다 작은 변동은 <b>변화로 보지 않았습니다</b>. 두 시점 비교이므로 인과를 뜻하지 않습니다.      </p>`);
