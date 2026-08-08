@@ -650,7 +650,7 @@ ${entries}
       if (window.LLM) {
         const m = this._night;
         const res = await window.LLM._chatCompletion({
-          model: window.LLM.MODEL,
+          model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
           messages: [{ role: 'user', content: `당신은 다정한 상담사 '우렁이'입니다. 사용자가 자기 전 하루 정리를 마쳤습니다.\n오늘 기분: ${m.mood ? m.mood.emo : '미기록'}\n마음에 남은 순간: ${m.moment || '(없음)'}\n스스로에게 한마디: ${m.note || '(없음)'}\n[장기기억]\n${window.Storage.getUserMemory() || '(없음)'}\n\n이 사람에게 보내는 굿나잇 메시지를 2문장 이내로, 따뜻하고 구체적으로(오늘 내용을 반영해서) 써주세요. 메시지만 출력.` }],
           temperature: 0.8,
           max_tokens: 120

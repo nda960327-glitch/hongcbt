@@ -760,7 +760,7 @@ window.ThoughtRecord = {
       if (window.LLM) {
         const distLabels = w.distortions.map(id => (this.distortions.find(d => d.id === id) || {}).label).filter(Boolean).join(', ');
         const res = await window.LLM._chatCompletion({
-          model: window.LLM.MODEL,
+          model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
           messages: [{ role: 'user', content: `당신은 다정한 CBT 상담사 '우렁이'입니다. 사용자가 사고기록지를 쓰는 중입니다.\n상황: ${w.situation}\n자동적 사고: ${w.thought}\n감정: ${w.emotions.map(e => `${e.name} ${e.intensity}%`).join(', ')}\n${distLabels ? `사용자가 고른 인지왜곡: ${distLabels}\n` : ''}\n이 생각을 다시 바라보게 돕는 (1) 소크라테스식 질문 1개와 (2) 균형 잡힌 대안적 사고 예시 1문장을 제시하세요. 반말 없이 부드럽게, 60자 내외 두 줄로. 머리기호 없이 줄바꿈으로만 구분해 출력.` }],
           temperature: 0.7,
           max_tokens: 160

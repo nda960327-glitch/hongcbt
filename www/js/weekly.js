@@ -86,7 +86,7 @@ window.Weekly = {
           `- ${new Date(j.ts).toLocaleDateString('ko-KR', { weekday: 'short' })}: 기분 ${j.mood ? j.mood.emo : '미기록'}${j.moment ? ` / 남은 순간: ${j.moment}` : ''}${j.note ? ` / 스스로에게: ${j.note}` : ''}`).join('\n');
         const recordLines = s.records.slice(0, 5).map(r => `- ${r.thought || ''} → ${r.alternative || '(대안 미작성)'}`).join('\n');
         const res = await window.LLM._chatCompletion({
-          model: window.LLM.MODEL,
+          model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
           messages: [{ role: 'user', content: `당신은 '우렁이'입니다. 하찮고 뚱뚱하고 마음은 대왕인 달팽이 상담사예요. 한 주를 마친 사용자에게 편지를 씁니다.
 
 [이번 주 데이터]

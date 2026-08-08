@@ -6,8 +6,12 @@
   //  사람처럼 관계를 쌓아가는 동반자로 설계되었습니다.
   // ==========================================================================
 
-  // 일상 대화. 대부분의 턴이 여기로 간다.
-  MODEL: "gpt-4o-mini",
+  // 대화. 우렁이의 목소리가 이 앱의 전부라 여기는 아끼지 않는다.
+  MODEL: "gpt-4o",
+
+  // 목소리가 없는 배경 작업 — 사고기록 정리·미션 생성·주간 편지·세션 정리·주제별 요약.
+  //  사용자가 문장을 읽지 않거나, 형식이 프롬프트로 정해져 있어 등급 차가 안 드러난다.
+  MODEL_LIGHT: "gpt-4o-mini",
   // 품질이 곧 안전인 곳에만 쓰는 상위 모델.
   //  위기 턴 · 리포트 생성 · 장기기억 정리. 여기서 아끼면 사람이 다친다.
   MODEL_HIGH: "gpt-4o",
@@ -743,7 +747,7 @@ ${memory || '(없음)'}
 ${transcript}`;
 
       const res = await this._chatCompletion({
-        model: this.MODEL,
+        model: this.MODEL_LIGHT,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         max_tokens: 600
@@ -811,7 +815,7 @@ worth가 false면 다른 필드는 비워도 됩니다.
 ${transcript}`;
 
       const res = await this._chatCompletion({
-        model: this.MODEL,
+        model: this.MODEL_LIGHT,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 500

@@ -131,7 +131,7 @@ window.Missions = {
       const concerns = (window.Storage._safeGet('cbt_user_concerns', []) || []).join(', ');
       const avg = this._recentMoodAvg();
       const res = await window.LLM._chatCompletion({
-        model: window.LLM.MODEL,
+        model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
         messages: [{ role: 'user', content: `당신은 상담사 '우렁이'입니다. 이 사람을 위한 '오늘의 아주 작은 행동 미션' 1개를 만드세요.
 [장기기억]\n${memory}\n[온보딩 고민] ${concerns || '(없음)'}\n[최근 3일 기분 평균] ${avg ? avg.toFixed(1) + '/5' : '기록 없음'}
 

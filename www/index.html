@@ -1349,8 +1349,24 @@
     window.addEventListener('load', () => hydrateIcons());
 
     if ('serviceWorker' in navigator) {
+      // 새 워커가 제어권을 잡으면 한 번만 새로고침한다.
+      //  이게 없으면 새 버전을 배포해도 이미 떠 있는 화면은 옛 코드를 계속 쓴다.
+      //  (PWA 로 설치해 쓰면 앱을 완전히 끄는 일이 드물어 며칠씩 묵는다)
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
+      });
+
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(err => {
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+          // 앱을 열어둔 채로도 주기적으로 새 버전을 확인한다
+          setInterval(() => { try { reg.update(); } catch (e) {} }, 60 * 60 * 1000);
+          document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) { try { reg.update(); } catch (e) {} }
+          });
+        }).catch(err => {
           console.error('Service Worker registration failed: ', err);
         });
       });

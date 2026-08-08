@@ -1247,7 +1247,7 @@ ${memory || '(없음)'}`;
 
     try {
       const res = await window.LLM._chatCompletion({
-        model: window.LLM.MODEL,
+        model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.8,
         max_tokens: 150
