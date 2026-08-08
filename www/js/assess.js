@@ -197,11 +197,11 @@ window.Assess = {
             </span>
           </div>`).join('')}
 
-        <div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0.9rem 0 0.6rem;
+        ${o.price ? `<div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0.9rem 0 0.6rem;
                     padding-top: 0.7rem; border-top: 1px dashed var(--glass-border);">
           <span style="font-size: 0.8rem; color: var(--text-muted);">지금 결제</span>
           <b style="font-size: 1.02rem; color: var(--text-primary);">${o.price}</b>
-        </div>
+        </div>` : '<div style="height: 0.6rem;"></div>'}
 
         <button class="btn-primary" style="width: 100%; padding: 0.78rem; font-size: 0.92rem;"
           onclick="window.Assess._confirmOk()">${esc(o.okLabel)}</button>
@@ -969,19 +969,54 @@ b{font-weight:800}
     const fresh = this.qaFresh();
     if (!fresh.ok) {
       if (window.Sfx) window.Sfx.play('denied');
-      const msg = {
-        none:    '표준 자가검진(PHQ-9·GAD-7)을 먼저 해주세요.\n\n이 검진 없이는 우울·불안을 표준 기준으로 판단할 수 없어요.\n한 문항씩 답하면 5분이면 끝나요.',
-        partial: '자가검진이 중간에 멈춰 있어요.\n\n남은 문항까지 마쳐야 점수가 나옵니다. (5분)',
-        expired: `표준 검진을 ${fresh.days}일 전에 하셨어요.\n\nPHQ-9·GAD-7은 '지난 2주'를 묻는 검사라, 그 답은 지금의 당신이 아니에요.\n다시 재고 리포트를 만들게요. (5분)`,
-        stale:   `이 검진 점수는 지난 리포트에 이미 쓴 것이에요.\n\n같은 점수로 새 리포트를 만들면 '지금'이 아니라 그때를 다시 설명하게 돼요.\n지금 상태로 다시 재야 무엇이 달라졌는지 볼 수 있어요. (5분)`
-      }[fresh.why] || '표준 자가검진을 먼저 해주세요. (5분)';
-      alert(msg);
-      this.openQuiz();
+      const C = {
+        none: {
+          title: '표준 검진부터 받을게요',
+          lede: '이 검진 없이는 우울·불안을 표준 기준으로 판단할 수 없어요.',
+          item: { icon: 'note', title: 'PHQ-9 · GAD-7 · 5분',
+                  body: '전 세계가 같은 문항으로 쓰는 표준 선별검사예요. 한 문항씩 답하면 금방 끝나요.' }
+        },
+        partial: {
+          title: '검진이 중간에 멈춰 있어요',
+          lede: '남은 문항까지 마쳐야 점수가 나와요.',
+          item: { icon: 'note', title: '이어서 답하기', body: '지금까지 답한 것은 그대로 남아 있어요.' }
+        },
+        expired: {
+          title: `검종을 ${fresh.days}일 전에 하셨어요`,
+          lede: '그 답은 지금의 당신이 아니에요.',
+          item: { icon: 'booking', title: `PHQ-9 · GAD-7 은 '지난 2주' 를 묻는 검사예요`,
+                  body: `${fresh.days}일 전 점수로 만들면 지금이 아니라 그때를 설명하게 돼요. 다시 재고 만들게요. (5분)` }
+        },
+        stale: {
+          title: '이 점수는 지난 리포트에 이미 썼어요',
+          lede: '같은 점수로 새 리포트를 만들면 그때를 다시 설명하게 돼요.',
+          item: { icon: 'dashboard', title: '지금 상태로 다시 재요 · 5분',
+                  body: '그래야 무엇이 달라졌는지 나란히 보이고, 변화 그래프에도 점이 찍혀요.' }
+        }
+      }[fresh.why] || {
+        title: '표준 검진부터 받을게요', lede: '',
+        item: { icon: 'note', title: '5분이면 끝나요', body: '' }
+      };
+      this.confirmSheet({
+        title: C.title, lede: C.lede, items: [C.item], price: null,
+        okLabel: '검진하러 가기', cancelLabel: '나중에 할게요',
+        onOk: () => this.openQuiz()
+      });
       return;
     }
 
     if (!window.Wallet || window.Wallet.balance() < this.PRICE) {
-      alert(`우렁 캐시가 부족해요. (${this.PRICE.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+      if (window.Sfx) window.Sfx.play('denied');
+      const have = window.Wallet ? window.Wallet.balance() : 0;
+      this.confirmSheet({
+        title: '캐시가 모자라요',
+        lede: `리포트를 만들려면 ${this.PRICE.toLocaleString()}캐시가 필요해요.`,
+        items: [{ icon: 'cash', title: `지금 ${have.toLocaleString()}캐시 있어요`,
+                  body: '마이 탭에서 충전할 수 있어요. 충전 금액이 클수록 보너스가 붙어요.' }],
+        price: null,
+        okLabel: '충전하러 가기', cancelLabel: '다음에 할게요',
+        onOk: () => { if (window.App) window.App.switchTab('mypage'); }
+      });
       return;
     }
 

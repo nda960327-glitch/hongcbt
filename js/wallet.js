@@ -21,11 +21,11 @@ window.Wallet = {
   // 충전 패키지 — 많이 충전할수록 보너스 캐시를 더 얹어준다
   PACKAGES: [
     { pay: 5000,   bonus: 0,     label: '5천' },
-    { pay: 10000,  bonus: 300,   label: '1만' },   // +3%
-    { pay: 30000,  bonus: 1500,  label: '3만' },   // +5%
-    { pay: 50000,  bonus: 3500,  label: '5만' },   // +7%
-    { pay: 100000, bonus: 10000, label: '10만' },  // +10%
-    { pay: 300000, bonus: 45000, label: '30만' }   // +15%
+    { pay: 10000,  bonus: 200,   label: '1만' },   // +2%
+    { pay: 30000,  bonus: 900,   label: '3만' },   // +3%
+    { pay: 50000,  bonus: 2000,  label: '5만' },   // +4%
+    { pay: 100000, bonus: 6000,  label: '10만' },  // +6%
+    { pay: 300000, bonus: 24000, label: '30만' }   // +8%
   ],
 
   // 충전 — 실제 서비스에서는 이 함수 안이 Google Play Billing / PG 호출로 바뀐다
