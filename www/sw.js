@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v90';
+﻿const CACHE_NAME = 'cbt-app-v91';
 const ASSETS = [
   './',
   './index.html',
@@ -49,7 +49,12 @@ const ASSETS = [
   './privacy.html',
   './terms.html',
   './data-deletion.html',
-  './icon.svg'
+  './icon.svg',
+  './icon.png',
+  './icon-192.png',
+  './icon-144.png',
+  './icon-96.png',
+  './icon-48.png'
 ];
 
 // 알림 탭 → 앱(챗봇 화면) 열기

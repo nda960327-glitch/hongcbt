@@ -531,8 +531,13 @@
 
   fetchPresence(force) {
     if (!force && Date.now() - this._presenceTs < 10000) return; // 10초 캐시
+    // 서버가 없는 배포본에서는 조용히 접는다 (App 이 30분마다 다시 확인한다)
+    if (window.App && window.App._serverOk === false) return;
     this._presenceTs = Date.now();
-    fetch('/api/presence').then(r => r.ok ? r.json() : null).then(d => {
+    fetch('/api/presence').then(r => {
+      if (window.App && !r.ok) window.App._serverOk = false;
+      return r.ok ? r.json() : null;
+    }).then(d => {
       if (!d) return;
       const changed = JSON.stringify(d.presence) !== JSON.stringify(this._presence);
       this._presence = d.presence || {};

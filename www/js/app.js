@@ -1208,14 +1208,44 @@ window.App = {
     return window.Storage._safeGet('cbt_checkin_slots', []);
   },
 
+  // 상담사 마켓 서버(/api/*)가 살아 있는가.
+  //  정적 호스팅만으로 배포된 빌드에는 이 엔드포인트들이 없다. 그런데도 60초마다
+  //  폴링하면 기기가 하루 1,440번 404 를 받으며 배터리와 데이터를 계속 쓴다.
+  //  한 번 없다고 확인되면 30분 쉬었다가 다시 확인한다 (나중에 서버가 붙어도 복구되도록).
+  _serverOk: undefined,
+  _serverDownUntil: 0,
+  _serverProbing: false,
+
+  async _serverAvailable() {
+    if (this._serverOk === true) return true;
+    if (Date.now() < this._serverDownUntil) return false;
+    if (this._serverProbing) return false;
+    this._serverProbing = true;
+    try {
+      const r = await fetch('/api/presence');
+      this._serverOk = !!r.ok;
+      if (!r.ok) this._serverDownUntil = Date.now() + 30 * 60 * 1000;
+      return this._serverOk;
+    } catch (e) {
+      this._serverOk = false;
+      this._serverDownUntil = Date.now() + 30 * 60 * 1000;
+      return false;
+    } finally {
+      this._serverProbing = false;
+    }
+  },
+
   async _checkinTick() {
     try {
-      this._bookingReminderTick(); // 예약 30분 전 알림도 같은 틱에서
-      this._hchatBgTick();         // 채팅창을 닫아둬도 상담사 답장 수신
-      this._bookingSyncTick();     // 상담사가 예약을 거절했는지 동기화
-      this._callQueueTick();       // 바로상담 대기열 — 회선 비면 알림
-      this._noshowTick();          // 예약 미진행 확인·환불
-      this._reviewReplyTick();     // 상담사 리뷰 답글 수신
+      this._bookingReminderTick(); // 예약 30분 전 알림 (로컬)
+      this._noshowTick();          // 예약 미진행 확인·환불 (로컬)
+      // 서버가 있을 때만 도는 것들 — 없으면 조용히 건너뛴다
+      if (await this._serverAvailable()) {
+        this._hchatBgTick();       // 채팅창을 닫아둬도 상담사 답장 수신
+        this._bookingSyncTick();   // 상담사가 예약을 거절했는지 동기화
+        this._callQueueTick();     // 바로상담 대기열 — 회선 비면 알림
+        this._reviewReplyTick();   // 상담사 리뷰 답글 수신
+      }
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
