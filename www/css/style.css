@@ -1941,3 +1941,16 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 /* 채팅 탭은 상담사 바가 곧 헤더다 — 그 위에 빈 10px 을 두지 않는다 */
 /* 채팅 탭 상단 붙이기 */
 body.header-hidden #tab-chat { padding-top: 0; }
+
+/* 입력창 위 흰 띠 — 페이드가 88% 에서 뚝 끊겨 경계선처럼 보이던 문제.
+   구간을 길게 잡아 서서히 사라지게 한다. (배경색은 그대로) */
+/* 입력창 페이드 */
+#tab-chat .chat-input-area {
+  padding-top: 1.9rem;
+  background: linear-gradient(to top,
+    var(--bg-primary) 0%,
+    var(--bg-primary) 58%,
+    color-mix(in srgb, var(--bg-primary) 70%, transparent) 78%,
+    color-mix(in srgb, var(--bg-primary) 30%, transparent) 90%,
+    transparent 100%);
+}
