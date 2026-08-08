@@ -31,6 +31,13 @@
   //  유머 요청은 전체 대화에서 드물어 비용 영향은 미미하다.
   WIT_RE: /개그|농담|드립|웃겨|웃긴|웃음|재밌는|재미있는|아재|말장난|유머|썰렁|넌센스|삼행시|끝말잇기/,
 
+  // 장기기억은 세션이 끝날 때 정리한다.
+  //  같은 세션 안에서는 최근 대화가 프롬프트에 직접 들어가므로 굳이 기억으로 옮길 필요가 없고,
+  //  세션이 바뀌는 순간이 바로 넘겨야 하는 시점이다.
+  //  (전에는 매 턴 돌아서 1회 49원 × 하루 20턴 = 월 29,000원이었다)
+  //  아주 긴 세션만 중간에 한 번 더 갱신해 유실을 막는다.
+  MEMORY_LONG_SESSION: { paid: 20, free: 40 },
+
   HISTORY_WINDOW: 30,         // 프롬프트에 넣는 최근 대화 수
 
   // Cloudflare Worker 프록시 주소. 키는 Worker 시크릿에만 있고 앱에는 없다.
@@ -699,7 +706,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       }
 
       // 장기기억 비동기 갱신 (사용자를 기다리게 하지 않음)
-      this._updateMemory(userText, botText.replace(/\s*\|\|\|\s*/g, " "));
+      // 세션이 끝나는 턴이면 반드시 갱신한다 — 놓치면 그 세션이 통째로 날아간다
+      this._updateMemory(userText, botText.replace(/\s*\|\|\|\s*/g, " "), sessionEnd);
 
       // 세션이 끝났으면: 이번 세션 대화를 사고 기록으로 정리하고 다음 세션 경계를 잡는다
       if (sessionEnd && window.Storage) {
@@ -989,7 +997,36 @@ ${transcript}`;
   //  장기기억 갱신 — 매 대화 후 조용히 '사례 기록'을 업데이트한다.
   //  (비동기 fire-and-forget: 실패해도 대화에는 영향 없음)
   // --------------------------------------------------------------------------
-  async _updateMemory(userText, botText) {
+  // 유료(체험 포함)인가
+  _isPaid() {
+    try { return !!(window.Subscription && window.Subscription.hasAccess()); }
+    catch (e) { return false; }
+  },
+
+  // 이번 턴에 기억을 갱신할 차례인가.
+  //  기본은 세션이 끝날 때만. 다만 세션이 아주 길어지면 중간에 한 번 더 저장한다.
+  _shouldUpdateMemory(sessionEnd) {
+    const n = (window.Storage._safeGet('cbt_mem_turn', 0) || 0) + 1;
+    if (sessionEnd) {
+      window.Storage._safeSet('cbt_mem_turn', 0);
+      return true;
+    }
+    const cap = this._isPaid() ? this.MEMORY_LONG_SESSION.paid : this.MEMORY_LONG_SESSION.free;
+    if (n >= cap) {
+      window.Storage._safeSet('cbt_mem_turn', 0);
+      return true;   // 긴 세션 — 여기까지 온 이야기를 잃지 않게
+    }
+    window.Storage._safeSet('cbt_mem_turn', n);
+    return false;
+  },
+
+  // 기억 정리에 쓸 모델 — 무료는 mini
+  _memoryModel() {
+    return this._isPaid() ? this.MEMORY_MODEL : this.MODEL_LIGHT;
+  },
+
+  async _updateMemory(userText, botText, sessionEnd) {
+    if (!this._shouldUpdateMemory(sessionEnd)) return;
     try {
       if (!window.Storage) return;
       const prevMemory = window.Storage.getUserMemory() || "(아직 없음)";   // 3,000자까지 누적된다
@@ -1032,7 +1069,7 @@ ${transcript}
 [갱신된 기록]`;
 
       const res = await this._chatCompletion({
-        model: this.MEMORY_MODEL,
+        model: this._memoryModel(),
         messages: [{ role: "user", content: memoryPrompt }],
         temperature: 0.2,
         max_tokens: 2600

@@ -460,6 +460,8 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
           </span>
           <span style="flex: 1 1 0%; min-width: 0; font-size: 0.82rem; line-height: 1.55; font-weight: ${done ? '600' : '700'};
                        color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(a)}</span>
+          <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+                       color: ${done ? 'var(--text-muted)' : '#6f97ab'};">${done ? '✓' : '+2' + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '')}</span>
         </button>`;
     }).join('');
 

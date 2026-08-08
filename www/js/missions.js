@@ -362,6 +362,11 @@ ${recent}` }],
                            color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(r.text)}</span>
               ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '리포트 근거'} · ${esc(r.why)}</span>` : ''}
             </span>
+            <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+                         display: inline-flex; align-items: center; gap: 0.1rem;
+                         color: ${done ? 'var(--text-muted)' : '#6f97ab'};">
+              ${done ? '✓' : '+2' + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '')}
+            </span>
           </button>`;
         }).join('')}
       </div>`;

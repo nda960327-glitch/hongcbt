@@ -160,6 +160,17 @@ window.Assess = {
   //  UI
   // --------------------------------------------------------------------------
   // 대시보드에 놓는 상태 카드. 준비됐을 때만 눈에 띈다.
+  // 카드 버튼이 실제로 하는 일. 라벨과 동작이 어긋나면 안 된다 —
+  //  "그래도 만들기" 를 눌렀는데 화면만 열리고 끝나면 눌린 게 아니라고 느낀다.
+  ctaAction() {
+    const fresh = this.qaFresh();
+    const left = this.cooldownLeft();
+    this.open();
+    if (!fresh.ok) { this.openQuiz(); return; }   // 검진부터
+    if (left > 0) return;                        // 지난 리포트 보기
+    this.generate();                             // 경고·확인창은 generate 안에 있다
+  },
+
   ctaCard() {
     const el = document.getElementById('assess-cta');
     if (!el) return;
@@ -208,7 +219,7 @@ window.Assess = {
         </p>
         ${state === 'collect' ? bar : ''}
         <p style="margin:0.4rem 0 0.6rem;font-size:0.76rem;font-weight:700;color:${accent ? 'var(--accent-primary)' : 'var(--text-muted)'};">${line}</p>
-        <button onclick="window.Assess.open()" class="${accent ? 'btn-primary' : 'btn-secondary'}"
+        <button onclick="window.Assess.ctaAction()" class="${accent ? 'btn-primary' : 'btn-secondary'}"
           style="width:100%;padding:0.62rem;font-size:0.85rem;">${action} ›</button>
       </div>`;
   },
