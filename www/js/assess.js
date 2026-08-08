@@ -159,6 +159,60 @@ window.Assess = {
   // --------------------------------------------------------------------------
   //  UI
   // --------------------------------------------------------------------------
+  // 대시보드에 놓는 상태 카드. 준비됐을 때만 눈에 띈다.
+  ctaCard() {
+    const el = document.getElementById('assess-cta');
+    if (!el) return;
+    const m = this.metrics();
+    const fresh = this.qaFresh();
+    const left = this.cooldownLeft();
+    const has = this.reports().length;
+
+    let state, line, action, accent;
+    if (left > 0) {
+      state = 'wait';
+      line = `다음 리포트까지 ${left}일 — 그동안 케어플랜을 실행해주세요`;
+      action = '지난 리포트 보기';
+      accent = false;
+    } else if (!fresh.ok) {
+      state = 'quiz';
+      line = fresh.why === 'stale' || fresh.why === 'expired'
+        ? '표준 검진을 다시 받으면 준비 끝나요 (5분)'
+        : '표준 검진(PHQ-9·GAD-7)부터 받아주세요 (5분)';
+      action = '검진하기';
+      accent = true;
+    } else if (m.total < this.MIN_TOTAL) {
+      state = 'collect';
+      line = `기록이 ${m.total}% 모였어요 — ${this.MIN_TOTAL}%부터 정확해져요`;
+      action = '그래도 만들기';
+      accent = false;
+    } else {
+      state = 'ready';
+      line = has ? '새 리포트를 만들 수 있어요' : '이제 만들 수 있어요';
+      action = '리포트 만들기';
+      accent = true;
+    }
+
+    const bar = `<div style="height:6px;border-radius:999px;background:var(--bg-tertiary);overflow:hidden;margin:0.5rem 0 0.55rem;">
+      <div style="height:100%;width:${Math.min(100, m.total)}%;background:var(--accent-primary);"></div></div>`;
+
+    el.innerHTML = `
+      <div class="glass-card" style="padding:0.9rem 1rem;${accent ? 'border:1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);' : ''}">
+        <div style="display:flex;align-items:center;gap:0.4rem;">
+          <span style="line-height:0;color:var(--accent-primary);">${window.Icons ? window.Icons.svg('search', { size: 18 }) : ''}</span>
+          <strong style="font-size:0.92rem;color:var(--text-primary);">AI 마음 리포트</strong>
+          <span style="margin-left:auto;font-size:0.68rem;font-weight:800;color:#c9a227;background:color-mix(in srgb, #c9a227 14%, transparent);padding:0.15rem 0.5rem;border-radius:999px;">30,000캐시</span>
+        </div>
+        <p style="margin:0.35rem 0 0;font-size:0.78rem;line-height:1.6;color:var(--text-secondary);">
+          내 기록을 정밀 분석해 <b>2주 케어플랜</b>을 처방하고, <b>나의 변화</b>를 채워요.
+        </p>
+        ${state === 'collect' ? bar : ''}
+        <p style="margin:0.4rem 0 0.6rem;font-size:0.76rem;font-weight:700;color:${accent ? 'var(--accent-primary)' : 'var(--text-muted)'};">${line}</p>
+        <button onclick="window.Assess.open()" class="${accent ? 'btn-primary' : 'btn-secondary'}"
+          style="width:100%;padding:0.62rem;font-size:0.85rem;">${action} ›</button>
+      </div>`;
+  },
+
   open() {
     const ov = document.getElementById('assess-overlay');
     if (!ov) return;

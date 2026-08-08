@@ -11,7 +11,9 @@
   // 품질이 곧 안전인 곳에만 쓰는 상위 모델.
   //  위기 턴 · 리포트 생성 · 장기기억 정리. 여기서 아끼면 사람이 다친다.
   MODEL_HIGH: "gpt-4o",
-  MEMORY_MODEL: "gpt-4o",     // 장기기억 정리 (비동기, 사용자 대기 없음)
+  // 장기기억 정리 전용 상위 모델. 여기가 부실하면 이후 모든 대화가 부실해진다.
+  //  (비동기라 사용자가 기다리지 않고, 하루 한두 번만 돈다)
+  MEMORY_MODEL: "gpt-4o",
 
   // 보내기 전에 규칙으로 먼저 훑는 위기 신호.
   //  모델 응답의 '위험감지' 만 믿으면 이미 낮은 모델이 답을 쓴 뒤라 늦다.
@@ -741,7 +743,7 @@ ${memory || '(없음)'}
 ${transcript}`;
 
       const res = await this._chatCompletion({
-        model: this.MEMORY_MODEL,
+        model: this.MODEL,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.4,
         max_tokens: 600
@@ -809,7 +811,7 @@ worth가 false면 다른 필드는 비워도 됩니다.
 ${transcript}`;
 
       const res = await this._chatCompletion({
-        model: this.MEMORY_MODEL,
+        model: this.MODEL,
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 500
@@ -861,7 +863,7 @@ ${transcript}`;
   async _updateMemory(userText, botText) {
     try {
       if (!window.Storage) return;
-      const prevMemory = window.Storage.getUserMemory() || "(아직 없음)";   // 3000단어까지 누적된다
+      const prevMemory = window.Storage.getUserMemory() || "(아직 없음)";   // 3,000자까지 누적된다
 
       const history = window.Storage.getMessages() || [];
       const recent = history.slice(-12).map(m =>
@@ -886,7 +888,7 @@ ${transcript}`;
 - 중요한 날짜·약속·다음에 물어볼 것 (예: "다음엔 면접 결과 물어보기")
 - 감정 흐름: 시간에 따른 변화, 위험 신호 유무
 
-전체 3000단어 이내로 작성하세요. 분량이 넉넉하니 **구체적인 디테일을 살려서** 적으세요 — 사람 이름, 날짜, 실제로 한 말, 사건의 경과 같은 것들이 다음 대화의 재료가 됩니다.
+전체 3,000자(공백 포함) 이내로 작성하세요. 분량이 넉넉하니 **구체적인 디테일을 살려서** 적으세요 — 사람 이름, 날짜, 실제로 한 말, 사건의 경과 같은 것들이 다음 대화의 재료가 됩니다.
 · 압축하되 뭉개지 마세요. "직장 스트레스" 대신 "3월부터 팀장 김OO의 반복적 공개 지적 → 4월 초 발표 후 자책 심화"처럼.
 · 다만 오래되어 더 이상 유효하지 않은 정보(이미 해결된 걱정, 지난 약속)는 정리하거나 '(해결됨)'을 붙이세요.
 · 반복 등장하는 인물·주제는 지우지 말고 누적하세요. 관계의 역사가 라포의 자산입니다.
@@ -904,7 +906,7 @@ ${transcript}
         model: this.MEMORY_MODEL,
         messages: [{ role: "user", content: memoryPrompt }],
         temperature: 0.2,
-        max_tokens: 6000
+        max_tokens: 2600
       });
 
       if (!res.ok) return;

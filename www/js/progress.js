@@ -228,6 +228,17 @@ window.Progress = {
         <div style="display:flex;align-items:center;gap:0.4rem;">
           <span style="line-height:0;color:var(--accent-primary);">${ic('dashboard', 17)}</span>
           <strong style="font-size:0.92rem;color:var(--text-primary);">나의 변화</strong>
+          ${(() => {
+            // 리포트가 없으면 이 화면은 거의 비어 있다 — 그때는 버튼을 눈에 띄게 둔다.
+            const has = (window.Assess && window.Assess.reports().length) > 0;
+            return `<button onclick="window.Assess && window.Assess.open()"
+              style="all: unset; margin-left: auto; flex-shrink: 0; cursor: pointer; white-space: nowrap;
+                     font-size: 0.72rem; font-weight: 800; border-radius: 999px; padding: 0.32rem 0.7rem;
+                     ${has
+                       ? 'color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);'
+                       : 'color: #fff; background: var(--accent-primary); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-primary) 45%, transparent);'}">
+              ${has ? 'AI 마음 리포트 ›' : 'AI 마음 리포트 받기 ›'}</button>`;
+          })()}
         </div>
 
         ${sect('1', '표준 검진 · 이전과 지금', scBlock)}

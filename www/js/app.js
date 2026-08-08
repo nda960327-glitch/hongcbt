@@ -405,6 +405,7 @@ window.App = {
       this._setNavBadge('chat', false); // 확인했으니 미확인 표시 제거
     }
     if (tabName === 'dashboard') {
+      if (window.Assess && window.Assess.ctaCard) window.Assess.ctaCard();
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
       if (window.Growth) window.Growth.renderNightList();
       // 우렁이 세계 — 단일 게임 컨테이너 (HUD·내비·현재 화면 렌더)
