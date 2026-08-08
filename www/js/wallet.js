@@ -29,6 +29,9 @@ window.Wallet = {
   ],
 
   // 충전 — 실제 서비스에서는 이 함수 안이 Google Play Billing / PG 호출로 바뀐다
+  // 게임 HUD 의 캐시 숫자도 같이 맞춘다
+  _syncHud() { if (window.Game && window.Game.renderHud) window.Game.renderHud(); },
+
   charge(pay, bonus = 0) {
     if (!pay || pay <= 0) return false;
     const total = pay + bonus;
@@ -37,6 +40,7 @@ window.Wallet = {
     window.Storage._safeSet('cbt_cash', bal);
     this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
     this.renderCard();
+    this._syncHud();
     if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`🎁 보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
     return true;
   },
@@ -49,6 +53,7 @@ window.Wallet = {
     window.Storage._safeSet('cbt_cash', next);
     this._record('spend', amount, desc || '사용', next);
     this.renderCard();
+    this._syncHud();
     return true;
   },
 
@@ -57,6 +62,7 @@ window.Wallet = {
     window.Storage._safeSet('cbt_cash', bal);
     this._record('refund', amount, desc || '환불', bal);
     this.renderCard();
+    this._syncHud();
   },
 
   // 마이페이지 지갑 카드 렌더링

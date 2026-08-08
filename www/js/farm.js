@@ -14,13 +14,43 @@ window.Farm = {
 
   // seed: 씨앗 값(씨앗코인). 상추는 무료라 코인이 없어도 농사를 시작할 수 있다.
   CROPS: [
-    { id: 'lettuce', emoji: '🥬', name: '상추',   need: 6,  coin: 8,  seed: 0  },
-    { id: 'carrot',  emoji: '🥕', name: '당근',   need: 9,  coin: 14, seed: 4  },
-    { id: 'corn',    emoji: '🌽', name: '옥수수', need: 12, coin: 20, seed: 6  },
-    { id: 'tomato',  emoji: '🍅', name: '토마토', need: 14, coin: 24, seed: 8  },
-    { id: 'berry',   emoji: '🍓', name: '딸기',   need: 16, coin: 34, seed: 12 },
-    { id: 'pumpkin', emoji: '🎃', name: '호박',   need: 22, coin: 55, seed: 20 }
+    { id: 'lettuce', art: 'lettuce', name: '상추',   need: 6,  coin: 8,  seed: 0  },
+    { id: 'carrot',  art: 'carrot',  name: '당근',   need: 9,  coin: 14, seed: 4  },
+    { id: 'corn',    art: 'corn',    name: '옥수수', need: 12, coin: 20, seed: 6  },
+    { id: 'tomato',  art: 'tomato',  name: '토마토', need: 14, coin: 24, seed: 8  },
+    { id: 'berry',   art: 'berry',   name: '딸기',   need: 16, coin: 34, seed: 12 },
+    { id: 'pumpkin', art: 'pumpkin', name: '호박',   need: 22, coin: 55, seed: 20 }
   ],
+
+  // 작물 그림 — 이모지는 기기마다 모양이 달라서 직접 그린다.
+  //  씨앗 → 새싹 → 잎 → 완성 4단계를 스티커와 같은 손그림 톤으로 맞췄다.
+  ART: {
+    seed: '<path d="M12 6.5c3 0 5 2.6 5 6 0 3.6-2.2 5.9-5 5.9s-5-2.3-5-5.9c0-3.4 2-6 5-6Z" fill="#C9A876"/><path d="M9.8 10.6c1.4-.7 3-.7 4.4 0" fill="none"/>',
+    sprout: '<path d="M12 19.5v-6" fill="none"/><path d="M12 14.6c-2.7.2-4.6-1.6-4.7-4.4 3-.3 4.6 1.5 4.7 4.4Z" fill="#8FC9A6"/><path d="M12 13.4c.1-2.8 1.7-4.6 4.7-4.4-.1 2.8-2 4.6-4.7 4.4Z" fill="#6FAE86"/>',
+    leafy: '<path d="M12 20v-7.5" fill="none"/><path d="M12 15c-3.2.2-5.4-1.9-5.5-5.2 3.5-.3 5.4 1.8 5.5 5.2Z" fill="#8FC9A6"/><path d="M12 13.6c.1-3.3 2-5.4 5.5-5.2-.1 3.3-2.3 5.4-5.5 5.2Z" fill="#6FAE86"/><path d="M12 9.6c-1.9-.6-2.8-2.2-2.4-4.3 2.2.2 3 1.9 2.4 4.3Z" fill="#8FC9A6"/>',
+    lettuce: '<path d="M12 19.6c-4 0-6.6-2.7-6.6-6.3 0-3.9 2.8-6.9 6.6-6.9s6.6 3 6.6 6.9c0 3.6-2.6 6.3-6.6 6.3Z" fill="#8FC9A6"/><path d="M12 6.4c2 1.6 3 4 3 7.2M12 6.4c-2 1.6-3 4-3 7.2" fill="none"/><path d="M6.6 10.6c1.8-1.4 3.6-2.1 5.4-2.1s3.6.7 5.4 2.1" fill="none"/>',
+    carrot: '<path d="M12 20.4c-2.4-2.6-3.9-5.4-4.4-8.5 3.2-1.2 6-1.2 8.8 0-.5 3.1-2 5.9-4.4 8.5Z" fill="#E0A46E"/><path d="M9.6 14.2c1.6-.5 3.2-.5 4.8 0" fill="none"/><path d="M12 11.2V7.6" fill="none"/><path d="M12 8.8c-1.6-1-2.4-2.2-2.4-3.6 1.6 0 2.4.9 2.4 3.6ZM12 8.8c1.6-1 2.4-2.2 2.4-3.6-1.6 0-2.4.9-2.4 3.6Z" fill="#6FAE86"/>',
+    corn: '<path d="M12 4.6c2.4 0 4 2.4 4 6.4s-1.6 8.4-4 8.4-4-4.4-4-8.4 1.6-6.4 4-6.4Z" fill="#e8b04b"/><path d="M10 8.4c1.4-.5 2.6-.5 4 0M9.6 12c1.6-.5 3.2-.5 4.8 0M10 15.6c1.4-.5 2.6-.5 4 0" fill="none"/><path d="M8.4 10.6c-2.2-.4-3.6-1.8-3.6-3.8 2.4-.2 3.8 1 3.6 3.8Z" fill="#6FAE86"/>',
+    tomato: '<path d="M12 19.6c-3.7 0-6.2-2.5-6.2-5.9 0-3.4 2.6-5.8 6.2-5.8s6.2 2.4 6.2 5.8c0 3.4-2.5 5.9-6.2 5.9Z" fill="#d98a84"/><path d="M12 7.9V5.4" fill="none"/><path d="M12 8.4c-1.8-.4-2.8-1.4-3-3 1.8-.2 2.8.7 3 3ZM12 8.4c1.8-.4 2.8-1.4 3-3-1.8-.2-2.8.7-3 3Z" fill="#6FAE86"/><path d="M8.9 12.6c.5-1 1.3-1.7 2.3-1.9" fill="none"/>',
+    berry: '<path d="M12 20c-3.4 0-5.8-2.6-5.8-6 0-2.8 2.4-4.8 5.8-4.8S17.8 11.2 17.8 14c0 3.4-2.4 6-5.8 6Z" fill="#d98a84"/><path d="M12 9.2V6.4" fill="none"/><path d="M12 9.2c-2-.3-3.2-1.4-3.4-3.2 2-.2 3.2.9 3.4 3.2ZM12 9.2c2-.3 3.2-1.4 3.4-3.2-2-.2-3.2.9-3.4 3.2Z" fill="#6FAE86"/><path d="M10 13.4h.01M13.8 13.2h.01M11.8 15.8h.01M9.7 16.6h.01M14.3 16.4h.01" stroke-width="2.1"/>',
+    pumpkin: '<path d="M12 19.8c-4.2 0-7-2.4-7-5.8 0-3.4 2.8-5.8 7-5.8s7 2.4 7 5.8c0 3.4-2.8 5.8-7 5.8Z" fill="#E0A46E"/><path d="M12 8.4v11.2M8.7 9.4c-.9 1.3-1.3 2.8-1.3 4.6s.4 3.3 1.3 4.6M15.3 9.4c.9 1.3 1.3 2.8 1.3 4.6s-.4 3.3-1.3 4.6" fill="none"/><path d="M12 8.4V5.6" fill="none"/><path d="M12 6.6c1.8-1 3-.8 3.6.6-1.6.8-2.8.6-3.6-.6Z" fill="#6FAE86"/>',
+    seedcoin: '<path d="M12 4.4c4.2 0 7.6 3.4 7.6 7.6s-3.4 7.6-7.6 7.6S4.4 16.2 4.4 12 7.8 4.4 12 4.4Z" fill="#e8b04b"/><path d="M12 8.2c1.9 0 3.2 1.7 3.2 3.9S13.9 15.9 12 15.9s-3.2-1.6-3.2-3.8S10.1 8.2 12 8.2Z" fill="#C9A876"/>'
+  },
+
+  // 인라인 SVG 한 조각. HTML 어디에나 넣을 수 있다.
+  cropArt(key, size) {
+    const d = this.ART[key];
+    if (!d) return '';
+    return '<svg viewBox="0 0 24 24" width="' + (size || 20) + '" height="' + (size || 20) + '" fill="none" stroke="#8A6F55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -0.15em;">' + d + '</svg>';
+  },
+
+  // 장면(SVG) 안에 놓을 때 — 좌표와 배율만 감싼다.
+  cropArtG(key, x, y, scale) {
+    const d = this.ART[key];
+    if (!d) return '';
+    const k = scale || 1;
+    return '<g transform="translate(' + (x - 12 * k) + ',' + (y - 12 * k) + ') scale(' + k + ')" fill="none" stroke="#8A6F55" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + d + '</g>';
+  },
 
   _S() { return window.Storage; },
   crop(id) { return this.CROPS.find(c => c.id === id) || null; },
@@ -37,15 +67,20 @@ window.Farm = {
   },
   _savePlots(p) { this._S()._safeSet('cbt_farm_plots', p); },
 
+  // 상단 HUD(물·코인·캐시)는 게임 컨테이너가 그린다.
+  //  재화가 바뀔 때마다 여기서 같이 맞춰줘야 숫자가 실시간으로 움직인다.
+  _syncHud() { if (window.Game && window.Game.renderHud) window.Game.renderHud(); },
+
   water() { return this._S()._safeGet('cbt_farm_water', 0) || 0; },
-  _setWater(n) { this._S()._safeSet('cbt_farm_water', Math.max(0, n)); },
+  _setWater(n) { this._S()._safeSet('cbt_farm_water', Math.max(0, n)); this._syncHud(); },
 
   coins() { return this._S()._safeGet('cbt_farm_coins', 0) || 0; },
-  addCoins(n) { this._S()._safeSet('cbt_farm_coins', this.coins() + n); },
+  addCoins(n) { this._S()._safeSet('cbt_farm_coins', this.coins() + n); this._syncHud(); },
   spendCoins(n) {
     const c = this.coins();
     if (c < n) return false;
     this._S()._safeSet('cbt_farm_coins', c - n);
+    this._syncHud();
     this.render();
     if (window.Closet) window.Closet.render();
     return true;
@@ -60,7 +95,7 @@ window.Farm = {
     if (!n || n <= 0) return;
     this._setWater(this.water() + n);
     if (window.App && window.App.showRecordToast) {
-      window.App.showRecordToast(`💧 물 +${n} — ${reason || '마음을 돌봤어요'}`);
+      window.App.showRecordToast(`물 +${n} — ${reason || '마음을 돌봤어요'}`);
     }
     this.render();
   },
@@ -79,11 +114,11 @@ window.Farm = {
       alert(`우렁 캐시가 부족해요. (${pack.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
       return;
     }
-    if (!confirm(`💧 물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
+    if (!confirm(`물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
     window.Wallet.spend(pack.cash, `농장 · 물 ${pack.water}`);
     if (window.Sfx) window.Sfx.hit('buy');
     this._setWater(this.water() + pack.water);
-    if (window.App) window.App.showRecordToast(`💧 물 ${pack.water}개를 채웠어요!`);
+    if (window.App) window.App.showRecordToast(`물 ${pack.water}개를 채웠어요!`);
     this.render();
     if (window.Closet) window.Closet.render();
   },
@@ -124,7 +159,7 @@ window.Farm = {
     if (c.seed > 0) {
       if (this.coins() < c.seed) {
         if (window.Sfx) window.Sfx.play('denied');
-        alert(`${c.emoji} ${c.name} 씨앗은 🌰${c.seed}코인이에요. (지금 ${this.coins()}코인)\n상추 씨앗은 공짜니 상추부터 키워보세요!`);
+        alert(`${c.name} 씨앗은 ${c.seed}코인이에요. (지금 ${this.coins()}코인)\n상추 씨앗은 공짜니 상추부터 키워보세요!`);
         return;
       }
       this.spendCoins(c.seed);
@@ -150,10 +185,10 @@ window.Farm = {
         ${this.CROPS.map(c => `
           <button onclick="window.Farm.plant(${i}, '${c.id}')"
             style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.55rem 0.3rem; border-radius: 12px; border: 1.5px solid ${c.seed === 0 ? 'color-mix(in srgb, var(--accent-primary) 40%, transparent)' : 'var(--glass-border)'}; background: var(--bg-tertiary);">
-            <div style="font-size: 1.5rem; line-height: 1.2;">${c.emoji}</div>
+            <div style="line-height: 0; margin-bottom: 0.2rem;">${window.Farm.cropArt(c.art, 30)}</div>
             <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-primary);">${c.name}</div>
-            <div style="font-size: 0.6rem; font-weight: 800; color: ${c.seed === 0 ? 'var(--accent-primary)' : '#c9a227'};">씨앗 ${c.seed === 0 ? '무료' : '🌰' + c.seed}</div>
-            <div style="font-size: 0.6rem; color: var(--text-muted);">물 ${c.need} → 🌰${c.coin}</div>
+            <div style="font-size: 0.6rem; font-weight: 800; color: ${c.seed === 0 ? 'var(--accent-primary)' : '#c9a227'};">씨앗 ${c.seed === 0 ? '무료' : c.seed + '코인'}</div>
+            <div style="font-size: 0.62rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.15rem;">물 ${c.need} → ${window.Farm.cropArt('seedcoin', 12)}${c.coin}</div>
           </button>`).join('')}
       </div>`;
     el.classList.remove('hidden');
@@ -178,7 +213,7 @@ window.Farm = {
     // 아니면 물주기
     if (this.water() <= 0) {
       if (window.Sfx) window.Sfx.play('denied');
-      if (window.App) window.App.showRecordToast('💧 물이 없어요 — 체크인·미션·하루정리로 물을 모아요');
+      if (window.App) window.App.showRecordToast('물이 없어요 — 체크인·미션·하루정리로 물을 모아요');
       return;
     }
     this._setWater(this.water() - 1);
@@ -193,11 +228,11 @@ window.Farm = {
     if (nowRipe) {
       if (window.Sfx) window.Sfx.hit('ripe');
       if (window.App) {
-        window.App.showRecordToast(`${c.emoji} ${c.name}이(가) 다 자랐어요! 눌러서 수확하세요`);
+        window.App.showRecordToast(`${c.name}이(가) 다 자랐어요! 눌러서 수확하세요`);
         window.App.stickerPop('stareyes', 1600);
       }
       if (window.App && window.App.notify) {
-        window.App.notify('🌱 우렁이 농장', `${c.emoji} ${c.name}이(가) 다 자랐어요! 수확하러 오세요`);
+        window.App.notify('우렁이 농장', `${c.name}이(가) 다 자랐어요! 수확하러 오세요`);
       }
     }
   },
@@ -208,7 +243,7 @@ window.Farm = {
     const slot = p[i];
     if (!slot) return;
     const c = this.crop(slot.crop);
-    const name = c ? c.emoji + ' ' + c.name : '작물';
+    const name = c ? c.name : '작물';
     if (!confirm(`${name}을(를) 뽑아버릴까요?\n지금까지 준 물 ${slot.water}방울은 돌아오지 않아요.`)) return;
     p[i] = null;
     this._savePlots(p);
@@ -236,7 +271,7 @@ window.Farm = {
 
     if (window.Sfx) window.Sfx.hit('harvest');
     if (window.App) {
-      window.App.showRecordToast(`${c.emoji} ${c.name} 수확! 🌰 +${c.coin}코인`);
+      window.App.showRecordToast(`${c.name} 수확! +${c.coin}코인`);
       window.App.stickerPop('harvesting', 1800);
     }
 
@@ -306,9 +341,10 @@ window.Farm = {
       let art = '<ellipse cx="' + x + '" cy="' + (y + 8) + '" rx="26" ry="8" fill="#9C7550"/>';
       if (slot) {
         const c = this.crop(slot.crop);
-        const stage = this._stageEmoji(slot, c);
+        const stage = this._stageArt(slot, c);
         const ripe = slot.water >= c.need;
-        art += '<text x="' + x + '" y="' + (y + 4) + '" font-size="' + (ripe ? 20 : 15) + '" text-anchor="middle"' + (ripe ? ' class="' + uid + '-bounce"' : '') + '>' + stage + '</text>';
+        const g = this.cropArtG(stage, x, y - 4, ripe ? 1.5 : 1.1);
+        art += ripe ? '<g class="' + uid + '-bounce">' + g + '</g>' : g;
       }
       return art;
     }).join('');
@@ -358,12 +394,13 @@ window.Farm = {
   // --------------------------------------------------------------------------
   //  렌더
   // --------------------------------------------------------------------------
-  _stageEmoji(slot, c) {
+  // 물을 준 만큼 자란다 — 씨앗 → 새싹 → 잎 → 다 자란 작물
+  _stageArt(slot, c) {
     const r = slot.water / c.need;
-    if (r >= 1) return c.emoji;
-    if (r >= 0.6) return '🌿';
-    if (r >= 0.25) return '🌱';
-    return '🌰';
+    if (r >= 1) return c.art;
+    if (r >= 0.6) return 'leafy';
+    if (r >= 0.25) return 'sprout';
+    return 'seed';
   },
 
   render() {
@@ -392,7 +429,7 @@ window.Farm = {
                  background: ${ripe ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-tertiary)'};">
           <span role="button" title="뽑기" onclick="event.stopPropagation(); window.Farm.pull(${i});"
             style="position: absolute; top: 2px; right: 5px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.7; padding: 0.15rem; line-height: 1;">✕</span>
-          <div style="font-size: 1.5rem; line-height: 1.25;">${this._stageEmoji(slot, c)}</div>
+          <div style="line-height: 0; margin: 0.1rem 0 0.05rem;">${this.cropArt(this._stageArt(slot, c), 30)}</div>
           <div style="height: 4px; margin: 0.3rem 0.4rem 0.25rem; border-radius: 999px; background: var(--bg-secondary); overflow: hidden;">
             <div style="height: 100%; width: ${pct}%; background: var(--accent-primary);"></div>
           </div>
