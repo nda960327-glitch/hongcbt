@@ -1101,7 +1101,7 @@ ${msgs}`;
       model: window.LLM.MODEL_HIGH || window.LLM.MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
-      max_tokens: 4000
+      max_tokens: 8000   // carePlan 이 스키마 끝이라 잘리면 계획이 통째로 날아간다
     });
     if (!res.ok) throw new Error('API');
     const data = await res.json();
