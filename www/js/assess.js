@@ -162,6 +162,76 @@ window.Assess = {
   // 대시보드에 놓는 상태 카드. 준비됐을 때만 눈에 띈다.
   // 카드 버튼이 실제로 하는 일. 라벨과 동작이 어긋나면 안 된다 —
   //  "그래도 만들기" 를 눌렀는데 화면만 열리고 끝나면 눌린 게 아니라고 느낀다.
+  // 생성 전 확인 팝업. confirm() 은 문구가 길면 읽히지 않아 직접 그린다.
+  //  items: [{icon, title, body}] · onOk: 진행
+  confirmSheet(o) {
+    const old = document.getElementById('assess-confirm');
+    if (old) old.remove();
+    const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const wrap = document.createElement('div');
+    wrap.id = 'assess-confirm';
+    wrap.style.cssText = 'position: fixed; inset: 0; z-index: 10080; background: rgba(0,0,0,0.42); display: flex; align-items: flex-end;';
+
+    const warn = (o.items || []).length > 0;
+    wrap.innerHTML = `
+      <div style="width: 100%; max-height: 86vh; overflow-y: auto; background: var(--bg-secondary);
+                  border-radius: 22px 22px 0 0; padding: 0.9rem 1.25rem calc(1.4rem + env(safe-area-inset-bottom));
+                  animation: slideUp 0.22s ease;">
+        <div style="width: 38px; height: 4px; border-radius: 2px; background: var(--glass-border); margin: 0 auto 1rem;"></div>
+
+        <div style="text-align: center; margin-bottom: 0.9rem;">
+          <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg(warn ? 'think' : 'detective', 76) : ''}</span>
+          <p style="margin: 0.5rem 0 0.2rem; font-size: 1.05rem; font-weight: 800; color: var(--text-primary);">${esc(o.title)}</p>
+          ${o.lede ? `<p style="margin: 0; font-size: 0.82rem; line-height: 1.65; color: var(--text-secondary);">${esc(o.lede)}</p>` : ''}
+        </div>
+
+        ${(o.items || []).map(it => `
+          <div style="display: flex; gap: 0.6rem; padding: 0.75rem 0.85rem; margin-bottom: 0.5rem; border-radius: 14px;
+                      background: color-mix(in srgb, #c9a227 9%, transparent);
+                      border: 1px solid color-mix(in srgb, #c9a227 26%, transparent);">
+            <span style="flex-shrink: 0; line-height: 0; margin-top: 1px; color: #c9a227;">
+              ${window.Icons ? window.Icons.svg(it.icon || 'bolt', { size: 17 }) : ''}</span>
+            <span style="flex: 1 1 0%; min-width: 0;">
+              <b style="display: block; font-size: 0.84rem; color: var(--text-primary);">${esc(it.title)}</b>
+              <span style="display: block; margin-top: 0.15rem; font-size: 0.77rem; line-height: 1.6; color: var(--text-secondary);">${esc(it.body)}</span>
+            </span>
+          </div>`).join('')}
+
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin: 0.9rem 0 0.6rem;
+                    padding-top: 0.7rem; border-top: 1px dashed var(--glass-border);">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">지금 결제</span>
+          <b style="font-size: 1.02rem; color: var(--text-primary);">${o.price}</b>
+        </div>
+
+        <button class="btn-primary" style="width: 100%; padding: 0.78rem; font-size: 0.92rem;"
+          onclick="window.Assess._confirmOk()">${esc(o.okLabel)}</button>
+        <button onclick="window.Assess._confirmClose()"
+          style="all: unset; display: block; width: 100%; text-align: center; margin-top: 0.55rem; padding: 0.5rem 0;
+                 cursor: pointer; font-size: 0.82rem; font-weight: 700; color: var(--text-muted);">${esc(o.cancelLabel || '다음에 할게요')}</button>
+
+        ${warn ? `<p style="margin: 0.6rem 0 0; font-size: 0.71rem; line-height: 1.55; color: var(--text-muted); text-align: center;">
+          생성에 실패하면 캐시는 전액 자동 환불돼요.</p>` : ''}
+      </div>`;
+
+    wrap.addEventListener('click', e => { if (e.target === wrap) this._confirmClose(); });
+    document.body.appendChild(wrap);
+    if (window.Sfx) window.Sfx.play('pop');
+    this._onConfirm = o.onOk;
+  },
+
+  _confirmClose() {
+    const el = document.getElementById('assess-confirm');
+    if (el) el.remove();
+    this._onConfirm = null;
+    if (window.Sfx) window.Sfx.play('close');
+  },
+
+  _confirmOk() {
+    const fn = this._onConfirm;
+    this._confirmClose();
+    if (typeof fn === 'function') fn();
+  },
+
   ctaAction() {
     const fresh = this.qaFresh();
     const left = this.cooldownLeft();
@@ -922,31 +992,50 @@ b{font-weight:800}
     const left = this.cooldownLeft();
     if (left > 0) {
       const passed = this.COOLDOWN_DAYS - left;
-      warns.push(
-        `· 지난 리포트로부터 ${passed}일 지났어요 (권장 ${this.COOLDOWN_DAYS}일)\n`
-        + `  같은 기록으로 다시 만드는 셈이라, 표현만 달라진 결과가 나오기 쉬워요.\n`
-        + `  그 차이를 '나아졌다' 로 읽으면 오히려 손해예요.`);
+      warns.push({
+        icon: 'booking',
+        title: `지난 리포트로부터 ${passed}일 지났어요`,
+        body: `권장은 ${this.COOLDOWN_DAYS}일이에요. 같은 기록으로 다시 만드는 셈이라 표현만 달라진 결과가 나오기 쉬워요. `
+          + `그 차이를 '나아졌다' 로 읽으면 오히려 손해예요.`
+      });
     }
 
     if (m.total < this.MIN_TOTAL) {
-      warns.push(
-        `· 데이터 충분도가 ${m.total}%예요 (권장 ${this.MIN_TOTAL}% 이상)\n`
-        + `  기록이 얕으면 AI가 당신을 오해한 채로 단정할 수 있어요.\n`
-        + `  대화·체크인·하루정리를 더 쌓으면 훨씬 정확해져요.`);
+      warns.push({
+        icon: 'note',
+        title: `기록이 ${m.total}% 모였어요`,
+        body: `${this.MIN_TOTAL}%부터 정확해져요. 기록이 얕으면 AI가 당신을 오해한 채로 단정할 수 있어요. `
+          + `대화·체크인·하루정리를 더 쌓으면 훨씬 정확해집니다.`
+      });
     }
 
+    // 팝업은 알리는 용도지 막는 용도가 아니다 — 판단은 본인 몫으로 남긴다.
+    const proceed = () => this._doGenerate(m);
     if (warns.length) {
       if (window.Sfx) window.Sfx.play('denied');
-      const ok = confirm(
-        `잠깐, 이 상태로 만들면 리포트 품질이 떨어져요.\n\n`
-        + warns.join('\n\n')
-        + `\n\n그래도 지금 ${this.PRICE.toLocaleString()}캐시로 만드시겠어요?`);
-      if (!ok) return;
+      this.confirmSheet({
+        title: '이 상태로 만들면 정확도가 떨어져요',
+        lede: '아래를 알고도 괜찮다면 지금 만들 수 있어요.',
+        items: warns,
+        price: this.PRICE.toLocaleString() + '캐시',
+        okLabel: '그래도 만들기',
+        cancelLabel: '조금 더 모으고 만들래요',
+        onOk: proceed
+      });
     } else {
-      const note = m.total < 90 ? `\n(데이터 충분도 ${m.total}%)` : '';
-      if (!confirm(`AI 마음 리포트를 ${this.PRICE.toLocaleString()}캐시로 생성할까요?${note}`)) return;
+      this.confirmSheet({
+        title: 'AI 마음 리포트를 만들까요?',
+        lede: '표준 검진과 기록 전체를 정밀 분석해 2주 케어플랜을 처방해요.',
+        items: [],
+        price: this.PRICE.toLocaleString() + '캐시',
+        okLabel: '만들기',
+        onOk: proceed
+      });
     }
+  },
 
+  // 결제와 생성 — 확인 팝업에서 진행을 누르면 여기로 온다
+  async _doGenerate(m) {
     if (!window.Wallet.spend(this.PRICE, 'AI 마음 리포트 생성')) return;
 
     const box = document.getElementById('assess-result');
