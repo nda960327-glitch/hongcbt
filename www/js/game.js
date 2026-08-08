@@ -9,8 +9,8 @@ window.Game = {
   // 옷장·훈장은 탭이 아니라 방 안의 하위 화면 (방의 👒 / 🏅 버튼으로 진입)
   VIEWS: [
     { id: 'room',   ico: 'home',   name: '방' },
-    { id: 'farm',   ico: 'sprout', name: '농장' },
     { id: 'quest',  ico: 'quest',  name: '퀘스트' },
+    { id: 'care',   ico: 'checkin', name: '돌봄' },
     { id: 'letter', ico: 'letter', name: '서재' }
   ],
 
@@ -31,7 +31,7 @@ window.Game = {
       el.classList.toggle('hidden', el.id !== 'gv-' + view);
     });
     // 옷장·훈장은 방의 하위 화면이라 내비에서는 '방'을 켜둔다
-    const navView = (view === 'closet' || view === 'medal') ? 'room' : view;
+    const navView = (view === 'closet' || view === 'medal' || view === 'farm') ? 'room' : view;
     document.querySelectorAll('#game-nav button').forEach(b => {
       b.classList.toggle('active', b.dataset.view === navView);
     });
@@ -42,6 +42,11 @@ window.Game = {
     if (view === 'room'   && window.Room) { window.Room.pickIdle(); window.Room.render(); }
     if (view === 'farm'   && window.Farm)   window.Farm.render();
     if (view === 'closet' && window.Closet) window.Closet.render();
+    if (view === 'care') {
+      if (window.CarePlan) window.CarePlan.render();
+      if (window.Progress) window.Progress.render();
+      if (window.Goals) window.Goals.render();
+    }
     if (view === 'quest') {
       if (window.Missions)  window.Missions.renderCard();
       if (window.Dashboard) window.Dashboard.renderCareFootprint();

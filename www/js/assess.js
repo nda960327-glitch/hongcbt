@@ -11,6 +11,10 @@ window.Assess = {
 
   PRICE: 30000,
   MIN_TOTAL: 80,      // 충분도가 이 미만이면 생성 자체를 막는다
+  // 리포트는 14일에 한 번만. 돈을 더 내도 열어주지 않는다.
+  //  PHQ-9·GAD-7 이 '지난 2주'를 묻는 도구라 그보다 짧은 간격은 비교 자체가 성립하지 않고,
+  //  같은 기록으로 리포트만 다시 뽑으면 표현만 달라진 결과를 진짜 변화로 오해하게 된다.
+  COOLDOWN_DAYS: 14,
   QA_VALID_DAYS: 14,  // PHQ-9·GAD-7은 '지난 2주'를 묻는 도구 — 2주가 지나면 만료로 본다
 
   // --------------------------------------------------------------------------
@@ -342,13 +346,51 @@ window.Assess = {
             </div>
           </div>`).join('')}
       </div>` : '';
-    const plan = (needList || rx) ? sec('Ⅸ', '요약 및 제언', '오늘부터 4주, 실행 가능한 것만', needList + rx, K.C.ok) : '';
+    // 2주 케어플랜 — 이 리포트가 곧바로 실행으로 이어지는 부분
+    const cp = j.carePlan && Array.isArray(j.carePlan.weeks) && j.carePlan.weeks.length ? j.carePlan : null;
+    const TECH = (window.CarePlan && window.CarePlan.TECHNIQUES) || {};
+    const rxPlan = cp ? `
+      <div style="border-radius:14px;padding:0.9rem 1rem;margin-bottom:0.9rem;background:color-mix(in srgb, ${K.C.ok} 9%, transparent);border:1px solid color-mix(in srgb, ${K.C.ok} 28%, transparent);">
+        <span style="font-size:0.62rem;font-weight:800;opacity:0.55;">앞으로 2주, 이것 하나</span>
+        <p style="margin:0.2rem 0 0.3rem;font-size:0.94rem;font-weight:800;line-height:1.6;">${K.md(cp.focus || '')}</p>
+        ${cp.why ? `<p style="margin:0;font-size:0.8rem;line-height:1.7;opacity:0.8;">${K.md(cp.why)}</p>` : ''}
+      </div>
+      ${cp.weeks.map((w, i) => `
+        <div style="border:1px solid ${K.C.grid};border-radius:14px;padding:0.85rem 0.95rem;margin-bottom:0.6rem;">
+          <div style="display:flex;align-items:center;gap:0.45rem;margin-bottom:0.35rem;flex-wrap:wrap;">
+            <span style="flex-shrink:0;font-size:0.64rem;font-weight:800;color:#fff;background:${K.C.ok};padding:0.15rem 0.5rem;border-radius:999px;">${i + 1}주차</span>
+            ${w.technique ? `<span style="flex-shrink:0;font-size:0.64rem;font-weight:800;color:${K.C.ok};border:1px solid color-mix(in srgb, ${K.C.ok} 45%, transparent);padding:0.13rem 0.5rem;border-radius:999px;">${K.esc(w.technique)}</span>` : ''}
+          </div>
+          <p style="margin:0 0 0.2rem;font-size:0.86rem;font-weight:700;line-height:1.6;">${K.md(w.goal || '')}</p>
+          ${TECH[w.technique] ? `<p style="margin:0 0 0.45rem;font-size:0.72rem;line-height:1.55;opacity:0.62;">${K.esc(TECH[w.technique])}</p>` : ''}
+          <ul style="margin:0;padding-left:1.05rem;font-size:0.81rem;line-height:1.75;">
+            ${(w.actions || []).map(a => `<li>${K.md(a)}</li>`).join('')}
+          </ul>
+          ${w.measure ? `<p style="margin:0.45rem 0 0;padding-top:0.4rem;border-top:1px dashed ${K.C.grid};font-size:0.72rem;opacity:0.66;line-height:1.55;">확인 방법 · ${K.esc(w.measure)}</p>` : ''}
+        </div>`).join('')}
+      ${Array.isArray(cp.ifThen) && cp.ifThen.length ? `
+        <div style="border:1px dashed ${K.C.grid};border-radius:14px;padding:0.8rem 0.95rem;margin-bottom:0.6rem;">
+          <span style="font-size:0.62rem;font-weight:800;opacity:0.55;">못 하는 날을 위해 미리 정해두기</span>
+          ${cp.ifThen.map(x => `<p style="margin:0.3rem 0 0;font-size:0.8rem;line-height:1.7;"><b>${K.esc(x.if)}</b> 하면 → ${K.esc(x.then)}</p>`).join('')}
+        </div>` : ''}
+      ${cp.redFlag ? `<p style="margin:0;font-size:0.76rem;line-height:1.6;color:${K.C.bad};">멈추고 전문가를 만나야 할 신호 · ${K.esc(cp.redFlag)}</p>` : ''}
+    ` : '';
+
+    const plan = (needList || rx || rxPlan)
+      ? sec('Ⅸ', '요약 및 제언', cp ? '읽고 끝내지 않도록 — 앞으로 2주 처방' : '오늘부터 4주, 실행 가능한 것만',
+            needList + rxPlan + rx, K.C.ok)
+      : '';
 
     // ── Ⅹ 강점 / 연계 / 한계 ──
     const strengths = j.strengths ? sec('Ⅹ', '강점 및 보호요인', '',
       `<div style="border-radius:14px;padding:0.9rem 1rem;background:color-mix(in srgb, ${K.C.ok} 10%, transparent);border:1px solid color-mix(in srgb, ${K.C.ok} 30%, transparent);">
         <p style="margin:0;font-size:0.86rem;line-height:1.8;">${K.md(j.strengths)}</p>
       </div>`, K.C.ok) : '';
+
+    // 지난 리포트 이후 무엇이 달라졌는지 — 상담사에게 갈 문서에도 남는다.
+    //  대시보드의 '나의 변화'는 매일 보는 살아있는 화면이고, 이건 그 시점의 스냅샷이다.
+    const chg = (window.Progress && window.Progress.reportBlock) ? window.Progress.reportBlock(K) : '';
+    const change = chg ? sec('Ⅰ', '지난 리포트 이후의 변화', '같은 도구로 다시 재서 비교', chg, K.C.ok) : '';
 
     const overall = j.overall ? sec('0', '전반적 인상', '임상적 인상 · 진단 아님',
       `<p style="margin:0;font-size:0.9rem;line-height:1.85;">${K.md(j.overall)}</p>`) : '';
@@ -583,6 +625,19 @@ window.Assess = {
       </div>`;
   },
 
+  // 2주 케어플랜이 끝나면 같은 도구로 다시 잰다.
+  //  같은 척도로 재야 비교가 되므로 새 문항을 만들지 않는다 — 그게 변화 측정의 전부다.
+  startRetest() {
+    const prev = this._S()._safeGet('cbt_assess_history', []) || [];
+    const msg = prev.length
+      ? '같은 검진(PHQ-9·GAD-7)을 다시 받습니다.\n\n2주 전과 같은 문항이라야 무엇이 달라졌는지 비교할 수 있어요. 5분이면 끝나요.'
+      : '표준 검진(PHQ-9·GAD-7)을 시작합니다. 5분이면 끝나요.';
+    if (!confirm(msg)) return;
+    if (window.App) window.App.switchTab('dashboard');
+    this.open();
+    this.openQuiz();
+  },
+
   saveQuiz() {
     const map = { ...this._qmap };
     const missing = this._flat().filter(q => map[q.id] == null);
@@ -602,7 +657,9 @@ window.Assess = {
         this._S()._safeSet('cbt_assess_history', hist.slice(-24));
       }
     } catch (e) {}
-    if (window.App) window.App.showRecordToast('📝 자가검진 저장 완료');
+    if (window.App) window.App.showRecordToast('자가검진 저장 완료');
+    // 변화 화면이 이 결과를 바로 반영하도록
+    if (window.Progress) window.Progress.render();
     if (window.Sfx) window.Sfx.play('ripe');
     this._riskProtocol();
     const el = document.getElementById('assess-quiz');
@@ -742,9 +799,26 @@ b{font-weight:800}
   // --------------------------------------------------------------------------
   //  생성 (유료)
   // --------------------------------------------------------------------------
+  // 다음 리포트까지 남은 일수 (0 이면 지금 가능)
+  cooldownLeft() {
+    const last = this.reports()[0];
+    if (!last) return 0;
+    const ts = Number(String(last.id).replace('as_', '')) || 0;
+    if (!ts) return 0;
+    const passed = (Date.now() - ts) / 86400000;
+    return Math.max(0, Math.ceil(this.COOLDOWN_DAYS - passed));
+  },
+
   async generate() {
     const m = this.metrics();
     const st = this.qaStatus();
+    // 연속 생성 차단 — 새 기록이 쌓여야 새 결과가 의미를 가진다
+    const left = this.cooldownLeft();
+    if (left > 0) {
+      if (window.Sfx) window.Sfx.play('denied');
+      alert(`다음 리포트는 ${left}일 뒤에 만들 수 있어요.\n\n짧은 간격으로 다시 만들면 표현만 달라진 결과가 나와요. 그걸 변화로 착각하면 오히려 손해예요.\n\n표준 검진(PHQ-9·GAD-7)은 지난 2주를 묻는 도구라, 2주는 지나야 비교가 됩니다.\n그동안 케어플랜을 실행하고 체크인을 쌓아주세요 — 그게 다음 리포트의 재료예요.`);
+      return;
+    }
     if (!st.ok) {
       if (window.Sfx) window.Sfx.play('denied');
       const msg = st.state === 'expired'
@@ -778,6 +852,12 @@ b{font-weight:800}
                     history: (this._S()._safeGet('cbt_assess_history', []) || []).slice(-8) };
       reps.unshift(rec);
       this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
+      // 리포트를 읽고 끝내지 않는다 — 2주 케어플랜을 바로 심는다
+      if (window.CarePlan) {
+        window.CarePlan.adopt(rec);
+        if (window.Game) window.Game.show('care', true);   // 처방을 바로 보여준다
+      }
+      if (window.Missions && window.Missions.render) window.Missions.render();
       if (window.Sfx) window.Sfx.play('harvest');
       this.render();
       const first = document.getElementById('as-' + rec.id);
@@ -861,10 +941,37 @@ ${m.total < 60 ? '(충분도 60% 미만 — overall 첫 문장에 데이터가 �
  "happinessRx": [{"week": "1주차", "do": "구체적 행동", "why": "왜 이게 듣는지 한 줄"}, {"week": "2주차", ...}, {"week": "3주차", ...}, {"week": "4주차", ...}],
  "strengths": "기록에서 확인된 강점·보호요인 2~3문장",
  "referral": "전문가 상담이 필요한 시점과 이유 (위험 신호 있으면 여기에 명시)",
- "limits": "이 리포트가 놓칠 수 있는 것, 한 문장"
+ "limits": "이 리포트가 놓칠 수 있는 것, 한 문장",
+ "carePlan": {
+   "focus": "앞으로 2주간 딱 하나만 다룬다면 무엇인지 한 문장. 위 분석에서 가장 지렛대가 큰 것.",
+   "why": "왜 이것부터인지 2문장. 위 evidence·formulation 과 연결해서.",
+   "weeks": [
+     {"week": 1, "goal": "1주차 목표 한 문장", "technique": "<아래 기법 목록에서 하나 그대로>",
+      "actions": ["아주 작고 구체적인 행동 2~3개. 빈도·시간·장소가 들어가게. 예: 매일 밤 10시, 침대에 눕기 전 5분 호흡"],
+      "measure": "됐는지 무엇으로 아는가 한 줄"},
+     {"week": 2, "goal": "...", "technique": "...", "actions": ["..."], "measure": "..."}
+   ],
+   "ifThen": [{"if": "못 하게 만드는 가장 그럴듯한 상황", "then": "그때 대신 할 아주 작은 행동"}],
+   "quests": [{"text": "하루 안에 끝나는 미션 한 줄(20자 내외)", "why": "이 사람에게 왜 이 미션인지 한 문장"}],
+   "followUps": [{"day": 3, "q": "..."}, {"day": 7, "q": "..."}, {"day": 14, "q": "..."}],
+   "redFlag": "이 계획을 멈추고 전문가를 만나야 하는 신호 한 줄"
+ }
 }
 · standard 의 score/band 는 아래 제공된 표준 검사 결과를 **그대로 옮기세요**. 임의로 계산하지 마세요.
 · evidence 는 3~5개. strength 는 근거가 반복 관찰되면 4~5, 한두 번이면 2~3, 추론이면 1.
+
+[carePlan 규칙 — 리포트를 처방으로 잇는 부분]
+· technique 은 반드시 다음 중 하나를 글자 그대로 쓰세요. 새로 지어내지 마세요:
+  행동활성화 / 인지재구성 / 행동실험 / 걱정 시간 정하기 / 점진적 노출 / 마음챙김 호흡 /
+  자기자비 훈련 / 수면 위생 / 문제해결치료 / 대인관계 기술 / 반대 행동 / 고통 감내
+· actions 는 "노력하기·신경쓰기" 같은 다짐이 아니라 관찰 가능한 행동이어야 합니다.
+  나쁜 예: "긍정적으로 생각하기" / 좋은 예: "출근길 지하철에서 어제 잘한 일 한 가지 메모하기"
+· 1주차는 이 사람이 지금 상태로도 반드시 해낼 수 있는 크기로. 실패 경험을 만들면 안 됩니다.
+· ifThen 은 2~3개. 실패를 예상하고 미리 정해두는 약속입니다("그날은 대신 ~만 한다").
+· quests 는 4~6개. 게임 미션으로 나가므로 하루 안에 끝나는 크기로.
+· followUps 는 day 3·7·14 세 개. 안부(밥 먹었어?)가 아니라 이 리포트에서 세운 가설을 확인하는 질문이어야 합니다.
+  나쁜 예: "요즘 어때?" / 좋은 예: "지난번에 사람들 표정을 자주 살핀다고 했잖아. 이번 주에도 그런 순간 있었어?"
+· 자·타해 위험이 있으면 carePlan 을 가볍게 만들지 말고, redFlag 에 분명히 적고 1393 을 포함하세요.
 
 [장기기억 요약]
 ${memory.slice(0, 1500)}

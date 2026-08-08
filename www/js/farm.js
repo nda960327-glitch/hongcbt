@@ -353,7 +353,7 @@ window.Farm = {
     const anyRipe = p.some(s => s && this.crop(s.crop) && s.water >= this.crop(s.crop).need);
     const anyGrowing = p.some(s => s && this.crop(s.crop) && s.water < this.crop(s.crop).need);
     const pose = w === 'rain' ? 'shelter' : anyRipe ? 'harvesting' : anyGrowing ? 'watering' : 'joy';
-    const snail = window.Stickers ? window.Stickers.svgDressed(null, pose, 84) : '';
+    const snail = window.Stickers ? window.Stickers.svgDressed(null, pose, 104) : '';
 
     return '<div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.8rem;">'
       + '<svg viewBox="0 0 320 210" width="100%" style="display: block;" role="img" aria-label="우렁이 농장">'
@@ -439,7 +439,7 @@ window.Farm = {
         </button>`;
     }).join('');
 
-    el.innerHTML = this.scene() + `
+    el.innerHTML = `<button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>` + this.scene() + `
       <div style="display: flex; align-items: center; gap: 0.5rem; margin: 0.15rem 0 0.6rem;">
         <span style="font-size: 0.72rem; color: var(--text-muted);">누적 수확 ${st.harvested || 0}개</span>
         <button onclick="window.Farm.toggleShop()" style="all: unset; cursor: pointer; margin-left: auto; font-size: 0.72rem; font-weight: 800; color: #c9a227; border: 1px solid color-mix(in srgb, #c9a227 40%, transparent); padding: 0.25rem 0.7rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.28rem;">${window.Icons ? window.Icons.svg('water', { size: 14 }) : ''}물 충전</button>

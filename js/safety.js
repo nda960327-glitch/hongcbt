@@ -4,6 +4,13 @@
 //  위기 모달·마이페이지에서 진입한다.
 // ============================================================================
 window.Safety = {
+  // 위기 순간엔 새 방법을 제안하기 전에, 본인이 미리 적어둔 계획을 먼저 보여준다.
+  //  그 순간의 사람은 새로 생각할 힘이 없다.
+  openPlanFirst() {
+    if (window.SafetyPlan) { window.SafetyPlan.showNow(); return true; }
+    return false;
+  },
+
   get() {
     return window.Storage._safeGet('cbt_safety_plan', null);
   },

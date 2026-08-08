@@ -150,6 +150,13 @@ window.Growth = {
         const info = this.levelInfo(lv);
         if (window.Sfx) window.Sfx.hit('levelup');
         window.App.showRecordToast(`레벨 업! Lv.${lv} '${info.name}'가 됐어요`, null);
+        // 이 레벨에서 새로 열린 행동이 있으면 바로 알려준다 — 레벨업의 보상이 눈에 보여야 한다
+        try {
+          const opened = (window.Room && window.Room.IDLES || []).filter(i => (i.lv || 1) === lv);
+          if (opened.length && window.App.showRecordToast) {
+            setTimeout(() => window.App.showRecordToast(`새로운 모습이 열렸어요 — ${opened[0].cap}`, null), 2600);
+          }
+        } catch (e) {}
         window.App.stickerPop(info.sticker, 1800);
         window.App.playWoorung();
       }
@@ -245,7 +252,7 @@ window.Growth = {
   dismissNightToday() {
     window.Storage._safeSet('cbt_night_dismiss', this._nightKey());
     this.maybeShowNightCard();
-    if (window.App && window.App.showRecordToast) window.App.showRecordToast('🌙 오늘은 푹 쉬어요. 내일 밤 다시 물어볼게요');
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('오늘은 푹 쉬어요. 내일 밤 다시 물어볼게요');
   },
 
   // 대시보드 '지난 밤들' — 하루 정리 아카이브
@@ -394,6 +401,73 @@ ${entries}
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
       if (window.App) window.App.showRecordToast('일기장을 파일로 저장했어요');
     }
+  },
+
+  // --------------------------------------------------------------------------
+  //  일기장 전체화면 — 좁은 아코디언 대신 넓은 화면에서 훑어본다.
+  //   검색·날짜 필터는 그대로 쓰되(같은 상태를 공유), 목록만 이쪽에 그린다.
+  // --------------------------------------------------------------------------
+  openDiaryFull() {
+    const old = document.getElementById('diary-full-ov');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'diary-full-ov';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10040; background: var(--bg-primary); overflow-y: auto;'
+      + ' padding: calc(0.9rem + env(safe-area-inset-top)) 1.1rem calc(2rem + env(safe-area-inset-bottom));';
+
+    const total = (window.Storage._safeGet('cbt_night_journal', []) || []).length;
+    ov.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
+        <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('note', { size: 19 }) : ''}</span>
+        <strong style="font-size: 1.05rem; color: var(--text-primary);">나의 일기장</strong>
+        <button onclick="window.Growth.closeDiaryFull()" style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+      </div>
+      <p style="margin: 0 0 0.85rem; font-size: 0.76rem; color: var(--text-muted);">지금까지 ${total}편을 남겼어요</p>
+
+      <input id="diary-full-search" type="search" placeholder="내용이나 우렁이 답글로 검색"
+        oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
+        style="width: 100%; box-sizing: border-box; margin-bottom: 0.45rem; padding: 0.6rem 0.85rem; border-radius: 11px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.85rem;">
+      <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.9rem;">
+        <input id="diary-full-date" type="date"
+          oninput="window.Growth._diaryDate = this.value; window.Growth.renderNightList();"
+          style="flex: 1 1 0%; min-width: 0; box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 11px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.8rem; font-family: inherit;">
+        <button onclick="window.Growth.clearDiaryFilter()"
+          style="all: unset; flex-shrink: 0; cursor: pointer; font-size: 0.76rem; font-weight: 700; color: var(--text-muted); padding: 0.35rem 0.5rem;">필터 지우기</button>
+      </div>
+
+      <div id="night-journal-card">
+        <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.7rem;"></div>
+      </div>
+      <p id="diary-empty-note" style="margin: 1rem 0 0; font-size: 0.8rem; color: var(--text-muted); text-align: center; line-height: 1.7;">
+        아직 쓴 일기가 없어요.<br>오늘 밤, 딱 한 줄부터 시작해볼까요?
+      </p>
+
+      <div style="display: flex; gap: 0.45rem; margin-top: 1.1rem;">
+        <button class="btn-secondary" style="flex: 1; font-size: 0.79rem; padding: 0.55rem;" onclick="window.Growth.exportDiary('download')">파일로 저장</button>
+        <button class="btn-secondary" style="flex: 1; font-size: 0.79rem; padding: 0.55rem;" onclick="window.Growth.exportDiary('print')">인쇄 · PDF</button>
+      </div>
+      <button class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.7rem; font-size: 0.88rem;"
+        onclick="window.Growth.closeDiaryFull(); window.Growth.startNight();">오늘 일기 쓰기</button>`;
+
+    document.body.appendChild(ov);
+    if (window.Sfx) window.Sfx.play('pop');
+    this.renderNightList();
+  },
+
+  closeDiaryFull() {
+    const ov = document.getElementById('diary-full-ov');
+    if (ov) ov.remove();
+    if (window.Sfx) window.Sfx.play('close');
+    this.renderNightList();   // 서재 안 목록도 같은 필터로 다시 그린다
+  },
+
+  clearDiaryFilter() {
+    this._diaryQuery = '';
+    this._diaryDate = '';
+    ['diary-search', 'diary-full-search', 'diary-date', 'diary-full-date'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    this.renderNightList();
   },
 
   renderNightList() {

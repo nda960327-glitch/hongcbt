@@ -415,6 +415,8 @@ window.App = {
     if (tabName === 'mypage') {
       this._setNavBadge('mypage', false); // 답장·예약 변경 확인함
       if (window.Wallet) window.Wallet.renderCard();
+      if (window.SafetyPlan) window.SafetyPlan.render();
+      if (window.Homework) window.Homework.render();
       if (window.Subscription) window.Subscription.renderCard();
       this.renderMyHero();
       this.hydrateInlineIcons(document.getElementById('tab-mypage'));

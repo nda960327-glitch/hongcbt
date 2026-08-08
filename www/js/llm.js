@@ -348,6 +348,34 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       prompt += `\n\n[사용자 정보] 이 사람의 이름(별명)은 '${userName}'입니다. 대화 중 자연스럽게 이름을 불러주세요. 과하게 매번 부르지는 말고, 진짜 친구가 이름 부르는 빈도로.`;
     }
 
+    // ── 치료 맥락 — 이 앱이 "듣고 끝"이 아니라 "같이 해나가는" 곳이 되는 부분 ──
+    //  케어플랜(AI 처방) · 개선 목표(본인이 적은 것) · 측정된 변화(본인 데이터).
+    //  셋 다 없으면 아무것도 안 붙으므로 신규 사용자의 프롬프트는 그대로다.
+    const care = (window.CarePlan && window.CarePlan.promptContext()) || '';
+    const goals = (window.Goals && window.Goals.promptContext()) || '';
+    const prog = (window.Progress && window.Progress.promptContext()) || '';
+    const sp = (window.SafetyPlan && window.SafetyPlan.promptContext()) || '';
+    const hw = (window.Homework && window.Homework.promptContext()) || '';
+    if (care || goals || prog || sp || hw) {
+      prompt += '\n\n' + [hw, care, goals, prog, sp].filter(Boolean).join('\n\n');
+      prompt += `\n\n[치료 동기 — 매우 중요]
+이 사람이 계속하려면 "이걸 하면 정말 나아진다"는 믿음이 있어야 합니다. 그 믿음은 설득이 아니라 근거로 만듭니다.
+· 격려할 땐 반드시 구체적 근거를 대세요. "잘하고 있어" (X) → "지난주에 세 번 다 했잖아. 그때 기분이 2에서 4로 올랐고." (O)
+· 왜 이 방법이 듣는지 한 문장으로 설명해주세요. 이유를 아는 사람이 끝까지 합니다.
+· 경과는 정직하게 예고하세요. "2주면 다 나아" 같은 말은 하지 마세요. 보통 잠·활동량이 먼저 잡히고 기분은 나중에 따라옵니다.
+· 못 한 날엔 다그치지 말고 미리 정해둔 약속(if-then)을 상기시키세요. 실패 한 번으로 계획 전체가 무너지지 않는다는 걸 알려주세요.
+· 나빠진 지표가 있으면 숨기지 마세요. 대신 "네 잘못이 아니라 도움이 더 필요하다는 신호"로 다루고 상담사 연결을 권하세요.`;
+    }
+
+    // 먼저 꺼낼 후속 질문 — 안부가 아니라 리포트에서 세운 가설의 확인이다
+    const fu = (window.CarePlan && window.CarePlan.dueFollowUp && window.CarePlan.dueFollowUp()) || null;
+    if (fu) {
+      prompt += `\n\n[먼저 물어볼 것 — ${fu.day}일차 확인]
+"${fu.q}"
+· 대화 흐름이 급하지 않다면 이번 응답 안에서 이 질문을 자연스럽게 꺼내세요. 취조하듯 말고, 기억하고 있었다는 느낌으로.
+· 사용자가 지금 힘든 이야기를 하는 중이면 이 질문은 미루세요. 그쪽이 먼저입니다.`;
+    }
+
     // 한국 명절·기념일 감각
     const holidayNote = this._holidayNote();
     if (holidayNote) {

@@ -211,41 +211,112 @@ window.Room = {
   //  ("오 오늘은 얘 자고 있네?" 하는 재미. 밤에는 잘 확률이 높다)
   // --------------------------------------------------------------------------
   // active: true 면 방 안을 돌아다닌다 (정적인 포즈는 제자리)
+  // 우렁이가 방에서 하는 행동. lv 는 이 행동이 열리는 레벨.
+  //  처음부터 전부 나오면 레벨업이 아무 의미가 없어서, 하나씩 열리게 했다.
   IDLES: [
-    { s: 'sleepy',   cap: '쿨쿨… 자고 있다', night: 3 },
-    { s: 'dance',    cap: '신나서 춤추는 중', active: true },
-    { s: 'sing',     cap: '흥얼흥얼 콘서트 중', active: true },
-    { s: 'tea',      cap: '느긋하게 티타임 중' },
-    { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까' },
-    { s: 'blank',    cap: '대자로 뻗어 멍때리는 중' },
-    { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true },
-    { s: 'hungry',   cap: '간식 찾아 어슬렁거리는 중', active: true },
-    { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐' },
-    { s: 'watering', cap: '화분들 물 주러 다니는 중', active: true },
-    { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼' },
-    { s: 'waiting',  cap: '문 쪽만 보고 있었다…' },
-    { s: 'tea',      cap: '☀️ 햇님이 놀러 와서 수다 중!', skin: 'haru' },
-    { s: 'sing',     cap: '🌙 달님이 자장가를 불러주고 있다…', skin: 'dalnim' },
-    { s: 'think',    cap: '🌲 소나무 아저씨와 조용한 시간', skin: 'sonamu' }
+    { s: 'blank',    cap: '대자로 뻗어 멍때리는 중', lv: 1 },
+    { s: 'sleepy',   cap: '쿨쿨… 자고 있다', night: 3, lv: 1 },
+    { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼', lv: 1 },
+    { s: 'tea',      cap: '느긋하게 티타임 중', lv: 2 },
+    { s: 'waiting',  cap: '문 쪽만 보고 있었다…', lv: 2 },
+    { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐', lv: 3 },
+    { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까', lv: 3 },
+    { s: 'watering', cap: '화분들 물 주러 다니는 중', active: true, lv: 4 },
+    { s: 'hungry',   cap: '간식 찾아 어슬렁거리는 중', active: true, lv: 4 },
+    { s: 'dance',    cap: '신나서 춤추는 중', active: true, lv: 5 },
+    { s: 'sing',     cap: '흥얼흥얼 콘서트 중', active: true, lv: 6 },
+    { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true, lv: 7 },
+    { s: 'tea',      cap: '햇님이 놀러 와서 수다 중!', skin: 'haru', lv: 8 },
+    { s: 'sing',     cap: '달님이 자장가를 불러주고 있다…', skin: 'dalnim', lv: 9 },
+    { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 10 }
   ],
   _idle: null,
+
+  // 지금 레벨
+  level() {
+    try { return (window.Growth && window.Growth.level) ? window.Growth.level() : 1; }
+    catch (e) { return 1; }
+  },
+
+  unlocked() {
+    const lv = this.level();
+    return this.IDLES.filter(i => (i.lv || 1) <= lv);
+  },
+
+  // 다음에 열릴 행동 (전부 열었으면 null)
+  nextIdle() {
+    const lv = this.level();
+    const rest = this.IDLES.filter(i => (i.lv || 1) > lv).sort((x, y) => (x.lv || 1) - (y.lv || 1));
+    return rest[0] || null;
+  },
 
   pickIdle() {
     const h = new Date().getHours();
     const nightish = (h >= 22 || h < 7);
     const pool = [];
-    this.IDLES.forEach(i => {
+    this.unlocked().forEach(i => {
       const w = (nightish && i.night) ? i.night : 1;
       for (let k = 0; k < w; k++) pool.push(i);
     });
+    if (!pool.length) pool.push(this.IDLES[0]);   // 안전장치
     this._idle = pool[Math.floor(Math.random() * pool.length)];
     return this._idle;
   },
 
   // --------------------------------------------------------------------------
+  //  행동 도감 — 우렁이가 할 수 있는 일과 앞으로 열릴 것
+  // --------------------------------------------------------------------------
+  openIdleBook() {
+    const old = document.getElementById('idle-book-ov');
+    if (old) old.remove();
+    const lv = this.level();
+    const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const list = this.IDLES.slice().sort((x, y) => (x.lv || 1) - (y.lv || 1));
+    const got = list.filter(i => (i.lv || 1) <= lv).length;
+
+    const ov = document.createElement('div');
+    ov.id = 'idle-book-ov';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10045; background: var(--bg-primary); overflow-y: auto;'
+      + ' padding: calc(0.9rem + env(safe-area-inset-top)) 1.1rem calc(2rem + env(safe-area-inset-bottom));';
+
+    ov.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
+        <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('star', { size: 19 }) : ''}</span>
+        <strong style="font-size: 1.05rem; color: var(--text-primary);">우렁이가 할 수 있는 일</strong>
+        <button onclick="document.getElementById('idle-book-ov').remove(); window.Sfx && window.Sfx.play('close');"
+          style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+      </div>
+      <p style="margin: 0 0 0.9rem; font-size: 0.78rem; line-height: 1.65; color: var(--text-muted);">
+        ${got} / ${list.length}가지를 열었어요 · 레벨이 오를 때마다 하나씩 늘어나요<br>
+        대화·체크인·미션이 전부 경험치예요.
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(102px, 1fr)); gap: 0.5rem;">
+        ${list.map(i => {
+          const open = (i.lv || 1) <= lv;
+          const art = open ? (window.Stickers ? (i.skin ? window.Stickers.svgFor(i.skin, i.s, 56) : window.Stickers.svg(i.s, 56)) : '') : '';
+          return `
+          <div style="text-align: center; padding: 0.6rem 0.3rem 0.5rem; border-radius: 13px;
+                      background: ${open ? 'var(--bg-secondary)' : 'var(--bg-tertiary)'};
+                      border: 1px solid ${open ? 'color-mix(in srgb, var(--accent-primary) 28%, transparent)' : 'var(--glass-border)'};
+                      opacity: ${open ? 1 : 0.62};">
+            <div style="height: 58px; display: flex; align-items: center; justify-content: center; line-height: 0;">
+              ${open ? art : `<span style="line-height:0;color:var(--text-muted);">${window.Icons ? window.Icons.svg('lock', { size: 26 }) : ''}</span>`}
+            </div>
+            <p style="margin: 0.3rem 0 0; font-size: 0.68rem; line-height: 1.45; font-weight: 700; color: ${open ? 'var(--text-primary)' : 'var(--text-muted)'};">
+              ${open ? esc(i.cap) : 'Lv.' + (i.lv || 1) + ' 에서 열려요'}
+            </p>
+          </div>`;
+        }).join('')}
+      </div>`;
+
+    document.body.appendChild(ov);
+    if (window.Sfx) window.Sfx.play('pop');
+  },
+
+  // --------------------------------------------------------------------------
   //  방 씬 그리기 (우렁이는 옷장 착용분이 그대로 반영된 스티커를 씀)
   // --------------------------------------------------------------------------
-  scene(width = 320) {
+  scene(width = 420) {
     const p = this.placed();
     const draw = slot => { const it = this.item(p[slot]); return it ? it.svg() : ''; };
     const uid = 'rm' + Math.floor(Math.random() * 1e6);
@@ -255,11 +326,11 @@ window.Room = {
     const dur = (16 + Math.random() * 10).toFixed(1);   // 대부분 제자리, 가끔 한 바퀴
     const idle = this._idle || this.pickIdle();
     const snail = window.Stickers
-      ? window.Stickers.svgDressed(idle.skin || null, idle.s, 96)
+      ? window.Stickers.svgDressed(idle.skin || null, idle.s, 118)
       : '';
     return `
       <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
-        <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
+        <svg viewBox="0 0 320 232" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
           <defs>
             <linearGradient id="${uid}-wallsh" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stop-color="#000" stop-opacity="0.10"/>
@@ -345,10 +416,11 @@ window.Room = {
 
     el.innerHTML = `
       ${this.scene()}
-      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.35rem; margin-top: 0.6rem;">
-        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.82rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.55rem 0.2rem; border-radius: 11px;">${window.Icons ? window.Icons.svg('closet', { size: 17 }) : ''} 옷장</button>
-        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.82rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.55rem 0.2rem; border-radius: 11px;">${window.Icons ? window.Icons.svg('medal', { size: 17 }) : ''} 훈장</button>
-        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.82rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.55rem 0.2rem; border-radius: 11px;">${this._shopOpen ? '닫기 ▲' : (window.Icons ? window.Icons.svg('shop', { size: 17 }) : '') + ' 상점'}</button>
+      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; margin-top: 0.6rem;">
+        <button onclick="window.Game && window.Game.show('closet')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.8rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.55rem 0.15rem; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">${window.Icons ? window.Icons.svg('closet', { size: 16 }) : ''}옷장</button>
+        <button onclick="window.Game && window.Game.show('medal')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.8rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.55rem 0.15rem; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">${window.Icons ? window.Icons.svg('medal', { size: 16 }) : ''}훈장</button>
+        <button onclick="window.Room.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.8rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.55rem 0.15rem; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">${this._shopOpen ? '닫기 ▲' : (window.Icons ? window.Icons.svg('shop', { size: 16, line: '#fff' }) : '') + ' 상점'}</button>
+        <button onclick="window.Game && window.Game.show('farm')" style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-size: 0.8rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); padding: 0.55rem 0.15rem; border-radius: 11px; display: flex; align-items: center; justify-content: center; gap: 0.25rem;">${window.Icons ? window.Icons.svg('sprout', { size: 16 }) : ''}농장</button>
       </div>
       <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.6rem;">
         ${this.SLOTS.map(s => {

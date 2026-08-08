@@ -287,6 +287,86 @@ ${recent}` }],
     return window.Icons ? window.Icons.svg(n, { size: size || 22 }) : '';
   },
 
+  // --------------------------------------------------------------------------
+  //  처방 미션 — 무작위로 뽑은 오늘의 미션과 별개로,
+  //   ① AI 리포트가 세운 2주 계획에서 나온 것
+  //   ② 본인이 "고치고 싶다"고 직접 적어둔 것
+  //  두 갈래를 보여준다. 왜 이 미션인지 근거를 반드시 함께 적는다 —
+  //  이유를 모르는 숙제는 며칠 못 간다.
+  // --------------------------------------------------------------------------
+  rxLog() { return window.Storage._safeGet('cbt_rx_mission_log', {}) || {}; },
+
+  rxKey(text) { return this._today() + '|' + String(text).slice(0, 24); },
+
+  rxDone(text) { return !!this.rxLog()[this.rxKey(text)]; },
+
+  rxToggle(text) {
+    const log = this.rxLog();
+    const k = this.rxKey(text);
+    if (log[k]) {
+      delete log[k];
+      if (window.Sfx) window.Sfx.play('close');
+    } else {
+      log[k] = Date.now();
+      if (window.Sfx) window.Sfx.hit('save');
+      if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '처방 미션 완료');
+      if (window.Storage.markDayActive) window.Storage.markDayActive();
+    }
+    window.Storage._safeSet('cbt_rx_mission_log', log);
+    this.renderCard();
+  },
+
+  // 오늘 보여줄 처방 미션 목록
+  rxToday() {
+    const out = [];
+    // 사람 상담사가 낸 숙제가 가장 앞. AI 제안보다 우선한다.
+    if (window.Homework && window.Homework.questSeeds) {
+      window.Homework.questSeeds().forEach(q => out.push({ ...q, src: 'hw' }));
+    }
+    if (window.CarePlan && window.CarePlan.questsFor) {
+      window.CarePlan.questsFor(this._today(), 2).forEach(q => out.push({ ...q, src: 'plan' }));
+    }
+    if (window.Goals && window.Goals.questSeeds) {
+      window.Goals.questSeeds().slice(0, 1).forEach(q => out.push({ ...q, src: 'goal' }));
+    }
+    return out;
+  },
+
+  rxHtml() {
+    const rows = this.rxToday();
+    if (!rows.length) return '';
+    const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const name = (window.Storage._safeGet('cbt_user_name', '') || '').trim();
+    const title = name ? esc(name) + '님을 위한 미션' : '나를 위한 미션';
+    return `
+      <div style="margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px dashed var(--glass-border);">
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.45rem;">
+          <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('target', { size: 15 }) : ''}</span>
+          <strong style="font-size: 0.78rem; color: var(--text-primary);">${title}</strong>
+          <span style="margin-left: auto; font-size: 0.64rem; color: var(--text-muted);">무작위가 아니라 내 기록에서 나온 것</span>
+        </div>
+        ${rows.map(r => {
+          const done = this.rxDone(r.text);
+          return `
+          <button onclick="window.Missions.rxToggle('${String(r.text).replace(/'/g, "\\'")}')"
+            style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;
+                   padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
+                   background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
+                   border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
+            <span style="flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
+                         background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
+              ${done ? '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : ''}
+            </span>
+            <span style="flex: 1 1 0%; min-width: 0;">
+              <span style="display: block; font-size: 0.82rem; line-height: 1.5; font-weight: 700;
+                           color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(r.text)}</span>
+              ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '리포트 근거'} · ${esc(r.why)}</span>` : ''}
+            </span>
+          </button>`;
+        }).join('')}
+      </div>`;
+  },
+
   renderCard() {
     // 홈 카드와 대시보드(우렁이 세계) 퀘스트 칸 양쪽에 같은 내용을 그린다
     const targets = [...document.querySelectorAll('[data-mission-card]')];
@@ -311,7 +391,7 @@ ${recent}` }],
             ? `<button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.more()">퀘스트 더 받기 (${bonus}/3)</button>`
             : `<span style="flex: 1; text-align: center; font-size: 0.72rem; color: var(--text-muted); padding: 0.5rem 0;">오늘의 보너스 퀘스트를 다 했어요! 내일 또 만나요</span>`}
           <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">맞춤 숙제 받기</button>
-        </div>`;
+        </div>${this.rxHtml()}`;
     } else {
       el.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.75rem;">
@@ -324,7 +404,7 @@ ${recent}` }],
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.6rem;" onclick="window.Missions.complete()">했어요!</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="마음에 드는 미션이 나올 때까지 바꿔보세요">다른 거</button>
-        </div>`;
+        </div>${this.rxHtml()}`;
     }
   }
 };

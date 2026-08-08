@@ -404,7 +404,7 @@
         <span class="home-logo__mark" data-sticker="teacher" data-sticker-size="32"></span>
         <span class="home-logo__t">마음 도구</span>
       </header>
-      <p class="tab-lede">돌볼수록 자라는 나의 마음 정원</p>
+
 
       <div class="dashboard-grid">
         <!-- ★ 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
@@ -447,7 +447,6 @@
               </div>
               <div id="mission-card-hub" data-mission-card></div>
               <div style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--glass-border);">
-                <div id="care-footprint"></div>
               </div>
             </div>
 
@@ -461,6 +460,14 @@
             </div>
 
             <!-- 💌 서재 (편지·리포트·감정날씨·지난밤들) -->
+            <!-- 돌봄 — 치료가 실제로 굴러가는 화면. 계획·변화·목표를 한자리에. -->
+            <div class="game-view hidden" id="gv-care">
+              <p class="game-view-tip">리포트가 처방한 계획을 실행하고, 좋아지고 있는지 내 기록으로 확인해요.</p>
+              <div id="careplan-card" class="hidden" style="margin-bottom: 0.7rem;"></div>
+              <div id="progress-card" style="margin-bottom: 0.7rem;"></div>
+              <div id="goals-card"></div>
+            </div>
+
             <div class="game-view hidden" id="gv-letter">
               <p class="lib-lede">편지와 기록이 책처럼 꽂혀 있어요. 눌러서 펼쳐보세요.</p>
 
@@ -499,57 +506,55 @@
                   </span>
                   <span class="lib-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
                 </button>
-                <div id="lib-diary" class="lib-body hidden" style="padding: 0 0.85rem 0.85rem;">
-                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem;">
-                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem;" onclick="window.Growth && window.Growth.startNight()">하루 정리</button>
-                  <button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.4rem 0.8rem; background: var(--accent-secondary);" onclick="window.Growth && window.Growth.writeDiary()">자유 일기</button>
-                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('download')">일기장 저장</button>
-                  <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.4rem 0.7rem;" onclick="window.Growth && window.Growth.exportDiary('print')">인쇄 · PDF</button>
+                <div id="lib-diary" class="lib-body hidden" style="padding: 0 0.85rem 0.9rem;">
+
+                <!-- 쓰기가 먼저. 관리 기능은 아래로 접어둔다 -->
+                <div style="display: flex; align-items: center; gap: 0.7rem; padding: 0.2rem 0 0.7rem;">
+                  <span style="line-height: 0; flex-shrink: 0;" data-sticker="write" data-sticker-size="52"></span>
+                  <p style="margin: 0; font-size: 0.82rem; line-height: 1.65; color: var(--text-secondary);">
+                    잘 쓰지 않아도 괜찮아요. 한 줄이어도 남기면 그게 기록이에요.
+                  </p>
                 </div>
-                <div style="display: flex; gap: 0.4rem; margin-bottom: 0.55rem;">
-                  <input id="diary-date" type="date"
-                    oninput="window.Growth._diaryDate = this.value; window.Growth.renderNightList();"
-                    style="flex-shrink: 0; box-sizing: border-box; padding: 0.45rem 0.55rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.76rem; font-family: inherit;">
-                  <button onclick="document.getElementById('diary-date').value=''; window.Growth._diaryDate=''; window.Growth.renderNightList();" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0 0.3rem;">전체</button>
-                </div>
-                <input id="diary-search" type="search" placeholder="🔍 일기 검색 (내용·답글)"
-                  oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
-                  style="width: 100%; box-sizing: border-box; margin-bottom: 0.55rem; padding: 0.5rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.8rem;">
-                <div id="night-journal-card" class="hidden">
+
+                <button class="btn-primary" style="width: 100%; padding: 0.78rem; font-size: 0.92rem;"
+                  onclick="window.Growth && window.Growth.startNight()">우렁이와 하루 정리하기</button>
+                <p style="margin: 0.3rem 0 0.55rem; font-size: 0.71rem; color: var(--text-muted); text-align: center; line-height: 1.5;">
+                  우렁이가 세 가지만 물어봐요 · 3분
+                </p>
+                <button class="btn-secondary" style="width: 100%; padding: 0.6rem; font-size: 0.83rem;"
+                  onclick="window.Growth && window.Growth.writeDiary()">그냥 내 마음대로 쓸래요</button>
+
+                <div id="night-journal-card" class="hidden" style="margin-top: 0.85rem;">
                   <div id="night-journal-list" style="display: flex; flex-direction: column; gap: 0.6rem;"></div>
                 </div>
-                <p id="diary-empty-note" style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">아직 일기가 없어요. 오늘 밤 3분만 내볼까요?</p></div>
+
+                <p id="diary-empty-note" style="margin: 0.85rem 0 0; font-size: 0.75rem; color: var(--text-muted); text-align: center; line-height: 1.6;">
+                  아직 쓴 일기가 없어요.<br>오늘 밤, 딱 한 줄부터 시작해볼까요?
+                </p>
+
+                <!-- 찾아보기·내보내기 — 일기가 쌓인 다음에야 필요한 것들 -->
+                <details style="margin-top: 0.8rem;">
+                  <summary style="cursor: pointer; font-size: 0.74rem; font-weight: 700; color: var(--text-muted);">지난 일기 찾아보기 · 내보내기</summary>
+                  <div style="margin-top: 0.55rem;">
+                    <input id="diary-search" type="search" placeholder="내용이나 우렁이 답글로 검색"
+                      oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
+                      style="width: 100%; box-sizing: border-box; margin-bottom: 0.45rem; padding: 0.55rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.82rem;">
+                    <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem;">
+                      <input id="diary-date" type="date"
+                        oninput="window.Growth._diaryDate = this.value; window.Growth.renderNightList();"
+                        style="flex: 1 1 0%; min-width: 0; box-sizing: border-box; padding: 0.48rem 0.55rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.78rem; font-family: inherit;">
+                      <button onclick="window.Growth && window.Growth.openDiaryFull()"
+                        style="all: unset; flex-shrink: 0; cursor: pointer; font-size: 0.74rem; font-weight: 800; color: var(--accent-primary); padding: 0.3rem 0.4rem;">전체 보기 ›</button>
+                    </div>
+                    <div style="display: flex; gap: 0.4rem;">
+                      <button class="btn-secondary" style="flex: 1; font-size: 0.76rem; padding: 0.45rem;" onclick="window.Growth && window.Growth.exportDiary('download')">파일로 저장</button>
+                      <button class="btn-secondary" style="flex: 1; font-size: 0.76rem; padding: 0.45rem;" onclick="window.Growth && window.Growth.exportDiary('print')">인쇄 · PDF</button>
+                    </div>
+                  </div>
+                </details></div>
               </div>
 
-              <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #6f97ab; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
-                <button onclick="window.App.toggleLib('lib-monthly', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span class="lib-ico" data-ic="dashboard" data-ic-size="23"></span>
-                  <span style="flex: 1 1 0%; width: 0; min-width: 0;">
-                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">월간 리포트</strong>
-                    <span style="display: block; margin-top: 0.1rem; font-size: 0.79rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">한 달 돌봄과 감정 결산</span>
-                  </span>
-                  <span class="lib-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
-                </button>
-                <div id="lib-monthly" class="lib-body hidden" style="padding: 0 0.85rem 0.85rem;">
-                <div id="monthly-report" style="margin-top: 0.2rem;"></div></div>
-              </div>
 
-              <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #e8b04b; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
-                <button onclick="window.App.toggleLib('lib-forecast', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
-                  <span class="lib-ico" data-ic="water" data-ic-size="23"></span>
-                  <span style="flex: 1 1 0%; width: 0; min-width: 0;">
-                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">감정 일기예보</strong>
-                    <span style="display: block; margin-top: 0.1rem; font-size: 0.79rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">오늘과 이번 주 감정 날씨</span>
-                  </span>
-                  <span class="lib-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
-                </button>
-                <div id="lib-forecast" class="lib-body hidden" style="padding: 0 0.85rem 0.85rem;">
-                <strong style="font-size: 0.8rem; color: var(--text-muted);">오늘</strong>
-                <div id="today-mood-chart" class="chart-container" style="min-height: 70px;"></div>
-                <strong style="display: block; margin-top: 0.9rem; font-size: 0.8rem; color: var(--text-muted);">이번 주</strong>
-                <div id="mood-chart" class="chart-container"></div>
-                <p style="font-size: 0.7rem; color: var(--text-muted); text-align: center; margin: 0.4rem 0 0;">감정 기록은 계속 쌓이고 있어요. (대화를 지워도 유지)</p></div>
-              </div>
 
               <div class="lib-row" style="border: 1px solid var(--glass-border); border-left: 5px solid #7fc29b; border-radius: 14px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-secondary);">
                 <button onclick="window.App.toggleLib('lib-calendar', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
@@ -572,6 +577,7 @@
           <div id="my-snail-panel" style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem;">
               <strong style="font-size: 0.84rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.35rem;" data-ic="sprout" data-ic-size="17">나의 우렁이</strong>
+              <button onclick="window.Room && window.Room.openIdleBook()" class="head-chip" style="margin-left: auto;">할 수 있는 일 ›</button>
               <span id="growth-streak-line" style="font-size: 0.74rem; font-weight: 800; color: #e8590c;"></span>
             </div>
             <div id="level-card"></div>
@@ -812,6 +818,14 @@
           <p class="my-money__note">예약 결제·보이스톡(30초 150캐시)에 사용돼요.</p>
         </div>
       </div>
+
+      <!-- 위기 대비 — 괜찮을 때 미리 적어두는 안전계획 -->
+      <p class="my-sec">위기 대비</p>
+      <div class="my-group" id="safetyplan-card"></div>
+
+      <!-- 상담사가 낸 과제 — 회기 사이가 실제로 변화가 일어나는 구간 -->
+      <p class="my-sec">상담 숙제</p>
+      <div class="my-group" id="homework-card"></div>
 
       <!-- 상담 내역 -->
       <p class="my-sec">상담</p>
@@ -1299,6 +1313,11 @@
   <script defer src="js/learn.js"></script>
   <script defer src="js/sfx.js"></script>
   <script defer src="js/mail.js"></script>
+  <script defer src="js/careplan.js"></script>
+  <script defer src="js/goals.js"></script>
+  <script defer src="js/progress.js"></script>
+  <script defer src="js/safetyplan.js"></script>
+  <script defer src="js/homework.js"></script>
   <script defer src="js/assess-charts.js"></script>
   <script defer src="js/assess.js"></script>
   <script defer src="js/game.js"></script>
