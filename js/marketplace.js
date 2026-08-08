@@ -189,6 +189,7 @@
   },
 
   toggleFav(id) {
+    if (window.Sfx) window.Sfx.hit('pop');
     let f = this.favs();
     if (f.includes(id)) { f = f.filter(x => x !== id); if (window.App) window.App.showRecordToast('즐겨찾기에서 뺐어요'); }
     else { f.push(id); if (window.App) window.App.showRecordToast('즐겨찾기! 항상 맨 위에 보여드릴게요'); }
@@ -202,6 +203,7 @@
   SORTS: [['distance', '가까운 순'], ['rating', '별점 높은 순'], ['reviews', '후기 많은 순'], ['price_low', '가격 낮은 순']],
 
   setSort(v) {
+    if (window.Sfx) window.Sfx.play('nav');
     this._sort = v;
     this.renderCounselors();
   },
@@ -214,6 +216,7 @@
   },
 
   toggleAvail() {
+    if (window.Sfx) window.Sfx.play('nav');
     this._availOnly = !this._availOnly;
     this.renderCounselors();
   },

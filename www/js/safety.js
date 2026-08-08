@@ -88,6 +88,7 @@ window.Safety = {
       updated: Date.now()
     };
     window.Storage._safeSet('cbt_safety_plan', plan);
+    if (window.Sfx) window.Sfx.hit('shield');
     const ov = document.getElementById('safety-edit');
     if (ov) ov.remove();
     if (window.App) {

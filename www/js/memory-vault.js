@@ -51,6 +51,7 @@ window.MemoryVault = {
 
   // --- 내보내기: 우렁의사의 모든 기억을 봉인해 다운로드 ---
   exportEncrypted() {
+    if (window.Sfx) window.Sfx.play('save');
     if (!window.Storage) return;
     const snapshot = {
       version: 1,

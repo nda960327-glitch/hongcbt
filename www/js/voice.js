@@ -140,6 +140,7 @@ window.Voice = {
 
   // --- TTS (음성 읽어주기) ---
   toggleTts() {
+    if (window.Sfx) window.Sfx.play('nav');
     this.isTtsEnabled = !this.isTtsEnabled;
     if (window.Storage) window.Storage._safeSet('cbt_tts_enabled', this.isTtsEnabled);
     this.updateTtsToggleUi();

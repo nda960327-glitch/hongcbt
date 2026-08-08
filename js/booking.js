@@ -138,6 +138,7 @@ window.Booking = {
   },
 
   pickDate(dateStr) {
+    if (window.Sfx) window.Sfx.play('pop');
     this.selDate = dateStr;
     this.selTime = null;
     this.renderCal();
@@ -161,11 +162,13 @@ window.Booking = {
   },
 
   pickTime(t) {
+    if (window.Sfx) window.Sfx.play('pop');
     this.selTime = t;
     this.renderTimes();
   },
 
   closeModal() {
+    if (window.Sfx) window.Sfx.play('close');
     document.getElementById('booking-modal').classList.add('hidden');
     this.currentCounselorId = null;
     this.selDate = null;
@@ -177,12 +180,14 @@ window.Booking = {
     const counselor = window.Marketplace.getCounselor(this.currentCounselorId);
 
     if (!this.selDate || !this.selTime) {
+      if (window.Sfx) window.Sfx.hit('denied');
       alert('예약하실 날짜와 시간을 선택해주세요.');
       return;
     }
 
     // 우렁 캐시로 결제 (잔액 부족 시 충전 유도)
     if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`)) {
+      if (window.Sfx) window.Sfx.hit('denied');
       alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
       this.closeModal();
       document.querySelector('[data-tab="mypage"]').click();

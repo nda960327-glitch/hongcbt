@@ -295,6 +295,7 @@ window.Learn = {
 
     const isCorrect = selectedId === correctId;
     if (isCorrect) this.quizScore++;
+    if (window.Sfx) window.Sfx.hit(isCorrect ? 'ripe' : 'denied');
 
     const scoreLabel = container.querySelector('.quiz-score-label');
     if (scoreLabel) scoreLabel.textContent = `⭐ ${this.quizScore}`;

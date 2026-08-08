@@ -33,6 +33,7 @@ window.SleepSounds = {
   },
 
   start(type) {
+    if (window.Sfx) window.Sfx.play('appear');
     this.stop(true);
     const ctx = this._audioCtx();
     this._current = type;

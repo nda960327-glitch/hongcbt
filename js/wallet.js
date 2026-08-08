@@ -39,6 +39,7 @@ window.Wallet = {
     const bal = this.balance() + total;
     window.Storage._safeSet('cbt_cash', bal);
     this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
+    if (window.Sfx) window.Sfx.hit('coin');
     this.renderCard();
     this._syncHud();
     if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
@@ -61,6 +62,7 @@ window.Wallet = {
     const bal = this.balance() + amount;
     window.Storage._safeSet('cbt_cash', bal);
     this._record('refund', amount, desc || '환불', bal);
+    if (window.Sfx) window.Sfx.play('coin');
     this.renderCard();
     this._syncHud();
   },

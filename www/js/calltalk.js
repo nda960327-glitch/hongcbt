@@ -244,6 +244,7 @@ window.CallTalk = {
   },
 
   end(reason) {
+    if (window.Sfx) window.Sfx.play('close');
     if (!this._active) return;
     // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
     if (this._human && this._counselorId) {
