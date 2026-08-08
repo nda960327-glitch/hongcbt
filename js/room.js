@@ -23,10 +23,10 @@ window.Room = {
       svg: () => `<rect x="0" y="0" width="320" height="140" fill="#F3E9DA"/>
         <g opacity="0.5" stroke="#E7DAC6" stroke-width="1">${Array.from({length:16},(_,i)=>`<path d="M${i*21+8} 0 V140"/>`).join('')}</g>
         <g opacity="0.35" fill="#E2D3BB">${[[28,34],[92,58],[156,26],[220,62],[284,40],[60,102],[188,110],[252,92]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="2.2"/>`).join('')}</g>` },
-    { id: 'wp_mint', slot: 'wallpaper', name: '민트 줄무늬', price: 25,
+    { id: 'wp_mint', slot: 'wallpaper', name: '민트 줄무늬', price: 55,
       svg: () => `<rect x="0" y="0" width="320" height="140" fill="#DFEFE6"/>
         ${Array.from({length:11},(_,i)=>`<rect x="${i*30+6}" y="0" width="9" height="140" fill="#C8E3D5"/>`).join('')}` },
-    { id: 'wp_night', slot: 'wallpaper', name: '밤하늘', price: 60,
+    { id: 'wp_night', slot: 'wallpaper', name: '밤하늘', price: 130,
       svg: () => `<rect x="0" y="0" width="320" height="140" fill="#26314A"/>
         <circle cx="262" cy="34" r="15" fill="#F3E2A9"/><circle cx="256" cy="30" r="13" fill="#26314A"/>
         ${[[30,30],[70,58],[118,26],[168,50],[210,22],[300,70],[52,96],[142,88],[236,96]]
@@ -42,29 +42,29 @@ window.Room = {
     { id: 'fl_wood', slot: 'floor', name: '원목 마루', free: true,
       svg: () => `<rect x="0" y="140" width="320" height="70" fill="#C9A278"/>
         ${Array.from({length:6},(_,i)=>`<path d="M0 ${146+i*11} H320" stroke="#B08B63" stroke-width="1.6"/>`).join('')}` },
-    { id: 'fl_tile', slot: 'floor', name: '체크 타일', price: 25,
+    { id: 'fl_tile', slot: 'floor', name: '체크 타일', price: 55,
       svg: () => `<rect x="0" y="140" width="320" height="70" fill="#EDE6DC"/>
         ${Array.from({length:14},(_,i)=>Array.from({length:4},(_,j)=>
           (i+j)%2 ? `<rect x="${i*24}" y="${140+j*18}" width="24" height="18" fill="#D6CCBE"/>` : '').join('')).join('')}` },
-    { id: 'fl_grass', slot: 'floor', name: '잔디밭', price: 55,
+    { id: 'fl_grass', slot: 'floor', name: '잔디밭', price: 120,
       svg: () => `<rect x="0" y="140" width="320" height="70" fill="#8FBE85"/>
         ${Array.from({length:26},(_,i)=>`<path d="M${i*13+5} ${206-((i*7)%12)} v${6+((i*5)%7)}" stroke="#6EA166" stroke-width="2.4" stroke-linecap="round"/>`).join('')}` },
 
     // ── 벽장식 ────────────────────────────────────────────────────────────
-    { id: 'wl_window', slot: 'wall', name: '작은 창문', price: 40,
+    { id: 'wl_window', slot: 'wall', name: '작은 창문', price: 90,
       svg: () => `<g>
         <rect x="196" y="26" width="82" height="62" rx="5" fill="#BFE0EE" stroke="#8A7457" stroke-width="4"/>
         <path d="M237 26 V88 M196 57 H278" stroke="#8A7457" stroke-width="4"/>
         <circle cx="216" cy="44" r="7" fill="#F5EDCB"/>
       </g>` },
-    { id: 'wl_frame', slot: 'wall', name: '우렁이 액자', price: 35,
+    { id: 'wl_frame', slot: 'wall', name: '우렁이 액자', price: 75,
       svg: () => `<g>
         <rect x="206" y="30" width="62" height="50" rx="4" fill="#FBF6EC" stroke="#A9855C" stroke-width="4"/>
         <circle cx="237" cy="58" r="15" fill="#FFF9F0" stroke="#8A6F55" stroke-width="3"/>
         <circle cx="231" cy="56" r="2" fill="#3F352A"/><circle cx="243" cy="56" r="2" fill="#3F352A"/>
         <path d="M232 64 q5 4 10 0" fill="none" stroke="#3F352A" stroke-width="2" stroke-linecap="round"/>
       </g>` },
-    { id: 'wl_clock', slot: 'wall', name: '벽시계', price: 45,
+    { id: 'wl_clock', slot: 'wall', name: '벽시계', price: 100,
       svg: () => `<g>
         <circle cx="237" cy="52" r="24" fill="#FBF6EC" stroke="#8A6F55" stroke-width="4"/>
         <path d="M237 52 V38 M237 52 l11 7" stroke="#5A4C3B" stroke-width="3.4" stroke-linecap="round"/>
@@ -78,21 +78,21 @@ window.Room = {
       </g>` },
 
     // ── 왼쪽 가구 ─────────────────────────────────────────────────────────
-    { id: 'lf_plant', slot: 'left', name: '몬스테라 화분', price: 30,
+    { id: 'lf_plant', slot: 'left', name: '몬스테라 화분', price: 65,
       svg: () => `<g>
         <path d="M28 200 h40 l-6 -32 H34z" fill="#C9835A" stroke="#8E5A38" stroke-width="3" stroke-linejoin="round"/>
         <path d="M48 168 V128" stroke="#5E8F5F" stroke-width="4" stroke-linecap="round"/>
         <path d="M48 140 q-26 -6 -30 -26 q26 -6 30 22z" fill="#79B37A" stroke="#4F7E52" stroke-width="2.6" stroke-linejoin="round"/>
         <path d="M48 132 q24 -10 28 -30 q-26 -4 -28 26z" fill="#93C894" stroke="#4F7E52" stroke-width="2.6" stroke-linejoin="round"/>
       </g>` },
-    { id: 'lf_shelf', slot: 'left', name: '책장', price: 65,
+    { id: 'lf_shelf', slot: 'left', name: '책장', price: 145,
       svg: () => `<g>
         <rect x="16" y="112" width="62" height="88" rx="3" fill="#B98A5E" stroke="#8A6039" stroke-width="3.4"/>
         <path d="M16 142 H78 M16 172 H78" stroke="#8A6039" stroke-width="3.4"/>
         ${[[22,118,22],[31,120,20],[40,117,23],[24,148,21],[33,150,19],[42,147,22],[26,178,19],[35,180,17]]
           .map(([x,y,h],i)=>`<rect x="${x}" y="${y}" width="7" height="${h}" fill="${['#C96A62','#6F97AB','#E0B45E','#7FA98A','#B98ABF','#D98A6A','#6F97AB','#C96A62'][i]}" stroke="#5E4530" stroke-width="1.6"/>`).join('')}
       </g>` },
-    { id: 'lf_lamp', slot: 'left', name: '플로어 스탠드', price: 50,
+    { id: 'lf_lamp', slot: 'left', name: '플로어 스탠드', price: 110,
       svg: () => `<g>
         <path d="M30 200 h34 l-17 -8z" fill="#7C6B58" stroke="#5A4C3B" stroke-width="2.6" stroke-linejoin="round"/>
         <path d="M47 192 V128" stroke="#7C6B58" stroke-width="4"/>
@@ -101,7 +101,7 @@ window.Room = {
       </g>` },
 
     // ── 오른쪽 가구 ───────────────────────────────────────────────────────
-    { id: 'rt_table', slot: 'right', name: '티테이블', price: 45,
+    { id: 'rt_table', slot: 'right', name: '티테이블', price: 100,
       svg: () => `<g>
         <rect x="244" y="150" width="62" height="7" rx="3" fill="#C09A6E" stroke="#8A6039" stroke-width="2.6"/>
         <path d="M252 157 v43 M298 157 v43" stroke="#8A6039" stroke-width="4" stroke-linecap="round"/>
@@ -109,7 +109,7 @@ window.Room = {
         <path d="M282 141 q7 -1 7 4 q0 5 -7 4" fill="none" stroke="#A38F73" stroke-width="2.4"/>
         <path d="M272 133 q2 -6 -1 -9 M278 133 q2 -6 -1 -9" fill="none" stroke="#C6BBA8" stroke-width="2" stroke-linecap="round"/>
       </g>` },
-    { id: 'rt_guitar', slot: 'right', name: '기타', price: 70,
+    { id: 'rt_guitar', slot: 'right', name: '기타', price: 155,
       svg: () => `<g transform="rotate(-10 278 165)">
         <ellipse cx="278" cy="176" rx="24" ry="26" fill="#D9A45E" stroke="#96682F" stroke-width="3"/>
         <ellipse cx="278" cy="150" rx="17" ry="17" fill="#D9A45E" stroke="#96682F" stroke-width="3"/>
@@ -126,12 +126,12 @@ window.Room = {
       </g>` },
 
     // ── 러그 ──────────────────────────────────────────────────────────────
-    { id: 'rg_round', slot: 'rug', name: '동그란 러그', price: 30,
+    { id: 'rg_round', slot: 'rug', name: '동그란 러그', price: 65,
       svg: () => `<g>
         <ellipse cx="160" cy="188" rx="66" ry="17" fill="#D8907F" stroke="#B06D5D" stroke-width="3"/>
         <ellipse cx="160" cy="188" rx="42" ry="10" fill="none" stroke="#EFC0B2" stroke-width="3"/>
       </g>` },
-    { id: 'rg_star', slot: 'rug', name: '별무늬 러그', price: 55,
+    { id: 'rg_star', slot: 'rug', name: '별무늬 러그', price: 120,
       svg: () => `<g>
         <ellipse cx="160" cy="188" rx="70" ry="18" fill="#7E8FC0" stroke="#5B6A98" stroke-width="3"/>
         ${[[126,186],[160,181],[194,187],[143,193],[178,193]].map(([x,y])=>
@@ -216,19 +216,19 @@ window.Room = {
   IDLES: [
     { s: 'blank',    cap: '대자로 뻗어 멍때리는 중', lv: 1 },
     { s: 'sleepy',   cap: '쿨쿨… 자고 있다', night: 3, lv: 1 },
-    { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼', lv: 1 },
-    { s: 'tea',      cap: '느긋하게 티타임 중', lv: 2 },
-    { s: 'waiting',  cap: '문 쪽만 보고 있었다…', lv: 2 },
-    { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐', lv: 3 },
-    { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까', lv: 3 },
-    { s: 'watering', cap: '화분들 물 주러 다니는 중', active: true, lv: 4 },
-    { s: 'hungry',   cap: '간식 찾아 어슬렁거리는 중', active: true, lv: 4 },
-    { s: 'dance',    cap: '신나서 춤추는 중', active: true, lv: 5 },
-    { s: 'sing',     cap: '흥얼흥얼 콘서트 중', active: true, lv: 6 },
-    { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true, lv: 7 },
-    { s: 'tea',      cap: '햇님이 놀러 와서 수다 중!', skin: 'haru', lv: 8 },
-    { s: 'sing',     cap: '달님이 자장가를 불러주고 있다…', skin: 'dalnim', lv: 9 },
-    { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 10 }
+    { s: 'peek',     cap: '어? 온 거 봤다. 빼꼼', lv: 2 },
+    { s: 'tea',      cap: '느긋하게 티타임 중', lv: 3 },
+    { s: 'waiting',  cap: '문 쪽만 보고 있었다…', lv: 4 },
+    { s: 'laugh',    cap: '혼자 뭐가 웃긴지 빵 터짐', lv: 5 },
+    { s: 'write',    cap: '일기 쓰는 중… 뭐라고 쓸까', lv: 6 },
+    { s: 'watering', cap: '화분들 물 주러 다니는 중', active: true, lv: 7 },
+    { s: 'hungry',   cap: '간식 찾아 어슬렁거리는 중', active: true, lv: 8 },
+    { s: 'dance',    cap: '신나서 춤추는 중', active: true, lv: 9 },
+    { s: 'sing',     cap: '흥얼흥얼 콘서트 중', active: true, lv: 10 },
+    { s: 'muscle',   cap: '운동 중 (아직 3분째)', active: true, lv: 11 },
+    { s: 'tea',      cap: '햇님이 놀러 와서 수다 중!', skin: 'haru', lv: 12 },
+    { s: 'sing',     cap: '달님이 자장가를 불러주고 있다…', skin: 'dalnim', lv: 13 },
+    { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 14 }
   ],
   _idle: null,
 

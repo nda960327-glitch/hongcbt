@@ -14,7 +14,7 @@ window.Game = {
     { id: 'letter', ico: 'letter', name: '서재' }
   ],
 
-  SHIELD_COIN_PRICE: 120,   // 씨앗코인으로 사는 스트릭 보호권
+  SHIELD_COIN_PRICE: 260,   // 씨앗코인으로 사는 스트릭 보호권
 
   _view: 'room',
 

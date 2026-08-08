@@ -14,12 +14,12 @@ window.Farm = {
 
   // seed: 씨앗 값(씨앗코인). 상추는 무료라 코인이 없어도 농사를 시작할 수 있다.
   CROPS: [
-    { id: 'lettuce', art: 'lettuce', name: '상추',   need: 6,  coin: 8,  seed: 0  },
-    { id: 'carrot',  art: 'carrot',  name: '당근',   need: 9,  coin: 14, seed: 4  },
-    { id: 'corn',    art: 'corn',    name: '옥수수', need: 12, coin: 20, seed: 6  },
-    { id: 'tomato',  art: 'tomato',  name: '토마토', need: 14, coin: 24, seed: 8  },
-    { id: 'berry',   art: 'berry',   name: '딸기',   need: 16, coin: 34, seed: 12 },
-    { id: 'pumpkin', art: 'pumpkin', name: '호박',   need: 22, coin: 55, seed: 20 }
+    { id: 'lettuce', art: 'lettuce', name: '상추',   need: 6,  coin: 5,  seed: 0  },
+    { id: 'carrot',  art: 'carrot',  name: '당근',   need: 9,  coin: 9,  seed: 6  },
+    { id: 'corn',    art: 'corn',    name: '옥수수', need: 12, coin: 13, seed: 10  },
+    { id: 'tomato',  art: 'tomato',  name: '토마토', need: 14, coin: 16, seed: 14  },
+    { id: 'berry',   art: 'berry',   name: '딸기',   need: 16, coin: 22, seed: 20 },
+    { id: 'pumpkin', art: 'pumpkin', name: '호박',   need: 22, coin: 36, seed: 32 }
   ],
 
   // 작물 그림 — 이모지는 기기마다 모양이 달라서 직접 그린다.

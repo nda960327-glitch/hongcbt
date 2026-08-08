@@ -26,7 +26,7 @@ window.Closet = {
   ITEMS: [
     // ── 모자 ──────────────────────────────────────────────────────────────
     {
-      id: 'straw', slot: 'hat', name: '밀짚모자', desc: '농부 우렁이의 기본 장비', price: 30,
+      id: 'straw', slot: 'hat', name: '밀짚모자', desc: '농부 우렁이의 기본 장비', price: 65,
       svg: () => `
         <g>
           <path d="M32 50 q38 12 76 0 q-6 -9 -18 -11 q-2 -12 -20 -12 q-18 0 -20 12 q-12 2 -18 11z"
@@ -45,7 +45,7 @@ window.Closet = {
         </g>`
     },
     {
-      id: 'beanie', slot: 'hat', name: '털모자', desc: '겨울 우렁이', price: 55,
+      id: 'beanie', slot: 'hat', name: '털모자', desc: '겨울 우렁이', price: 120,
       svg: () => `
         <g>
           <path d="M36 51 q34 10 68 0 q2 -25 -34 -25 q-36 0 -34 25z" fill="#C57C7C" stroke="#8E5050" stroke-width="3" stroke-linejoin="round"/>
@@ -65,7 +65,7 @@ window.Closet = {
     },
     // ── 안경 ──────────────────────────────────────────────────────────────
     {
-      id: 'glasses', slot: 'face', name: '동그란 안경', desc: '지적인 척', price: 40,
+      id: 'glasses', slot: 'face', name: '동그란 안경', desc: '지적인 척', price: 90,
       svg: () => `
         <g fill="none" stroke="#4A4038" stroke-width="3">
           <circle cx="52" cy="86" r="12" fill="#EAF2F6" fill-opacity="0.55"/>
@@ -75,7 +75,7 @@ window.Closet = {
         </g>`
     },
     {
-      id: 'shades', slot: 'face', name: '선글라스', desc: '오늘은 좀 멋있고 싶다', price: 70,
+      id: 'shades', slot: 'face', name: '선글라스', desc: '오늘은 좀 멋있고 싶다', price: 155,
       svg: () => `
         <g>
           <path d="M37 78 h30 q3 0 3 4 v4 q0 9 -9 9 h-13 q-9 0 -10 -9 l-2 -5 q-1 -3 1 -3z" fill="#3B3630" stroke="#22201C" stroke-width="2.4" stroke-linejoin="round"/>
@@ -85,7 +85,7 @@ window.Closet = {
     },
     // ── 목도리 ────────────────────────────────────────────────────────────
     {
-      id: 'scarf', slot: 'neck', name: '빨간 목도리', desc: '목은 없지만 두른다', price: 45,
+      id: 'scarf', slot: 'neck', name: '빨간 목도리', desc: '목은 없지만 두른다', price: 100,
       svg: () => `
         <g>
           <path d="M40 108 q30 11 60 0 q2 8 -2 11 q-28 10 -56 0 q-4 -3 -2 -11z"
@@ -95,7 +95,7 @@ window.Closet = {
         </g>`
     },
     {
-      id: 'bowtie', slot: 'neck', name: '나비넥타이', desc: '중요한 날', price: 35,
+      id: 'bowtie', slot: 'neck', name: '나비넥타이', desc: '중요한 날', price: 75,
       svg: () => `
         <g>
           <path d="M70 112 l-15 -7 v14 z" fill="#7B93C9" stroke="#4E639A" stroke-width="2.6" stroke-linejoin="round"/>
