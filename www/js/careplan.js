@@ -79,6 +79,25 @@ window.CarePlan = {
     if (window.Missions) window.Missions.renderCard();
   },
 
+  // 계획을 담고 있는 가장 최근 리포트
+  latestPlanReport() {
+    const reps = (window.Assess && window.Assess.reports()) || [];
+    return reps.find(r => r && r.json && r.json.carePlan
+      && Array.isArray(r.json.carePlan.weeks) && r.json.carePlan.weeks.length) || null;
+  },
+
+  // 리포트가 처방한 계획을 (다시) 심는다.
+  adoptLatest() {
+    const r = this.latestPlanReport();
+    if (!r) return false;
+    if (!this.adopt(r)) return false;
+    if (window.Sfx) window.Sfx.hit('levelup');
+    if (window.App) window.App.showRecordToast('리포트가 처방한 2주 계획을 시작했어요', null);
+    this.render();
+    if (window.Missions) window.Missions.renderCard();
+    return true;
+  },
+
   discard() {
     const p = this.active();
     if (!p) return;
@@ -346,6 +365,9 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
       el.classList.remove('hidden');
       const key = this._starterKey();
       const label = key === 'depress' ? '가라앉은 기분' : key === 'anxious' ? '불안·긴장' : '아직 방향을 찾는 중';
+      // 리포트가 처방한 계획이 있으면 그게 우선이다 — 기본 코스는 그 아래 작은 선택지로 내린다.
+      const rp = this.latestPlanReport();
+      const hasReport = ((window.Assess && window.Assess.reports()) || []).length > 0;
       el.innerHTML = `
         <div class="glass-card" style="padding: 0.95rem 1rem; border-left: 4px solid var(--accent-primary);">
           <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.35rem;">
@@ -353,14 +375,27 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
             <strong style="font-size: 0.92rem; color: var(--text-primary);">2주 케어플랜</strong>
             <span style="margin-left: auto; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary);">무료</span>
           </div>
-          <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">
-            <b>${label}</b>에 맞춘 2주 코스를 무료로 시작할 수 있어요.
-          </p>
-          <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.87rem;"
-            onclick="window.CarePlan.startStarter()">2주 시작하기</button>
-          <p style="margin: 0.5rem 0 0; font-size: 0.72rem; line-height: 1.55; color: var(--text-muted); text-align: center;">
-            AI 마음 리포트를 만들면 내 기록에 맞게 바뀌어요
-          </p>
+          ${rp ? `
+            <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">
+              내 리포트가 처방한 2주 계획이 준비돼 있어요.
+            </p>
+            <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.87rem;"
+              onclick="window.CarePlan.adoptLatest()">내 계획으로 2주 시작하기</button>
+            <button onclick="window.CarePlan.startStarter()"
+              style="all: unset; display: block; width: 100%; text-align: center; margin-top: 0.55rem; cursor: pointer;
+                     font-size: 0.73rem; font-weight: 700; color: var(--text-muted);">대신 기본 코스로 시작하기</button>
+          ` : `
+            <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">
+              <b>${label}</b>에 맞춘 2주 코스를 무료로 시작할 수 있어요.
+            </p>
+            <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.87rem;"
+              onclick="window.CarePlan.startStarter()">2주 시작하기</button>
+            <p style="margin: 0.5rem 0 0; font-size: 0.72rem; line-height: 1.55; color: var(--text-muted); text-align: center;">
+              ${hasReport
+                ? '지금 리포트에는 계획이 없어요 — 다음 리포트부터 담겨요'
+                : 'AI 마음 리포트를 만들면 내 기록에 맞게 바뀌어요'}
+            </p>
+          `}
         </div>`;
       return;
     }

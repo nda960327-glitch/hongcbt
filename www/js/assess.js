@@ -951,8 +951,13 @@ b{font-weight:800}
       this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
       // 리포트를 읽고 끝내지 않는다 — 2주 케어플랜을 바로 심는다
       if (window.CarePlan) {
-        window.CarePlan.adopt(rec);
+        // 계획을 못 담아냈으면(모델이 필드를 빠뜨림) 조용히 넘기지 않는다 —
+        //  돌봄 화면에서 다시 가져올 수 있으므로 그 사실만 알린다.
+        const adopted = window.CarePlan.adopt(rec);
         if (window.Game) window.Game.show('care', true);   // 처방을 바로 보여준다
+        if (!adopted && window.App) {
+          window.App.showRecordToast('이번 리포트에는 2주 계획이 담기지 않았어요', null);
+        }
       }
       if (window.Missions && window.Missions.render) window.Missions.render();
       if (window.Sfx) window.Sfx.play('harvest');
