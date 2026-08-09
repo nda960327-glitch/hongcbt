@@ -12,6 +12,8 @@
 //    내담자가 [동의하고 보내기]를 누른 요약본만 inbox 에 들어온다.
 // ============================================================================
 
+import { resolveCounselor, handleAuth } from './auth.js';
+
 const MAX = { text: 4000, name: 40, id: 64 };
 const CALL_LOCK_MS = 35 * 60 * 1000;      // 통화 잠금 자동 해제
 const KEEP_MS = 180 * 86400000;            // 180일 지난 기록은 정리 대상
@@ -44,13 +46,14 @@ function json(data, status, cors) {
   });
 }
 
-// 발급 코드 → 상담사. 정지된 코드는 없는 것으로 친다.
-async function whoami(db, code) {
-  const c = s(code, MAX.id);
-  if (!c) return null;
-  return await db.prepare(
-    'SELECT id, name, hospital, available, busy_until, active FROM counselors WHERE code = ? AND active = 1'
-  ).bind(c).first();
+// 상담사 식별. 이메일 로그인 세션이 우선이고, 발급 코드는 아직 이메일이
+//  없는 상담사와 긴급 접속용으로 남겨 둔다. 정지된 계정은 둘 다 통하지 않는다.
+async function whoami(db, cred) {
+  const session = typeof cred === 'object' && cred ? cred.session : '';
+  const code = typeof cred === 'object' && cred ? cred.code : cred;
+  return await resolveCounselor(db, {
+    session: s(session, 128), code: s(code, MAX.id)
+  });
 }
 
 // 운영자 마스터 코드 — 전체 열람. 시크릿으로만 준다.
@@ -67,6 +70,14 @@ export async function handleMarket(request, env, cors, path) {
   let body = {};
   if (method === 'POST') { try { body = await request.json(); } catch (e) { body = {}; } }
   const code = s(body.code || q('code'), MAX.id);
+  const session = s(body.session || q('session'), 128);
+  const cred = { session, code };
+
+  // 로그인(이메일 매직링크)은 별도 모듈. 여기서 처리되면 바로 돌려준다.
+  if (path.startsWith('/auth/')) {
+    const r = await handleAuth(request, env, cors, path, body, url);
+    if (r) return r;
+  }
 
   // ── 상담사 목록 ─────────────────────────────────────────────────────
   if (path === '/counselors' && method === 'GET') {
@@ -78,8 +89,8 @@ export async function handleMarket(request, env, cors, path) {
 
   // ── 바로상담 수신 상태 ──────────────────────────────────────────────
   if (path === '/presence') {
-    if (method === 'GET' && code) {                     // 상담사 본인 화면
-      const me = await whoami(db, code);
+    if (method === 'GET' && (code || session)) {        // 상담사 본인 화면
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       return json({
         id: me.id, name: me.name,
@@ -99,7 +110,7 @@ export async function handleMarket(request, env, cors, path) {
       return json({ presence }, 200, cors);
     }
     if (method === 'POST') {                            // 상담사가 켜고 끔
-      const me = await whoami(db, code);
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       await db.prepare('UPDATE counselors SET available = ? WHERE id = ?')
         .bind(body.available ? 1 : 0, me.id).run();
@@ -113,8 +124,8 @@ export async function handleMarket(request, env, cors, path) {
       const r = await db.prepare('SELECT * FROM bookings ORDER BY when_ts DESC LIMIT 500').all();
       return json({ items: (r.results || []).map(rowBooking), scope: 'admin' }, 200, cors);
     }
-    if (code) {
-      const me = await whoami(db, code);
+    if (code || session) {
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       const r = await db.prepare(
         'SELECT * FROM bookings WHERE counselor_id = ? ORDER BY when_ts DESC LIMIT 200'
@@ -154,7 +165,7 @@ export async function handleMarket(request, env, cors, path) {
       const id = s(body.id, MAX.id);
       if (!id) return json({ error: 'missing-id' }, 400, cors);
       if (byCounselor) {
-        const me = await whoami(db, code);
+        const me = await whoami(db, cred);
         if (!me) return json({ error: 'bad-code' }, 403, cors);
         await db.prepare('UPDATE bookings SET status = ? WHERE id = ? AND counselor_id = ?')
           .bind(status, id, me.id).run();
@@ -171,7 +182,7 @@ export async function handleMarket(request, env, cors, path) {
       const r = await db.prepare('SELECT * FROM inbox ORDER BY ts DESC LIMIT 300').all();
       return json({ scope: 'admin', items: (r.results || []).map(rowInbox) }, 200, cors);
     }
-    const me = await whoami(db, code);
+    const me = await whoami(db, cred);
     if (!me) return json({ error: 'bad-code' }, 403, cors);
     const r = await db.prepare(
       'SELECT * FROM inbox WHERE counselor_id = ? ORDER BY ts DESC LIMIT 200'
@@ -196,7 +207,7 @@ export async function handleMarket(request, env, cors, path) {
   }
 
   if (path === '/inbox/read' && method === 'POST') {
-    const me = await whoami(db, code);
+    const me = await whoami(db, cred);
     if (!me) return json({ error: 'bad-code' }, 403, cors);
     await db.prepare('UPDATE inbox SET read_at = ? WHERE id = ? AND counselor_id = ?')
       .bind(nowMs(), s(body.id, MAX.id), me.id).run();
@@ -205,8 +216,8 @@ export async function handleMarket(request, env, cors, path) {
 
   // ── 후기 ────────────────────────────────────────────────────────────
   if (path === '/reviews' && method === 'GET') {
-    if (code) {
-      const me = await whoami(db, code);
+    if (code || session) {
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       const r = await db.prepare(
         'SELECT * FROM reviews WHERE counselor_id = ? ORDER BY ts DESC LIMIT 200'
@@ -235,7 +246,7 @@ export async function handleMarket(request, env, cors, path) {
   }
 
   if (path === '/reviews/reply' && method === 'POST') {
-    const me = await whoami(db, code);
+    const me = await whoami(db, cred);
     if (!me) return json({ error: 'bad-code' }, 403, cors);
     await db.prepare('UPDATE reviews SET reply = ?, reply_ts = ? WHERE id = ? AND counselor_id = ?')
       .bind(s(body.text, 600), nowMs(), s(body.id, MAX.id), me.id).run();
@@ -244,8 +255,8 @@ export async function handleMarket(request, env, cors, path) {
 
   // ── 상담 채팅 ───────────────────────────────────────────────────────
   if (path === '/chat-msg' && method === 'GET') {
-    if (code) {
-      const me = await whoami(db, code);
+    if (code || session) {
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       const r = await db.prepare(
         'SELECT * FROM chat_msgs WHERE counselor_id = ? ORDER BY ts ASC LIMIT 500'
@@ -270,7 +281,7 @@ export async function handleMarket(request, env, cors, path) {
     let clientId = s(body.clientId, MAX.id);
 
     if (from === 'counselor') {
-      const me = await whoami(db, code);
+      const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
       counselorId = me.id;
       // 상담사 화면은 clientId 대신 이름으로 스레드를 잡는다 — 최근 메시지에서 되찾는다
@@ -350,9 +361,13 @@ export async function handleMarket(request, env, cors, path) {
     const b = await one("SELECT COUNT(*) n, COALESCE(SUM(price),0) sum FROM bookings WHERE status = 'confirmed'");
     const i = await one('SELECT COUNT(*) n FROM inbox');
     const rv = await one('SELECT COUNT(*) n, COALESCE(AVG(rating),0) avg FROM reviews');
+    const noMail = await one('SELECT COUNT(*) n FROM counselors WHERE active = 1 AND (email IS NULL OR email = \'\')');
     return json({
       counselors: c.n || 0, bookings: b.n || 0, gross: b.sum || 0,
-      inbox: i.n || 0, reviews: rv.n || 0, ratingAvg: Math.round((rv.avg || 0) * 10) / 10
+      inbox: i.n || 0, reviews: rv.n || 0, ratingAvg: Math.round((rv.avg || 0) * 10) / 10,
+      // 메일 발송 설정 상태는 운영자만 본다 (로그인 응답에 담으면 가입 여부가 샌다)
+      mailReady: !!(env.RESEND_API_KEY && env.MAIL_FROM),
+      counselorsWithoutEmail: noMail.n || 0
     }, 200, cors);
   }
 
@@ -364,7 +379,7 @@ export async function handleMarket(request, env, cors, path) {
 
     if (path === '/admin/counselors' && method === 'GET') {
       const r = await db.prepare(
-        'SELECT id, name, hospital, code, available, busy_until, active, created FROM counselors ORDER BY created DESC'
+        'SELECT id, name, hospital, email, code, available, busy_until, active, created FROM counselors ORDER BY created DESC'
       ).all();
       return json({ items: r.results || [] }, 200, cors);
     }
@@ -376,12 +391,33 @@ export async function handleMarket(request, env, cors, path) {
       if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) return json({ error: 'id 는 영문·숫자만' }, 400, cors);
       const dup = await db.prepare('SELECT id FROM counselors WHERE id = ?').bind(id).first();
       if (dup) return json({ error: '이미 있는 ID 입니다' }, 409, cors);
+      // 이메일은 로그인 식별자다. 겹치면 남의 수신함으로 링크가 갈 수 있으므로 막는다.
+      const email = s(body.email, 160).trim().toLowerCase();
+      if (email) {
+        const de = await db.prepare('SELECT id FROM counselors WHERE email = ?').bind(email).first();
+        if (de) return json({ error: '이미 쓰이는 이메일입니다' }, 409, cors);
+      }
       const newCode = makeCode();
       await db.prepare(
-        `INSERT INTO counselors (id, name, hospital, code, available, busy_until, active, created)
-         VALUES (?,?,?,?,0,0,1,?)`
-      ).bind(id, name, s(body.hospital, 120), newCode, nowMs()).run();
-      return json({ ok: true, id, name, code: newCode }, 200, cors);
+        `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created)
+         VALUES (?,?,?,?,?,0,0,1,?)`
+      ).bind(id, name, s(body.hospital, 120), email || null, newCode, nowMs()).run();
+      return json({ ok: true, id, name, email, code: newCode }, 200, cors);
+    }
+
+    // 이메일 등록·변경. 바꾸면 이전 세션을 전부 끊는다 —
+    //  주소가 바뀌었다는 건 담당자가 바뀌었을 수 있다는 뜻이다.
+    if (path === '/admin/counselors/email' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      const email = s(body.email, 160).trim().toLowerCase();
+      if (!email) return json({ error: '이메일이 비었습니다' }, 400, cors);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: '형식이 올바르지 않습니다' }, 400, cors);
+      const de = await db.prepare('SELECT id FROM counselors WHERE email = ? AND id != ?')
+        .bind(email, id).first();
+      if (de) return json({ error: '이미 쓰이는 이메일입니다' }, 409, cors);
+      await db.prepare('UPDATE counselors SET email = ? WHERE id = ?').bind(email, id).run();
+      await db.prepare('DELETE FROM sessions WHERE counselor_id = ?').bind(id).run();
+      return json({ ok: true, email }, 200, cors);
     }
 
     if (path === '/admin/counselors/rotate' && method === 'POST') {

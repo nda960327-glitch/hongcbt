@@ -79,15 +79,19 @@ window.Admin = {
   async addCounselor() {
     const name = (document.getElementById('ac-name') || {}).value || '';
     const hospital = (document.getElementById('ac-hosp') || {}).value || '';
+    const email = ((document.getElementById('ac-mail') || {}).value || '').trim();
     let id = ((document.getElementById('ac-id') || {}).value || '').trim();
     if (!name.trim()) { window.UI.alert('상담사 이름을 적어주세요'); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      window.UI.alert('이메일 형식이 올바르지 않아요'); return;
+    }
     if (!id) id = 'c' + Date.now().toString(36).slice(-6);   // 안 적으면 자동
     const r = await window.Api.json('/api/admin/counselors', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim() })
+      body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim(), email })
     });
     if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '추가하지 못했어요'); return; }
-    ['ac-name', 'ac-hosp', 'ac-id'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
+    ['ac-name', 'ac-hosp', 'ac-mail', 'ac-id'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
     this._showCode[r.id] = true;
     if (window.Sfx) window.Sfx.hit('levelup');
     await this.loadCounselors();
@@ -163,6 +167,44 @@ window.Admin = {
     this.loadCounselors();
   },
 
+  // 이메일 등록·변경 → 이후로는 상담사가 스스로 링크를 받아 들어온다
+  async setEmail(id, name, current) {
+    const v = await window.UI.prompt({
+      title: `${name} 선생님 이메일`,
+      body: current
+        ? '바꾸면 지금 로그인돼 있는 기기가 모두 로그아웃됩니다.'
+        : '등록하면 상담사가 이 주소로 로그인 링크를 받을 수 있어요.',
+      value: current || '', placeholder: 'name@example.com',
+      inputType: 'email', okLabel: '저장'
+    });
+    if (v === null) return;
+    const r = await window.Api.json('/api/admin/counselors/email', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id, email: (v || '').trim() })
+    });
+    if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
+    if (window.App) window.App.showRecordToast('이메일을 저장했어요');
+    this.loadCounselors();
+  },
+
+  // 운영자가 대신 링크를 쏴 준다 (상담사가 로그인 화면을 못 찾을 때)
+  async sendLink(id, name, email) {
+    if (!email) { window.UI.alert('먼저 이메일을 등록해주세요'); return; }
+    const r = await window.Api.json('/api/auth/request', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const st = await window.Api.json('/api/stats?code=' + encodeURIComponent(this.code()));
+    if (st && st.mailReady === false) {
+      window.UI.alert({
+        title: '메일 발송이 아직 설정되지 않았어요',
+        body: '도메인과 발송 키(RESEND_API_KEY · MAIL_FROM)를 넣으면 바로 동작합니다.\n그전까지는 [안내문]의 열람 코드로 접속을 안내해주세요.'
+      });
+      return;
+    }
+    window.UI.alert({ title: '로그인 링크를 보냈어요', body: `${email}\n15분 안에 열어달라고 전해주세요.` });
+  },
+
   peekCode(id) { this._showCode[id] = !this._showCode[id]; this.renderCounselorBox(); },
 
   copyCode(code) {
@@ -197,7 +239,13 @@ window.Admin = {
               : '<span style="font-size: 0.64rem; font-weight: 800; color: var(--text-muted); background: var(--bg-secondary); padding: 0.12rem 0.45rem; border-radius: 999px;">부재중</span>')
             : '<span style="font-size: 0.64rem; font-weight: 800; color: #c14a4a; background: #c14a4a1e; padding: 0.12rem 0.45rem; border-radius: 999px;">정지됨</span>'}
         </div>
-        <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.45rem;">
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.35rem;">
+          <span style="flex: 1; min-width: 0; font-size: 0.74rem; color: ${c.email ? 'var(--text-secondary)' : '#c9a227'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${c.email ? esc(c.email) : '이메일 미등록 — 코드로만 접속 가능'}</span>
+          <button onclick="window.Admin.setEmail('${esc(c.id)}','${esc(c.name)}','${esc(c.email || '')}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">${c.email ? '변경' : '등록'}</button>
+          ${c.email ? `<button onclick="window.Admin.sendLink('${esc(c.id)}','${esc(c.name)}','${esc(c.email)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">링크 발송</button>` : ''}
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.35rem;">
           <code style="flex: 1; min-width: 0; font-size: 0.74rem; letter-spacing: 0.02em; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${shown ? esc(c.code) : '••••-••••-••••-••••'}</code>
           <button onclick="window.Admin.peekCode('${esc(c.id)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0.3rem 0.45rem;">${shown ? '가리기' : '보기'}</button>
           ${shown ? `<button onclick="window.Admin.copyCode('${esc(c.code)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.3rem 0.45rem;">복사</button>` : ''}
@@ -219,6 +267,7 @@ window.Admin = {
         <p style="margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">상담사 추가</p>
         <input id="ac-name" placeholder="이름 (예: 김유진 심리상담사)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
         <input id="ac-hosp" placeholder="소속 (예: 연세 마음가득 정신건강의학과)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
+        <input id="ac-mail" type="email" placeholder="이메일 (로그인 링크를 받을 주소)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
         <input id="ac-id" placeholder="ID (비워두면 자동 · 앱 상담사 카드와 맞추려면 c1 등)" style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
         <button class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; font-size: 0.82rem;" onclick="window.Admin.addCounselor()">추가하고 코드 발급</button>
       </div>`;
