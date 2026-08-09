@@ -463,7 +463,10 @@ window.App = {
       window.Storage.markDayActive();
     }
     // 무료 플랜이면 오늘 사용 횟수 차감
-    if (window.Subscription && !window.Subscription.hasAccess()) window.Subscription.bumpChat();
+    if (window.Subscription) {
+      window.Subscription.bumpTurns();   // 구독자도 사용량을 센다 (원가·남용 파악)
+      if (!window.Subscription.hasAccess()) window.Subscription.bumpChat();
+    }
 
     // Display user message
     if (window.Sfx) window.Sfx.play('send');

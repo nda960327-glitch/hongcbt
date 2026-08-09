@@ -10,6 +10,14 @@ window.Subscription = {
   TRIAL_DAYS: 7,
   FREE_DAILY_CHATS: 10, // 비구독자 하루 무료 대화 횟수 (체험 종료 후)
 
+  // 구독은 '무제한'이지만 실제로는 한계가 있다.
+  //  실측: 한 턴 3.17원 + 기억 정리. 하루 84턴을 넘으면 그 사람은 구독료보다
+  //  많이 쓴다. 상한이 아예 없으면 악의적 사용에도 무방비다.
+  //  그래서 막지 않고 '권하는' 선을 둔다 — 마음 앱에서 문을 닫아버리면
+  //  가장 필요한 사람을 밀어내는 셈이라, 넘어도 대화는 계속된다.
+  SOFT_DAILY: 200,      // 이 선을 넘으면 한 번 안내한다
+  HARD_DAILY: 400,      // 여기서는 잠시 쉬어가기를 권한다 (자동 남용 방어)
+
   init() {
     // 첫 실행 시점부터 체험 시작
     if (!window.Storage._safeGet('cbt_trial_start', null)) {
@@ -88,8 +96,35 @@ window.Subscription = {
   },
 
   // 챗봇 진입 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+  // 구독자도 오늘 몇 턴 썼는지는 센다 (예전엔 무료 사용자만 셌다)
+  todayTurns() {
+    const d = window.Storage._safeGet('cbt_turns_today', null);
+    return (d && d.date === this._todayKey()) ? d.n : 0;
+  },
+  bumpTurns() {
+    const key = this._todayKey();
+    const d = window.Storage._safeGet('cbt_turns_today', null);
+    const n = (d && d.date === key) ? d.n + 1 : 1;
+    window.Storage._safeSet('cbt_turns_today', { date: key, n });
+    return n;
+  },
+
   guardChat() {
-    if (this.hasAccess()) return true;
+    if (this.hasAccess()) {
+      const n = this.todayTurns();
+      // 아주 많이 쓴 날 — 막지는 않되 한 번은 알린다
+      if (n === this.SOFT_DAILY && window.App && window.App.showRecordToast) {
+        window.App.showRecordToast('오늘 이야기 많이 나눴네요. 우렁이는 계속 여기 있어요');
+      }
+      if (n >= this.HARD_DAILY) {
+        window.UI && window.UI.alert({
+          title: '오늘은 여기까지 하고 쉬어갈까요',
+          body: '오늘 정말 많이 이야기했어요.\n조금 쉬었다가 내일 다시 만나요.\n\n지금 많이 힘들다면 혼자 견디지 마세요 — 자살예방상담 109 (24시간).'
+        });
+        return false;
+      }
+      return true;
+    }
     if (this.chatLeft() > 0) return true;
     this.showPaywall('chat');
     return false;

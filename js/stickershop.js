@@ -152,7 +152,10 @@ window.StickerShop = {
     const App = window.App;
     if (!App) return;
     this.closeDrawer();
-    if (window.Subscription && !window.Subscription.hasAccess()) window.Subscription.bumpChat();
+    if (window.Subscription) {
+      window.Subscription.bumpTurns();   // 구독자도 사용량을 센다 (원가·남용 파악)
+      if (!window.Subscription.hasAccess()) window.Subscription.bumpChat();
+    }
     const label = (window.Stickers && window.Stickers.labels[name]) || name;
 
     if (window.Storage) {

@@ -93,7 +93,9 @@ window.Mail = {
     try {
       const memory = (this._S().getUserMemory && this._S().getUserMemory()) || '';
       const res = await window.LLM._chatCompletion({
-        model: window.LLM.MEMORY_MODEL,
+        // 손편지는 우렁이 목소리가 가장 진하게 드러나는 자리다.
+        //  월 4통이라 상위 모델을 써도 41원 — 여기는 아끼지 않는다.
+        model: window.LLM.MODEL_HIGH,
         messages: [{ role: 'user', content: `당신은 '우렁이' — 하찮고 뚱뚱하지만 마음은 대왕인 달팽이 상담사입니다. 사용자가 우표를 붙여 손편지를 보내왔습니다. 답장을 쓰세요.
 
 [우렁이 말투]

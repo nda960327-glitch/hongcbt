@@ -30,6 +30,62 @@ const MAX_TTS_CHARS = 2000;
 
 import { handleMarket } from "./market.js";
 
+// ── 남용 방어 ───────────────────────────────────────────────────────────
+//  이 Worker 는 인증이 없다. 주소가 앱 JS 안에 그대로 있으니 누구나 긁어서
+//  OpenAI 크레딧을 태울 수 있다. 공개 프록시는 발견되면 하루 만에 털린다.
+//  계정을 요구하는 건 '가입 없음' 원칙과 충돌하므로 세 겹으로 막는다.
+const LIMIT = {
+  ip: 600,        // 한 IP 하루 (가족·공용 와이파이·통신사 NAT 를 감안해 넉넉히)
+  client: 400,    // 한 기기 하루 (앱의 HARD_DAILY 와 같은 선)
+  all: 300000     // 전체 하루 — 마지막 안전판. 이걸 넘으면 뭔가 잘못된 것이다
+};
+
+const utcDay = () => new Date().toISOString().slice(0, 10);
+
+// 세 카운터를 '한 번의 배치'로 올린다.
+//  처음에는 Promise.all 로 세 개를 동시에 던졌는데, D1 은 같은 연결에 동시 쓰기가
+//  들어오면 일부가 실패한다. 그 예외가 catch 로 삼켜져 방어가 통째로 무력화됐다
+//  (401번째 요청이 그대로 통과했다). batch 는 한 트랜잭션이라 이런 일이 없다.
+const UPSERT =
+  `INSERT INTO usage (day, kind, key, n, first, last) VALUES (?,?,?,1,?,?)
+   ON CONFLICT(day, kind, key) DO UPDATE SET n = n + 1, last = excluded.last
+   RETURNING n`;
+
+async function bumpAll(db, pairs) {
+  const day = utcDay(), t = Date.now();
+  const res = await db.batch(pairs.map(([kind, key]) =>
+    db.prepare(UPSERT).bind(day, kind, String(key).slice(0, 80), t, t)));
+  return res.map(r => {
+    const rows = r && (r.results || r);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    return (row && row.n) || 0;
+  });
+}
+
+async function noteBlock(db, kind, key, n) {
+  try {
+    await db.prepare('INSERT INTO blocks (id, day, kind, key, n, ts) VALUES (?,?,?,?,?,?)')
+      .bind('bk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+            utcDay(), kind, String(key).slice(0, 80), n, Date.now()).run();
+  } catch (e) {}
+}
+
+// 통과하면 null, 막아야 하면 이유를 돌려준다
+async function abuseCheck(request, env, body) {
+  if (!env.DB) return null;                    // DB 가 없으면 막지 않는다(서비스 우선)
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const client = String((body && body.clientId) || '').slice(0, 64) || 'anon';
+  try {
+    const [nAll, nIp, nClient] = await bumpAll(env.DB, [
+      ['all', 'total'], ['ip', ip], ['client', client]
+    ]);
+    if (nAll > LIMIT.all)       { await noteBlock(env.DB, 'all', 'total', nAll);   return 'all'; }
+    if (nIp > LIMIT.ip)         { await noteBlock(env.DB, 'ip', ip, nIp);          return 'ip'; }
+    if (nClient > LIMIT.client) { await noteBlock(env.DB, 'client', client, nClient); return 'client'; }
+  } catch (e) { return null; }                 // 집계 실패로 서비스를 멈추지는 않는다
+  return null;
+}
+
 export default {
   async fetch(request, env) {
     const origin = env.ALLOWED_ORIGIN || "*";
@@ -58,6 +114,15 @@ export default {
     let body;
     try { body = await request.json(); }
     catch { return json({ error: "Bad JSON" }, 400, cors); }
+
+    // AI 호출만 사용량을 센다 (마켓 API 는 위에서 이미 돌아갔다)
+    const blocked = await abuseCheck(request, env, body);
+    if (blocked) {
+      const msg = blocked === 'client'
+        ? "오늘은 여기까지 하고 쉬어가요. 내일 다시 만나요."
+        : "지금 요청이 몰리고 있어요. 잠시 후 다시 시도해주세요.";
+      return json({ error: { message: msg, reason: blocked } }, 429, cors);
+    }
 
     return path === "/tts" ? handleTts(body, env, cors) : handleChat(body, env, cors);
   },
