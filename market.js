@@ -646,6 +646,80 @@ export async function handleMarket(request, env, cors, path) {
     }, 200, cors);
   }
 
+  // ── 입점 신청 ───────────────────────────────────────────────────────
+  //  신청서가 기기 안에만 있어서, 다른 폰에서 신청하면 운영자 콘솔에
+  //  아무것도 안 떴다. 서버로 옮긴다.
+  if (path === '/apply' && method === 'POST') {
+    const clientId = s(body.clientId, MAX.id);
+    const name = s(body.name).trim();
+    if (!clientId || !name) return json({ error: '이름을 확인해주세요' }, 400, cors);
+    const acct = s(body.bankNo, 40).replace(/[^0-9-]/g, '');
+    if (!s(body.bank, 40).trim() || !acct || !s(body.bankHolder, 40).trim()) {
+      return json({ error: '정산 계좌를 모두 적어주세요' }, 400, cors);
+    }
+    // 같은 기기에서 심사 중인 신청이 이미 있으면 막는다 (중복 접수 방지)
+    const dup = await db.prepare(
+      "SELECT id FROM applications WHERE client_id = ? AND status = 'pending'").bind(clientId).first();
+    if (dup) return json({ error: '이미 심사 중인 신청이 있어요' }, 409, cors);
+
+    const id = rid('ca');
+    let tags = '[]';
+    try { tags = JSON.stringify((Array.isArray(body.tags) ? body.tags : []).map(x => s(x, 20)).slice(0, 3)); } catch (e) {}
+    await db.prepare(
+      `INSERT INTO applications
+       (id, client_id, name, license, career, price, intro, hospital, addr, tel, email,
+        tags, photo, bank, bank_no, bank_holder, status, ts)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`
+    ).bind(id, clientId, name, s(body.license, 80), s(body.career, 20),
+      num(body.price), s(body.intro, 600), s(body.hospital, 120), s(body.addr, 200),
+      s(body.tel, 40), s(body.email, 160).toLowerCase(), tags,
+      s(body.photo, 200000) || null,           // 256px 리사이즈본이라 넉넉히
+      s(body.bank, 40), acct, s(body.bankHolder, 40), nowMs()).run();
+    return json({ ok: true, id }, 200, cors);
+  }
+
+  if (path === '/apply' && method === 'GET') {
+    if (isAdmin(env, code)) {
+      const r = await db.prepare('SELECT * FROM applications ORDER BY ts DESC LIMIT 200').all();
+      return json({ items: (r.results || []).map(a => rowApp(a, true)), scope: 'admin' }, 200, cors);
+    }
+    const cid = s(q('clientId'), MAX.id);
+    if (!cid) return json({ items: [] }, 200, cors);
+    const r = await db.prepare(
+      'SELECT * FROM applications WHERE client_id = ? ORDER BY ts DESC LIMIT 10').bind(cid).all();
+    return json({ items: (r.results || []).map(a => rowApp(a, false)) }, 200, cors);
+  }
+
+  // 승인 — 상담사 계정을 만들고 코드를 발급한다
+  if (path === '/apply/approve' && method === 'POST') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const id = s(body.id, MAX.id);
+    const a = await db.prepare('SELECT * FROM applications WHERE id = ?').bind(id).first();
+    if (!a) return json({ error: 'not-found' }, 404, cors);
+    if (a.status === 'approved') return json({ error: '이미 승인된 신청입니다' }, 400, cors);
+
+    const cid = 'c' + nowMs().toString(36).slice(-6);
+    const newCode = makeCode();
+    // 신청서에 적힌 계좌를 그대로 상담사 계정으로 옮긴다 (다시 입력하게 하지 않는다)
+    await db.prepare(
+      `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created,
+                               tel, addr, intro, tags, price, license, bank, bank_no, bank_holder, updated)
+       VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(cid, a.name, a.hospital, a.email || null, newCode, nowMs(),
+      a.tel, a.addr, a.intro, a.tags, a.price, a.license,
+      a.bank, a.bank_no, a.bank_holder, nowMs()).run();
+    await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
+      .bind(cid, nowMs(), id).run();
+    return json({ ok: true, counselorId: cid, name: a.name, code: newCode, email: a.email || '' }, 200, cors);
+  }
+
+  if (path === '/apply/reject' && method === 'POST') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    await db.prepare("UPDATE applications SET status='rejected', reject_why=?, decided_at=? WHERE id=?")
+      .bind(s(body.why, 300) || '요건 미충족', nowMs(), s(body.id, MAX.id)).run();
+    return json({ ok: true }, 200, cors);
+  }
+
   // ── 상담사 관리 (운영자만) ──────────────────────────────────────────
   //  터미널 없이 앱에서 다 되게 한다. 상담사 한 명 넣자고 wrangler 를
   //  띄우게 만들면 결국 아무도 관리하지 않는다.
@@ -756,6 +830,20 @@ function payoutOf(price) {
   const pg        = Math.round(p * SPLIT.pg / 100);
   return { gross: p, counselor, hospital, pg, platform: p - counselor - hospital - pg, split: SPLIT };
 }
+
+// 신청서. 계좌는 운영자에게도 마스킹해서만 보낸다 —
+//  심사에 필요한 건 '계좌가 있다'는 사실이지 번호 자체가 아니다.
+//  실제 번호는 승인 시 서버 안에서 상담사 계정으로 바로 옮겨진다.
+const rowApp = (a, admin) => ({
+  id: a.id, name: a.name, license: a.license || '', career: a.career || '',
+  price: a.price || 0, intro: a.intro || '', hospital: a.hospital || '',
+  addr: a.addr || '', tel: a.tel || '', email: a.email || '',
+  tags: safeJson(a.tags, []), photo: a.photo || null,
+  status: a.status, rejectWhy: a.reject_why || '',
+  counselorId: a.counselor_id || '', ts: a.ts, decidedAt: a.decided_at || 0,
+  bank: a.bank_no ? { bank: a.bank || '', holder: a.bank_holder || '', masked: maskAcct(a.bank_no) } : null,
+  ...(admin ? { clientId: a.client_id } : {})
+});
 
 const rowHw = h => ({
   id: h.id, counselorId: h.counselor_id, counselor: h.counselor,
