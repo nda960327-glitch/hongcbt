@@ -68,11 +68,8 @@
       </div>
       <div id="presence-card"></div>
       <div id="settlement"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">내 정보</h2>
       <div id="profile"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">예약 가능 시간</h2>
       <div id="slots"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">정산 계좌</h2>
       <div id="payout"></div>
       <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">예약 일정</h2>
       <div id="schedule"></div>
@@ -451,8 +448,38 @@
     // ====================================================================
     let ME = null;
     const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
-    const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00',
-                   '16:00','17:00','18:00','19:00','20:00','21:00'];
+    // 24시간. 마음이 제일 무너지는 시간은 낮이 아니라 새벽이라, 그 시간대를 막아두면 안 된다.
+    const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0') + ':00');
+    // 24칸 × 7일 = 168개를 하나씩 누르게 하면 아무도 안 쓴다. 묶어서 한 번에 켠다.
+    const BANDS = [
+      { key: 'dawn',  label: '새벽 0-6',  hrs: HOURS.slice(0, 7) },
+      { key: 'morn',  label: '오전 7-11', hrs: HOURS.slice(7, 12) },
+      { key: 'noon',  label: '오후 12-17', hrs: HOURS.slice(12, 18) },
+      { key: 'night', label: '저녁 18-23', hrs: HOURS.slice(18, 24) }
+    ];
+
+    // 자주 고칠 일 없는 것들은 접어 둔다. 대신 닫힌 상태에서도
+    //  지금 값이 뭔지는 한 줄로 보이게 한다 — 열어봐야 아는 건 접은 게 아니라 숨긴 것이다.
+    const OPEN = {};   // 열어둔 섹션 기억 (다시 그려도 닫히지 않게)
+    function toggleSection(k) { OPEN[k] = !OPEN[k]; renderProfile(); renderSlots(); renderPayout(); }
+
+    function section(key, title, summary, bodyHtml) {
+      const open = !!OPEN[key];
+      const caret = open
+        ? '<svg width="11" height="11" viewBox="0 0 10 10"><path d="M2 6.5 L5 3.5 L8 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        : '<svg width="11" height="11" viewBox="0 0 10 10"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      return `
+        <div class="card" style="padding:0;">
+          <button onclick="toggleSection('${key}')"
+            style="all:unset; display:flex; align-items:center; gap:0.5rem; width:100%; box-sizing:border-box;
+                   cursor:pointer; padding:0.85rem 1.1rem;">
+            <strong style="font-size:0.92rem;">${title}</strong>
+            <span class="muted" style="flex:1; font-size:0.78rem; text-align:right;">${summary}</span>
+            <span style="color:var(--sub); line-height:0;">${caret}</span>
+          </button>
+          ${open ? `<div style="padding:0 1.1rem 1.1rem; border-top:1px solid var(--line);">${bodyHtml}</div>` : ''}
+        </div>`;
+    }
 
     async function loadMe() {
       const d = await api('/api/me?' + authQS()).then(r => r.ok ? r.json() : null).catch(() => null);
@@ -470,9 +497,10 @@
           <input id="${id}" type="${type || 'text'}" value="${esc(String(val == null ? '' : val))}"
                  placeholder="${ph || ''}" style="text-align:left; margin-top:0.2rem;">
         </label>`;
-      el.innerHTML = `
-        <div class="card">
-          <p class="muted" style="margin:0 0 0.7rem;">이름과 자격은 검수를 거친 값이라 운영자만 바꿀 수 있어요.
+      const sum = [ME.hospital || '소속 미입력',
+                   (ME.price || 0).toLocaleString() + '원'].join(' · ');
+      el.innerHTML = section('profile', '내 정보', sum, `
+          <p class="muted" style="margin:0.8rem 0 0.7rem;">이름과 자격은 검수를 거친 값이라 운영자만 바꿀 수 있어요.
             바뀐 게 있으면 알려주세요.</p>
           <p style="font-weight:700; margin:0 0 0.6rem;">${esc(ME.name)}
             <span class="muted" style="font-weight:500;">${esc(ME.email || '이메일 미등록')}</span></p>
@@ -489,8 +517,7 @@
                      border:1px solid var(--line); border-radius:12px; font-family:inherit;
                      font-size:0.9rem; resize:vertical;">${esc(ME.intro)}</textarea>
           </label>
-          <button class="btn" id="pf-save" onclick="saveProfile()">저장</button>
-        </div>`;
+          <button class="btn" id="pf-save" onclick="saveProfile()">저장</button>`);
     }
 
     async function saveProfile() {
@@ -517,36 +544,57 @@
       const el = document.getElementById('slots');
       if (!ME) { el.innerHTML = ''; return; }
       const sel = ME.slots || {};
+      const chip = (label, fn, on) => `<button onclick="${fn}"
+        style="all:unset; cursor:pointer; font-size:0.68rem; font-weight:700; padding:0.22rem 0.5rem;
+               border-radius:999px; border:1px solid ${on ? 'var(--accent)' : 'var(--line)'};
+               background:${on ? 'var(--accent)' : 'transparent'}; color:${on ? '#fff' : 'var(--sub)'};">${label}</button>`;
+
       const grid = DAYS.map((dn, d) => {
         const on = sel[d] || sel[String(d)] || [];
-        return `<div style="margin-bottom:0.55rem;">
-          <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
-            <strong style="font-size:0.82rem; width:1.4rem;">${dn}</strong>
-            <button class="btn ghost" style="width:auto; margin:0; padding:0.2rem 0.5rem; font-size:0.7rem;"
-              onclick="toggleDay(${d})">${on.length ? '비우기' : '평일 기본'}</button>
-            <span class="muted" style="font-size:0.72rem;">${on.length ? on.length + '칸' : '쉼'}</span>
+        const bandRows = BANDS.map(b => {
+          const allOn = b.hrs.every(h => on.includes(h));
+          return `<div style="display:flex; align-items:center; gap:0.3rem; margin-bottom:0.22rem;">
+            <button onclick="toggleBand(${d},'${b.key}')" title="${b.label} 전체"
+              style="all:unset; cursor:pointer; flex-shrink:0; width:4.6rem; font-size:0.66rem; font-weight:700;
+                     color:${allOn ? 'var(--accent)' : 'var(--sub)'};">${b.label}</button>
+            <div style="display:flex; flex-wrap:wrap; gap:0.2rem;">
+              ${b.hrs.map(h => `<button onclick="toggleSlot(${d},'${h}')"
+                style="all:unset; cursor:pointer; font-size:0.67rem; padding:0.2rem 0.34rem; border-radius:6px;
+                       border:1px solid ${on.includes(h) ? 'var(--accent)' : 'var(--line)'};
+                       background:${on.includes(h) ? 'var(--accent)' : 'transparent'};
+                       color:${on.includes(h) ? '#fff' : 'var(--muted)'};">${h.slice(0, 2)}</button>`).join('')}
+            </div>
+          </div>`;
+        }).join('');
+
+        return `<div style="padding:0.5rem 0; border-top:1px solid var(--line);">
+          <div style="display:flex; align-items:center; gap:0.35rem; margin-bottom:0.35rem; flex-wrap:wrap;">
+            <strong style="font-size:0.84rem; width:1.2rem;">${dn}</strong>
+            <span class="muted" style="font-size:0.72rem; flex:1;">${on.length ? on.length + '시간 열림' : '예약 안 받음'}</span>
+            ${chip('전체', `fillDay(${d},'all')`)}
+            ${chip('업무시간', `fillDay(${d},'work')`)}
+            ${chip('비우기', `fillDay(${d},'none')`)}
+            ${chip('이 요일을 전체 요일에', `copyDay(${d})`)}
           </div>
-          <div style="display:flex; flex-wrap:wrap; gap:0.25rem;">
-            ${HOURS.map(h => `<button onclick="toggleSlot(${d},'${h}')"
-              style="all:unset; cursor:pointer; font-size:0.7rem; padding:0.25rem 0.45rem; border-radius:7px;
-                     border:1px solid ${on.includes(h) ? 'var(--accent)' : 'var(--line)'};
-                     background:${on.includes(h) ? 'var(--accent)' : 'transparent'};
-                     color:${on.includes(h) ? '#fff' : 'var(--muted)'};">${h}</button>`).join('')}
-          </div>
+          ${bandRows}
         </div>`;
       }).join('');
-      el.innerHTML = `
-        <div class="card">
-          <p class="muted" style="margin:0 0 0.7rem;">켜 둔 시간에만 내담자가 예약할 수 있어요.
-            비워 두면 그 요일은 예약을 받지 않습니다.</p>
+
+      const total = Object.values(sel).reduce((s, a) => s + (a || []).length, 0);
+      const openDays = Object.keys(sel).filter(k => (sel[k] || []).length).length;
+      el.innerHTML = section('slots', '예약 가능 시간',
+        total ? `${openDays}일 · 주 ${total}시간` : '아직 안 정함',
+        `<p class="muted" style="margin:0.8rem 0 0.5rem;">켜 둔 시간에만 내담자가 예약할 수 있어요.
+            비워 두면 그 요일은 예약을 받지 않습니다. 0시부터 23시까지 고를 수 있어요.</p>
+          <p class="muted" style="margin:0 0 0.6rem;">현재 <b style="color:var(--accent);">주 ${total}시간</b> 열려 있어요.
+            시간대 이름(새벽·오전…)을 누르면 그 구간이 통째로 켜지고 꺼집니다.</p>
           ${grid}
           <label style="display:block; margin:0.6rem 0 0.5rem;">
             <span class="muted" style="font-size:0.76rem;">쉬는 날 (쉼표로 구분, 예: 2026-08-15)</span>
             <input id="sl-off" value="${esc((ME.offdays || []).join(', '))}"
                    placeholder="2026-08-15, 2026-09-01" style="text-align:left; margin-top:0.2rem;">
           </label>
-          <button class="btn" id="sl-save" onclick="saveSlots()">시간표 저장</button>
-        </div>`;
+          <button class="btn" id="sl-save" onclick="saveSlots()">시간표 저장</button>`);
     }
 
     function toggleSlot(d, h) {
@@ -558,11 +606,38 @@
       renderSlots();
     }
 
-    function toggleDay(d) {
+    function _setDay(d, list) {
       ME.slots = ME.slots || {};
-      const cur = ME.slots[d] || ME.slots[String(d)] || [];
       delete ME.slots[String(d)];
-      ME.slots[d] = cur.length ? [] : ['10:00','11:00','14:00','15:00','16:00','17:00'];
+      ME.slots[d] = [...new Set(list)].sort();
+    }
+    function _getDay(d) {
+      ME.slots = ME.slots || {};
+      return ME.slots[d] || ME.slots[String(d)] || [];
+    }
+
+    // 시간대 한 구간을 통째로 켜고 끈다 (하나씩 24번 누르지 않게)
+    function toggleBand(d, key) {
+      const b = BANDS.find(x => x.key === key);
+      if (!b) return;
+      const on = _getDay(d);
+      const allOn = b.hrs.every(h => on.includes(h));
+      _setDay(d, allOn ? on.filter(h => !b.hrs.includes(h)) : on.concat(b.hrs));
+      renderSlots();
+    }
+
+    function fillDay(d, mode) {
+      if (mode === 'all') _setDay(d, HOURS.slice());
+      else if (mode === 'none') _setDay(d, []);
+      else _setDay(d, ['10:00','11:00','14:00','15:00','16:00','17:00','18:00']);
+      renderSlots();
+    }
+
+    // 한 요일을 다 짜고 나면 나머지 요일에 그대로 복사 — 이게 없으면 7번 반복해야 한다
+    function copyDay(d) {
+      const src = _getDay(d).slice();
+      if (!confirm(`${DAYS[d]}요일 시간표를 나머지 요일에도 똑같이 적용할까요?`)) return;
+      for (let i = 0; i <= 6; i++) _setDay(i, src);
       renderSlots();
     }
 
@@ -585,8 +660,10 @@
       const el = document.getElementById('payout');
       if (!ME) { el.innerHTML = ''; return; }
       const p = ME.payout || { set: false };
-      el.innerHTML = `
-        <div class="card">
+      el.innerHTML = section('payout', '정산 계좌',
+        p.set ? `${esc(p.bank)} ${esc(p.masked)}`
+              : '<b style="color:#cf6b60;">미등록 — 정산 보류</b>',
+        `<div style="margin-top:0.8rem;"></div>
           ${p.set
             ? `<p style="margin:0 0 0.6rem;"><b>${esc(p.bank)}</b> ${esc(p.masked)}
                  <span class="muted">· 예금주 ${esc(p.holder)}</span></p>
@@ -600,8 +677,7 @@
           <button class="btn" id="po-save" onclick="savePayout()" style="margin-top:0.5rem;">계좌 저장</button>
           <p class="muted" style="margin:0.6rem 0 0; font-size:0.76rem; line-height:1.7;">
             정산 비율 — 상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%<br>
-            계좌 정보는 정산 목적으로만 쓰이며 내담자에게는 절대 보이지 않습니다.</p>
-        </div>`;
+            계좌 정보는 정산 목적으로만 쓰이며 내담자에게는 절대 보이지 않습니다.</p>`);
     }
 
     async function savePayout() {

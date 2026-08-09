@@ -457,7 +457,8 @@ export async function handleMarket(request, env, cors, path) {
       const list = Array.isArray(src[d]) ? src[d] : (Array.isArray(src[String(d)]) ? src[String(d)] : []);
       const ok = [...new Set(list.map(x => String(x))
         .filter(x => /^([01]\d|2[0-3]):(00|30)$/.test(x)))].sort();
-      if (ok.length) clean[d] = ok.slice(0, 24);
+      // 0~23시를 모두 열 수 있어야 한다(24칸). 30분 단위로 넓힐 여지까지 두고 48.
+      if (ok.length) clean[d] = ok.slice(0, 48);
     }
     const off = [...new Set((Array.isArray(body.offdays) ? body.offdays : [])
       .map(x => String(x)).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].slice(0, 120);
