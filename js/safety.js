@@ -21,9 +21,9 @@ window.Safety = {
   },
 
   // 위기 모달 등에서: 있으면 열람, 없으면 작성 제안
-  open() {
+  async open() {
     if (this.has()) this.view();
-    else if (confirm('아직 안전 계획이 없어요.\n\n괜찮은 지금 미리 적어두면, 마음이 무너지는 순간 큰 힘이 돼요.\n지금 함께 만들어볼까요? (3분)')) this.edit();
+    else if (await window.UI.confirm('아직 안전 계획이 없어요.\n\n괜찮은 지금 미리 적어두면, 마음이 무너지는 순간 큰 힘이 돼요.\n지금 함께 만들어볼까요? (3분)')) this.edit();
   },
 
   // === 작성/수정 ===

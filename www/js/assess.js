@@ -162,7 +162,7 @@ window.Assess = {
   // 대시보드에 놓는 상태 카드. 준비됐을 때만 눈에 띈다.
   // 카드 버튼이 실제로 하는 일. 라벨과 동작이 어긋나면 안 된다 —
   //  "그래도 만들기" 를 눌렀는데 화면만 열리고 끝나면 눌린 게 아니라고 느낀다.
-  // 생성 전 확인 팝업. confirm() 은 문구가 길면 읽히지 않아 직접 그린다.
+  // 생성 전 확인 팝업. await window.UI.confirm() 은 문구가 길면 읽히지 않아 직접 그린다.
   //  items: [{icon, title, body}] · onOk: 진행
   confirmSheet(o) {
     const old = document.getElementById('assess-confirm');
@@ -762,12 +762,12 @@ window.Assess = {
 
   // 2주 케어플랜이 끝나면 같은 도구로 다시 잰다.
   //  같은 척도로 재야 비교가 되므로 새 문항을 만들지 않는다 — 그게 변화 측정의 전부다.
-  startRetest() {
+  async startRetest() {
     const prev = this._S()._safeGet('cbt_assess_history', []) || [];
     const msg = prev.length
       ? '같은 검진(PHQ-9·GAD-7)을 다시 받습니다.\n\n2주 전과 같은 문항이라야 무엇이 달라졌는지 비교할 수 있어요. 5분이면 끝나요.'
       : '표준 검진(PHQ-9·GAD-7)을 시작합니다. 5분이면 끝나요.';
-    if (!confirm(msg)) return;
+    if (!await window.UI.confirm(msg)) return;
     if (window.App) window.App.switchTab('dashboard');
     this.open();
     this.openQuiz();
@@ -777,7 +777,7 @@ window.Assess = {
     const map = { ...this._qmap };
     const missing = this._flat().filter(q => map[q.id] == null);
     if (missing.length > 0) {
-      alert(`${missing.length}개 문항이 남았어요. 이어서 답해주세요.`);
+      window.UI.alert(`${missing.length}개 문항이 남았어요. 이어서 답해주세요.`);
       this._qi = this._flat().findIndex(q => map[q.id] == null);
       this._renderQ();
       return;
@@ -833,16 +833,16 @@ window.Assess = {
       box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     if (level >= 2) {
-      alert(`${COPY.t}\n\n${COPY.d}\n\n자살예방상담 109 (24시간)\n정신건강상담 1577-0199`);
+      window.UI.alert(`${COPY.t}\n\n${COPY.d}\n\n자살예방상담 109 (24시간)\n정신건강상담 1577-0199`);
     }
   },
 
   // 상담사에게 전송 / 삭제
-  sendToCounselor(id) {
+  async sendToCounselor(id) {
     const r = this.report(id);
     if (!r) return;
     const j = r.json || {};
-    if (!confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
+    if (!await window.UI.confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
     const lines = [
       '[우렁의사 AI 마음 리포트 · 참고용 — 진단 아님]',
       r.date,
@@ -857,16 +857,16 @@ window.Assess = {
       navigator.share({ title: 'AI 마음 리포트', text: lines }).catch(() => {});
     } else {
       try { navigator.clipboard.writeText(lines); } catch (e) {}
-      alert('리포트 요약을 복사했어요. 상담사에게 붙여넣어 전달하세요.');
+      window.UI.alert('리포트 요약을 복사했어요. 상담사에게 붙여넣어 전달하세요.');
       return;
     }
     if (window.App) window.App.showRecordToast('상담사에게 리포트를 보냈어요');
   },
 
-  deleteReport(id) {
+  async deleteReport(id) {
     const r = this.report(id);
     if (!r) return;
-    if (!confirm('이 리포트를 삭제할까요?\n되돌릴 수 없어요. (사용한 캐시는 환불되지 않습니다)')) return;
+    if (!await window.UI.confirm('이 리포트를 삭제할까요?\n되돌릴 수 없어요. (사용한 캐시는 환불되지 않습니다)')) return;
     this._S()._safeSet('cbt_assessments', this.reports().filter(x => x.id !== id));
     if (window.App) window.App.showRecordToast('리포트를 삭제했어요');
     this.render();
@@ -925,7 +925,7 @@ b{font-weight:800}
     const r = this.report(id);
     if (!r) return;
     const w = window.open('', '_blank');
-    if (!w) { alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+    if (!w) { window.UI.alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
     w.document.write(this._docHtml(r));
     w.document.close();
     setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);

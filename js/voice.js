@@ -99,7 +99,7 @@ window.Voice = {
   // --- STT (음성 인식) ---
   toggleListening() {
     if (!this.recognition) {
-      alert('사용하시는 기기/브라우저가 음성 인식을 지원하지 않거나 권한이 필요합니다.');
+      window.UI.alert('사용하시는 기기/브라우저가 음성 인식을 지원하지 않거나 권한이 필요합니다.');
       return;
     }
     if (this.isListening) {

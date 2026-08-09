@@ -207,15 +207,15 @@ window.Game = {
   // --------------------------------------------------------------------------
   //  스트릭 보호권 — 훈장 화면의 아이템 (씨앗코인 또는 캐시)
   // --------------------------------------------------------------------------
-  buyShieldWithCoins() {
+  async buyShieldWithCoins() {
     const G = window.Growth;
     if (!G || !window.Farm) return;
-    if (G.shields() >= G.SHIELD_MAX) { alert(`보호권은 최대 ${G.SHIELD_MAX}개까지 보관할 수 있어요.`); return; }
+    if (G.shields() >= G.SHIELD_MAX) { window.UI.alert(`보호권은 최대 ${G.SHIELD_MAX}개까지 보관할 수 있어요.`); return; }
     if (window.Farm.coins() < this.SHIELD_COIN_PRICE) {
-      alert(`씨앗코인이 부족해요. (${this.SHIELD_COIN_PRICE}코인 필요)\n농장에서 작물을 수확해보세요.`);
+      window.UI.alert(`씨앗코인이 부족해요. (${this.SHIELD_COIN_PRICE}코인 필요)\n농장에서 작물을 수확해보세요.`);
       return;
     }
-    if (!confirm(`🛡️ 스트릭 보호권 1개를 ${this.SHIELD_COIN_PRICE}코인에 살까요?`)) return;
+    if (!await window.UI.confirm(`🛡️ 스트릭 보호권 1개를 ${this.SHIELD_COIN_PRICE}코인에 살까요?`)) return;
     window.Farm.spendCoins(this.SHIELD_COIN_PRICE);
     window.Storage._safeSet('cbt_streak_shields', G.shields() + 1);
     if (window.Sfx) window.Sfx.hit('shield');

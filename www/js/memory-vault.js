@@ -106,11 +106,11 @@ window.MemoryVault = {
     try {
       data = JSON.parse(this.decrypt(text));
     } catch (e) {
-      alert("기억 파일을 읽을 수 없습니다. 우렁의사에서 내려받은 파일이 맞는지 확인해주세요.");
+      window.UI.alert("기억 파일을 읽을 수 없습니다. 우렁의사에서 내려받은 파일이 맞는지 확인해주세요.");
       return false;
     }
     if (!data || data.version !== 1) {
-      alert("지원하지 않는 기억 파일 형식입니다.");
+      window.UI.alert("지원하지 않는 기억 파일 형식입니다.");
       return false;
     }
     if (data.userMemory !== undefined) window.Storage.setUserMemory(data.userMemory);
@@ -139,7 +139,7 @@ window.MemoryVault = {
     if (Array.isArray(data.favs)) window.Storage._safeSet("cbt_favs", data.favs);
     if (data.stickerPacks) window.Storage._safeSet("cbt_sticker_packs", data.stickerPacks);
     if (data.fontScale) window.Storage._safeSet("cbt_font_scale", data.fontScale);
-    alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
+    window.UI.alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;
   }

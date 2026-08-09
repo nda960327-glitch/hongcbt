@@ -193,31 +193,31 @@ window.Closet = {
     return true;
   },
 
-  buy(id) {
+  async buy(id) {
     const it = this.item(id);
     if (!it || this.has(id)) return;
     const lv = (window.Growth && window.Growth.level) ? window.Growth.level() : 1;
     if (it.lv && lv < it.lv) {
       if (window.Sfx) window.Sfx.hit('denied');
-      alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${lv})`);
+      window.UI.alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${lv})`);
       return;
     }
-    if (it.quest) { alert(`'${it.name}'은(는) 살 수 없어요.\n${it.quest} 받을 수 있어요.`); return; }
+    if (it.quest) { window.UI.alert(`'${it.name}'은(는) 살 수 없어요.\n${it.quest} 받을 수 있어요.`); return; }
 
     if (it.cash) {
       if (!window.Wallet || window.Wallet.balance() < it.cash) {
-        alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+        window.UI.alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
         return;
       }
-      if (!confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
+      if (!await window.UI.confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
       window.Wallet.spend(it.cash, `옷장 · ${it.name}`);
     } else {
       const coins = window.Farm ? window.Farm.coins() : 0;
       if (coins < it.price) {
-        alert(`씨앗코인이 부족해요. (${it.price}코인 필요 · 지금 ${coins}코인)\n밭에서 작물을 키워 수확해보세요.`);
+        window.UI.alert(`씨앗코인이 부족해요. (${it.price}코인 필요 · 지금 ${coins}코인)\n밭에서 작물을 키워 수확해보세요.`);
         return;
       }
-      if (!confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
+      if (!await window.UI.confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
       window.Farm.spendCoins(it.price);
     }
 

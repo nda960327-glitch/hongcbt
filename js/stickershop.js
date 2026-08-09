@@ -48,12 +48,12 @@ window.StickerShop = {
     return !!this.owned()[packId];
   },
 
-  buy(packId) {
+  async buy(packId) {
     const pack = this.PACKS.find(p => p.id === packId);
     if (!pack || this.has(packId)) return;
-    if (!confirm(`'${pack.emoji} ${pack.name}' (${pack.stickers.length}종)을\n${pack.price.toLocaleString()}캐시로 구매할까요?\n구매한 이모티콘은 채팅에서 계속 쓸 수 있어요.`)) return;
+    if (!await window.UI.confirm(`'${pack.emoji} ${pack.name}' (${pack.stickers.length}종)을\n${pack.price.toLocaleString()}캐시로 구매할까요?\n구매한 이모티콘은 채팅에서 계속 쓸 수 있어요.`)) return;
     if (!window.Wallet || !window.Wallet.spend(pack.price, `이모티콘 '${pack.name}' 구매`)) {
-      alert(`캐시가 부족해요. (${pack.price.toLocaleString()}캐시 필요)\n마이페이지에서 충전해주세요.`);
+      window.UI.alert(`캐시가 부족해요. (${pack.price.toLocaleString()}캐시 필요)\n마이페이지에서 충전해주세요.`);
       return;
     }
     const o = this.owned();

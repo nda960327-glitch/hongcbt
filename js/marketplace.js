@@ -388,11 +388,11 @@
 
   isHidden(cid, r) { return !!this._hidden()[this.reviewKey(cid, r)]; },
 
-  reportReview(cid, key) {
-    const reason = prompt('이 후기를 신고하는 이유를 적어주세요.\n(욕설·허위·광고·개인정보 노출 등)');
+  async reportReview(cid, key) {
+    const reason = await window.UI.prompt('이 후기를 신고하는 이유를 적어주세요.\n(욕설·허위·광고·개인정보 노출 등)');
     if (reason === null) return;
     const reports = this._reports();
-    if (reports.some(x => x.key === key)) { alert('이미 신고된 후기예요. 검토 중입니다.'); return; }
+    if (reports.some(x => x.key === key)) { window.UI.alert('이미 신고된 후기예요. 검토 중입니다.'); return; }
     const c = this.all().find(x => x.id === cid);
     const all = c ? this.allReviews(c) : [];
     const r = all.find(x => this.reviewKey(cid, x) === key) || {};

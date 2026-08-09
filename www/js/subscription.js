@@ -110,7 +110,7 @@ window.Subscription = {
   // 구독 결제 — 실서비스에서는 이 함수가 Google Play 구독 결제 호출로 바뀐다
   subscribe() {
     if (!window.Wallet || !window.Wallet.spend(this.PRICE, '우렁의사 월 구독')) {
-      alert(`캐시가 부족해요. (월 구독 ${this.PRICE.toLocaleString()}원)\n마이페이지에서 충전 후 다시 시도해주세요.`);
+      window.UI.alert(`캐시가 부족해요. (월 구독 ${this.PRICE.toLocaleString()}원)\n마이페이지에서 충전 후 다시 시도해주세요.`);
       const m = document.getElementById('sub-paywall-modal');
       if (m) m.classList.add('hidden');
       if (window.App) window.App.switchTab('mypage');
@@ -120,7 +120,7 @@ window.Subscription = {
     window.Storage._safeSet('cbt_sub_until', base + 30 * 86400000);
     const m = document.getElementById('sub-paywall-modal');
     if (m) m.classList.add('hidden');
-    alert(`구독이 시작되었습니다! 🎉\n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
+    window.UI.alert(`구독이 시작되었습니다! 🎉\n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
     this.renderCard();
     this.renderBadge();
   },

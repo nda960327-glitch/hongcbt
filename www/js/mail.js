@@ -20,12 +20,12 @@ window.Mail = {
   buyStamp(useCash) {
     if (useCash) {
       if (!window.Wallet || !window.Wallet.spend(this.STAMP_CASH, '달팽이 우표 1장')) {
-        alert(`우렁 캐시가 부족해요. (우표 1장 = ${this.STAMP_CASH}캐시)`);
+        window.UI.alert(`우렁 캐시가 부족해요. (우표 1장 = ${this.STAMP_CASH}캐시)`);
         return;
       }
     } else {
       if (!window.Farm || !window.Farm.spendCoins(this.STAMP_COIN)) {
-        alert(`씨앗코인이 부족해요. (우표 1장 = ${this.STAMP_COIN}코인)\n농장에서 작물을 수확해보세요.`);
+        window.UI.alert(`씨앗코인이 부족해요. (우표 1장 = ${this.STAMP_COIN}코인)\n농장에서 작물을 수확해보세요.`);
         return;
       }
     }
@@ -39,9 +39,9 @@ window.Mail = {
   // --------------------------------------------------------------------------
   //  편지 쓰기
   // --------------------------------------------------------------------------
-  openWrite() {
+  async openWrite() {
     if (this.stamps() <= 0) {
-      if (confirm(`편지를 보내려면 🪶우표가 필요해요.\n\n우표 1장을 살까요? (🌰${this.STAMP_COIN}코인)`)) this.buyStamp(false);
+      if (await window.UI.confirm(`편지를 보내려면 🪶우표가 필요해요.\n\n우표 1장을 살까요? (🌰${this.STAMP_COIN}코인)`)) this.buyStamp(false);
       if (this.stamps() <= 0) return;
     }
     const old = document.getElementById('mail-write-overlay');
@@ -67,8 +67,8 @@ window.Mail = {
   send() {
     const ta = document.getElementById('mail-write-text');
     const text = ta ? ta.value.trim() : '';
-    if (!text) { alert('편지 내용을 적어주세요.'); return; }
-    if (this.stamps() <= 0) { alert('우표가 없어요.'); return; }
+    if (!text) { window.UI.alert('편지 내용을 적어주세요.'); return; }
+    if (this.stamps() <= 0) { window.UI.alert('우표가 없어요.'); return; }
 
     this._setStamps(this.stamps() - 1);
     const b = this.box();

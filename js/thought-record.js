@@ -447,8 +447,8 @@ window.ThoughtRecord = {
     }
   },
   
-  deleteRecord(id) {
-    if (confirm('이 기록을 삭제하시겠습니까?')) {
+  async deleteRecord(id) {
+    if (await window.UI.confirm('이 기록을 삭제하시겠습니까?')) {
       window.Storage.deleteThoughtRecord(id);
       this.loadRecords();
     }
@@ -504,12 +504,12 @@ window.ThoughtRecord = {
     localStorage.removeItem('cbt_wiz_draft');
   },
 
-  startWizard(prefilled = {}) {
+  async startWizard(prefilled = {}) {
     // 새로 쓰기인데 쓰다 만 초안이 있으면 이어쓰기 제안
     if (!prefilled.editId && !prefilled.situation && !prefilled.thought) {
       const d = window.Storage._safeGet('cbt_wiz_draft', null);
       if (d && d.wiz && Date.now() - d.ts < 24 * 3600000) {
-        if (confirm('✍️ 쓰다 만 사고 기록이 있어요.\n이어서 쓸까요? (취소하면 새로 시작하고 초안은 지워져요)')) {
+        if (await window.UI.confirm('✍️ 쓰다 만 사고 기록이 있어요.\n이어서 쓸까요? (취소하면 새로 시작하고 초안은 지워져요)')) {
           this._wiz = d.wiz;
           this._wizStep(d.step || 1);
           return;
@@ -546,7 +546,7 @@ window.ThoughtRecord = {
     if (ta) setTimeout(() => ta.focus(), 150);
   },
 
-  _wizClose() {
+  async _wizClose() {
     const w = this._wiz || {};
     // 닫기 직전 화면의 타이핑까지 초안에 담는다
     const ta = document.getElementById('trw-input');
@@ -559,7 +559,7 @@ window.ThoughtRecord = {
     const hasContent = (w.situation || w.thought) && !w._saved;
     if (hasContent) {
       // 초안이 저장돼 있으니 안심하고 닫아도 된다는 안내
-      if (!confirm('그만 쓸까요?\n(쓰던 내용은 초안으로 저장돼요 — 다음에 [+ 새 기록]을 누르면 이어쓸 수 있어요)')) return;
+      if (!await window.UI.confirm('그만 쓸까요?\n(쓰던 내용은 초안으로 저장돼요 — 다음에 [+ 새 기록]을 누르면 이어쓸 수 있어요)')) return;
       this._saveDraft(this._wizCurStep || 1);
     }
     const ov = document.getElementById('tr-wizard');

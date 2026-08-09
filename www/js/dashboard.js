@@ -298,8 +298,8 @@
     this.openDayDetail(key);
   },
 
-  deleteNight(ts, key) {
-    if (!confirm('이 하루 정리를 삭제할까요?')) return;
+  async deleteNight(ts, key) {
+    if (!await window.UI.confirm('이 하루 정리를 삭제할까요?')) return;
     const j = (window.Storage._safeGet('cbt_night_journal', []) || []).filter(x => x.ts !== ts);
     window.Storage._safeSet('cbt_night_journal', j);
     if (window.Growth) window.Growth.renderNightList();
@@ -573,11 +573,11 @@ ${recent}`;
         if (window.App && window.App.showToast) {
           window.App.showToast('요약 리포트를 클립보드에 복사했어요');
         } else {
-          alert('📋 요약 리포트가 클립보드에 복사되었습니다!');
+          window.UI.alert('📋 요약 리포트가 클립보드에 복사되었습니다!');
         }
       });
     } else {
-      alert('📋 요약 리포트 내용:\n\n' + text);
+      window.UI.alert('📋 요약 리포트 내용:\n\n' + text);
     }
   },
 
@@ -600,8 +600,8 @@ ${recent}`;
     });
   },
 
-  deleteReport(id) {
-    if (!confirm('이 리포트를 삭제할까요?\n(이야기 자체는 우렁이의 기억에 그대로 남아있어요)')) return;
+  async deleteReport(id) {
+    if (!await window.UI.confirm('이 리포트를 삭제할까요?\n(이야기 자체는 우렁이의 기억에 그대로 남아있어요)')) return;
     const reports = this.getMyReports().filter(r => r.id !== id);
     window.Storage._safeSet('cbt_my_reports', reports);
     this.renderMyReports();
@@ -708,7 +708,7 @@ ${recent}`;
       this.renderMyReports();
     } catch (e) {
       loading.remove();
-      alert(e && e.message === 'NO_CHAT'
+      window.UI.alert(e && e.message === 'NO_CHAT'
         ? '요약할 대화가 아직 없어요. 챗봇과 이야기를 나눈 뒤 다시 시도해주세요.'
         : 'AI 요약 생성에 실패했어요. 잠시 후 다시 시도해주세요.');
     }

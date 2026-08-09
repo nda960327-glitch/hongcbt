@@ -45,11 +45,11 @@ window.Homework = {
     return rec;
   },
 
-  complete(id) {
+  async complete(id) {
     const list = this.all();
     const h = list.find(x => x.id === id);
     if (!h || h.doneAt) return;
-    const note = prompt(`"${h.text}"\n\n해보니 어땠는지 한 줄만 적어주세요.\n(상담사에게 그대로 전달돼요 · 비워도 괜찮아요)`);
+    const note = await window.UI.prompt(`"${h.text}"\n\n해보니 어땠는지 한 줄만 적어주세요.\n(상담사에게 그대로 전달돼요 · 비워도 괜찮아요)`);
     if (note === null) return;
     h.doneAt = Date.now();
     h.note = String(note || '').slice(0, 300);

@@ -12,12 +12,12 @@ window.App = {
     const sc = document.getElementById('login-screen');
     if (sc) sc.classList.add('hidden');
     if (provider !== 'guest') {
-      alert(`${names[provider]} 계정으로 시작합니다!\n(정식 출시 시 실제 ${names[provider]} 로그인으로 연결돼요)`);
+      window.UI.alert(`${names[provider]} 계정으로 시작합니다!\n(정식 출시 시 실제 ${names[provider]} 로그인으로 연결돼요)`);
     }
   },
 
-  logout() {
-    if (!confirm('로그아웃할까요? (기기의 대화·기억은 그대로 남아요)')) return;
+  async logout() {
+    if (!await window.UI.confirm('로그아웃할까요? (기기의 대화·기억은 그대로 남아요)')) return;
     localStorage.removeItem('cbt_auth');
     location.reload();
   },
@@ -89,7 +89,7 @@ window.App = {
     if (btnMemExport) {
       btnMemExport.addEventListener('click', () => {
         if (window.MemoryVault && window.MemoryVault.exportEncrypted()) {
-          alert('우렁의사의 기억이 봉인된 파일로 저장되었습니다.');
+          window.UI.alert('우렁의사의 기억이 봉인된 파일로 저장되었습니다.');
         }
       });
     }
@@ -314,7 +314,7 @@ window.App = {
         const globalModal = document.getElementById('global-install-modal');
         if (globalModal) globalModal.classList.add('hidden');
       } else {
-        alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)\n(크롬의 경우 메뉴 ➔ '앱 설치'를 선택하세요.)");
+        window.UI.alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)\n(크롬의 경우 메뉴 ➔ '앱 설치'를 선택하세요.)");
       }
     };
 
@@ -1493,7 +1493,7 @@ ${memory || '(없음)'}`;
     this.renderMyBookings();
 
     const finish = () => this.showRecordToast('📎 상담 자료가 준비됐어요. 상담사에게 전달해주세요');
-    const fallbackShow = () => alert('아래 내용을 복사해 상담사에게 전달해주세요:\n\n' + text.slice(0, 1500));
+    const fallbackShow = () => window.UI.alert('아래 내용을 복사해 상담사에게 전달해주세요:\n\n' + text.slice(0, 1500));
     if (navigator.share) {
       navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).then(finish).catch(() => {
         if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => this.showRecordToast('📋 자료가 클립보드에 복사됐어요')).catch(fallbackShow);
@@ -1506,16 +1506,16 @@ ${memory || '(없음)'}`;
   },
 
   // 예약 취소 — 안내문 그대로: 24시간 전 전액 환불, 이후 50%, 시작 후 불가
-  cancelBooking(bookingId) {
+  async cancelBooking(bookingId) {
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const b = bookings.find(x => x.id === bookingId);
     if (!b || b.status === 'cancelled') return;
     const now = Date.now();
-    if (b.whenTs && b.whenTs <= now) { alert('이미 시작된 상담은 취소할 수 없어요.'); return; }
+    if (b.whenTs && b.whenTs <= now) { window.UI.alert('이미 시작된 상담은 취소할 수 없어요.'); return; }
     const hoursLeft = b.whenTs ? (b.whenTs - now) / 3600000 : 999;
     const refundRate = hoursLeft >= 24 ? 1 : 0.5;
     const refund = Math.round(b.price * refundRate);
-    if (!confirm(`${b.name}님과의 예약을 취소할까요?\n[${b.time}]\n\n${hoursLeft >= 24 ? '상담 24시간 전이라 전액 환불돼요.' : '상담 24시간 이내라 50%만 환불돼요.'}\n환불 예정: ${refund.toLocaleString()}캐시`)) return;
+    if (!await window.UI.confirm(`${b.name}님과의 예약을 취소할까요?\n[${b.time}]\n\n${hoursLeft >= 24 ? '상담 24시간 전이라 전액 환불돼요.' : '상담 24시간 이내라 50%만 환불돼요.'}\n환불 예정: ${refund.toLocaleString()}캐시`)) return;
     b.status = 'cancelled';
     b.cancelledTs = now;
     b.refunded = refund;
@@ -1609,7 +1609,7 @@ ${memory || '(없음)'}`;
     document.body.appendChild(ov);
   },
 
-  resolveNoshow(bookingId, answer) {
+  async resolveNoshow(bookingId, answer) {
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const b = bookings.find(x => x.id === bookingId);
     const ov = document.getElementById('noshow-overlay');
@@ -1620,7 +1620,7 @@ ${memory || '(없음)'}`;
     } else if (answer === 'done') {
       b.resolved = 'done';
     } else if (answer === 'noshow') {
-      if (!confirm('상담이 진행되지 않았다면 전액 환불해드려요.\n환불을 진행할까요?')) { b.askAfter = Date.now() + 86400000; window.Storage._safeSet('cbt_bookings', bookings); return; }
+      if (!await window.UI.confirm('상담이 진행되지 않았다면 전액 환불해드려요.\n환불을 진행할까요?')) { b.askAfter = Date.now() + 86400000; window.Storage._safeSet('cbt_bookings', bookings); return; }
       b.resolved = 'noshow';
       b.status = 'noshow';
       b.refunded = b.price;
@@ -1857,8 +1857,8 @@ ${memory || '(없음)'}`;
     if (window.Dashboard) { window.Dashboard.renderTodayMoodChart(); }
     // 힘든 감정이면 안정 도구 권유
     if (v <= 2 && window.Calm && Math.random() < 0.7) {
-      setTimeout(() => {
-        if (confirm('마음이 힘든 것 같아요.\n우렁이와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
+      setTimeout(async () => {
+        if (await window.UI.confirm('마음이 힘든 것 같아요.\n우렁이와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
       }, 900);
     }
   },
@@ -1940,12 +1940,12 @@ ${memory || '(없음)'}`;
 
     const shareOut = () => {
       if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
-      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('📋 리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => alert(full.slice(0, 1500)));
-      else alert(full.slice(0, 1500));
+      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('📋 리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => window.UI.alert(full.slice(0, 1500)));
+      else window.UI.alert(full.slice(0, 1500));
     };
 
     if (!cands.length) {
-      alert('아직 예약한 상담사가 없어요.\n카카오톡·문자 공유로 직접 전달하거나, 상담사 매칭에서 예약 후 보내주세요.');
+      window.UI.alert('아직 예약한 상담사가 없어요.\n카카오톡·문자 공유로 직접 전달하거나, 상담사 매칭에서 예약 후 보내주세요.');
       shareOut();
       return;
     }
@@ -1980,10 +1980,10 @@ ${memory || '(없음)'}`;
     document.getElementById('report-share-out').onclick = () => { ov.remove(); shareOut(); };
   },
 
-  _deliverReportTo(counselorId, name) {
+  async _deliverReportTo(counselorId, name) {
     const full = this._pendingReport || '';
     if (!full) return;
-    if (!confirm(`${name}님에게 이 리포트를 보낼까요?`)) return;
+    if (!await window.UI.confirm(`${name}님에게 이 리포트를 보낼까요?`)) return;
     const key = 'cbt_hchat_' + counselorId;
     const msgs = window.Storage._safeGet(key, []) || [];
     const text = `📊 [AI 상담 요약 리포트]\n\n${full}`;
@@ -2002,10 +2002,10 @@ ${memory || '(없음)'}`;
   },
 
   // 리뷰 작성 → 저장 (완료된 상담) + 서버 전송 (상담사가 보고 답글 가능)
-  writeReview(bookingId) {
-    const rating = parseInt(prompt('별점을 남겨주세요 (1~5)', '5'), 10);
+  async writeReview(bookingId) {
+    const rating = parseInt(await window.UI.prompt('별점을 남겨주세요 (1~5)', '5'), 10);
     if (!rating || rating < 1 || rating > 5) return;
-    const text = prompt('상담은 어떠셨나요? 한 줄 후기를 남겨주세요.', '') || '';
+    const text = await window.UI.prompt('상담은 어떠셨나요? 한 줄 후기를 남겨주세요.', '') || '';
     const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
     reviews[bookingId] = { rating, text, ts: Date.now() };
     window.Storage._safeSet('cbt_reviews', reviews);
@@ -2019,7 +2019,7 @@ ${memory || '(없음)'}`;
         }).catch(() => {});
       } catch (e) {}
     }
-    alert('소중한 리뷰가 등록되었습니다. 감사합니다! ⭐');
+    window.UI.alert('소중한 리뷰가 등록되었습니다. 감사합니다! ⭐');
     this.renderMyBookings();
   },
 
@@ -2154,11 +2154,11 @@ ${memory || '(없음)'}`;
 
   // 관리자 승인 (데모) — 실서비스에서는 백엔드 관리자 콘솔에서 검수 후 승인한다.
   // 승인되면 신청 정보가 실제 상담사 카드로 변환되어 '상담사 매칭' 탭에 노출된다.
-  approveCounselorApp(appId) {
+  async approveCounselorApp(appId) {
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     const a = apps.find(x => x.id === appId);
     if (!a || a.status === 'approved') return;
-    if (!confirm(`[관리자 데모]\n'${a.name}' 님의 자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?\n\n실서비스에서는 운영팀 관리자 콘솔에서 서류 검토 후 승인됩니다.`)) return;
+    if (!await window.UI.confirm(`[관리자 데모]\n'${a.name}' 님의 자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?\n\n실서비스에서는 운영팀 관리자 콘솔에서 서류 검토 후 승인됩니다.`)) return;
     a.status = 'approved';
     window.Storage._safeSet('cbt_counselor_apps', apps);
     // 매칭 탭에 노출될 상담사 카드 생성
@@ -2190,7 +2190,7 @@ ${memory || '(없음)'}`;
     });
     window.Storage._safeSet('cbt_custom_counselors', customs);
     this.renderCounselorApps();
-    alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
+    window.UI.alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
     // 서버 명부 등록 + 상담사 전용 수신함 코드 발급 (서버 꺼져 있으면 조용히 생략)
     const newCu = customs[0];
     try {
@@ -2242,7 +2242,7 @@ ${memory || '(없음)'}`;
     });
     window.Storage._safeSet('cbt_my_avail', result);
     document.getElementById('avail-modal').classList.add('hidden');
-    alert('상담 가능 시간이 저장되었습니다.\n입점 승인 후 예약 캘린더에 반영됩니다.');
+    window.UI.alert('상담 가능 시간이 저장되었습니다.\n입점 승인 후 예약 캘린더에 반영됩니다.');
   },
 
   // 다음(카카오) 우편번호 서비스로 주소 검색 — API 키 불필요한 한국 표준 방식
@@ -2270,7 +2270,7 @@ ${memory || '(없음)'}`;
     const s = document.createElement('script');
     s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
     s.onload = openIt;
-    s.onerror = () => alert('주소 검색 서비스를 불러오지 못했어요. 인터넷 연결을 확인해주세요.');
+    s.onerror = () => window.UI.alert('주소 검색 서비스를 불러오지 못했어요. 인터넷 연결을 확인해주세요.');
     document.head.appendChild(s);
   },
 
@@ -2336,16 +2336,16 @@ ${memory || '(없음)'}`;
     const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
     const bank = v('creg-bank'), account = v('creg-account').replace(/[^0-9]/g, ''), holder = v('creg-holder');
     if (!name || !license || !price || !hospital || !addr) {
-      alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
+      window.UI.alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
       return;
     }
     // 정산 계좌가 없으면 승인돼도 돈을 보낼 수 없다
     if (!bank || !account || !holder) {
-      alert('정산 계좌(은행·계좌번호·예금주)를 입력해주세요.\n승인 후 상담료를 보내드릴 곳이에요.');
+      window.UI.alert('정산 계좌(은행·계좌번호·예금주)를 입력해주세요.\n승인 후 상담료를 보내드릴 곳이에요.');
       return;
     }
     if (account.length < 8) {
-      alert('계좌번호를 다시 확인해주세요.');
+      window.UI.alert('계좌번호를 다시 확인해주세요.');
       return;
     }
     const tags = [...document.querySelectorAll('#creg-tags button[data-on="1"]')].map(b => b.dataset.tag);
@@ -2363,7 +2363,7 @@ ${memory || '(없음)'}`;
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.querySelectorAll('#creg-tags button[data-on="1"]').forEach(b => b.click());
     this.clearCregPhoto();
-    alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
+    window.UI.alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
     this.renderCounselorApps();
     this.switchTab('mypage');
   },
@@ -2429,7 +2429,7 @@ ${memory || '(없음)'}`;
   // ==========================================================================
   //  인간 상담사 — 보이스톡(전화망 연결)과 채팅방
   // ==========================================================================
-  startHumanCall(counselorId) {
+  async startHumanCall(counselorId) {
     const c = window.Marketplace.getCounselor(counselorId);
     if (!c || !window.CallTalk) return;
     // 예약 시간 전후 1시간 안이면 회기권 통화(추가 과금 없음), 아니면 30초당 실시간 과금
@@ -2443,7 +2443,7 @@ ${memory || '(없음)'}`;
       const bkWarn = nextBk
         ? `\n\n📌 주의: [${nextBk.time}] 예약이 잡혀 있어요.\n예약 시간(전후 1시간)에 걸면 30분 정액으로 추가 과금이 없습니다.\n지금 거는 전화는 예약과 별개인 '바로상담'이라 위 요금이 차감돼요.`
         : '';
-      if (!confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
+      if (!await window.UI.confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
     // 서버 회선 점유: 다른 내담자가 이미 통화 중이면 연결하지 않는다
     fetch('/api/call/start', {
@@ -2455,9 +2455,9 @@ ${memory || '(없음)'}`;
         const d = await res.json().catch(() => ({}));
         if (window.Marketplace) window.Marketplace.fetchPresence(true);
         if (d.reason === 'busy') {
-          if (confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n\n🔔 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
+          if (await window.UI.confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n\n🔔 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
         } else {
-          alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
+          window.UI.alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
         }
         return;
       }
@@ -2570,8 +2570,8 @@ ${memory || '(없음)'}`;
     document.getElementById('hchat-call').addEventListener('click', () => this.startHumanCall(c.id));
   },
 
-  resetChat() {
-    if (confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
+  async resetChat() {
+    if (await window.UI.confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
       window.Storage.clearMessages();
       window.Storage.clearSessionState();
       window.Chatbot.reset();
@@ -2589,15 +2589,15 @@ ${memory || '(없음)'}`;
     }
   },
 
-  resetAllAppData() {
-    if (confirm('🚨 정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
-      if (confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?')) {
+  async resetAllAppData() {
+    if (await window.UI.confirm('🚨 정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
+      if (await window.UI.confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?')) {
         if (window.Storage && window.Storage.clearAllData) {
           window.Storage.clearAllData();
         } else {
           localStorage.clear();
         }
-        alert('앱의 모든 데이터가 성공적으로 초기화되었습니다.');
+        window.UI.alert('앱의 모든 데이터가 성공적으로 초기화되었습니다.');
         window.location.reload();
       }
     }
@@ -2789,9 +2789,9 @@ ${memory || '(없음)'}`;
       this.applyProModeUI(true);
       this.hideProModal();
       this.updateSessionUI();
-      alert("Pro 모드 결제가 완료되어 무제한으로 활성화되었습니다!");
+      window.UI.alert("Pro 모드 결제가 완료되어 무제한으로 활성화되었습니다!");
     } else {
-      alert("결제 키를 입력해주세요.");
+      window.UI.alert("결제 키를 입력해주세요.");
     }
   },
   

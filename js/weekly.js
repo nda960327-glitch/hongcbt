@@ -170,7 +170,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
   async requestLetter() {
     if (this.hasThisWeek()) {
       if (window.Sfx) window.Sfx.play('denied');
-      alert(`이번 주 편지는 이미 도착했어요.\n\n우렁이는 한 주에 딱 한 통만 씁니다 — 느리게 쓰는 게 우렁이 방식이라서요.\n다음 편지는 ${this.waitText()} 만나요.`);
+      window.UI.alert(`이번 주 편지는 이미 도착했어요.\n\n우렁이는 한 주에 딱 한 통만 씁니다 — 느리게 쓰는 게 우렁이 방식이라서요.\n다음 편지는 ${this.waitText()} 만나요.`);
       return;
     }
     const btn = document.getElementById('weekly-generate');

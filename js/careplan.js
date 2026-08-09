@@ -66,10 +66,10 @@ window.CarePlan = {
 
   // 계획이 안 맞을 때 언제든 갈아탄다.
   //  안 맞는 계획을 붙들고 실패를 쌓는 것보다, 다시 고르는 편이 낫다.
-  restart() {
+  async restart() {
     const p = this.active();
     if (!p) { this.startStarter(); return; }
-    if (!confirm('지금 계획을 접고 새로 시작할까요?\n\n지금까지 체크한 것은 기록에 남아요.')) return;
+    if (!await window.UI.confirm('지금 계획을 접고 새로 시작할까요?\n\n지금까지 체크한 것은 기록에 남아요.')) return;
     const hist = this._S()._safeGet('cbt_careplan_history', []) || [];
     hist.unshift({ ...p, endedAt: Date.now(), restarted: true });
     this._S()._safeSet('cbt_careplan_history', hist.slice(0, 6));
@@ -110,10 +110,10 @@ window.CarePlan = {
     this.render();
   },
 
-  discard() {
+  async discard() {
     const p = this.active();
     if (!p) return;
-    if (!confirm('진행 중인 케어플랜을 그만둘까요?\n다음 리포트를 만들면 새 계획이 생겨요.')) return;
+    if (!await window.UI.confirm('진행 중인 케어플랜을 그만둘까요?\n다음 리포트를 만들면 새 계획이 생겨요.')) return;
     const hist = this._S()._safeGet('cbt_careplan_history', []) || [];
     hist.unshift({ ...p, endedAt: Date.now(), abandoned: true });
     this._S()._safeSet('cbt_careplan_history', hist.slice(0, 6));

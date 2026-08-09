@@ -107,14 +107,14 @@ window.Farm = {
     { water: 70, cash: 1500 }
   ],
 
-  buyWater(idx) {
+  async buyWater(idx) {
     const pack = this.WATER_PACKS[idx];
     if (!pack || !window.Wallet) return;
     if (window.Wallet.balance() < pack.cash) {
-      alert(`우렁 캐시가 부족해요. (${pack.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+      window.UI.alert(`우렁 캐시가 부족해요. (${pack.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
       return;
     }
-    if (!confirm(`물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
+    if (!await window.UI.confirm(`물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
     window.Wallet.spend(pack.cash, `농장 · 물 ${pack.water}`);
     if (window.Sfx) window.Sfx.hit('buy');
     this._setWater(this.water() + pack.water);
@@ -159,7 +159,7 @@ window.Farm = {
     if (c.seed > 0) {
       if (this.coins() < c.seed) {
         if (window.Sfx) window.Sfx.play('denied');
-        alert(`${c.name} 씨앗은 ${c.seed}코인이에요. (지금 ${this.coins()}코인)\n상추 씨앗은 공짜니 상추부터 키워보세요!`);
+        window.UI.alert(`${c.name} 씨앗은 ${c.seed}코인이에요. (지금 ${this.coins()}코인)\n상추 씨앗은 공짜니 상추부터 키워보세요!`);
         return;
       }
       this.spendCoins(c.seed);
@@ -238,13 +238,13 @@ window.Farm = {
   },
 
   // 심은 작물 뽑기 — 되돌릴 수 없고, 준 물도 돌아오지 않는다
-  pull(i) {
+  async pull(i) {
     const p = this.plots();
     const slot = p[i];
     if (!slot) return;
     const c = this.crop(slot.crop);
     const name = c ? c.name : '작물';
-    if (!confirm(`${name}을(를) 뽑아버릴까요?\n지금까지 준 물 ${slot.water}방울은 돌아오지 않아요.`)) return;
+    if (!await window.UI.confirm(`${name}을(를) 뽑아버릴까요?\n지금까지 준 물 ${slot.water}방울은 돌아오지 않아요.`)) return;
     p[i] = null;
     this._savePlots(p);
     if (window.Sfx) window.Sfx.play('plant');

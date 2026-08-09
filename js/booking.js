@@ -181,14 +181,14 @@ window.Booking = {
 
     if (!this.selDate || !this.selTime) {
       if (window.Sfx) window.Sfx.hit('denied');
-      alert('예약하실 날짜와 시간을 선택해주세요.');
+      window.UI.alert('예약하실 날짜와 시간을 선택해주세요.');
       return;
     }
 
     // 우렁 캐시로 결제 (잔액 부족 시 충전 유도)
     if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`)) {
       if (window.Sfx) window.Sfx.hit('denied');
-      alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
+      window.UI.alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
       this.closeModal();
       document.querySelector('[data-tab="mypage"]').click();
       return;
@@ -227,7 +227,7 @@ window.Booking = {
       }).catch(() => {});
     } catch (e) {}
 
-    alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
+    window.UI.alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
 
     this.closeModal();
     if (window.App && window.App.renderMyBookings) window.App.renderMyBookings();

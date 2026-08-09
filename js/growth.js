@@ -72,11 +72,11 @@ window.Growth = {
 
   buyShield() {
     if (this.shields() >= this.SHIELD_MAX) {
-      alert(`보호권은 최대 ${this.SHIELD_MAX}개까지 보관할 수 있어요.`);
+      window.UI.alert(`보호권은 최대 ${this.SHIELD_MAX}개까지 보관할 수 있어요.`);
       return;
     }
     if (!window.Wallet || !window.Wallet.spend(this.SHIELD_PRICE, '스트릭 보호권 구매')) {
-      alert(`캐시가 부족해요. (보호권 1개 = ${this.SHIELD_PRICE.toLocaleString()}캐시)\n마이페이지 지갑에서 충전해주세요.`);
+      window.UI.alert(`캐시가 부족해요. (보호권 1개 = ${this.SHIELD_PRICE.toLocaleString()}캐시)\n마이페이지 지갑에서 충전해주세요.`);
       return;
     }
     window.Storage._safeSet('cbt_streak_shields', this.shields() + 1);
@@ -283,7 +283,7 @@ window.Growth = {
   saveDiary() {
     const ta = document.getElementById('diary-write-text');
     const text = ta ? ta.value.trim() : '';
-    if (!text) { alert('한 줄이라도 적어볼까요?'); return; }
+    if (!text) { window.UI.alert('한 줄이라도 적어볼까요?'); return; }
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     // 오늘 체크인이 있으면 그 기분을 일기의 날씨로
     const today = new Date().toLocaleDateString('sv-CA');
@@ -333,8 +333,8 @@ window.Growth = {
     } catch (e) {}
   },
 
-  deleteDiary(ts) {
-    if (!confirm('이 일기를 지울까요? 되돌릴 수 없어요.')) return;
+  async deleteDiary(ts) {
+    if (!await window.UI.confirm('이 일기를 지울까요? 되돌릴 수 없어요.')) return;
     const jr = (window.Storage._safeGet('cbt_night_journal', []) || []).filter(x => x.ts !== ts);
     window.Storage._safeSet('cbt_night_journal', jr);
     this.renderNightList();
@@ -347,7 +347,7 @@ window.Growth = {
   // 일기장 내보내기 — 다이어리 양식의 독립 문서 (download: html 파일 / print: PDF)
   exportDiary(mode) {
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
-    if (!journal.length) { alert('아직 일기가 없어요. 오늘 밤 첫 일기를 써볼까요?'); return; }
+    if (!journal.length) { window.UI.alert('아직 일기가 없어요. 오늘 밤 첫 일기를 써볼까요?'); return; }
     const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const name = window.Storage._safeGet('cbt_user_name', '') || '';
     const sorted = [...journal].sort((a, b) => a.ts - b.ts);
@@ -389,7 +389,7 @@ ${entries}
 </body></html>`;
     if (mode === 'print') {
       const w = window.open('', '_blank');
-      if (!w) { alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+      if (!w) { window.UI.alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
       w.document.write(doc); w.document.close();
       setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
     } else {
@@ -524,11 +524,11 @@ ${entries}
     list.innerHTML = html;
   },
 
-  startNight() {
+  async startNight() {
     // 쓰다 만 하루 정리가 있으면 이어쓰기 (12시간 보관)
     const d = window.Storage._safeGet('cbt_night_draft', null);
     if (d && d.night && Date.now() - d.ts < 12 * 3600000) {
-      if (confirm('🌙 쓰다 만 하루 정리가 있어요. 이어서 쓸까요?')) {
+      if (await window.UI.confirm('🌙 쓰다 만 하루 정리가 있어요. 이어서 쓸까요?')) {
         this._night = d.night;
         this._nightStep(d.step || 1);
         return;

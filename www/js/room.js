@@ -195,29 +195,29 @@ window.Room = {
     return init;
   },
 
-  buy(id) {
+  async buy(id) {
     const it = this.item(id);
     if (!it || this.has(id)) return;
     // 레벨 조건이 붙은 물건 — 돈이 있어도 아직은 못 산다
     if (it.lv && this.level() < it.lv) {
       if (window.Sfx) window.Sfx.hit('denied');
-      alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${this.level()})`);
+      window.UI.alert(`'${it.name}'은(는) Lv.${it.lv} 부터 살 수 있어요.\n(지금 Lv.${this.level()})`);
       return;
     }
     if (it.cash) {
       if (!window.Wallet || window.Wallet.balance() < it.cash) {
-        alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+        window.UI.alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
         return;
       }
-      if (!confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
+      if (!await window.UI.confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
       window.Wallet.spend(it.cash, `방꾸미기 · ${it.name}`);
     } else {
       const coins = window.Farm ? window.Farm.coins() : 0;
       if (coins < it.price) {
-        alert(`씨앗코인이 부족해요. (${it.price}코인 필요 · 지금 ${coins}코인)\n밭에서 작물을 키워 수확해보세요.`);
+        window.UI.alert(`씨앗코인이 부족해요. (${it.price}코인 필요 · 지금 ${coins}코인)\n밭에서 작물을 키워 수확해보세요.`);
         return;
       }
-      if (!confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
+      if (!await window.UI.confirm(`'${it.name}'을(를) ${it.price}코인에 살까요?`)) return;
       window.Farm.spendCoins(it.price);
     }
     if (window.Sfx) window.Sfx.hit('buy');

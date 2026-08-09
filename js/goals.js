@@ -23,7 +23,7 @@ window.Goals = {
     if (!t) return false;
     const list = this.all();
     if (this.open().length >= this.MAX) {
-      alert(`한 번에 ${this.MAX}개까지만 담아둘 수 있어요.\n너무 많으면 하나도 안 지켜져요 — 먼저 해낸 것을 정리해주세요.`);
+      window.UI.alert(`한 번에 ${this.MAX}개까지만 담아둘 수 있어요.\n너무 많으면 하나도 안 지켜져요 — 먼저 해낸 것을 정리해주세요.`);
       return false;
     }
     if (list.some(g => !g.doneAt && g.text === t)) return false;
@@ -52,17 +52,17 @@ window.Goals = {
     this.render();
   },
 
-  remove(id) {
+  async remove(id) {
     const g = this.all().find(x => x.id === id);
     if (!g) return;
-    if (!confirm(`"${g.text}"\n\n이 항목을 지울까요?`)) return;
+    if (!await window.UI.confirm(`"${g.text}"\n\n이 항목을 지울까요?`)) return;
     this._save(this.all().filter(x => x.id !== id));
     if (window.Sfx) window.Sfx.play('close');
     this.render();
   },
 
-  promptAdd() {
-    const t = prompt('고치고 싶은 것을 한 줄로 적어주세요.\n\n예) 화나면 바로 말해버리는 것\n예) 부탁을 못 거절하는 것\n예) 새벽까지 휴대폰 붙잡고 있는 것');
+  async promptAdd() {
+    const t = await window.UI.prompt('고치고 싶은 것을 한 줄로 적어주세요.\n\n예) 화나면 바로 말해버리는 것\n예) 부탁을 못 거절하는 것\n예) 새벽까지 휴대폰 붙잡고 있는 것');
     if (t === null) return;
     this.add(t);
   },

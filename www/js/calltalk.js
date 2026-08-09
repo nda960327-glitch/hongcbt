@@ -23,12 +23,12 @@ window.CallTalk = {
     // 보이스톡은 체험·구독 전용 (무료 플랜은 페이월 안내)
     if (window.Subscription && !window.Subscription.guardCall()) return;
     if (!window.Wallet || window.Wallet.balance() < this.RATE) {
-      alert(`보이스톡은 30초당 ${this.RATE}캐시가 사용돼요.\n잔액이 부족합니다. 마이페이지에서 캐시를 충전해주세요.`);
+      window.UI.alert(`보이스톡은 30초당 ${this.RATE}캐시가 사용돼요.\n잔액이 부족합니다. 마이페이지에서 캐시를 충전해주세요.`);
       if (window.App) window.App.switchTab('mypage');
       return;
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert('이 브라우저는 음성 인식을 지원하지 않아요. 크롬에서 사용해주세요.'); return; }
+    if (!SR) { window.UI.alert('이 브라우저는 음성 인식을 지원하지 않아요. 크롬에서 사용해주세요.'); return; }
 
     if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
     const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사', tagline: '' };
@@ -98,7 +98,7 @@ window.CallTalk = {
     this._rate = prepaid ? 0 : liveRate;
 
     if (!prepaid && (!window.Wallet || window.Wallet.balance() < this._rate * 2)) {
-      alert(`바로상담은 30초당 ${liveRate.toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
+      window.UI.alert(`바로상담은 30초당 ${liveRate.toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
       if (window.App) window.App.switchTab('mypage');
       return;
     }
@@ -127,10 +127,10 @@ window.CallTalk = {
     } else {
       // 회기권 = 예약된 30분. 5분 전 안내, 만료 시 동의한 경우에만 초당 과금으로 연장.
       this._warnTimer = setTimeout(() => { if (this._active) this._setStatus('⏰ 상담 종료 5분 전이에요'); }, 25 * 60000);
-      this._prepaidTimer = setTimeout(() => {
+      this._prepaidTimer = setTimeout(async () => {
         if (!this._active) return;
         const rate = window.Marketplace.callRateFor(c);
-        if (confirm(`예약된 30분 상담 시간이 끝났어요.\n계속 통화하면 지금부터 30초당 ${rate.toLocaleString()}캐시가 차감됩니다.\n연장할까요?`)) {
+        if (await window.UI.confirm(`예약된 30분 상담 시간이 끝났어요.\n계속 통화하면 지금부터 30초당 ${rate.toLocaleString()}캐시가 차감됩니다.\n연장할까요?`)) {
           this._rate = rate;
           const el = document.getElementById('call-spent');
           if (el) el.textContent = `연장 통화 중 · 30초당 ${rate.toLocaleString()}캐시`;
@@ -274,7 +274,7 @@ window.CallTalk = {
     const secs = Math.floor((Date.now() - this._startTs) / 1000);
     const ov = document.getElementById('call-overlay');
     if (ov) ov.remove();
-    alert(`${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(secs / 60)}분 ${secs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`);
+    window.UI.alert(`${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(secs / 60)}분 ${secs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`);
   },
 
   _renderOverlay(p) {
