@@ -1341,7 +1341,7 @@ window.App = {
 · 감정의 후속: "우울한 건 좀 괜찮아?", "어제보다 마음 좀 가벼워?"
 · 일상의 후속: "강아지랑 산책 갔다왔어?", "그 시그니처 칵테일은 완성됐어?"
 · 그냥 친구처럼: "뭐해?", "밥은 먹었어?"
-기억에 쓸 만한 것이 없으면 지금 시간대에 맞는 가벼운 안부만. 상담원 멘트 금지, 이모지 최대 1개. 메시지 본문만 출력하세요.
+기억에 쓸 만한 것이 없으면 지금 시간대에 맞는 가벼운 안부만. 상담원 멘트 금지. 시스템 이모지(😊 🥺 ❤️ 같은 것)는 한 개도 쓰지 마세요 — 우렁이의 표정은 전용 스티커로만 표현합니다. 메시지 본문만 출력하세요.
 ${(() => { const L = window.Storage._safeGet('cbt_lang', 'ko'); return L === 'en' ? 'Write the message in casual, natural English.' : L === 'ja' ? 'メッセージは自然でカジュアルな日本語で書いてください。' : ''; })()}
 ${userName ? `사용자 이름: ${userName}` : ''}
 [현재 시각] ${new Date().toLocaleString('ko-KR')}
@@ -1357,7 +1357,10 @@ ${memory || '(없음)'}`;
       });
       if (!res.ok) return;
       const data = await res.json();
-      const text = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim().replace(/^"|"$/g, '');
+      // 프롬프트로 금지해도 모델은 흘린다. 화면에 나가기 전에 코드로 막는다.
+      //  (전에는 프롬프트가 '이모지 최대 1개'라고 허용까지 하고 있었다)
+      const raw = ((data.choices && data.choices[0] && data.choices[0].message.content) || '').trim().replace(/^"|"$/g, '');
+      const text = (window.LLM && window.LLM._stripEmoji) ? window.LLM._stripEmoji(raw).trim() : raw;
       if (!text) return;
 
       const msg = { role: 'bot', text, timestamp: new Date().toISOString() };

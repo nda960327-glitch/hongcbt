@@ -211,7 +211,8 @@ window.Missions = {
     window.Storage.markDayActive();
     this.renderCard();
     if (window.App && window.App.showRecordToast) {
-      const cheers = ['우와, 해냈다! 🎉', '역시 당신이야!', '몸이 움직이면 마음이 따라와요', '오늘의 작은 승리 +1'];
+      // 시스템 이모지는 쓰지 않는다 — 우렁이의 표정은 전용 스티커로만 표현한다
+    const cheers = ['우와, 해냈다!', '역시 당신이야!', '몸이 움직이면 마음이 따라와요', '오늘의 작은 승리 +1'];
       window.App.showRecordToast(`${cheers[Math.floor(Math.random() * cheers.length)]}`);
     }
     if (window.App && window.App.stickerPop) {
@@ -425,7 +426,7 @@ ${recent}` }],
       const bonus = s.bonus || 0;
       el.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.8rem;">
-          <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('proud', 62) : '🎉'}</span>
+          <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('proud', 62) : ''}</span>
           <div style="flex: 1; min-width: 0;">
             <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">퀘스트 완료!</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted);">${m.text}</span>

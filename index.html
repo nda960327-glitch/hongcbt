@@ -852,9 +852,9 @@
         <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정" aria-label="프로필 수정"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15.6 4.4 19.6 8.4 8.6 19.4l-4.8.8.8-4.8Z"/><path d="m14.2 5.8 4 4"/></svg></button>
       </div>
 
-      <!-- 계정 — 로그인 전에는 로그인 버튼, 후에는 계정 정보.
-           키가 등록된 로그인 수단만 나온다 (js/account.js) -->
-      <div id="account-box" class="my-group" style="margin: 0 1.25rem 0.9rem; border-radius: var(--radius-lg); overflow: hidden;"></div>
+      <!-- 계정(로그인·로그아웃)은 [설정] 안에만 둔다.
+           마이 탭 맨 위에 두니 계정 관리가 앱의 주된 일처럼 보였다 —
+           여기서 볼 것은 내 기록이지 계정이 아니다. -->
 
       <!-- 재화 2분할 -->
       <div class="my-money">
