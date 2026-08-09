@@ -245,6 +245,97 @@ window.Admin = {
     window.UI.alert({ title: '로그인 링크를 보냈어요', body: `${email}\n15분 안에 열어달라고 전해주세요.` });
   },
 
+  // ==========================================================================
+  //  정산 — 내담자가 확인한(또는 3일 지나 자동 확정된) 상담만 여기 뜬다
+  // ==========================================================================
+  _settle: null,
+  _pick: {},
+
+  async loadSettle() {
+    const d = await window.Api.json('/api/settle?code=' + encodeURIComponent(this.code()));
+    this._settle = d ? (d.items || []) : null;
+    this.renderSettleBox();
+  },
+
+  togglePick(id) { this._pick[id] = !this._pick[id]; this.renderSettleBox(); },
+  pickAll(on) {
+    (this._settle || []).forEach(x => { this._pick[x.id] = on; });
+    this.renderSettleBox();
+  },
+
+  async paySelected() {
+    const ids = Object.keys(this._pick).filter(k => this._pick[k]);
+    if (!ids.length) { window.UI.alert('지급할 항목을 골라주세요'); return; }
+    const rows = (this._settle || []).filter(x => ids.includes(x.id));
+    const sum = rows.reduce((a, x) => a + x.payout.counselor, 0);
+    if (!await window.UI.confirm({
+      title: `${ids.length}건을 지급 처리할까요?`,
+      body: `상담사 몫 합계 ${sum.toLocaleString()}캐시\n\n실제 이체는 은행에서 따로 하시고, 여기서는 '보냈다'고 기록만 합니다.\n되돌릴 수 없어요.`,
+      okLabel: '지급 완료로 표시'
+    })) return;
+    const r = await window.Api.json('/api/settle/pay', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), ids })
+    });
+    if (!r || !r.ok) { window.UI.alert('처리하지 못했어요'); return; }
+    this._pick = {};
+    if (window.Sfx) window.Sfx.hit('coin');
+    if (window.App) window.App.showRecordToast(`${ids.length}건 지급 처리했어요`);
+    this.loadSettle();
+  },
+
+  renderSettleBox() {
+    const el = document.getElementById('admin-settle-box');
+    if (!el) return;
+    const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
+    if (this._settle === null) { el.innerHTML = '<p style="font-size:0.78rem;color:var(--text-muted);margin:0;">불러오는 중…</p>'; return; }
+    if (!this._settle.length) {
+      el.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:0.9rem 0;margin:0;">지급할 건이 없어요.<br><span style="font-size:0.72rem;">상담사가 완료 처리하고 내담자가 확인하면 여기 올라옵니다.</span></p>';
+      return;
+    }
+    // 상담사별로 묶는다 — 이체는 사람 단위로 하니까
+    const by = {};
+    this._settle.forEach(x => { (by[x.counselorId] = by[x.counselorId] || []).push(x); });
+    const picked = Object.keys(this._pick).filter(k => this._pick[k]);
+    const sum = this._settle.filter(x => this._pick[x.id]).reduce((a, x) => a + x.payout.counselor, 0);
+
+    el.innerHTML = Object.entries(by).map(([cid, rows]) => {
+      const c = rows[0];
+      const total = rows.reduce((a, x) => a + x.payout.counselor, 0);
+      return `
+      <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.75rem 0.85rem; margin-bottom: 0.5rem;">
+        <div style="display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap;">
+          <strong style="font-size:0.86rem;">${esc(c.counselor)}</strong>
+          <span style="flex:1;"></span>
+          <b style="font-size:0.86rem; color:var(--accent-primary);">${total.toLocaleString()}캐시</b>
+        </div>
+        <p style="margin:0.25rem 0 0.45rem; font-size:0.72rem; color:${c.bank ? 'var(--text-muted)' : '#c14a4a'};">
+          ${c.bank ? `${esc(c.bank.bank)} ${esc(c.bank.masked)} · 예금주 ${esc(c.bank.holder)}`
+                   : '계좌 미등록 — 상담사에게 등록을 요청하세요'}</p>
+        ${rows.map(x => `
+          <label style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; cursor:pointer;">
+            <input type="checkbox" ${this._pick[x.id] ? 'checked' : ''} onchange="window.Admin.togglePick('${x.id}')"
+              style="accent-color: var(--accent-primary); width:16px; height:16px;">
+            <span style="flex:1; min-width:0; font-size:0.76rem; color:var(--text-secondary);">
+              ${esc(x.clientName)} · ${esc(x.time)}
+              ${x.auto ? '<span style="font-size:0.66rem; color:var(--text-muted);"> (자동 확정)</span>' : ''}
+            </span>
+            <span style="font-size:0.76rem; font-weight:700;">${x.payout.counselor.toLocaleString()}</span>
+          </label>`).join('')}
+      </div>`;
+    }).join('') + `
+      <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.5rem; flex-wrap:wrap;">
+        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" onclick="window.Admin.pickAll(true)">전체 선택</button>
+        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" onclick="window.Admin.pickAll(false)">해제</button>
+        <span style="flex:1;"></span>
+        <span style="font-size:0.78rem; color:var(--text-muted);">${picked.length}건 · <b style="color:var(--accent-primary);">${sum.toLocaleString()}캐시</b></span>
+      </div>
+      <button class="btn-primary" style="width:100%; margin-top:0.5rem; padding:0.55rem; font-size:0.84rem; ${picked.length ? '' : 'opacity:0.5; pointer-events:none;'}"
+        onclick="window.Admin.paySelected()">선택한 ${picked.length}건 지급 완료로 표시</button>
+      <p style="margin:0.5rem 0 0; font-size:0.7rem; color:var(--text-muted); line-height:1.6;">
+        실제 이체는 은행에서 따로 하세요. 여기서는 '보냈다'는 기록만 남깁니다.</p>`;
+  },
+
   peekCode(id) { this._showCode[id] = !this._showCode[id]; this.renderCounselorBox(); },
 
   copyCode(code) {
@@ -574,6 +665,11 @@ window.Admin = {
         </div>
 
         <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">정산 대기 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(확인 완료된 상담)</span></h3>
+          <div id="admin-settle-box"><p style="font-size:0.78rem;color:var(--text-muted);margin:0;">불러오는 중…</p></div>
+        </div>
+
+        <div>
           <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(서버 · 코드 발급)</span></h3>
           <div id="admin-counselor-box">
             <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">불러오는 중…</p>
@@ -627,6 +723,7 @@ window.Admin = {
       </div>`;
     document.body.appendChild(ov);
     this.loadCounselors();          // 상담사 목록·코드
+    this.loadSettle();              // 정산 대기
     // 서버 통계 → 서비스 현황 그리드
     //  로그인할 때 이미 받아둔 게 있으면 그걸 먼저 그리고, 네트워크는 안 탄다.
     //  (같은 걸 다시 부르면 콘솔이 그만큼 늦게 뜬다)

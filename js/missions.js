@@ -158,17 +158,39 @@ window.Missions = {
     } catch (e) {}
   },
 
-  // 오늘의 미션 (없으면 맞춤 가중치로 뽑고, AI 맞춤 생성을 비동기로 시도)
+  // 오늘의 미션.
+  //  전에는 무조건 랜덤 풀에서 뽑았다. 그래서 상담사가 낸 숙제나 케어플랜 할 일이
+  //  있는 날에도 헤드라인은 '화분에 물 주기' 같은 게 차지하고, 정작 중요한 건
+  //  아래로 밀렸다. 순서를 뒤집는다 — 사람이 낸 숙제 > 리포트 처방 > 랜덤.
+  _headlineRx() {
+    try {
+      const rx = this.rxToday() || [];
+      return rx.find(q => q.src === 'hw') || rx.find(q => q.src === 'plan') || null;
+    } catch (e) { return null; }
+  },
+
   todayMission() {
     let s = this.state();
     if (!s) {
-      const pick = this._pickWeighted();
-      s = { date: this._today(), id: pick.id, done: false, rerolled: false };
+      const rx = this._headlineRx();
+      if (rx) {
+        // 오늘의 헤드라인을 숙제·처방으로. 완료하면 그 항목도 같이 체크된다.
+        s = { date: this._today(), id: 'rx_' + Date.now().toString(36), done: false, rerolled: false,
+              custom: { icon: rx.src === 'hw' ? 'counselor' : 'target', text: rx.text },
+              rx: { src: rx.src, why: rx.why || '', hwId: rx.hwId || '', text: rx.text } };
+      } else {
+        const pick = this._pickWeighted();
+        s = { date: this._today(), id: pick.id, done: false, rerolled: false };
+        setTimeout(() => this._personalizeWithAI(), 800); // 우렁이가 더 좋은 미션을 떠올리면 교체
+      }
       window.Storage._safeSet('cbt_daily_mission', s);
-      setTimeout(() => this._personalizeWithAI(), 800); // 우렁이가 더 좋은 미션을 떠올리면 교체
     }
     if (s.custom) {
-      return { id: s.id, emoji: s.custom.emoji, text: s.custom.text, cat: '우렁이 맞춤', custom: true, done: s.done, rerolled: s.rerolled };
+      return {
+        id: s.id, icon: s.custom.icon, emoji: s.custom.emoji, text: s.custom.text,
+        cat: s.rx ? (s.rx.src === 'hw' ? '상담사 숙제' : '나의 케어플랜') : '우렁이 맞춤',
+        why: s.rx ? s.rx.why : '', custom: true, done: s.done, rerolled: s.rerolled
+      };
     }
     return { ...this.POOL.find(m => m.id === s.id), done: s.done, rerolled: s.rerolled };
   },

@@ -1384,6 +1384,37 @@ ${memory || '(없음)'}`;
             </div>
             <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
             <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
+            ${(() => {
+              // 상담사가 완료 처리했는데 아직 확인하지 않았다면, 이게 가장 먼저 보여야 한다.
+              //  확인해야 상담사에게 정산이 나가고, 3일 뒤엔 자동 확정된다.
+              if (cancelled || !b.srvDone) return '';
+              if (b.srvDispute) return `
+                <div style="margin-top: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 10px;
+                            background: rgba(193,74,74,0.08); border: 1px solid rgba(193,74,74,0.25);">
+                  <p style="margin: 0; font-size: 0.78rem; color: #c14a4a; line-height: 1.6;">
+                    문제를 접수했어요. 운영자가 확인 후 연락드릴게요.</p></div>`;
+              if (b.srvConfirmAt) return `
+                <p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">
+                  상담 확인 완료</p>`;
+              const auto = b.srvAutoAt
+                ? new Date(b.srvAutoAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                : '';
+              return `
+                <div style="margin-top: 0.6rem; padding: 0.7rem 0.8rem; border-radius: 11px;
+                            background: color-mix(in srgb, var(--accent-primary) 9%, transparent);
+                            border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, transparent);">
+                  <p style="margin: 0 0 0.5rem; font-size: 0.82rem; font-weight: 700; color: var(--text-primary);">
+                    상담은 어떠셨어요?</p>
+                  <p style="margin: 0 0 0.6rem; font-size: 0.74rem; line-height: 1.6; color: var(--text-secondary);">
+                    확인하시면 상담사에게 정산이 진행돼요.${auto ? ` 답이 없으면 ${auto}에 자동 확인됩니다.` : ''}</p>
+                  <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                    <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"
+                      onclick="window.App.confirmSession('${b.id}')">잘 받았어요</button>
+                    <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem; color: #c14a4a;"
+                      onclick="window.App.disputeSession('${b.id}')">문제가 있었어요</button>
+                  </div>
+                </div>`;
+            })()}
             <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
               ${cancelled || b.status === 'noshow'
                 ? `<span style="font-size: 0.78rem; color: var(--text-muted);">${b.status === 'noshow' ? '상담 미진행 · ' : b.cancelledBy === 'counselor' ? '상담사 사정으로 취소 · ' : ''}환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
@@ -1691,6 +1722,55 @@ ${memory || '(없음)'}`;
   },
 
   // === 리뷰 답글 수신 — 상담사가 답글을 달면 알림 ===
+  // ── 상담 확인 / 이의 제기 ────────────────────────────────────────────
+  //  확인을 눌러야 상담사에게 정산이 나간다. 3일 안에 아무 말이 없으면
+  //  자동 확정되므로, 문제가 있었다면 그 전에 알려야 한다는 걸 화면에 적어둔다.
+  async confirmSession(bookingId) {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b) return;
+    if (!await window.UI.confirm({
+      title: '상담 잘 받으셨나요?',
+      body: `${b.name} 선생님과의 상담을 확인하면 정산이 진행됩니다.\n문제가 있었다면 대신 [문제가 있었어요]를 눌러주세요.`,
+      okLabel: '네, 잘 받았어요'
+    })) return;
+    const r = await window.Api.json('/api/bookings/confirm', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bookingId, clientId: this.clientId() })
+    });
+    if (!r || !r.ok) { window.UI.alert('잠시 후 다시 시도해주세요'); return; }
+    b.srvConfirmAt = Date.now();
+    window.Storage._safeSet('cbt_bookings', bookings);
+    if (window.Sfx) window.Sfx.hit('ripe');
+    this.showRecordToast('확인해주셔서 고마워요');
+    this.renderMyBookings();
+  },
+
+  async disputeSession(bookingId) {
+    const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
+    const b = bookings.find(x => x.id === bookingId);
+    if (!b) return;
+    const why = await window.UI.prompt({
+      title: '무슨 일이 있었나요?',
+      body: '운영자가 확인하고 연락드릴게요.\n확인하는 동안 상담사에게 정산이 나가지 않습니다.',
+      multiline: true, placeholder: '예: 약속한 시간에 연결되지 않았어요',
+      okLabel: '보내기'
+    });
+    if (why === null || !String(why).trim()) return;
+    const r = await window.Api.json('/api/bookings/dispute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: bookingId, clientId: this.clientId(), why: String(why).trim() })
+    });
+    if (!r || !r.ok) { window.UI.alert('잠시 후 다시 시도해주세요'); return; }
+    b.srvDispute = String(why).trim();
+    window.Storage._safeSet('cbt_bookings', bookings);
+    window.UI.alert({
+      title: '접수했어요',
+      body: '운영자가 확인 후 연락드릴게요.\n그때까지 이 상담의 정산은 멈춰 둡니다.'
+    });
+    this.renderMyBookings();
+  },
+
   // 상담사가 낸 숙제를 받아온다.
   //  Homework.receive() 는 만들어져 있었는데 부르는 곳이 없어서,
   //  상담사가 숙제를 내도 앱까지 오는 다리가 없었다.
@@ -1843,7 +1923,10 @@ ${memory || '(없음)'}`;
   async _bookingSyncTick() {
     try {
       const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
-      const active = bookings.filter(b => b.status === 'confirmed' && b.whenTs && b.whenTs > Date.now());
+      // 예정된 것만 보던 것을 넓힌다 — 상담사가 '완료'나 '환불'로 바꾼 것도
+      //  받아와야 내담자 화면에 [상담 잘 받았어요] 버튼이 뜬다.
+      const active = bookings.filter(b =>
+        b.status === 'confirmed' || b.status === 'done' || b.srvDone);
       if (!active.length) return;
       const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
       const res = await window.Api.f(`/api/bookings?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}`).catch(() => null);
@@ -1852,7 +1935,10 @@ ${memory || '(없음)'}`;
       let changed = false;
       active.forEach(b => {
         const sv = server.find(x => x.id === b.id);
-        if (sv && sv.status === 'declined') {
+        if (!sv) return;
+
+        // 상담사가 거절 — 전액 환불
+        if (sv.status === 'declined' && b.status === 'confirmed') {
           b.status = 'cancelled';
           b.cancelledTs = Date.now();
           b.cancelledBy = 'counselor';
@@ -1860,8 +1946,38 @@ ${memory || '(없음)'}`;
           changed = true;
           if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 예약 취소(상담사 사정) 전액 환불`);
           if (this._notifOn('booking')) { this.notify('예약 취소 안내', `${b.name}님 사정으로 [${b.time}] 예약이 취소되어 전액 환불되었어요.`); this.playWoorung(); }
- this.showRecordToast(`${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
+          this.showRecordToast(`${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
+          return;
         }
+
+        // 상담사가 환불 처리 (병가 등)
+        if (sv.status === 'refunded' && !b.refunded) {
+          b.status = 'cancelled';
+          b.cancelledBy = 'counselor';
+          b.refunded = sv.refund || b.price;
+          changed = true;
+          if (window.Wallet) window.Wallet.refund(b.refunded, `${b.name} 상담 환불${sv.refundWhy ? ' · ' + sv.refundWhy : ''}`);
+          this.showRecordToast(`${b.name}님이 환불 처리했어요 (${(b.refunded).toLocaleString()}캐시)`);
+          return;
+        }
+
+        // 상담사가 완료 처리 — 내담자가 확인해야 정산이 확정된다
+        if (sv.status === 'done' && !b.srvDone) {
+          b.srvDone = true;
+          b.srvDoneAt = sv.doneAt || Date.now();
+          b.srvAutoAt = sv.autoAt || 0;
+          changed = true;
+          if (this._notifOn('booking')) {
+            this.notify('상담 확인 요청', `${b.name}님과의 상담은 어떠셨어요? 마이페이지에서 확인해주세요.`);
+          }
+          this.showRecordToast(`${b.name}님이 상담을 완료 처리했어요. 확인해주세요`);
+          this._setNavBadge('mypage', true);
+          return;
+        }
+
+        // 확인·정산 상태 반영
+        if (sv.confirmAt && !b.srvConfirmAt) { b.srvConfirmAt = sv.confirmAt; changed = true; }
+        if (sv.settledAt && !b.srvSettledAt) { b.srvSettledAt = sv.settledAt; changed = true; }
       });
       if (changed) {
         window.Storage._safeSet('cbt_bookings', bookings);
