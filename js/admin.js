@@ -356,7 +356,7 @@ window.Admin = {
       </div>`;
     document.body.appendChild(ov);
     // 서버 통계 → 서비스 현황 그리드
-    fetch('/api/stats?code=' + this.PASS).then(r2 => r2.ok ? r2.json() : null).then(d => {
+    window.Api.f('/api/stats?code=' + this.PASS).then(r2 => r2.ok ? r2.json() : null).then(d => {
       const grid = document.getElementById('admin-stats-grid');
       if (!grid) return;
       if (!d) { grid.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 미연결 — 통계를 불러올 수 없어요.</p>'; return; }
@@ -375,7 +375,7 @@ window.Admin = {
         cell('플랫폼 수익', d.revenue.platform.toLocaleString(), `총 결제 ${d.revenue.gross.toLocaleString()}캐시의 7%`);
     }).catch(() => {});
     // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
-    fetch('/api/bookings?code=' + this.PASS).then(r => r.ok ? r.json() : null).then(d => {
+    window.Api.f('/api/bookings?code=' + this.PASS).then(r => r.ok ? r.json() : null).then(d => {
       const el = document.getElementById('admin-rev');
       if (!el) return;
       if (!d) { el.textContent = '서버 미연결 — 정산 집계 불가'; return; }

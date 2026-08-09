@@ -1222,7 +1222,7 @@ window.App = {
     if (this._serverProbing) return false;
     this._serverProbing = true;
     try {
-      const r = await fetch('/api/presence');
+      const r = await window.Api.f('/api/presence');
       this._serverOk = !!r.ok;
       if (!r.ok) this._serverDownUntil = Date.now() + 30 * 60 * 1000;
       return this._serverOk;
@@ -1523,7 +1523,7 @@ ${memory || '(없음)'}`;
     window.Storage._safeSet('cbt_shared_packs', packs);
     // 서버 수신함으로도 전송 — 상담사는 /counselor.html 에서 열람 (오프라인이면 조용히 생략)
     try {
-      fetch('/api/inbox', {
+      window.Api.f('/api/inbox', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1573,7 +1573,7 @@ ${memory || '(없음)'}`;
     window.Storage._safeSet('cbt_bookings', bookings);
     if (window.Wallet && refund > 0) window.Wallet.refund(refund, `${b.name} 예약 취소 환불${refundRate < 1 ? ' (50%)' : ''}`);
     // 서버 장부에도 취소 반영 → 상담사 일정에서 '취소됨' 표시
-    try { fetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
+    try { window.Api.f('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
     this.renderMyBookings();
     this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
   },
@@ -1676,7 +1676,7 @@ ${memory || '(없음)'}`;
       b.status = 'noshow';
       b.refunded = b.price;
       if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 상담 미진행 전액 환불`);
-      try { fetch('/api/bookings/noshow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
+      try { window.Api.f('/api/bookings/noshow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
  this.showRecordToast(`미진행 상담 ${b.price.toLocaleString()}캐시가 전액 환불됐어요`);
       if (this.currentTab === 'mypage') this.renderMyBookings();
     }
@@ -1686,7 +1686,7 @@ ${memory || '(없음)'}`;
   // === 리뷰 답글 수신 — 상담사가 답글을 달면 알림 ===
   async _reviewReplyTick() {
     try {
-      const res = await fetch(`/api/reviews?clientId=${encodeURIComponent(this.clientId())}`);
+      const res = await window.Api.f(`/api/reviews?clientId=${encodeURIComponent(this.clientId())}`);
       if (!res.ok) return;
       const items = (await res.json()).items || [];
       const seen = window.Storage._safeGet('cbt_review_replies', {}) || {};
@@ -1711,7 +1711,7 @@ ${memory || '(없음)'}`;
   joinCallQueue(counselorId) {
     const c = window.Marketplace.getCounselor(counselorId);
     if (!c) return;
-    fetch('/api/call/queue', {
+    window.Api.f('/api/call/queue', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ counselorId: c.id, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명' })
     }).then(r => r.ok ? r.json() : null).then(d => {
@@ -1725,7 +1725,7 @@ ${memory || '(없음)'}`;
   },
 
   leaveCallQueue(counselorId) {
-    fetch('/api/call/queue/leave', {
+    window.Api.f('/api/call/queue/leave', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ counselorId, clientId: this.clientId() })
     }).catch(() => {});
@@ -1744,7 +1744,7 @@ ${memory || '(없음)'}`;
     if (!waits.length) return;
     for (const w of [...waits]) {
       try {
-        const res = await fetch(`/api/call/queue?counselorId=${encodeURIComponent(w.counselorId)}&clientId=${encodeURIComponent(this.clientId())}`);
+        const res = await window.Api.f(`/api/call/queue?counselorId=${encodeURIComponent(w.counselorId)}&clientId=${encodeURIComponent(this.clientId())}`);
         if (!res.ok) continue;
         const d = await res.json();
         if (d.position === 0) { // 서버에서 사라짐(연결됐거나 리셋) → 조용히 정리
@@ -1774,7 +1774,7 @@ ${memory || '(없음)'}`;
       const keys = Object.keys(localStorage).filter(k => k.startsWith('cbt_hchat_'));
       for (const key of keys) {
         const cid = key.replace('cbt_hchat_', '');
-        const res = await fetch(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(cid)}`).catch(() => null);
+        const res = await window.Api.f(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(cid)}`).catch(() => null);
         if (!res || !res.ok) continue;
         const data = await res.json();
         const cur = window.Storage._safeGet(key, []) || [];
@@ -1800,7 +1800,7 @@ ${memory || '(없음)'}`;
       const active = bookings.filter(b => b.status === 'confirmed' && b.whenTs && b.whenTs > Date.now());
       if (!active.length) return;
       const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
-      const res = await fetch(`/api/bookings?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}`).catch(() => null);
+      const res = await window.Api.f(`/api/bookings?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}`).catch(() => null);
       if (!res || !res.ok) return;
       const server = (await res.json()).items || [];
       let changed = false;
@@ -2043,7 +2043,7 @@ ${memory || '(없음)'}`;
     window.Storage._safeSet(key, msgs.slice(-200));
     // 서버 채팅으로도 전송 → 상담사 페이지에 실제 도착
     try {
-      fetch('/api/chat-msg', {
+      window.Api.f('/api/chat-msg', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ counselorId, counselorName: name, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명', from: 'client', text })
@@ -2064,7 +2064,7 @@ ${memory || '(없음)'}`;
     const b = (window.Storage._safeGet('cbt_bookings', []) || []).find(x => x.id === bookingId);
     if (b) {
       try {
-        fetch('/api/reviews', {
+        window.Api.f('/api/reviews', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookingId, counselorId: b.counselorId, counselorName: b.name, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명', rating, text })
         }).catch(() => {});
@@ -2245,7 +2245,7 @@ ${memory || '(없음)'}`;
     // 서버 명부 등록 + 상담사 전용 수신함 코드 발급 (서버 꺼져 있으면 조용히 생략)
     const newCu = customs[0];
     try {
-      fetch('/api/counselors', {
+      window.Api.f('/api/counselors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: newCu.id, name: newCu.name, adminCode: '1234' })
@@ -2497,7 +2497,7 @@ ${memory || '(없음)'}`;
       if (!await window.UI.confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
     // 서버 회선 점유: 다른 내담자가 이미 통화 중이면 연결하지 않는다
-    fetch('/api/call/start', {
+    window.Api.f('/api/call/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ counselorId: c.id, clientId: this.clientId(), prepaid })
@@ -2534,7 +2534,7 @@ ${memory || '(없음)'}`;
     // 서버 스레드에서 상담사 답장 가져오기 (8초 폴링)
     const sync = async () => {
       try {
-        const res = await fetch(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(c.id)}`);
+        const res = await window.Api.f(`/api/chat-msg?clientId=${encodeURIComponent(this.clientId())}&client=${encodeURIComponent(clientName)}&counselorId=${encodeURIComponent(c.id)}`);
         if (!res.ok) return;
         const data = await res.json();
         const cur = window.Storage._safeGet(key, []) || [];
@@ -2606,7 +2606,7 @@ ${memory || '(없음)'}`;
       window.Storage._safeSet(key, msgs.slice(-200));
       // 서버 채팅함으로 전송 → 상담사 페이지(/counselor.html)에 도착
       try {
-        fetch('/api/chat-msg', {
+        window.Api.f('/api/chat-msg', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ counselorId: c.id, counselorName: c.name, clientId: this.clientId(), clientName, from: 'client', text: t })

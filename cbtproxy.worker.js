@@ -28,18 +28,30 @@ const MAX_TOKENS_CAP = 8000;
 const MAX_MESSAGES = 40;
 const MAX_TTS_CHARS = 2000;
 
+import { handleMarket } from "./market.js";
+
 export default {
   async fetch(request, env) {
     const origin = env.ALLOWED_ORIGIN || "*";
     const cors = {
       "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Vary": "Origin",
     };
 
     // CORS preflight
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+
+    const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
+
+    // 상담사 마켓(D1)은 GET 도 받는다. 여기서 처리되지 않으면 null 이 와서
+    //  아래 AI 경로로 흘러간다 — 두 기능이 한 Worker 를 쓰되 서로 모르게.
+    if (!/^\/(tts|chat)?$/.test(path)) {
+      const r = await handleMarket(request, env, cors, path);
+      if (r) return r;
+    }
+
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, cors);
     if (!env.OPENAI_API_KEY) return json({ error: "Server not configured" }, 500, cors);
 
@@ -47,7 +59,6 @@ export default {
     try { body = await request.json(); }
     catch { return json({ error: "Bad JSON" }, 400, cors); }
 
-    const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
     return path === "/tts" ? handleTts(body, env, cors) : handleChat(body, env, cors);
   },
 };

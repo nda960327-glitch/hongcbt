@@ -249,7 +249,7 @@ window.CallTalk = {
     // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
     if (this._human && this._counselorId) {
       try {
-        fetch('/api/call/end', {
+        window.Api.f('/api/call/end', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ counselorId: this._counselorId, clientId: window.App ? window.App.clientId() : '' })

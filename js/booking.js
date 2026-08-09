@@ -215,7 +215,7 @@ window.Booking = {
 
     // 서버 예약 장부에도 기록 — 상담사 페이지(/counselor.html) 일정에 뜬다
     try {
-      fetch('/api/bookings', {
+      window.Api.f('/api/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
