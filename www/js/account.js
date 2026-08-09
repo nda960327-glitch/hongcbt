@@ -138,9 +138,14 @@ window.Account = {
   },
 
   login(provider) {
-    const back = encodeURIComponent(location.origin);
     const base = (window.Api && window.Api.base && window.Api.base()) || '';
-    location.href = base + '/api/oauth/' + provider + '/start?back=' + back;
+    if (!base) {
+      // 백엔드 주소를 모르면 같은 출처로 가는데, 정적 호스팅에는 /api 가 없어
+      //  404 페이지만 뜬다. 조용히 실패하느니 왜 안 되는지 말해준다.
+      if (window.UI) window.UI.alert('로그인 서버 주소를 불러오지 못했어요.\n앱을 새로고침한 뒤 다시 시도해주세요.');
+      return;
+    }
+    location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin);
   },
 
   async _exchange(code) {

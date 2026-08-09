@@ -12,8 +12,17 @@ window.Api = {
   //  판정을 기억해 둔다. 안 그러면 앱을 켤 때마다 첫 요청이 404 를 한 번
   //  받고서야 Worker 로 넘어가, 그 요청만 300ms 넘게 느려진다.
   //  하필 그 첫 요청이 로그인 검사라 사용자는 '느린 앱'으로 체감한다.
+  // 판정 규칙이 바뀌면 예전에 저장해 둔 판정은 버려야 한다.
+  //  틀린 판정이 하루 동안 남아 앱 전체를 망가뜨린 적이 있다(아래 설명).
+  PROBE_VER: '2',
+
   _sameOrigin: (() => {
     try {
+      if (localStorage.getItem('cbt_api_probe_ver') !== '2') {
+        localStorage.removeItem('cbt_api_same_origin');
+        localStorage.setItem('cbt_api_probe_ver', '2');
+        return undefined;
+      }
       const v = localStorage.getItem('cbt_api_same_origin');
       const at = +(localStorage.getItem('cbt_api_same_origin_at') || 0);
       // 하루 지나면 다시 확인 (서버를 나중에 붙일 수도 있으므로)
@@ -50,9 +59,17 @@ window.Api = {
     if (this._sameOrigin !== false && isHttp) {
       try {
         const r = await fetch(p, opts);
-        // 정적 서버는 없는 경로에 404 나 index.html(HTML) 을 돌려준다
+        // 판정은 '우리 API 가 답했는가' 하나로 본다. 우리 API 는 성공이든
+        //  실패든 항상 JSON 을 돌려주므로, JSON 이 아니면 우리 것이 아니다.
+        //
+        //  전에는 '404 가 아니고 HTML 이 아니면 우리 것'으로 봤다.
+        //  그런데 Cloudflare Pages 는 POST 를 받으면 405 를 content-type
+        //  없이 돌려준다. 404 도 아니고 HTML 도 아니니 '우리 API'로 판정되어
+        //  ① 그 요청이 실패하고 ② 그 판정이 하루 동안 저장돼
+        //  이후 모든 API 호출이 같은 출처로 가서 전부 죽었다.
+        //  로그인하고 돌아와도 다시 로그인 화면이던 게 이것 때문이다.
         const ct = (r.headers.get('content-type') || '');
-        if (r.status !== 404 && !ct.includes('text/html')) {
+        if (ct.includes('application/json')) {
           this._remember(true);
           return r;
         }
