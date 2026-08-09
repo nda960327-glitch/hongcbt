@@ -12,7 +12,7 @@
 //    내담자가 [동의하고 보내기]를 누른 요약본만 inbox 에 들어온다.
 // ============================================================================
 
-import { resolveCounselor, handleAuth } from './auth.js';
+import { resolveCounselor, handleAuth, sendCodeMail } from './auth.js';
 
 const MAX = { text: 4000, name: 40, id: 64 };
 const CALL_LOCK_MS = 35 * 60 * 1000;      // 통화 잠금 자동 해제
@@ -54,6 +54,57 @@ async function whoami(db, cred) {
   return await resolveCounselor(db, {
     session: s(session, 128), code: s(code, MAX.id)
   });
+}
+
+// ── 연락처 유출 차단 ───────────────────────────────────────────────────
+//  상담사가 내담자를 플랫폼 밖으로 빼가면 (또는 내담자가 밖에서 만나자고 하면)
+//  기록도 안전장치도 정산도 전부 사라진다. 사고가 나도 우리가 알 수 없다.
+//  그래서 채팅에서 오가는 연락처는 서버에서 가린다.
+//
+//  '완벽한 차단'은 불가능하다 — 사람은 "공일공에 일이삼사" 처럼 얼마든지 우회한다.
+//  목표는 우회를 어렵고 눈에 띄게 만드는 것, 그리고 시도를 기록으로 남기는 것이다.
+//
+//  위기 상담번호(109·1577-0199·1366·1388·119)는 절대 가리지 않는다.
+const CRISIS_NUMS = ['109', '1577-0199', '15770199', '1366', '1388', '119', '129', '1393'];
+
+function maskContacts(text) {
+  let t = String(text || '');
+  let hits = 0;
+
+  // 위기번호는 잠시 빼둔다 — 단, '숫자에 둘러싸이지 않은' 경우에만.
+  //  전에는 그냥 치환해서, 01098765432 안의 109 가 먼저 빠지는 바람에
+  //  전화번호 패턴이 깨지고 그 번호가 그대로 통과했다.
+  const keep = [];
+  CRISIS_NUMS.forEach((n, k) => {
+    const re = new RegExp('(?<![0-9-])' + n.replace(/-/g, '[-]') + '(?![0-9-])', 'g');
+    if (re.test(t)) {
+      const tk = '\uE000' + k + '\uE001';   // 사용자 영역 문자 — 본문에 나올 리 없다
+      keep.push([tk, n]);
+      t = t.replace(re, tk);
+    }
+  });
+
+  const rules = [
+    // 휴대폰·일반 전화 (구분자 자유)
+    /0\s?1\s?[0-9][\s.\-]?\d{3,4}[\s.\-]?\d{4}/g,
+    /0\d{1,2}[\s.\-]\d{3,4}[\s.\-]\d{4}/g,
+    // 한글·유사문자 우회: 공일공 / 영일영 / o1o / ㅇ1ㅇ
+    /[공영빵][일이삼사오육칠팔구영공]{1,2}[공영빵]\s*[에의]?\s*[일이삼사오육칠팔구영공\s]{6,}/g,
+    /[oO0ㅇ]\s?1\s?[oO0ㅇ][\s.\-]?[\d일이삼사오육칠팔구영공]{3,4}[\s.\-]?[\d일이삼사오육칠팔구영공]{4}/g,
+    // 이메일
+    /[A-Za-z0-9._%+\-]+\s?@\s?[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g,
+    // 링크·오픈채팅
+    /(https?:\/\/|www\.)[^\s]+/gi,
+    /open\.kakao\.com[^\s]*/gi,
+    // 메신저 아이디 유도
+    /(카톡|카카오톡|카카오|텔레그램|텔레|라인|인스타|디엠|DM|kakao|telegram|line)\s*(아이디|ID|id|아디)?\s*[:：]?\s*[A-Za-z0-9._\-]{3,}/g
+  ];
+  rules.forEach(re => {
+    t = t.replace(re, () => { hits++; return '[연락처는 전달되지 않아요]'; });
+  });
+
+  keep.forEach(([tk, n]) => { t = t.split(tk).join(n); });
+  return { text: t, hits };
 }
 
 // 운영자 마스터 코드 — 전체 열람. 시크릿으로만 준다.
@@ -445,13 +496,23 @@ export async function handleMarket(request, env, cors, path) {
     }
     if (!clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
 
+    // 연락처는 저장 전에 가린다. 원문을 남겨두면 언젠가 새어 나간다.
+    const clean = maskContacts(text);
     const id = rid('cm');
     await db.prepare(
       `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
        VALUES (?,?,?,?,?,?,?,?)`
     ).bind(id, counselorId, s(body.counselorName), clientId,
-      s(body.clientName) || '익명', from, text, nowMs()).run();
-    return json({ ok: true, id }, 200, cors);
+      s(body.clientName) || '익명', from, clean.text, nowMs()).run();
+    // 시도는 기록해 둔다 — 반복되면 운영자가 보고 조치할 수 있어야 한다
+    if (clean.hits) {
+      try {
+        await db.prepare(
+          'INSERT INTO contact_attempts (id, counselor_id, client_id, sender, n, ts) VALUES (?,?,?,?,?,?)'
+        ).bind(rid('ct'), counselorId, clientId, from, clean.hits, nowMs()).run();
+      } catch (e) {}
+    }
+    return json({ ok: true, id, masked: clean.hits }, 200, cors);
   }
 
   // ── 바로상담 대기열 ─────────────────────────────────────────────────
@@ -710,7 +771,11 @@ export async function handleMarket(request, env, cors, path) {
       a.bank, a.bank_no, a.bank_holder, nowMs()).run();
     await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
       .bind(cid, nowMs(), id).run();
-    return json({ ok: true, counselorId: cid, name: a.name, code: newCode, email: a.email || '' }, 200, cors);
+    // 코드를 한 번 메일로 보낸다. 이후로는 상담사가 그 코드로 계속 들어온다.
+    let mailed = null;
+    if (a.email) mailed = await sendCodeMail(env, db, a.email, a.name, newCode, env.APP_URL);
+    return json({ ok: true, counselorId: cid, name: a.name, code: newCode,
+                  email: a.email || '', mailed: mailed ? mailed.sent : null }, 200, cors);
   }
 
   if (path === '/apply/reject' && method === 'POST') {
@@ -751,7 +816,9 @@ export async function handleMarket(request, env, cors, path) {
         `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created)
          VALUES (?,?,?,?,?,0,0,1,?)`
       ).bind(id, name, s(body.hospital, 120), email || null, newCode, nowMs()).run();
-      return json({ ok: true, id, name, email, code: newCode }, 200, cors);
+      let mailed = null;
+      if (email) mailed = await sendCodeMail(env, db, email, name, newCode, env.APP_URL);
+      return json({ ok: true, id, name, email, code: newCode, mailed: mailed ? mailed.sent : null }, 200, cors);
     }
 
     // 이메일 등록·변경. 바꾸면 이전 세션을 전부 끊는다 —
@@ -772,8 +839,11 @@ export async function handleMarket(request, env, cors, path) {
     if (path === '/admin/counselors/rotate' && method === 'POST') {
       const id = s(body.id, MAX.id);
       const newCode = makeCode();
-      const r = await db.prepare('UPDATE counselors SET code = ? WHERE id = ?').bind(newCode, id).run();
-      return json({ ok: true, id, code: newCode }, 200, cors);
+      await db.prepare('UPDATE counselors SET code = ? WHERE id = ?').bind(newCode, id).run();
+      const who = await db.prepare('SELECT name, email FROM counselors WHERE id = ?').bind(id).first();
+      let mailed = null;
+      if (who && who.email) mailed = await sendCodeMail(env, db, who.email, who.name, newCode, env.APP_URL);
+      return json({ ok: true, id, code: newCode, mailed: mailed ? mailed.sent : null }, 200, cors);
     }
 
     if (path === '/admin/counselors/active' && method === 'POST') {

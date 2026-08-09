@@ -42,21 +42,16 @@
       <span class="tag">데모</span>
     </header>
 
-    <!-- 로그인 — 이메일로 링크 받기 -->
+    <!-- 로그인 — 발급받은 코드가 기본, 잃어버렸을 때만 메일 -->
     <div id="login" class="card" style="text-align: center;">
       <p style="font-weight: 700; margin-bottom: 0.3rem;">상담사 로그인</p>
-      <p class="muted" style="margin-bottom: 0.8rem;">등록하신 이메일로 <b>로그인 링크</b>를 보내드립니다.<br>비밀번호는 없습니다. 링크는 15분간, 한 번만 쓸 수 있어요.</p>
-      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="이메일 주소">
+      <p class="muted" style="margin-bottom: 0.8rem;">입점 승인 시 <b>이메일로 보내드린 코드</b>를 입력하세요.<br>한 번 입력하면 이 기기에서는 계속 열립니다.</p>
+      <input id="code" type="password" autocomplete="off" placeholder="열람 코드">
       <p id="err" class="muted" style="color: #cf6b60; display: none; margin-top: 0.5rem;"></p>
-      <p id="sent" class="muted" style="display: none; margin-top: 0.6rem; line-height: 1.7;"></p>
-      <button class="btn" id="login-btn" onclick="requestLink()">로그인 링크 받기</button>
-      <details style="margin-top: 0.9rem; text-align: left;">
-        <summary class="muted" style="cursor: pointer; font-size: 0.82rem;">이메일이 아직 등록되지 않았다면</summary>
-        <p class="muted" style="margin: 0.5rem 0 0; line-height: 1.7; font-size: 0.82rem;">
-          운영자에게 받은 <b>열람 코드</b>로도 들어올 수 있습니다.</p>
-        <input id="code" type="password" placeholder="열람 코드" style="margin-top: 0.4rem;">
-        <button class="btn ghost" style="margin-top: 0.4rem;" onclick="loginWithCode()">코드로 열기</button>
-      </details>
+      <button class="btn" id="code-btn" onclick="loginWithCode()">수신함 열기</button>
+      <p class="muted" style="margin-top: 0.9rem; line-height: 1.7; font-size: 0.8rem;">
+        코드를 잃어버렸거나 코드가 샌 것 같으면 운영팀에 알려주세요.<br>
+        바로 새 코드를 보내드립니다 — <b>nda960327@gmail.com</b></p>
     </div>
 
     <!-- 수신함 -->
@@ -114,37 +109,9 @@
       return Object.assign(SESSION ? { session: SESSION } : { code: CODE }, extra || {});
     }
 
-    // ── 이메일로 로그인 링크 요청 ──────────────────────────────────
-    //  주소가 등록돼 있든 아니든 같은 안내를 보여준다.
-    //  "그런 이메일 없습니다" 는 가입 여부를 알려주는 것이라 흘리지 않는다.
-    async function requestLink() {
-      const email = (document.getElementById('email').value || '').trim();
-      const errEl = document.getElementById('err');
-      const sentEl = document.getElementById('sent');
-      const btn = document.getElementById('login-btn');
-      errEl.style.display = 'none';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-        errEl.textContent = '이메일 주소를 정확히 적어주세요.';
-        errEl.style.display = 'block';
-        return;
-      }
-      btn.disabled = true; btn.textContent = '보내는 중…';
-      let d = null;
-      try {
-        const r = await api('/api/auth/request', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        d = await r.json();
-      } catch (e) {}
-      btn.disabled = false; btn.textContent = '로그인 링크 받기';
-      if (!d) { errEl.textContent = '연결에 실패했어요. 잠시 후 다시 시도해주세요.'; errEl.style.display = 'block'; return; }
-      sentEl.innerHTML = (d.message || '링크를 보냈어요.')
-        + (d.mail === 'not-configured'
-            ? '<br><b style="color:#cf6b60;">※ 메일 발송이 아직 설정되지 않았습니다. 운영자에게 문의해주세요.</b>'
-            : '');
-      sentEl.style.display = 'block';
-    }
+    // 이메일 로그인은 없앴다 — 코드 하나로만 들어온다.
+    //  매직링크 서버 경로(/api/auth/verify)는 남겨 둔다: 메일의 링크로 들어오는
+    //  경우와, 나중에 운영자가 대신 링크를 보낼 때 쓴다.
 
     // ── 링크 클릭 → 세션 교환 ──────────────────────────────────────
     async function verifyLink(t) {
@@ -174,7 +141,11 @@
     async function loginWithCode() {
       const v = (document.getElementById('code').value || '').trim();
       const errEl = document.getElementById('err');
+      const btn = document.getElementById('code-btn');
+      errEl.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = '확인 중…'; }
       const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
+      if (btn) { btn.disabled = false; btn.textContent = '수신함 열기'; }
       if (!r || !r.ok) { errEl.textContent = '코드가 올바르지 않습니다.'; errEl.style.display = 'block'; return; }
       CODE = v; SESSION = '';
       sessionStorage.setItem('inbox_code', v);
@@ -852,7 +823,6 @@
       }
     }
 
-    document.getElementById('email').addEventListener('keydown', e => { if (e.key === 'Enter') requestLink(); });
     document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') loginWithCode(); });
 
     // 메일의 링크로 들어온 경우: ?t=... 를 세션으로 바꾸고 바로 연다

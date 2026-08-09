@@ -2265,8 +2265,9 @@ ${memory || '(없음)'}`;
         ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
  ${(approved && a.inboxCode) ?`<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;"> 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html"target="_blank"style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>`:''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
- <button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;"onclick="window.App.openAvailSettings()"> 상담 가능 시간 설정</button>
- ${approved ?`<button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;"onclick="window.App.editCounselorProfile('${a.id}')"> 프로필 수정</button>`:''}
+          ${/* 상담 가능 시간·프로필·정산 계좌는 전부 상담사 전용 페이지에서 관리한다.
+                앱에도 같은 설정을 두면 둘이 어긋나고, 어느 쪽이 진짜인지 알 수 없게 된다. */''}
+          ${approved ? `<a href="/counselor.html" target="_blank" class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; text-decoration: none; display: inline-block;">내 상담사 페이지 열기 ›</a>` : ''}
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
         </div>
       </div>`;

@@ -415,6 +415,16 @@
  <!-- 방 -->
             <div class="game-view" id="gv-room">
               <div id="room-body"></div>
+              <!-- 우렁이를 보면서 오늘 할 일도 같이 보이게.
+                   renderCard() 가 [data-mission-card] 를 전부 채우므로
+                   여기 칸만 두면 홈·퀘스트 화면과 같은 내용이 그려진다. -->
+              <div style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--glass-border);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem;">
+                  <strong class="q-title" data-ic="quest">오늘의 퀘스트</strong>
+                  <span class="q-reward" data-ic="water" data-ic-size="12">완료하면 물 +3</span>
+                </div>
+                <div data-mission-card></div>
+              </div>
             </div>
 
  <!-- 농장 -->

@@ -149,6 +149,59 @@ async function sendMail(env, to, link, name) {
   }
 }
 
+// 승인 시 열람 코드를 한 번 보낸다.
+//  매직링크를 매번 쓰면 상담사 1,000명 × 로그인마다 메일이 나가 무료 한도를 먹는다.
+//  코드는 '한 사람당 한 번'이면 끝나고, 넣고 나면 그 기기에서 계속 열린다.
+//  링크는 코드를 잃어버렸을 때의 보조 수단으로 남긴다.
+export async function sendCodeMail(env, db, to, name, code, appUrl) {
+  if (!env.RESEND_API_KEY) return { sent: false, reason: 'no-api-key' };
+  const { addr } = pickAddress(env);
+  if (!addr) return { sent: false, reason: 'no-from-address' };
+  const base = String(appUrl || env.APP_URL || '').replace(/\/+$/, '');
+  const html = `
+<div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">우렁의사</p>
+  <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${name ? name + ' 선생님, ' : ''}입점이 승인됐습니다</h1>
+  <p style="font-size:14px;line-height:1.75;margin:0 0 18px;">
+    아래 주소로 들어가 코드를 입력하시면 상담사 페이지가 열립니다.<br>
+    한 번 입력하면 그 기기에서는 계속 열려 있어요.</p>
+  <p style="margin:0 0 6px;font-size:13px;color:#8a7b68;">내 열람 코드</p>
+  <p style="margin:0 0 18px;font-size:20px;font-weight:800;letter-spacing:.06em;
+     background:#f2ece1;border-radius:10px;padding:12px 16px;display:inline-block;">${code}</p>
+  <p style="margin:0 0 20px;">
+    <a href="${base}/counselor.html" style="display:inline-block;background:#4f8a6b;color:#fff;
+       text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;">상담사 페이지 열기</a></p>
+  <p style="font-size:13px;line-height:1.8;color:#3f352a;margin:0 0 4px;"><b>여기서 하실 수 있는 것</b></p>
+  <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
+    예약 가능 시간 설정 · 내 정보 수정 · 정산 계좌 등록<br>
+    예약 확인과 상담 완료 처리 · 내담자에게 숙제 내주기 · 받은 상담 자료 열람</p>
+  <hr style="border:0;border-top:1px solid #e8ddcd;margin:18px 0 12px;">
+  <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
+    이 코드는 비밀번호와 같습니다. 단톡방이나 메신저에 올리지 마세요.<br>
+    코드가 샌 것 같으면 바로 알려주세요 — 새로 발급해 드립니다.<br>
+    코드를 잃어버리면 상담사 페이지에서 '코드를 잃어버렸어요'로 다시 받을 수 있습니다.</p>
+</div>`;
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: encodeFrom(env), to: [to],
+        subject: '우렁의사 입점 승인 · 상담사 페이지 접속 코드',
+        html
+      })
+    });
+    const res = r.ok ? { sent: true, reason: '' }
+      : { sent: false, reason: 'http-' + r.status, detail: (await r.text()).slice(0, 220) };
+    await logMail(db, to, res);
+    return res;
+  } catch (e) {
+    const res = { sent: false, reason: 'network', detail: String(e && e.message || e).slice(0, 200) };
+    await logMail(db, to, res);
+    return res;
+  }
+}
+
 // 메일 주소는 통째로 남기지 않는다 — 로그가 곧 연락처 목록이 되면 안 된다
 const maskMail = e => {
   const s = String(e || '');
