@@ -115,6 +115,7 @@
 
   // 정렬 바텀시트 — 배달앱처럼 아래에서 올라오는 선택지
   openSortSheet() {
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}
     if (document.getElementById('cc-sort-sheet')) return;
     const wrap = document.createElement('div');
     wrap.id = 'cc-sort-sheet';
@@ -322,6 +323,7 @@
   },
 
   openReviews(id) {
+    try { if (window.Sfx) window.Sfx.play('pop'); } catch (e) {}
     const c = this.all().find(x => x.id === id);
     if (!c) return;
     this._revId = id;
@@ -518,6 +520,7 @@
   },
 
   openProfile(id) {
+    try { if (window.Sfx) window.Sfx.play('pop'); } catch (e) {}   // 카드가 펼쳐지는 느낌
     const counselor = this.getCounselor(id);
     if (!counselor) return;
     

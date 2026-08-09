@@ -580,6 +580,8 @@ window.ThoughtRecord = {
   },
 
   _wizStep(n) {
+    // 생각을 한 칸씩 정리해 나가는 감각을 소리로도 준다
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}
     const w = this._wiz;
     const sticker = (name, size) => window.Stickers ? window.Stickers.svg(name, size || 84) : '';
     const esc = (s) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');

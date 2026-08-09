@@ -171,6 +171,7 @@ window.Learn = {
   },
 
   showDetail(id) {
+    try { if (window.Sfx) window.Sfx.play('pop'); } catch (e) {}
     const dist = this.distortions.find(d => d.id === id);
     if (!dist) return;
 
@@ -229,6 +230,7 @@ window.Learn = {
   },
 
   startQuiz() {
+    try { if (window.Sfx) window.Sfx.play('appear'); } catch (e) {}
     this.currentQuizIndex = 0;
     this.quizScore = 0;
     this.quizQuestions.sort(() => Math.random() - 0.5);
@@ -318,6 +320,7 @@ window.Learn = {
   },
 
   showResults() {
+    try { if (window.Sfx) window.Sfx.hit('levelup'); } catch (e) {}   // 끝까지 푼 순간
     const container = document.getElementById('quiz-content');
     const total = Math.min(this.QUIZ_LEN, this.quizQuestions.length);
     const score = this.quizScore;

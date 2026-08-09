@@ -79,6 +79,7 @@ window.Safety = {
   },
 
   save() {
+    try { if (window.Sfx) window.Sfx.hit('save'); } catch (e) {}   // 위기 화면이라 저장 확인만 조용히 낸다
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
     const plan = {
       signals: v('sf-signals'),

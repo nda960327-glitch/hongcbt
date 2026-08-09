@@ -24,6 +24,7 @@ window.Calm = {
 
   // --- 호흡 가이드 ---
   startBreath(mode) {
+    try { if (window.Sfx) window.Sfx.play('appear'); } catch (e) {}
     if (window.SleepSounds) window.SleepSounds.stop(true); // 호흡 가이드 소리와 겹치지 않게
     const phases = mode === '478'
       ? [['코로 들이쉬세요', 4, 1.55], ['그대로 멈추세요', 7, 1.55], ['입으로 길게 내쉬세요', 8, 0.72]]
@@ -80,6 +81,7 @@ window.Calm = {
 
   // --- 5-4-3-2-1 그라운딩 ---
   startGrounding() {
+    try { if (window.Sfx) window.Sfx.play('appear'); } catch (e) {}
     const steps = [
  ['','지금 눈에 보이는 것','5가지','천천히 둘러보며 하나씩 마음속으로 이름 붙여보세요'],
  ['','몸에 닿아 있는 감촉','4가지','옷의 무게, 의자의 단단함, 발바닥의 바닥…'],
@@ -108,6 +110,8 @@ window.Calm = {
   },
 
   _finish() {
+    // 끝까지 해낸 순간. 이 앱에서 소리를 낼 가치가 가장 큰 지점이다.
+    try { if (window.Sfx) window.Sfx.hit('levelup'); } catch (e) {}
     if (window.Growth) window.Growth.bumpBreath();
     this._overlay(`
       <div style="text-align: center; max-width: 300px;">

@@ -37,6 +37,10 @@ window.Onboard = {
   },
 
   _step(n) {
+    // 단계가 넘어갈 때만. 입력 한 글자마다 소리를 내면 시끄럽다.
+    //  순서는 1 → 2 → 25(연락처) → 3(상담사 추천) 이라, 마지막은 3 이다.
+    //  거기서만 '시작했다'는 느낌이 나게 조금 크게 낸다.
+    try { if (window.Sfx) window.Sfx.hit(n === 3 ? 'levelup' : 'nav'); } catch (e) {}
     const d = this._data;
     if (n === 1) {
       this._wrap(`

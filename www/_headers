@@ -25,6 +25,11 @@
 /manifest.json
   Cache-Control: no-cache
 
+# 판 번호 확인용. 이건 절대 캐시되면 안 된다 — 이 파일이 묵으면
+#  '내가 옛 코드인가'를 판단할 방법 자체가 사라진다.
+/version.json
+  Cache-Control: no-store
+
 # 그림·글꼴은 내용이 바뀌면 파일명을 바꾸므로 오래 캐시해도 된다
 /*.png
   Cache-Control: public, max-age=604800

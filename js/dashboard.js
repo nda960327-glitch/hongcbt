@@ -50,6 +50,7 @@
   _mrOffset: 0,
 
   shiftMonthly(d) {
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}
     this._mrOffset = Math.min(0, this._mrOffset + d);
     this.renderMonthlyReport();
   },
@@ -230,6 +231,7 @@
   _calOffset: 0,
 
   shiftCalendar(d) {
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}
     this._calOffset = Math.min(0, this._calOffset + d);
     this.renderMoodCalendar();
   },
@@ -291,6 +293,7 @@
 
   // '그날의 나'에서 잘못 남긴 기록 삭제 (재미로 눌러본 가짜 데이터 정리용)
   deleteMood(ts, key) {
+    try { if (window.Sfx) window.Sfx.play('close'); } catch (e) {}
     const log = (window.Storage._safeGet('cbt_mood_log', []) || []).filter(m => m.ts !== ts);
     window.Storage._safeSet('cbt_mood_log', log);
     this.renderMoodCalendar();
@@ -307,6 +310,7 @@
   },
 
   deleteMission(ts, key) {
+    try { if (window.Sfx) window.Sfx.play('close'); } catch (e) {}
     const log = (window.Storage._safeGet('cbt_mission_log', []) || []).filter(m => m.ts !== ts);
     window.Storage._safeSet('cbt_mission_log', log);
     // 오늘 미션을 지운 거라면 홈 카드의 '완료' 상태도 되돌린다 (다시 도전 가능)
@@ -323,6 +327,7 @@
 
   // 날짜 탭 → 그날의 나: 기분 체크인·하루정리·미션·사고기록을 한 장으로
   openDayDetail(key) {
+    try { if (window.Sfx) window.Sfx.play('pop'); } catch (e) {}
     const S = window.Storage;
     const dayStart = new Date(key + 'T00:00:00').getTime();
     const dayEnd = dayStart + 86400000;

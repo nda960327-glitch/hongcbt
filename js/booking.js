@@ -53,6 +53,7 @@ window.Booking = {
   },
 
   openModal(counselorId) {
+    try { if (window.Sfx) window.Sfx.play('pop'); } catch (e) {}
     this.currentCounselorId = counselorId;
     const counselor = window.Marketplace.getCounselor(counselorId);
     if (!counselor) return;
@@ -130,6 +131,7 @@ window.Booking = {
   },
 
   moveMonth(delta) {
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}
     this.calMonth += delta;
     if (this.calMonth < 0) { this.calMonth = 11; this.calYear--; }
     if (this.calMonth > 11) { this.calMonth = 0; this.calYear++; }
@@ -138,6 +140,7 @@ window.Booking = {
   },
 
   pickDate(dateStr) {
+    try { if (window.Sfx) window.Sfx.play('nav'); } catch (e) {}   // 날짜를 고르는 감각
     if (window.Sfx) window.Sfx.play('pop');
     this.selDate = dateStr;
     this.selTime = null;

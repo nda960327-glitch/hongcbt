@@ -236,6 +236,8 @@ window.App = {
     if (window.Marketplace) window.Marketplace.init();
     // 계정·동기화. 로그인 안 했으면 아무 요청도 나가지 않는다.
     if (window.Account) window.Account.init();
+    // 옛 코드로 돌고 있으면 조용히 갈아탄다 (캐시 설정에 기대지 않는 마지막 방어)
+    if (window.Freshness) window.Freshness.init();
     this.updateSessionUI();
 
     // 6. Initialize Chat
