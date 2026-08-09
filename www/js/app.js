@@ -2631,6 +2631,7 @@ ${memory || '(없음)'}`;
     const lead = document.getElementById('creg-lead');
     const btn = document.getElementById('creg-submit');
     if (t) t.textContent = asAdmin ? '상담사 직접 등록' : '상담사 등록 신청';
+    // 정산 비율 안내는 바로 아래 별도 문단에 고정으로 있다 — 여기서 덮지 않는다
     if (lead) lead.textContent = asAdmin
       ? '운영자가 대신 입력합니다. 심사 없이 바로 등록되고, 적어주신 이메일로 로그인 코드가 발송돼요.'
       : '자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 승인되면 이메일로 상담사 앱 로그인 코드를 보내드려요.';
@@ -2686,6 +2687,9 @@ ${memory || '(없음)'}`;
       tags, photo: this._cregPhoto || null,
       bank, bankNo: account, bankHolder: holder
     };
+    // 운영자가 대신 넣을 때는 운영자 코드를 같이 보낸다.
+    //  같은 기기에서 여러 명을 등록하는 게 정상이라 중복 접수 검사를 건너뛴다.
+    if (this._regAsAdmin && window.Admin) payload.code = window.Admin.code();
 
     const asAdmin = this._regAsAdmin;
     const btn = document.getElementById('creg-submit');

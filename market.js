@@ -776,10 +776,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (!s(body.bank, 40).trim() || !acct || !s(body.bankHolder, 40).trim()) {
       return json({ error: '정산 계좌를 모두 적어주세요' }, 400, cors);
     }
-    // 같은 기기에서 심사 중인 신청이 이미 있으면 막는다 (중복 접수 방지)
-    const dup = await db.prepare(
-      "SELECT id FROM applications WHERE client_id = ? AND status = 'pending'").bind(clientId).first();
-    if (dup) return json({ error: '이미 심사 중인 신청이 있어요' }, 409, cors);
+    // 같은 기기에서 심사 중인 신청이 이미 있으면 막는다 (중복 접수 방지).
+    //  단 운영자가 대신 넣는 경우는 예외다 — 한 기기에서 여러 상담사를
+    //  등록하는 게 정상이고, 여기서 막으면 두 번째부터 '이미 심사 중'이 뜬다.
+    if (!isAdmin(env, code)) {
+      const dup = await db.prepare(
+        "SELECT id FROM applications WHERE client_id = ? AND status = 'pending'").bind(clientId).first();
+      if (dup) return json({ error: '이미 심사 중인 신청이 있어요' }, 409, cors);
+    }
 
     const id = rid('ca');
     let tags = '[]';

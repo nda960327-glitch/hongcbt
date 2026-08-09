@@ -720,7 +720,11 @@
     <div id="counselor-reg-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card" style="max-width: 430px; max-height: 86vh; overflow-y: auto;">
         <h2 id="creg-title" style="margin-top: 0;">상담사 등록 신청</h2>
-        <p id="creg-lead" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 상담료는 카드결제(PG)로 받아 <b>상담사 55% · 소속병원 35%</b>를 정산해드려요. 플랫폼 수수료는 10%이며 <b>결제수수료(약 3%)는 플랫폼이 부담</b>합니다.</p>
+        <p id="creg-lead" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 승인되면 이메일로 상담사 앱 로그인 코드를 보내드려요.</p>
+        <!-- 정산 비율은 코드(js/payout.js · market.js)의 SPLIT 과 같은 값이어야 한다.
+             한때 여기만 55/35/10 으로 남아 있어서, 상담사가 가입할 때 본 조건과
+             실제로 받는 금액이 달랐다. -->
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">상담료는 카드결제(PG)로 받아 <b>상담사 70% · 소속 기관 10%</b>를 정산해드려요. 결제수수료 3%를 빼면 <b>우렁의사 몫은 17%</b>입니다.</p>
         <div data-payout-notice="100000" style="margin-bottom: 1rem;"></div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem;">
           <input id="creg-name" placeholder="이름" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
