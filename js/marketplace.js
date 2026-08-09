@@ -3,133 +3,11 @@
   userLng: 126.9780,
   hasGps: false,
 
-  counselors: [
-    {
-      id: "c1",
-      name: "김유진 심리상담사",
-      hospital: "연세 마음가득 정신건강의학과 (신촌점)",
-      tel: "02-312-4711",
-      safeTel: "0507-1401-8821",
-      callRate: 700,
-      lat: 37.5563,
-      lng: 126.9380,
-      rating: 4.9,
-      reviews: 128,
-      tags: ["우울증", "불안장애", "스트레스"],
-      price: 40000,
-      avatar: 0,
-      isAvailableNow: true,
-      career: [
-        "현) 연세 마음가득 정신건강의학과 수석 상담사",
-        "전) 서울시 청년마음건강지원센터 전임 상담사",
-        "한국심리학회 공인 임상심리전문가 1급",
-        "연세대학교 심리학 석사"
-      ],
-      reviewsList: [
-        { author: "익명", text: "정말 제 이야기를 잘 들어주시고, 제가 놓치고 있던 인지적 오류를 정확히 짚어주셨어요. 너무 감사합니다.", rating: 5 },
-        { author: "마음단단", text: "앱에서 정리한 요약 리포트를 미리 보시고 상담에 들어가니 시간이 절약되고 핵심만 다룰 수 있어 좋았습니다.", rating: 5 },
-        { author: "내일도맑음", text: "친절하시고 솔루션 지향적이십니다. 강력 추천해요.", rating: 4 }
-      ]
-    },
-    {
-      id: "c2",
-      name: "박민호 전문의",
-      hospital: "서울 해맑은 의원 (강남점)",
-      tel: "02-555-0182",
-      safeTel: "0507-1402-3377",
-      callRate: 750,
-      lat: 37.5012,
-      lng: 127.0396,
-      rating: 4.8,
-      reviews: 94,
-      tags: ["공황장애", "대인관계", "가족상담"],
-      price: 50000,
-      avatar: 1,
-      isAvailableNow: false,
-      career: [
-        "현) 서울 해맑은 의원 대표원장",
-        "전) 삼성서울병원 정신건강의학과 전문의",
-        "대한신경정신의학회 정회원"
-      ],
-      reviewsList: [
-        { author: "익명", text: "전문의 선생님이라 그런지 의학적 지식을 바탕으로 설명해주셔서 약물 치료와 병행하기 너무 좋습니다.", rating: 5 },
-        { author: "파도타기", text: "공황장애로 너무 힘들었는데, 인지행동치료 접근법을 명쾌하게 알려주셨어요.", rating: 5 }
-      ]
-    },
-    {
-      id: "c3",
-      name: "이수아 임상심리사",
-      hospital: "마음의온도 심리상담센터 (홍대점)",
-      tel: "02-334-7720",
-      safeTel: "0507-1403-5590",
-      callRate: 650,
-      lat: 37.5559,
-      lng: 126.9234,
-      rating: 5.0,
-      reviews: 215,
-      tags: ["트라우마", "자존감", "번아웃"],
-      price: 45000,
-      avatar: 2,
-      isAvailableNow: true,
-      career: [
-        "현) 마음의온도 심리상담센터 소장",
-        "인지행동치료학회 인지행동치료 전문가",
-        "EAP 기업상담 전담 10년"
-      ],
-      reviewsList: [
-        { author: "직장인A", text: "번아웃이 심했는데 어떻게 이겨내야 하는지 구체적인 숙제를 내주셔서 실질적인 도움이 되었습니다.", rating: 5 },
-        { author: "익명", text: "항상 따뜻하게 공감해주시면서도 나아갈 방향을 잘 잡아주십니다.", rating: 5 }
-      ]
-    },
-    {
-      id: "c4",
-      name: "정현우 전문의",
-      hospital: "삼성 온마음 정신건강의학과 (잠실점)",
-      tel: "02-419-3355",
-      safeTel: "0507-1404-2216",
-      callRate: 800,
-      lat: 37.5113,
-      lng: 127.0980,
-      rating: 4.9,
-      reviews: 156,
-      tags: ["공황장애", "우울증", "약물상담"],
-      price: 55000,
-      avatar: 0,
-      isAvailableNow: true,
-      career: [
-        "현) 삼성 온마음 정신건강의학과 원장",
-        "전) 서울아산병원 임상강사",
-        "수면장애 및 불안장애 전문"
-      ],
-      reviewsList: [
-        { author: "잠실주민", text: "집 근처라 방문하기도 편하고 상담도 매우 깊이 있게 진행해주셨습니다.", rating: 5 }
-      ]
-    },
-    {
-      id: "c5",
-      name: "최윤서 심리학박사",
-      hospital: "광화문 마음케어 센터 (종로점)",
-      tel: "02-733-0904",
-      safeTel: "0507-1405-9043",
-      callRate: 900,
-      lat: 37.5724,
-      lng: 126.9769,
-      rating: 4.95,
-      reviews: 182,
-      tags: ["직장인상담", "번아웃", "자존감"],
-      price: 42000,
-      avatar: 2,
-      isAvailableNow: true,
-      career: [
-        "현) 광화문 마음케어 센터 책임상담사",
-        "서울대학교 심리학 박사",
-        "직장인 수면 및 스트레스 대처 프로그램 개발"
-      ],
-      reviewsList: [
-        { author: "광화문직장인", text: "회사 근처 점심시간 상담 이용했는데 너무 만족스럽습니다.", rating: 5 }
-      ]
-    }
-  ],
+  // 시연용 가짜 상담사 5명(c1~c5)이 여기 박혀 있었다.
+  //  실제 상담사가 서버에 들어오기 전까지 화면을 채우는 용도였는데,
+  //  이제 신청·승인이 서버로 도니 진짜와 섞이면 안 된다. 내담자가
+  //  존재하지 않는 상담사를 보고 예약·결제하는 일이 실제로 생길 수 있다.
+  counselors: [],
 
   init() {
     this.renderCounselors();
@@ -140,7 +18,9 @@
 
   // 하버스인(Haversine) 공식을 이용한 두 위경도 좌표 간 직선 거리(km) 계산
   calcDistance(lat1, lon1, lat2, lon2) {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return 999;
+    // 좌표가 없으면 '멀다'가 아니라 '모른다'. 999 를 돌려주면
+    //  서버에서 온 상담사(좌표 없음)가 카드에 '999km' 로 찍힌다.
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
     const R = 6371; // 지구 반지름 (km)
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -298,7 +178,13 @@
       if (f !== 0) return f;
       const r = stateRank[this.liveState(a)] - stateRank[this.liveState(b)];
       if (r !== 0) return r;
-      if (sortType === 'distance') return a.distance - b.distance;
+      // 거리를 모르는 사람은 뒤로. null 을 그냥 빼면 NaN 이 되어 정렬이 흐트러진다.
+      if (sortType === 'distance') {
+        if (a.distance == null && b.distance == null) return 0;
+        if (a.distance == null) return 1;
+        if (b.distance == null) return -1;
+        return a.distance - b.distance;
+      }
       if (sortType === 'rating') return b.rating - a.rating;
       if (sortType === 'reviews') return b.reviews - a.reviews;
       if (sortType === 'price_low') return a.price - b.price;
@@ -306,10 +192,19 @@
     });
 
     if (!filtered.length) {
+      // 아무도 없는 것과 '걸러져서' 없는 것은 다르다.
+      //  둘 다 '검색어를 바꿔보세요'로 안내하면, 아직 상담사가 한 명도
+      //  없을 때 사용자는 자기가 뭘 잘못한 줄 안다.
+      const none = !this.all().length;
       list.innerHTML = `<div style="text-align: center; padding: 2.2rem 1rem; color: var(--text-muted);">
  <div style="margin-bottom: 0.5rem;">${window.Stickers ? window.Stickers.svg('think', 72) :''}</div>
+        ${none ? `
+        <p style="font-size: 0.88rem; margin: 0; color: var(--text-primary); font-weight: 700;">아직 상담사가 준비 중이에요</p>
+        <p style="font-size: 0.78rem; margin: 0.4rem 0 0; line-height: 1.6;">자격을 확인한 선생님들만 모시고 있어요.<br>준비되는 대로 여기에서 만나실 수 있어요.</p>
+        <p style="font-size: 0.76rem; margin: 0.9rem 0 0;">그동안은 우렁이와 이야기하며 마음을 정리해보세요.</p>`
+        : `
         <p style="font-size: 0.88rem; margin: 0;">${this._query ? `'${this._query.replace(/[<>&"']/g, '')}' 검색 결과가 없어요` : '조건에 맞는 상담사가 없어요'}</p>
-        <p style="font-size: 0.76rem; margin: 0.3rem 0 0;">검색어나 필터를 바꿔보세요</p>
+        <p style="font-size: 0.76rem; margin: 0.3rem 0 0;">검색어나 필터를 바꿔보세요</p>`}
       </div>`;
       return;
     }
@@ -330,7 +225,7 @@
             <div class="cc2-hosp">${c.hospital}</div>
             <div class="cc2-meta">
               <span role="button" onclick="event.stopPropagation(); window.Marketplace.openReviews('${c.id}')" style="cursor: pointer; text-decoration: underline; text-decoration-color: var(--glass-border); text-underline-offset: 3px;">${window.Icons ? window.Icons.svg('star', { size: 13 }) : ''} <b>${c.rating}</b> (${c.reviews})</span>
-              <span>${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''} ${c.distance}km</span>
+              ${c.distance == null ? '' : `<span>${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''} ${c.distance}km</span>`}
               <span class="cc2-st ${st}">${st === 'avail' ? '● 상담 가능' : st === 'busy' ? '● 통화 중' : '● 부재중'}</span>
             </div>
             <div class="cc2-tags">${(c.tags || []).slice(0, 3).map(t => `<span class="cc2-tag">${t}</span>`).join('')}</div>
