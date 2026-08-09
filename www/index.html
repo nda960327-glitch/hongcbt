@@ -1435,14 +1435,49 @@
     window.addEventListener('load', () => hydrateIcons());
 
     if ('serviceWorker' in navigator) {
-      // 새 워커가 제어권을 잡으면 한 번만 새로고침한다.
-      //  이게 없으면 새 버전을 배포해도 이미 떠 있는 화면은 옛 코드를 계속 쓴다.
-      //  (PWA 로 설치해 쓰면 앱을 완전히 끄는 일이 드물어 며칠씩 묵는다)
+      // 새 버전이 올라오면 갈아타야 한다. 다만 '보고 있는 중에 갑자기'는 안 된다.
+      //  전에는 controllerchange 가 오면 즉시 location.reload() 했는데,
+      //  하필 버튼을 누르는 순간 새로고침이 걸리면 화면이 통째로 날아가
+      //  "눌러도 안 들어가진다"로 보였다. (배포가 잦은 날 특히)
+      //
+      //  화면을 보고 있으면 알려만 주고, 사용자가 앱을 잠시 내려놓거나
+      //  직접 누를 때 갈아탄다.
       let reloading = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+      const applyUpdate = () => {
         if (reloading) return;
         reloading = true;
         location.reload();
+      };
+
+      function showUpdateBar() {
+        if (document.getElementById('sw-update-bar')) return;
+        const bar = document.createElement('div');
+        bar.id = 'sw-update-bar';
+        bar.style.cssText =
+          'position:fixed; left:50%; transform:translateX(-50%); bottom:calc(4.6rem + env(safe-area-inset-bottom));' +
+          'z-index:10120; display:flex; align-items:center; gap:0.6rem; max-width:min(92vw,420px);' +
+          'padding:0.6rem 0.7rem 0.6rem 0.95rem; border-radius:14px; font-size:0.82rem;' +
+          'background:var(--bg-secondary,#fff); color:var(--text-primary,#333);' +
+          'border:1px solid var(--glass-border,rgba(0,0,0,.1)); box-shadow:0 6px 22px rgba(0,0,0,.18);';
+        bar.innerHTML =
+          '<span style="flex:1;">새 버전이 준비됐어요</span>' +
+          '<button id="sw-update-go" style="all:unset; cursor:pointer; font-weight:800; padding:0.35rem 0.7rem;' +
+          'border-radius:9px; background:var(--accent-primary,#4f8a6b); color:#fff;">지금 적용</button>' +
+          '<button id="sw-update-later" style="all:unset; cursor:pointer; font-size:0.78rem; font-weight:700;' +
+          'color:var(--text-muted,#888); padding:0.35rem 0.3rem;">나중에</button>';
+        document.body.appendChild(bar);
+        document.getElementById('sw-update-go').addEventListener('click', applyUpdate);
+        document.getElementById('sw-update-later').addEventListener('click', () => bar.remove());
+      }
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // 안 보고 있을 때(백그라운드)면 조용히 갈아탄다 — 방해가 없다
+        if (document.hidden) { applyUpdate(); return; }
+        showUpdateBar();
+        // 앱을 내려놓는 순간 알아서 적용
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) applyUpdate();
+        }, { once: true });
       });
 
       window.addEventListener('load', () => {

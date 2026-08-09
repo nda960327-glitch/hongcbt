@@ -38,7 +38,13 @@ window.Admin = {
     if (old) old.remove();
     const ov = document.createElement('div');
     ov.id = 'admin-code-overlay';
-    ov.className = 'modal-overlay';
+    // .modal-overlay 는 z-index 100 · position:absolute 라, 이 버튼이 놓인
+    //  설정 화면(#settings-overlay, fixed · z-index 900) 뒤로 깔린다.
+    //  창은 열리는데 화면에 안 보여서 '눌러도 반응 없다'로 보였다.
+    ov.style.cssText =
+      'position: fixed; inset: 0; z-index: 10095; background: rgba(33,26,20,0.55);' +
+      'backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);' +
+      'display: flex; align-items: center; justify-content: center; padding: 1.2rem;';
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 300px; text-align: center;">
  <h2 style="margin: 0 0 0.8rem; font-size: 1.05rem;"> 운영자 코드</h2>

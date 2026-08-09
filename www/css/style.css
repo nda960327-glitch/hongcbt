@@ -727,7 +727,12 @@ p { color: var(--text-secondary); }
   background: rgba(33, 26, 20, 0.55);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  z-index: 100;
+  /* 모달은 정의상 맨 위에 있어야 한다. 100 이던 시절에는
+     설정 화면(#settings-overlay, z-index 900)이나 게임 화면(10001~) 안에서
+     띄우면 그 뒤로 깔려서, 창은 열렸는데 안 보이니 '눌러도 반응이 없다'로 보였다.
+     (예전에 global-install-modal 하나만 9999 로 때워 둔 흔적이 남아 있었다)
+     UI 바텀시트(10090)와 운영자 코드창(10095)보다는 아래에 둔다. */
+  z-index: 10080;
   display: flex;
   align-items: center;
   justify-content: center;
