@@ -410,6 +410,90 @@ export async function handleMarket(request, env, cors, path) {
     }, 200, cors);
   }
 
+  // ── 상담사 본인 정보 ────────────────────────────────────────────────
+  //  병원 이전·상담료 변경·계좌 변경은 실제로 일어난다.
+  //  운영자에게 전화하게 만들면 1,000명은 감당이 안 된다.
+  if (path === '/me') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+
+    if (method === 'GET') {
+      const c = await db.prepare(
+        `SELECT id,name,hospital,email,tel,addr,intro,tags,price,call_rate,license,
+                slots,offdays,bank,bank_no,bank_holder,available,updated
+           FROM counselors WHERE id = ?`).bind(me.id).first();
+      return json({ ok: true, me: rowProfile(c) }, 200, cors);
+    }
+
+    if (method === 'POST') {
+      // 이름은 본인이 못 바꾼다 — 자격 확인을 거친 값이라 운영자만 손댄다
+      const p = {
+        hospital: s(body.hospital, 120), tel: s(body.tel, 40), addr: s(body.addr, 200),
+        intro: s(body.intro, 600), license: s(body.license, 80),
+        price: Math.max(0, Math.min(1000000, num(body.price))),
+        call_rate: Math.max(0, Math.min(100000, num(body.callRate)))
+      };
+      let tags = '';
+      try {
+        const t = Array.isArray(body.tags) ? body.tags : [];
+        tags = JSON.stringify(t.map(x => s(x, 20)).filter(Boolean).slice(0, 6));
+      } catch (e) { tags = '[]'; }
+      await db.prepare(
+        `UPDATE counselors SET hospital=?, tel=?, addr=?, intro=?, license=?,
+                price=?, call_rate=?, tags=?, updated=? WHERE id=?`
+      ).bind(p.hospital, p.tel, p.addr, p.intro, p.license,
+             p.price, p.call_rate, tags, nowMs(), me.id).run();
+      return json({ ok: true }, 200, cors);
+    }
+  }
+
+  // 예약 가능 시간 — 요일별 시간대 + 특정 날짜 휴무
+  if (path === '/me/slots' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const clean = {};
+    const src = (body.slots && typeof body.slots === 'object') ? body.slots : {};
+    for (let d = 0; d <= 6; d++) {
+      const list = Array.isArray(src[d]) ? src[d] : (Array.isArray(src[String(d)]) ? src[String(d)] : []);
+      const ok = [...new Set(list.map(x => String(x))
+        .filter(x => /^([01]\d|2[0-3]):(00|30)$/.test(x)))].sort();
+      if (ok.length) clean[d] = ok.slice(0, 24);
+    }
+    const off = [...new Set((Array.isArray(body.offdays) ? body.offdays : [])
+      .map(x => String(x)).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x)))].slice(0, 120);
+    await db.prepare('UPDATE counselors SET slots=?, offdays=?, updated=? WHERE id=?')
+      .bind(JSON.stringify(clean), JSON.stringify(off), nowMs(), me.id).run();
+    return json({ ok: true, slots: clean, offdays: off }, 200, cors);
+  }
+
+  // 정산 계좌 — 저장은 받되, 돌려줄 때는 항상 가린다
+  if (path === '/me/payout' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const bank = s(body.bank, 40).trim();
+    const noRaw = s(body.bankNo, 40).replace(/[^0-9-]/g, '');
+    const holder = s(body.bankHolder, 40).trim();
+    if (!bank || !noRaw || !holder) return json({ error: '은행·계좌번호·예금주를 모두 적어주세요' }, 400, cors);
+    if (noRaw.replace(/-/g, '').length < 8) return json({ error: '계좌번호가 너무 짧습니다' }, 400, cors);
+    await db.prepare('UPDATE counselors SET bank=?, bank_no=?, bank_holder=?, updated=? WHERE id=?')
+      .bind(bank, noRaw, holder, nowMs(), me.id).run();
+    await db.prepare('INSERT INTO payout_changes (id, counselor_id, masked, ts) VALUES (?,?,?,?)')
+      .bind(rid('pc'), me.id, maskAcct(noRaw), nowMs()).run();
+    return json({ ok: true, masked: maskAcct(noRaw) }, 200, cors);
+  }
+
+  // 앱이 예약창에 쓸 '이 상담사의 가능 시간'
+  if (path === '/slots' && method === 'GET') {
+    const cid = s(q('counselorId'), MAX.id);
+    if (!cid) return json({ slots: {}, offdays: [] }, 200, cors);
+    const c = await db.prepare('SELECT slots, offdays, price FROM counselors WHERE id = ? AND active = 1')
+      .bind(cid).first();
+    if (!c) return json({ slots: {}, offdays: [] }, 200, cors);
+    return json({
+      slots: safeJson(c.slots, {}), offdays: safeJson(c.offdays, []), price: c.price || 0
+    }, 200, cors);
+  }
+
   // ── 상담사 관리 (운영자만) ──────────────────────────────────────────
   //  터미널 없이 앱에서 다 되게 한다. 상담사 한 명 넣자고 wrangler 를
   //  띄우게 만들면 결국 아무도 관리하지 않는다.
@@ -497,6 +581,32 @@ export async function handleMarket(request, env, cors, path) {
   }
 
   return null;   // 이 모듈이 다룰 경로가 아님
+}
+
+// ── 보조 ───────────────────────────────────────────────────────────────
+function safeJson(v, fb) { try { return v ? JSON.parse(v) : fb; } catch (e) { return fb; } }
+
+// 계좌번호는 뒤 4자리만 남긴다. 본인 화면에도 전체를 다시 뿌리지 않는다 —
+//  어깨너머·스크린샷으로 새는 게 실제로 가장 흔한 경로다.
+function maskAcct(n) {
+  const d = String(n || '').replace(/[^0-9]/g, '');
+  if (d.length < 4) return '****';
+  return '*'.repeat(Math.max(3, d.length - 4)) + d.slice(-4);
+}
+
+function rowProfile(c) {
+  if (!c) return null;
+  return {
+    id: c.id, name: c.name, hospital: c.hospital || '', email: c.email || '',
+    tel: c.tel || '', addr: c.addr || '', intro: c.intro || '',
+    license: c.license || '', tags: safeJson(c.tags, []),
+    price: c.price || 0, callRate: c.call_rate || 0,
+    slots: safeJson(c.slots, {}), offdays: safeJson(c.offdays, []),
+    available: !!c.available, updated: c.updated || 0,
+    payout: c.bank_no
+      ? { bank: c.bank || '', holder: c.bank_holder || '', masked: maskAcct(c.bank_no), set: true }
+      : { set: false }
+  };
 }
 
 // ── 행 → 앱이 기대하는 모양 ────────────────────────────────────────────

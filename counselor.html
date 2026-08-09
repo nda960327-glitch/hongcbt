@@ -68,6 +68,12 @@
       </div>
       <div id="presence-card"></div>
       <div id="settlement"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">내 정보</h2>
+      <div id="profile"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">예약 가능 시간</h2>
+      <div id="slots"></div>
+      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">정산 계좌</h2>
+      <div id="payout"></div>
       <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">예약 일정</h2>
       <div id="schedule"></div>
       <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">상담 채팅</h2>
@@ -177,6 +183,7 @@
       askNotify();
       show(await r.json());
       loadSchedule(); loadChats(); loadPresence(); loadReviews();
+      loadMe();
     }
 
     function askNotify() {
@@ -273,6 +280,7 @@
       loadChats();
       loadPresence();
       loadReviews();
+      loadMe();
     }
 
     // 바로상담 수신 토글 — ON이어야 매칭 카드에 '지금 통화'버튼이 열린다
@@ -435,6 +443,180 @@
     }
 
     function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+    // ====================================================================
+    //  내 정보 · 예약 가능 시간 · 정산 계좌
+    //   병원을 옮기고 상담료를 바꾸고 계좌가 바뀌는 건 실제로 일어나는 일이다.
+    //   그때마다 운영자에게 전화하게 만들면 아무도 최신 정보를 유지하지 않는다.
+    // ====================================================================
+    let ME = null;
+    const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
+    const HOURS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00',
+                   '16:00','17:00','18:00','19:00','20:00','21:00'];
+
+    async function loadMe() {
+      const d = await api('/api/me?' + authQS()).then(r => r.ok ? r.json() : null).catch(() => null);
+      if (!d || !d.ok) return;
+      ME = d.me;
+      renderProfile(); renderSlots(); renderPayout();
+    }
+
+    function renderProfile() {
+      const el = document.getElementById('profile');
+      if (!ME) { el.innerHTML = ''; return; }
+      const f = (id, label, val, ph, type) => `
+        <label style="display:block; margin-bottom:0.5rem;">
+          <span class="muted" style="font-size:0.76rem;">${label}</span>
+          <input id="${id}" type="${type || 'text'}" value="${esc(String(val == null ? '' : val))}"
+                 placeholder="${ph || ''}" style="text-align:left; margin-top:0.2rem;">
+        </label>`;
+      el.innerHTML = `
+        <div class="card">
+          <p class="muted" style="margin:0 0 0.7rem;">이름과 자격은 검수를 거친 값이라 운영자만 바꿀 수 있어요.
+            바뀐 게 있으면 알려주세요.</p>
+          <p style="font-weight:700; margin:0 0 0.6rem;">${esc(ME.name)}
+            <span class="muted" style="font-weight:500;">${esc(ME.email || '이메일 미등록')}</span></p>
+          ${f('pf-hospital', '소속 기관', ME.hospital, '예: 연세 마음가득 정신건강의학과')}
+          ${f('pf-addr', '주소', ME.addr, '예: 서울 서대문구 …')}
+          ${f('pf-tel', '연락처', ME.tel, '예: 02-312-4711')}
+          ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
+          ${f('pf-price', '30분 상담료 (원)', ME.price, '40000', 'number')}
+          ${f('pf-tags', '전문 분야 (쉼표로 구분, 최대 6개)', (ME.tags || []).join(', '), '우울증, 불안장애')}
+          <label style="display:block; margin-bottom:0.5rem;">
+            <span class="muted" style="font-size:0.76rem;">소개</span>
+            <textarea id="pf-intro" rows="3" placeholder="내담자에게 보일 짧은 소개"
+              style="width:100%; box-sizing:border-box; margin-top:0.2rem; padding:0.7rem 0.9rem;
+                     border:1px solid var(--line); border-radius:12px; font-family:inherit;
+                     font-size:0.9rem; resize:vertical;">${esc(ME.intro)}</textarea>
+          </label>
+          <button class="btn" id="pf-save" onclick="saveProfile()">저장</button>
+        </div>`;
+    }
+
+    async function saveProfile() {
+      const g = id => (document.getElementById(id) || {}).value || '';
+      const btn = document.getElementById('pf-save');
+      btn.disabled = true; btn.textContent = '저장 중…';
+      const r = await api('/api/me', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({
+          hospital: g('pf-hospital'), addr: g('pf-addr'), tel: g('pf-tel'),
+          license: g('pf-license'), intro: g('pf-intro'),
+          price: parseInt(g('pf-price'), 10) || 0,
+          tags: g('pf-tags').split(',').map(x => x.trim()).filter(Boolean)
+        }))
+      }).then(x => x.json()).catch(() => null);
+      btn.disabled = false; btn.textContent = '저장';
+      if (!r || !r.ok) { alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
+      btn.textContent = '저장됨';
+      setTimeout(() => { if (btn.isConnected) btn.textContent = '저장'; }, 1500);
+      loadMe();
+    }
+
+    function renderSlots() {
+      const el = document.getElementById('slots');
+      if (!ME) { el.innerHTML = ''; return; }
+      const sel = ME.slots || {};
+      const grid = DAYS.map((dn, d) => {
+        const on = sel[d] || sel[String(d)] || [];
+        return `<div style="margin-bottom:0.55rem;">
+          <div style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.25rem;">
+            <strong style="font-size:0.82rem; width:1.4rem;">${dn}</strong>
+            <button class="btn ghost" style="width:auto; margin:0; padding:0.2rem 0.5rem; font-size:0.7rem;"
+              onclick="toggleDay(${d})">${on.length ? '비우기' : '평일 기본'}</button>
+            <span class="muted" style="font-size:0.72rem;">${on.length ? on.length + '칸' : '쉼'}</span>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:0.25rem;">
+            ${HOURS.map(h => `<button onclick="toggleSlot(${d},'${h}')"
+              style="all:unset; cursor:pointer; font-size:0.7rem; padding:0.25rem 0.45rem; border-radius:7px;
+                     border:1px solid ${on.includes(h) ? 'var(--accent)' : 'var(--line)'};
+                     background:${on.includes(h) ? 'var(--accent)' : 'transparent'};
+                     color:${on.includes(h) ? '#fff' : 'var(--muted)'};">${h}</button>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      el.innerHTML = `
+        <div class="card">
+          <p class="muted" style="margin:0 0 0.7rem;">켜 둔 시간에만 내담자가 예약할 수 있어요.
+            비워 두면 그 요일은 예약을 받지 않습니다.</p>
+          ${grid}
+          <label style="display:block; margin:0.6rem 0 0.5rem;">
+            <span class="muted" style="font-size:0.76rem;">쉬는 날 (쉼표로 구분, 예: 2026-08-15)</span>
+            <input id="sl-off" value="${esc((ME.offdays || []).join(', '))}"
+                   placeholder="2026-08-15, 2026-09-01" style="text-align:left; margin-top:0.2rem;">
+          </label>
+          <button class="btn" id="sl-save" onclick="saveSlots()">시간표 저장</button>
+        </div>`;
+    }
+
+    function toggleSlot(d, h) {
+      ME.slots = ME.slots || {};
+      const cur = new Set(ME.slots[d] || ME.slots[String(d)] || []);
+      cur.has(h) ? cur.delete(h) : cur.add(h);
+      delete ME.slots[String(d)];
+      ME.slots[d] = [...cur].sort();
+      renderSlots();
+    }
+
+    function toggleDay(d) {
+      ME.slots = ME.slots || {};
+      const cur = ME.slots[d] || ME.slots[String(d)] || [];
+      delete ME.slots[String(d)];
+      ME.slots[d] = cur.length ? [] : ['10:00','11:00','14:00','15:00','16:00','17:00'];
+      renderSlots();
+    }
+
+    async function saveSlots() {
+      const btn = document.getElementById('sl-save');
+      btn.disabled = true; btn.textContent = '저장 중…';
+      const off = (document.getElementById('sl-off').value || '')
+        .split(',').map(x => x.trim()).filter(Boolean);
+      const r = await api('/api/me/slots', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ slots: ME.slots || {}, offdays: off }))
+      }).then(x => x.json()).catch(() => null);
+      btn.disabled = false; btn.textContent = '시간표 저장';
+      if (!r || !r.ok) { alert('저장하지 못했어요'); return; }
+      ME.slots = r.slots; ME.offdays = r.offdays;
+      renderSlots();
+    }
+
+    function renderPayout() {
+      const el = document.getElementById('payout');
+      if (!ME) { el.innerHTML = ''; return; }
+      const p = ME.payout || { set: false };
+      el.innerHTML = `
+        <div class="card">
+          ${p.set
+            ? `<p style="margin:0 0 0.6rem;"><b>${esc(p.bank)}</b> ${esc(p.masked)}
+                 <span class="muted">· 예금주 ${esc(p.holder)}</span></p>
+               <p class="muted" style="margin:0 0 0.7rem;">보안을 위해 전체 번호는 다시 보여드리지 않아요.
+                 바꾸시려면 새로 입력해 주세요.</p>`
+            : `<p class="muted" style="margin:0 0 0.7rem;">정산받을 계좌를 등록해 주세요.
+                 등록 전에는 정산이 보류됩니다.</p>`}
+          <input id="po-bank" placeholder="은행 (예: 국민은행)" value="${esc(p.bank || '')}" style="text-align:left; margin-bottom:0.4rem;">
+          <input id="po-no" placeholder="계좌번호" inputmode="numeric" autocomplete="off" style="text-align:left; margin-bottom:0.4rem;">
+          <input id="po-holder" placeholder="예금주" value="${esc(p.holder || '')}" style="text-align:left;">
+          <button class="btn" id="po-save" onclick="savePayout()" style="margin-top:0.5rem;">계좌 저장</button>
+          <p class="muted" style="margin:0.6rem 0 0; font-size:0.76rem; line-height:1.7;">
+            정산 비율 — 상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%<br>
+            계좌 정보는 정산 목적으로만 쓰이며 내담자에게는 절대 보이지 않습니다.</p>
+        </div>`;
+    }
+
+    async function savePayout() {
+      const g = id => (document.getElementById(id) || {}).value || '';
+      const btn = document.getElementById('po-save');
+      btn.disabled = true; btn.textContent = '저장 중…';
+      const r = await api('/api/me/payout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ bank: g('po-bank'), bankNo: g('po-no'), bankHolder: g('po-holder') }))
+      }).then(x => x.json()).catch(() => null);
+      btn.disabled = false; btn.textContent = '계좌 저장';
+      if (!r || !r.ok) { alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
+      alert('계좌를 저장했어요.');
+      loadMe();
+    }
 
     function show(data) {
       document.getElementById('login').style.display = 'none';
