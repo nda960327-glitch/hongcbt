@@ -1025,6 +1025,15 @@ window.App = {
 
   // === 기기 고유 ID — 서버(채팅·예약·수신함)가 나를 알아보는 기준 ===
   // 별명은 표시용일 뿐, 식별은 이 ID로 한다. 별명을 바꿔도 동기화가 안 끊긴다.
+  // 상담사 앱(우렁의사 프로)은 별도 앱·별도 도메인이다.
+  //  운영 도메인이면 pro.neurumind.com, 로컬·미리보기면 같은 서버의 pro/ 폴더.
+  proAppUrl() {
+    const h = location.hostname;
+    if (/(^|\.)neurumind\.com$/.test(h)) return 'https://pro.neurumind.com/';
+    if (/\.pages\.dev$/.test(h)) return 'https://neurumind-pro.pages.dev/';
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
+  },
+
   clientId() {
     let id = window.Storage._safeGet('cbt_client_id', null);
     if (!id) {
@@ -2263,11 +2272,11 @@ ${memory || '(없음)'}`;
         ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
         ${delisted ? '<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">운영팀에 의해 노출이 중단되었어요. 문의는 고객센터로 부탁드려요.</p>' : ''}
         ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
- ${(approved && a.inboxCode) ?`<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;"> 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html"target="_blank"style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>`:''}
+ ${(approved && a.inboxCode) ?`<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;"> 내 수신함 코드: ${a.inboxCode} — <a href="${this.proAppUrl()}" target="_blank" style="color: var(--accent-primary);">상담사 앱 열기 ›</a></p>`:''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
           ${/* 상담 가능 시간·프로필·정산 계좌는 전부 상담사 전용 페이지에서 관리한다.
                 앱에도 같은 설정을 두면 둘이 어긋나고, 어느 쪽이 진짜인지 알 수 없게 된다. */''}
-          ${approved ? `<a href="/counselor.html" target="_blank" class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; text-decoration: none; display: inline-block;">내 상담사 페이지 열기 ›</a>` : ''}
+          ${approved ? `<a href="${this.proAppUrl()}" target="_blank" class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem; text-decoration: none; display: inline-block;">내 상담사 페이지 열기 ›</a>` : ''}
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
         </div>
       </div>`;

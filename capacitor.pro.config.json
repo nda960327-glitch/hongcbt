@@ -1,0 +1,8 @@
+{
+  "appId": "com.neurumind.pro",
+  "appName": "우렁의사 프로",
+  "webDir": "pro",
+  "android": {
+    "path": "android-pro"
+  }
+}

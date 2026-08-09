@@ -109,9 +109,12 @@ window.Admin = {
     this.renderCounselorBox();
   },
 
+  // 상담사 앱은 이제 별도 앱(우렁의사 프로)이다.
+  //  운영 도메인에서는 pro.neurumind.com, 그 밖(로컬·미리보기)에서는 ./pro/
   counselorLink(code) {
-    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
-    return base + 'counselor.html';
+    // 주소 규칙은 App 한 곳에만 둔다 — 두 군데 두면 반드시 어긋난다
+    if (window.App && window.App.proAppUrl) return window.App.proAppUrl();
+    return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
   },
 
   async addCounselor() {
@@ -690,7 +693,7 @@ window.Admin = {
 
         <div>
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(이 기기 기록)</span></h3>
-          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="/counselor.html" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 코드는 위 [상담사 관리]에서 발급</p>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="${this.counselorLink()}" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 코드는 위 [상담사 관리]에서 발급</p>
           ${(() => {
             const packs = Object.entries(S._safeGet('cbt_shared_packs', {}) || {});
             if (!packs.length) return '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 0.6rem 0 1rem;">아직 전달된 자료가 없습니다.<br><span style="font-size: 0.72rem;">내담자가 예약 카드에서 \'상담 자료 보내기\'로 동의·전달하면 여기 쌓여요.</span></p>';

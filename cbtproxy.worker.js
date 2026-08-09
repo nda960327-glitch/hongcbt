@@ -87,7 +87,7 @@ async function abuseCheck(request, env, body) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = env.ALLOWED_ORIGIN || "*";
     const cors = {
       "Access-Control-Allow-Origin": origin,
@@ -104,7 +104,7 @@ export default {
     // 상담사 마켓(D1)은 GET 도 받는다. 여기서 처리되지 않으면 null 이 와서
     //  아래 AI 경로로 흘러간다 — 두 기능이 한 Worker 를 쓰되 서로 모르게.
     if (!/^\/(tts|chat)?$/.test(path)) {
-      const r = await handleMarket(request, env, cors, path);
+      const r = await handleMarket(request, env, cors, path, ctx);
       if (r) return r;
     }
 

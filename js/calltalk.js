@@ -58,6 +58,18 @@ window.CallTalk = {
     setTimeout(() => {
       if (!this._active) return;
       if (window.App && window.App.ringStop) window.App.ringStop();
+    if (window.RtcCall && window.RtcCall.callId) {
+      window.RtcCall.hangup('client').then(info => {
+        if (info && info.noAnswer && window.App && window.App.showRecordToast) {
+          window.App.showRecordToast('연결되지 않았어요. 채팅으로 남겨보세요');
+        }
+        if (wasWith && window.App && window.App.openHumanChat) {
+          setTimeout(() => window.App.openHumanChat(wasWith), 400);
+        }
+      });
+    } else if (wasWith && window.App && window.App.openHumanChat) {
+      setTimeout(() => window.App.openHumanChat(wasWith), 400);
+    }
       this._setStatus('통화 중');
       const hello = { role: 'bot', text: `여보세요? 나 ${p.name}${p.id === 'woorung' ? '예요' : '이야'}. 목소리로 들으니까 더 반갑다. 무슨 얘기부터 할까?`, timestamp: new Date().toISOString() };
       window.Storage.saveMessage(hello);
@@ -116,6 +128,7 @@ window.CallTalk = {
     window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
 
     this._renderHumanOverlay(c, prepaid);
+    this._voice(c.id, prepaid ? 0 : this._rate);   // 앱 안에서 음성 연결 (번호 없음)
     if (window.App && window.App.ringStart) {
       window.App.ringStart();
       setTimeout(() => { if (window.App.ringStop) window.App.ringStop(); this._setStatus('전화 연결 버튼을 눌러주세요'); }, 2400);
@@ -148,6 +161,36 @@ window.CallTalk = {
     window.location.href = 'tel:' + String(safeTel || '').replace(/-/g, '');
   },
 
+  // 앱 안에서 음성을 연결한다.
+  //  전화(tel:)로 걸면 내담자 발신번호가 상담사 폰에 그대로 찍힌다.
+  //  안심번호를 붙여도 '번호'가 존재하는 한 언젠가 샌다. 번호를 아예 없앤다.
+  async _voice(counselorId, rate) {
+    if (!window.RtcCall) { this._setStatus('통화 모듈을 불러오지 못했어요'); return; }
+    this._humanCounselorId = counselorId;
+    window.RtcCall.onEvent = (type, d) => {
+      if (type === 'ringing')  this._setStatus('상담사를 부르는 중…');
+      if (type === 'connected') {
+        this._setStatus('통화 중');
+        if (window.App && window.App.ringStop) window.App.ringStop();
+      }
+      if (type === 'tick') {
+        const el = document.getElementById('call-clock');
+        if (el) {
+          const s = Math.floor(d.ms / 1000);
+          el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+        }
+        const sp = document.getElementById('call-spent');
+        if (sp && d.spent) sp.textContent = d.spent.toLocaleString() + '캐시 사용 중';
+      }
+      if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
+      if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
+    };
+    const ok = await window.RtcCall.call({
+      counselorId, clientId: window.App.clientId(), rate: rate || 0
+    });
+    if (!ok) this._setStatus('연결하지 못했어요 — 채팅으로 남겨보세요');
+  },
+
   _renderHumanOverlay(c, prepaid) {
     const old = document.getElementById('call-overlay');
     if (old) old.remove();
@@ -164,8 +207,8 @@ window.CallTalk = {
         <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
         <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
         <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}`}</p>
- <button onclick="window.CallTalk.dialSafe('${c.safeTel}')"style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);"> 안심번호로 전화 연결</button>
-        <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 260px; line-height: 1.5;">050 안심번호로 연결되어 <b>서로의 실제 번호는 공개되지 않아요.</b> 통화를 마치면 아래 종료 버튼으로 정산을 끝내주세요.</p>
+ 
+        <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 280px; line-height: 1.5;">앱 안에서 바로 연결돼요. <b>전화번호는 서로에게 보이지 않습니다.</b><br>요금은 실제로 연결된 뒤부터 30초 단위로 계산돼요.</p>
       </div>
  <button onclick="window.CallTalk.end()"style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);"></button>
       <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
@@ -258,6 +301,9 @@ window.CallTalk = {
       if (window.Marketplace) window.Marketplace.fetchPresence(true);
       this._counselorId = null;
     }
+    // 통화가 끝나거나 못 받았어도 대화는 이어져야 한다 — 채팅방으로 보낸다
+    const wasWith = this._humanCounselorId || null;
+    this._humanCounselorId = null;
     this._active = false;
     this._human = false;
     this._rate = null;

@@ -7,6 +7,18 @@ compatibility_date = "2024-11-01"
 #   wrangler secret put ADMIN_CODE       (운영자 마스터 코드 — 전체 열람)
 #   wrangler secret put ALLOWED_ORIGIN   (선택)
 
+#   wrangler secret put VAPID_PRIVATE    (웹 푸시 서명키 — 절대 코드에 두지 말 것)
+
+# VAPID 공개키는 말 그대로 공개값입니다. 상담사 앱(pro/index.html)에도
+#  똑같은 값이 박혀 있어야 하며, 두 값이 다르면 푸시 구독이 조용히 실패합니다.
+[vars]
+VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc"
+VAPID_SUBJECT = "mailto:help@neurumind.com"
+
+# 상담사 앱(우렁의사 프로)의 주소. 메일에 넣는 로그인 링크가 여기로 간다.
+#  pro.neurumind.com 커스텀 도메인을 붙인 뒤 그 주소로 바꾸세요.
+PRO_URL = "https://neurumind-pro.pages.dev"
+
 # 상담사 마켓 저장소. 먼저 만들고 아래 database_id 를 채우세요:
 #   wrangler d1 create hongcbt
 #   wrangler d1 execute hongcbt --remote --file=./schema.sql

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 소비자 앱(밝은 초록)과 런처에서 바로 구분되도록 짙게 간다 -->
+    <color name="ic_launcher_background">#26453A</color>
+</resources>

@@ -158,6 +158,9 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   const { addr } = pickAddress(env);
   if (!addr) return { sent: false, reason: 'no-from-address' };
   const base = String(appUrl || env.APP_URL || '').replace(/\/+$/, '');
+  // 상담사 앱은 소비자 앱과 다른 도메인에 있다(우렁의사 프로).
+  //  PRO_URL 이 아직 없으면 예전 주소로 보낸다 — 그 페이지가 넘겨준다.
+  const proLink = String(env.PRO_URL || (base + '/counselor.html')).replace(/\/+$/, '') || '#';
   const html = `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
   <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">우렁의사</p>
@@ -169,7 +172,7 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   <p style="margin:0 0 18px;font-size:20px;font-weight:800;letter-spacing:.06em;
      background:#f2ece1;border-radius:10px;padding:12px 16px;display:inline-block;">${code}</p>
   <p style="margin:0 0 20px;">
-    <a href="${base}/counselor.html" style="display:inline-block;background:#4f8a6b;color:#fff;
+    <a href="${proLink}" style="display:inline-block;background:#4f8a6b;color:#fff;
        text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;">상담사 페이지 열기</a></p>
   <p style="font-size:13px;line-height:1.8;color:#3f352a;margin:0 0 4px;"><b>여기서 하실 수 있는 것</b></p>
   <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
@@ -253,7 +256,9 @@ export async function handleAuth(request, env, cors, path, body, url) {
     ).bind(t, c.id, nowMs() + LINK_TTL, nowMs()).run();
 
     const base = (env.APP_URL || url.origin).replace(/\/+$/, '');
-    const link = `${base}/counselor.html?t=${t}`;
+    // 상담사 앱은 별도 도메인(pro.…)이다. 없으면 예전 주소 — 거기서 넘겨준다.
+    const proBase = (env.PRO_URL || (base + '/counselor.html')).replace(/\/+$/, '');
+    const link = /counselor\.html$/.test(proBase) ? `${proBase}?t=${t}` : `${proBase}/?t=${t}`;
     const mail = await sendMail(env, email, link, c.name);
     await logMail(db, email, mail);
 

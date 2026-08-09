@@ -13,6 +13,8 @@
 // ============================================================================
 
 import { resolveCounselor, handleAuth, sendCodeMail } from './auth.js';
+import { handleRtc } from './rtc.js';
+import { handlePush } from './push.js';
 
 const MAX = { text: 4000, name: 40, id: 64 };
 const CALL_LOCK_MS = 35 * 60 * 1000;      // 통화 잠금 자동 해제
@@ -111,7 +113,7 @@ function maskContacts(text) {
 const isAdmin = (env, code) => !!env.ADMIN_CODE && code === env.ADMIN_CODE;
 
 // ---------------------------------------------------------------------------
-export async function handleMarket(request, env, cors, path) {
+export async function handleMarket(request, env, cors, path, ctx) {
   const db = env.DB;
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
 
@@ -127,6 +129,18 @@ export async function handleMarket(request, env, cors, path) {
   // 로그인(이메일 매직링크)은 별도 모듈. 여기서 처리되면 바로 돌려준다.
   if (path.startsWith('/auth/')) {
     const r = await handleAuth(request, env, cors, path, body, url);
+    if (r) return r;
+  }
+
+  // 앱 내 음성통화 — 시그널링·과금
+  if (path.startsWith('/rtc/')) {
+    const r = await handleRtc(request, env, cors, path, body, url, ctx);
+    if (r) return r;
+  }
+
+  // 웹 푸시 구독 — 상담사 앱이 화면을 꺼도 전화를 받게
+  if (path.startsWith('/push/')) {
+    const r = await handlePush(request, env, cors, path, body, url);
     if (r) return r;
   }
 
@@ -625,6 +639,37 @@ export async function handleMarket(request, env, cors, path) {
   // ── 상담사 본인 정보 ────────────────────────────────────────────────
   //  병원 이전·상담료 변경·계좌 변경은 실제로 일어난다.
   //  운영자에게 전화하게 만들면 1,000명은 감당이 안 된다.
+  // ── 배지 숫자 ────────────────────────────────────────────────────────
+  //  소비자 앱의 로고 위에 띄울 '안 본 것' 개수. 목록 전체를 받아오지 않는다.
+  //  상담사가 앱을 켜두지 않아도 '뭔가 왔다'는 건 알아야 하기 때문이다.
+  //  since 는 앱이 마지막으로 상담사 앱을 연 시각 — 서버가 기억할 만한 값이 아니라
+  //  기기가 들고 있다가 보내준다.
+  if (path === '/badge' && method === 'GET') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const since = Math.max(0, num(q('since')));
+    const t = Date.now();
+    // 네 번을 Promise.all 로 동시에 던지지 않는다 — D1 은 한 연결에서
+    //  동시 실행을 싫어한다(전에 카운터 UPSERT 세 개가 조용히 하나씩 실패했다).
+    //  batch 는 한 번의 왕복으로 순서대로 처리해 준다.
+    const res = await db.batch([
+      db.prepare('SELECT COUNT(*) n FROM inbox WHERE counselor_id = ? AND read_at = 0').bind(me.id),
+      db.prepare("SELECT COUNT(*) n FROM chat_msgs WHERE counselor_id = ? AND sender = 'client' AND ts > ?").bind(me.id, since),
+      db.prepare('SELECT COUNT(*) n FROM bookings WHERE counselor_id = ? AND created > ?').bind(me.id, since),
+      db.prepare('SELECT COUNT(*) n FROM calls WHERE counselor_id = ? AND end_at = 0 AND connect_at = 0 AND ring_at > ?')
+        .bind(me.id, t - 60000)
+    ]);
+    const nOf = i => {
+      const r = res[i] && res[i].results && res[i].results[0];
+      return r ? Number(r.n || 0) : 0;
+    };
+    const inbox = nOf(0), chats = nOf(1), bookings = nOf(2), ringing = nOf(3);
+    return json({
+      ok: true, inbox, chats, bookings, ringing,
+      total: inbox + chats + bookings + ringing, now: t
+    }, 200, cors);
+  }
+
   if (path === '/me') {
     const me = await whoami(db, cred);
     if (!me) return json({ error: 'bad-code' }, 403, cors);

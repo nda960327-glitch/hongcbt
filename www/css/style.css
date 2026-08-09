@@ -882,7 +882,14 @@ textarea:focus { border-color: var(--accent-primary); }
   border-color: var(--accent-primary);
   color: var(--text-primary);
 }
-.form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+.form-actions { display: flex; gap: 1rem; margin-top: 1rem; align-items: stretch; }
+/* 반반으로 나누면 '예약하고 결제하기'가 '결제하 / 기'로 꺾인다.
+   취소는 글자 폭만, 실행 버튼이 남는 자리를 다 갖는다. */
+/* .btn-primary/.btn-secondary 는 width:100% 라서 flex-basis:auto 가 100% 로 풀린다.
+   여기서는 폭을 내용에 맡겨야 나눠 갖기가 제대로 된다. */
+.form-actions > button { white-space: nowrap; width: auto; }
+.form-actions > .btn-secondary { flex: 0 0 auto; padding-left: 1.2rem; padding-right: 1.2rem; }
+.form-actions > .btn-primary { flex: 1 1 auto; min-width: 0; }
 
 /* ========== DASHBOARD ========== */
 .dashboard-grid { padding: 0 1.25rem; display: grid; gap: 1.25rem; }
@@ -1169,6 +1176,30 @@ textarea:focus { border-color: var(--accent-primary); }
   animation: float 5s ease-in-out infinite;
   filter: drop-shadow(0 4px 8px rgba(120, 96, 66, 0.18));
 }
+
+/* 로고 위 알림 배지 — 상담사에게 온 게 있을 때만 붙는다 (js/prolink.js) */
+.pro-badge {
+  position: absolute;
+  top: -4px; right: -7px;
+  min-width: 17px; height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e0524d;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 2px 5px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  animation: none;
+}
+.pro-badge.ringing { animation: proBadgeRing 0.9s ease-in-out infinite; }
+@keyframes proBadgeRing {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.22); }
+}
+@media (prefers-reduced-motion: reduce) { .pro-badge.ringing { animation: none; } }
 
 /* 헤더 버튼 아이콘 정렬 */
 .header-btn { display: inline-flex; align-items: center; justify-content: center; }

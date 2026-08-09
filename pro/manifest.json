@@ -1,0 +1,23 @@
+{
+  "name": "우렁의사 프로 — 상담사용",
+  "short_name": "우렁의사 프로",
+  "description": "상담사 전용 앱. 예약·채팅·통화·숙제·정산을 한 곳에서 관리합니다.",
+  "id": "/pro/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#faf5ee",
+  "theme_color": "#1c3027",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["business", "health", "productivity"],
+  "icons": [
+    { "src": "icon-48.png",  "sizes": "48x48",   "type": "image/png", "purpose": "any" },
+    { "src": "icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png",     "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon.png",     "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
