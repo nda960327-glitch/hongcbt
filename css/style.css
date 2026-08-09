@@ -994,9 +994,18 @@ textarea:focus { border-color: var(--accent-primary); }
 .cc2-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.45rem; }
 .cc2-tag { font-size: 0.68rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 10%, transparent); padding: 0.16rem 0.5rem; border-radius: 999px; }
 .cc2-duo { display: flex; gap: 0.45rem; margin-top: 0.7rem; }
-.cc2-duo > * { flex: 1; text-align: center; border-radius: 11px; padding: 0.42rem 0.3rem; box-sizing: border-box; }
-.cc2-duo b { display: block; font-size: 0.8rem; }
-.cc2-duo span { font-size: 0.62rem; }
+/* 라벨과 가격은 반드시 두 줄로 쌓인다.
+   b 에 display:block 을 줬지만 아래쪽 .cc2-book b { inline-flex } 가 덮어써서
+   '예약 상담'과 '30분 55,000원'이 한 줄에 붙었고, 자리가 모자라 '원'만
+   다음 줄로 떨어졌다. 버튼 자체를 세로 flex 로 잡으면 뭘로 덮든 안 무너진다. */
+.cc2-duo > * {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.08rem;
+  text-align: center; border-radius: 11px; padding: 0.45rem 0.25rem; box-sizing: border-box;
+}
+.cc2-duo b { font-size: 0.8rem; white-space: nowrap; }
+.cc2-duo span { font-size: 0.62rem; white-space: nowrap; line-height: 1.35; }
 .cc2-book { border: none; background: var(--gradient-primary); color: #fff; cursor: pointer; box-shadow: var(--shadow-sm); font-family: var(--font-main); }
 .cc2-book:active { transform: scale(0.98); }
 .cc2-live { border: 1.5px solid color-mix(in srgb, var(--accent-secondary) 45%, transparent); background: color-mix(in srgb, var(--accent-secondary) 13%, var(--bg-tertiary)); color: var(--accent-secondary); cursor: pointer; font-family: var(--font-main); }
