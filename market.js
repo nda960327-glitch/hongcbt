@@ -12,7 +12,7 @@
 //    내담자가 [동의하고 보내기]를 누른 요약본만 inbox 에 들어온다.
 // ============================================================================
 
-import { resolveCounselor, handleAuth, sendCodeMail } from './auth.js';
+import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt } from './auth.js';
 import { handleRtc } from './rtc.js';
 import { handlePush } from './push.js';
 
@@ -145,11 +145,24 @@ export async function handleMarket(request, env, cors, path, ctx) {
   }
 
   // ── 상담사 목록 ─────────────────────────────────────────────────────
+  // 매칭 탭에 뿌릴 공개 명부.
+  //  전에는 id·이름·소속만 줬는데, 그것만으로는 카드를 그릴 수 없어서
+  //  앱이 결국 기기 안의 사본(cbt_custom_counselors)을 썼다.
+  //  그래서 A 폰에서 승인한 상담사가 B 폰에는 없었다. 카드에 필요한 걸 다 준다.
+  //  전화번호는 주지 않는다 — 앱 안에서 통화하므로 번호가 오갈 이유가 없다.
   if (path === '/counselors' && method === 'GET') {
     const r = await db.prepare(
-      'SELECT id, name, hospital, available, busy_until FROM counselors WHERE active = 1'
+      `SELECT id, name, hospital, addr, intro, tags, price, call_rate, license, available, busy_until
+         FROM counselors WHERE active = 1 ORDER BY created DESC`
     ).all();
-    return json({ items: r.results || [] }, 200, cors);
+    return json({
+      items: (r.results || []).map(c => ({
+        id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
+        intro: c.intro || '', tags: safeJson(c.tags, []),
+        price: c.price || 0, callRate: c.call_rate || 0, license: c.license || '',
+        available: !!c.available, busyUntil: c.busy_until || 0
+      }))
+    }, 200, cors);
   }
 
   // ── 바로상담 수신 상태 ──────────────────────────────────────────────
@@ -781,6 +794,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
       s(body.tel, 40), s(body.email, 160).toLowerCase(), tags,
       s(body.photo, 200000) || null,           // 256px 리사이즈본이라 넉넉히
       s(body.bank, 40), acct, s(body.bankHolder, 40), nowMs()).run();
+
+    // 접수됐다는 걸 바로 알려준다. 아무 소식이 없으면 또 신청하거나 잊는다.
+    //  응답보다 뒤로 보낸다 — 메일이 느려도 신청 화면은 기다리지 않는다.
+    const mail = s(body.email, 160).toLowerCase();
+    if (mail) {
+      const receipt = sendApplyReceipt(env, db, mail, name).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(receipt); else await receipt;
+    }
     return json({ ok: true, id }, 200, cors);
   }
 
@@ -902,10 +923,16 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (path === '/admin/counselors/delete' && method === 'POST') {
       const id = s(body.id, MAX.id);
       if (body.confirm !== id) return json({ error: 'confirm 불일치' }, 400, cors);
-      for (const t of ['chat_msgs', 'inbox', 'bookings', 'call_queue']) {
+      // 상담사 행만 지우고 끝냈더니 로그인 세션·매직링크 토큰·푸시 구독이
+      //  그대로 남았다. 실제로 지워진 계정의 세션 1건과 푸시 구독 1건이
+      //  DB 에 떠돌고 있었다. 딸린 것을 전부 같이 걷어낸다.
+      for (const t of ['chat_msgs', 'inbox', 'bookings', 'call_queue', 'reviews',
+                       'homework', 'calls', 'sessions', 'login_tokens', 'push_subs']) {
         await db.prepare(`DELETE FROM ${t} WHERE counselor_id = ?`).bind(id).run();
       }
-      await db.prepare('DELETE FROM reviews WHERE counselor_id = ?').bind(id).run();
+      // 이 상담사로 승인됐던 신청서는 '삭제됨'으로 표시만 한다.
+      //  지워버리면 신청자 화면에서 신청 기록이 통째로 사라진다.
+      await db.prepare("UPDATE applications SET status = 'delisted' WHERE counselor_id = ?").bind(id).run();
       await db.prepare('DELETE FROM counselors WHERE id = ?').bind(id).run();
       return json({ ok: true }, 200, cors);
     }

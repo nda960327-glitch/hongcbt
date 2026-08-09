@@ -133,6 +133,7 @@
 
   init() {
     this.renderCounselors();
+    this.loadServer();          // 입점 상담사는 서버에서 — 받아오면 다시 그린다
     // 위치 동기화 자동 시도 (GPS)
     this.requestUserLocation(true);
   },
@@ -567,10 +568,37 @@
     return Math.max(500, Math.round(c.price / 60 * 1.25 / 10) * 10);
   },
 
+  // ── 서버 명부 ────────────────────────────────────────────────────
+  //  입점 상담사는 서버에 있다. 기기 사본만 보면 A 폰에서 승인한 사람이
+  //  B 폰에는 없다 — 실제로 그래서 아무도 안 보였다.
+  //  all() 은 동기라 여기저기서 그대로 부른다. 비동기로 바꾸면 파장이 커지므로
+  //  받아둔 걸 캐시에 넣고 all() 은 그걸 읽기만 한다.
+  _server: [],
+
+  async loadServer() {
+    const d = await (window.Api && window.Api.json
+      ? window.Api.json('/api/counselors')
+      : fetch('/api/counselors').then(r => r.ok ? r.json() : null)).catch(() => null);
+    if (!d || !Array.isArray(d.items)) return;
+    this._server = d.items.map(c => ({
+      id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
+      tags: c.tags || [], price: c.price || 40000,
+      callRate: c.callRate || this.callRateFor({ price: c.price }),
+      rating: 5, reviews: 0, avatar: 0,
+      isAvailableNow: !!c.available, isNew: true, fromServer: true,
+      career: [c.hospital ? '현) ' + c.hospital : '', c.license || '', c.intro || ''].filter(Boolean),
+      reviewsList: []
+    }));
+    if (this.renderCounselors) this.renderCounselors();
+  },
+
   // 기본 상담사 + 입점 상담사 합본, 내가 남긴 리뷰를 별점·후기 목록에 실반영
   all() {
-    const customs = (window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [];
-    const base = customs.concat(this.counselors);
+    // 서버 명부가 원본이다. 기기 사본은 서버에 없는 것만 (구버전 잔재) 남긴다.
+    const ids = new Set(this._server.map(c => c.id));
+    const customs = ((window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [])
+      .filter(c => !ids.has(c.id));
+    const base = this._server.concat(customs, this.counselors);
     const bookings = (window.Storage && window.Storage._safeGet('cbt_bookings', [])) || [];
     const reviews = (window.Storage && window.Storage._safeGet('cbt_reviews', {})) || {};
     return base.map(c => {

@@ -149,6 +149,58 @@ async function sendMail(env, to, link, name) {
   }
 }
 
+// 신청 접수 확인 메일.
+//  신청하고 나면 아무 소식이 없어서 '접수가 된 건가?' 하고 다시 신청하거나
+//  그냥 잊어버린다. 접수됐다는 사실과 언제쯤 연락이 갈지를 바로 알려준다.
+//  이 메일이 실패해도 신청 자체는 이미 저장돼 있다 — 막지 않는다.
+export async function sendApplyReceipt(env, db, to, name) {
+  if (!env.RESEND_API_KEY || !to) return { sent: false, reason: 'no-api-key' };
+  if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
+  const html = `
+<div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">우렁의사</p>
+  <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${name ? name + ' 선생님, ' : ''}입점 신청이 접수됐습니다</h1>
+  <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">
+    보내주신 자격과 소속 기관을 확인하고 있습니다.<br>
+    <b>2~3일 안에</b> 승인 여부를 이 주소로 알려드릴게요.</p>
+  <div style="background:#f6f1e7;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
+    <p style="font-size:13px;font-weight:700;margin:0 0 8px;color:#3f352a;">승인되면 이렇게 진행돼요</p>
+    <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">
+      1. 이 주소로 <b>상담사 앱 로그인 코드</b>가 도착합니다<br>
+      2. 우렁의사 프로에서 코드를 한 번 넣으면 그 기기에서 계속 열려요<br>
+      3. 예약 가능 시간과 정산 계좌를 확인하면 상담을 받을 수 있습니다</p>
+  </div>
+  <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
+    서류 보완이 필요하면 사유와 함께 알려드립니다. 보완 후 다시 신청하실 수 있어요.</p>
+  <hr style="border:0;border-top:1px solid #e8ddcd;margin:22px 0 12px;">
+  <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
+    신청한 적이 없다면 이 메일은 그냥 버리셔도 됩니다.<br>
+    문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>
+</div>`;
+  let res;
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: encodeFrom(env), to: [to],
+        subject: '[우렁의사] 입점 신청이 접수됐습니다',
+        html
+      })
+    });
+    if (r.ok) res = { sent: true, reason: '' };
+    else {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 220); } catch (e) {}
+      res = { sent: false, reason: 'http-' + r.status, detail };
+    }
+  } catch (e) {
+    res = { sent: false, reason: 'network', detail: String(e && e.message || e).slice(0, 200) };
+  }
+  if (db) await logMail(db, to, res);
+  return res;
+}
+
 // 승인 시 열람 코드를 한 번 보낸다.
 //  매직링크를 매번 쓰면 상담사 1,000명 × 로그인마다 메일이 나가 무료 한도를 먹는다.
 //  코드는 '한 사람당 한 번'이면 끝나고, 넣고 나면 그 기기에서 계속 열린다.

@@ -158,14 +158,10 @@ window.App = {
     if (phoneInput && window.Storage) phoneInput.value = window.Storage._safeGet('cbt_user_phone', '');
     if (genderSelect && window.Storage) genderSelect.value = window.Storage._safeGet('cbt_user_gender', 'none');
 
-    // 전화번호: 숫자만 입력해도 010-1234-5678 형태로 자동 하이픈
-    if (phoneInput) {
-      phoneInput.addEventListener('input', () => {
-        const d = phoneInput.value.replace(/\D/g, '').slice(0, 11);
-        phoneInput.value = d.length > 7 ? `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`
-          : d.length > 3 ? `${d.slice(0, 3)}-${d.slice(3)}` : d;
-      });
-    }
+    // 전화번호 자동 하이픈. 규칙은 formatTel 한 곳에만 둔다.
+    //  전에는 여기서 직접 3-4-4 로 잘라서 02-312-4711 이 깨졌다.
+    this.autoHyphenTel(phoneInput);
+    this.autoHyphenTel(document.getElementById('creg-hosp-tel'));
 
     if (profileSaveBtn) {
       profileSaveBtn.addEventListener('click', () => {
@@ -1027,6 +1023,47 @@ window.App = {
   // 별명은 표시용일 뿐, 식별은 이 ID로 한다. 별명을 바꿔도 동기화가 안 끊긴다.
   // 상담사 앱(우렁의사 프로)은 별도 앱·별도 도메인이다.
   //  운영 도메인이면 pro.neurumind.com, 로컬·미리보기면 같은 서버의 pro/ 폴더.
+  // 전화번호는 숫자만 쳐도 하이픈이 붙게 한다.
+  //  02 는 지역번호가 두 자리이고 15xx/16xx/18xx 대표번호는 지역번호가 없다.
+  //  전부 3-4-4 로 밀면 02-312-4711 이 023-1247-11 로 깨진다.
+  formatTel(v) {
+    const d = String(v || '').replace(/\D/g, '').slice(0, 11);
+    if (!d) return '';
+    if (d.startsWith('02')) {                        // 서울
+      if (d.length <= 2) return d;
+      if (d.length <= 5) return d.slice(0, 2) + '-' + d.slice(2);
+      if (d.length <= 9) return d.slice(0, 2) + '-' + d.slice(2, 5) + '-' + d.slice(5);
+      return d.slice(0, 2) + '-' + d.slice(2, 6) + '-' + d.slice(6, 10);
+    }
+    if (/^1[5678]/.test(d)) {                        // 1588-1234 대표번호
+      if (d.length <= 4) return d;
+      return d.slice(0, 4) + '-' + d.slice(4, 8);
+    }
+    if (d.length <= 3) return d;                     // 010 / 031 / 070 …
+    if (d.length <= 7) return d.slice(0, 3) + '-' + d.slice(3);
+    if (d.length <= 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+    return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7);
+  },
+
+  // 입력칸에 물려준다.
+  //  백스페이스로 하이픈을 지웠을 때 그 자리에 하이픈을 다시 넣으면
+  //  영원히 지울 수 없게 된다 — 그때는 앞 숫자 한 자리를 대신 지운다.
+  autoHyphenTel(el) {
+    if (!el || el._telBound) return;
+    el._telBound = true;
+    let prevDigits = el.value.replace(/\D/g, '');
+    let prevLen = el.value.length;
+    const run = () => {
+      let d = el.value.replace(/\D/g, '');
+      if (el.value.length < prevLen && d === prevDigits) d = d.slice(0, -1);
+      el.value = this.formatTel(d);
+      prevDigits = el.value.replace(/\D/g, '');
+      prevLen = el.value.length;
+    };
+    el.addEventListener('input', run);
+    el.addEventListener('blur', run);
+  },
+
   proAppUrl() {
     const h = location.hostname;
     if (/(^|\.)neurumind\.com$/.test(h)) return 'https://pro.neurumind.com/';
@@ -2245,6 +2282,29 @@ ${memory || '(없음)'}`;
     this.renderMyBookings();
   },
 
+  // 신청서의 진짜 주인은 서버다. 기기에 있는 건 사본일 뿐이라,
+  //  운영자가 승인·반려해도 이 기기는 그걸 모른 채 '검수중'을 계속 보여줬다.
+  async syncCounselorApps() {
+    const d = await window.Api.json('/api/apply?clientId=' + encodeURIComponent(this.clientId()))
+      .catch(() => null);
+    if (!d || !Array.isArray(d.items)) return;      // 서버가 안 되면 사본을 그대로 쓴다
+    const local = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    const merged = d.items.map(s => {
+      const old = local.find(x => x.id === s.id) || {};
+      return {
+        ...old,
+        id: s.id, ts: s.ts, status: s.status,
+        name: s.name, email: s.email, license: s.license, career: s.career,
+        price: s.price, intro: s.intro, hospital: s.hospital, addr: s.addr, tel: s.tel,
+        tags: s.tags, photo: s.photo || old.photo || null,
+        rejectReason: s.rejectWhy || '',
+        counselorId: s.counselorId || ''
+      };
+    });
+    window.Storage._safeSet('cbt_counselor_apps', merged.slice(0, 10));
+    this.renderCounselorApps();
+  },
+
   renderCounselorApps() {
     const el = document.getElementById('my-counselor-apps');
     if (!el) return;
@@ -2553,13 +2613,59 @@ ${memory || '(없음)'}`;
     if (file) file.value = '';
   },
 
-  submitCounselorReg() {
+  // ==========================================================================
+  //  상담사 등록 — 한 장의 양식, 두 개의 입구
+  //
+  //   상담사가 직접 쓰면 → 신청서로 접수되고 운영자가 심사한다
+  //   운영자가 대신 쓰면 → 심사할 게 없다. 접수와 동시에 승인된다
+  //
+  //  전에는 이 둘이 아예 다른 화면이었다. '상담사 추가'는 이름·소속·이메일
+  //  네 칸뿐이라 그렇게 넣은 상담사는 상담료도 전문분야도 없는 빈 카드가 됐다.
+  //  같은 양식을 쓰면 그런 일이 생기지 않는다.
+  // ==========================================================================
+  _regAsAdmin: false,
+
+  openCounselorReg(asAdmin) {
+    this._regAsAdmin = !!asAdmin;
+    const t = document.getElementById('creg-title');
+    const lead = document.getElementById('creg-lead');
+    const btn = document.getElementById('creg-submit');
+    if (t) t.textContent = asAdmin ? '상담사 직접 등록' : '상담사 등록 신청';
+    if (lead) lead.textContent = asAdmin
+      ? '운영자가 대신 입력합니다. 심사 없이 바로 등록되고, 적어주신 이메일로 로그인 코드가 발송돼요.'
+      : '자격과 소속 기관을 확인한 뒤 입점이 승인됩니다. 승인되면 이메일로 상담사 앱 로그인 코드를 보내드려요.';
+    if (btn) btn.textContent = asAdmin ? '등록하고 코드 발급' : '신청하기';
+    document.getElementById('counselor-reg-modal').classList.remove('hidden');
+    if (window.Payout && window.Payout.render) window.Payout.render();
+  },
+
+  closeCounselorReg() {
+    this._regAsAdmin = false;
+    document.getElementById('counselor-reg-modal').classList.add('hidden');
+  },
+
+  // 입점 신청.
+  //  전에는 이 기기의 localStorage 에만 적었다. 그래서 다른 폰에서 신청하면
+  //  운영자 콘솔에 아무것도 뜨지 않았다 — 신청서가 그 폰 안에만 있었으니까.
+  //  이제 서버가 원본을 갖고, 기기에는 화면에 쓸 사본만 둔다.
+  async submitCounselorReg() {
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
-    const name = v('creg-name'), license = v('creg-license'), price = v('creg-price');
+    const name = v('creg-name'), email = v('creg-email').toLowerCase();
+    const license = v('creg-license'), price = v('creg-price');
     const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
     const bank = v('creg-bank'), account = v('creg-account').replace(/[^0-9]/g, ''), holder = v('creg-holder');
+
     if (!name || !license || !price || !hospital || !addr) {
       window.UI.alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
+      return;
+    }
+    // 이메일이 없으면 승인돼도 로그인 코드를 보낼 데가 없다
+    if (!email) {
+      window.UI.alert('이메일을 입력해주세요.\n승인되면 이 주소로 상담사 앱 로그인 코드를 보내드려요.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      window.UI.alert('이메일 형식을 다시 확인해주세요.');
       return;
     }
     // 정산 계좌가 없으면 승인돼도 돈을 보낼 수 없다
@@ -2571,24 +2677,75 @@ ${memory || '(없음)'}`;
       window.UI.alert('계좌번호를 다시 확인해주세요.');
       return;
     }
+
     const tags = [...document.querySelectorAll('#creg-tags button[data-on="1"]')].map(b => b.dataset.tag);
-    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
-    apps.unshift({
-      id: 'ca_' + Date.now(), ts: Date.now(), status: 'pending',
-      name, license,
+    const payload = {
+      clientId: this.clientId(), name, email, license,
       career: v('creg-career'), price: parseInt(price, 10), intro: v('creg-intro'),
       hospital, addr: (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: v('creg-hosp-tel'),
-      tags, photo: this._cregPhoto || null
-    });
+      tags, photo: this._cregPhoto || null,
+      bank, bankNo: account, bankHolder: holder
+    };
+
+    const asAdmin = this._regAsAdmin;
+    const btn = document.getElementById('creg-submit');
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = asAdmin ? '등록 중…' : '접수 중…'; }
+    const r = await window.Api.json('/api/apply', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => null);
+
+    if (!r || !r.ok) {
+      if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.textContent = label; }
+      // 조용히 로컬에만 저장하면 신청한 줄 알고 하염없이 기다리게 된다
+      window.UI.alert(r && r.error
+        ? r.error
+        : '지금은 접수할 수 없어요.\n인터넷 연결을 확인하고 잠시 뒤 다시 시도해주세요.');
+      return;
+    }
+
+    // 운영자가 대신 쓴 경우엔 심사할 게 없다 — 바로 승인해서 코드를 발급한다
+    let approved = null;
+    if (asAdmin && window.Admin) {
+      approved = await window.Api.json('/api/apply/approve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: window.Admin.code(), id: r.id })
+      }).catch(() => null);
+    }
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.textContent = label; }
+
+    this._clearCregForm();
+    this.closeCounselorReg();
+
+    if (asAdmin) {
+      if (!approved || !approved.ok) {
+        window.UI.alert('신청서는 저장했지만 자동 승인에 실패했어요.\n[상담사 관리]의 심사 대기 목록에서 승인해주세요.');
+      } else if (approved.mailed) {
+        this.showRecordToast(`${approved.name} 선생님 등록 완료 — 코드를 메일로 보냈어요`);
+      } else {
+        window.Admin.shareCounselor(approved.counselorId, approved.name, approved.code);
+      }
+      window.Admin.loadCounselors();
+      if (window.Marketplace) window.Marketplace.loadServer();
+      return;
+    }
+
+    const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
+    apps.unshift({ id: r.id, ts: Date.now(), status: 'pending', ...payload });
     window.Storage._safeSet('cbt_counselor_apps', apps.slice(0, 10));
-    document.getElementById('counselor-reg-modal').classList.add('hidden');
-    ['creg-name','creg-license','creg-career','creg-price','creg-intro','creg-hosp-name','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel']
+    window.UI.alert(`등록 신청이 접수되었습니다!\n\n자격·소속기관 검수 후 승인되면\n${email} 으로 상담사 앱 로그인 코드를 보내드려요.`);
+    this.renderCounselorApps();
+    this.switchTab('mypage');
+  },
+
+  _clearCregForm() {
+    ['creg-name','creg-email','creg-license','creg-career','creg-price','creg-intro',
+     'creg-hosp-name','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel',
+     'creg-bank','creg-account','creg-holder','creg-bizno']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.querySelectorAll('#creg-tags button[data-on="1"]').forEach(b => b.click());
     this.clearCregPhoto();
-    window.UI.alert('등록 신청이 접수되었습니다!\n자격·소속기관 검수 후 입점이 승인됩니다. (마이페이지에서 진행 상황을 확인하세요)');
-    this.renderCounselorApps();
-    this.switchTab('mypage');
   },
 
   // ==========================================================================

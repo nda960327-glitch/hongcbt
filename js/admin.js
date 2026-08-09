@@ -103,10 +103,60 @@ window.Admin = {
     finally { if (b && b.isConnected) { b.disabled = false; b.style.opacity = ''; b.textContent = old; } }
   },
 
+  // 심사와 추가는 결국 같은 일이다 — 상담사 계정을 만들고 코드를 발급해
+  //  이메일로 보내는 것. 화면을 둘로 나눠 놓으니 어느 쪽이 진짜인지
+  //  헷갈렸고, 한쪽(심사)은 이 기기 안에만 있어서 아무것도 안 떴다.
+  //  한 화면에서 [신청 대기] → [등록된 상담사] 로 흐르게 한다.
   async loadCounselors() {
-    const d = await window.Api.json('/api/admin/counselors?code=' + encodeURIComponent(this.code()));
-    this._cs = d ? (d.items || []) : null;
+    const c = encodeURIComponent(this.code());
+    const [cs, apps] = await Promise.all([
+      window.Api.json('/api/admin/counselors?code=' + c),
+      window.Api.json('/api/apply?code=' + c)
+    ]);
+    this._cs = cs ? (cs.items || []) : null;
+    this._apps = apps ? (apps.items || []) : [];
     this.renderCounselorBox();
+  },
+
+  // 승인 — 서버가 계정을 만들고 코드를 발급해 신청서에 적힌 메일로 보낸다
+  async approveApp(id) {
+    const a = (this._apps || []).find(x => x.id === id);
+    if (!a) return;
+    if (!await window.UI.confirm({
+      title: `${a.name} 선생님을 승인할까요?`,
+      body: `${a.license || '자격 미기재'} · ${a.hospital || '소속 미기재'}\n`
+        + (a.email ? `승인하면 ${a.email} 으로 로그인 코드가 발송됩니다.`
+                   : '⚠ 이메일이 없어 코드를 자동 발송할 수 없어요. 발급된 코드를 직접 전달해야 합니다.'),
+      okLabel: '승인'
+    })) return;
+    const r = await window.Api.json('/api/apply/approve', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id })
+    });
+    if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '승인하지 못했어요'); return; }
+    if (window.Sfx) window.Sfx.hit('levelup');
+    await this.loadCounselors();
+    if (window.Marketplace) window.Marketplace.loadServer();
+    // 메일이 안 나갔으면 운영자가 직접 전달해야 하므로 안내문을 띄운다
+    if (r.mailed) window.App && window.App.showRecordToast(`${r.name} 선생님께 코드를 메일로 보냈어요`);
+    else this.shareCounselor(r.counselorId, r.name, r.code);
+  },
+
+  async rejectApp(id) {
+    const a = (this._apps || []).find(x => x.id === id);
+    if (!a) return;
+    const why = await window.UI.prompt({
+      title: `${a.name} 선생님 신청을 반려합니다`,
+      body: '반려 사유는 신청자 화면에 그대로 보입니다.',
+      value: '자격 서류 확인이 필요합니다', okLabel: '반려'
+    });
+    if (why === null) return;
+    const r = await window.Api.json('/api/apply/reject', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id, why: (why || '').trim() })
+    });
+    if (!r || !r.ok) { window.UI.alert('반려하지 못했어요'); return; }
+    this.loadCounselors();
   },
 
   // 상담사 앱은 이제 별도 앱(우렁의사 프로)이다.
@@ -117,29 +167,9 @@ window.Admin = {
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
   },
 
-  async addCounselor() {
-    const name = (document.getElementById('ac-name') || {}).value || '';
-    const hospital = (document.getElementById('ac-hosp') || {}).value || '';
-    const email = ((document.getElementById('ac-mail') || {}).value || '').trim();
-    let id = ((document.getElementById('ac-id') || {}).value || '').trim();
-    if (!name.trim()) { window.UI.alert('상담사 이름을 적어주세요'); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
-      window.UI.alert('이메일 형식이 올바르지 않아요'); return;
-    }
-    if (!id) id = 'c' + Date.now().toString(36).slice(-6);   // 안 적으면 자동
-    const r = await this._busy('ac-go', '발급 중…', () =>
-      window.Api.json('/api/admin/counselors', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim(), email })
-      }));
-    if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '추가하지 못했어요'); return; }
-    ['ac-name', 'ac-hosp', 'ac-mail', 'ac-id'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
-    this._showCode[r.id] = true;
-    if (window.Sfx) window.Sfx.hit('levelup');
-    // 코드는 이미 손에 있다. 목록이 다시 내려오기를 기다릴 이유가 없다.
-    this.shareCounselor(r.id, r.name, r.code);
-    this.loadCounselors();
-  },
+  // addCounselor(): 이름·소속·이메일만 받던 옛 추가 경로.
+  //  그렇게 넣은 상담사는 상담료도 전문분야도 없어서 매칭 카드가 텅 비었다.
+  //  이제 신청서와 같은 양식을 쓴다 — App.openCounselorReg(true).
 
   // 발급된 코드를 전달하기 좋은 형태로 한 번에 보여준다
   shareCounselor(id, name, code) {
@@ -393,48 +423,71 @@ window.Admin = {
       </div>`;
     }).join('');
 
+    // ── 심사 대기 신청서 (서버) ────────────────────────────────────
+    const pending = (this._apps || []).filter(a => a.status === 'pending');
+    const decided = (this._apps || []).filter(a => a.status !== 'pending').slice(0, 5);
+    const appRow = a => `
+      <div style="background: var(--bg-tertiary); border: 1px solid #f5c74e66; border-radius: 12px; padding: 0.75rem 0.85rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          ${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : ''}
+          <div style="flex: 1; min-width: 0;">
+            <strong style="font-size: 0.86rem; color: var(--text-primary);">${esc(a.name)}</strong>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${esc(a.license || '자격 미기재')}${a.career ? ' · 경력 ' + esc(a.career) + '년' : ''}</div>
+          </div>
+          <span style="font-size: 0.64rem; font-weight: 800; color: #b98a1a; background: #f5c74e33; padding: 0.15rem 0.5rem; border-radius: 999px; flex-shrink: 0;">심사 대기</span>
+        </div>
+        <div style="font-size: 0.74rem; color: var(--text-secondary); margin-top: 0.4rem; line-height: 1.55;">
+          ${esc(a.hospital || '(소속 미기재)')}<br>${esc(a.addr || '(주소 미입력)')}${a.tel ? '<br>' + esc(a.tel) : ''}<br>
+          30분 ${(a.price || 0).toLocaleString()}원 · 신청 ${new Date(a.ts).toLocaleDateString('ko-KR')}
+          ${a.bank ? `<br>정산 ${esc(a.bank.bank)} ${esc(a.bank.masked)} (${esc(a.bank.holder)})` : '<br><span style="color:#c14a4a;">정산 계좌 없음</span>'}
+        </div>
+        <div style="margin-top: 0.4rem; font-size: 0.74rem; ${a.email ? 'color: var(--accent-primary); font-weight: 700;' : 'color: #c14a4a;'}">
+          ${a.email ? esc(a.email) : '이메일 없음 — 승인해도 코드를 자동 발송할 수 없어요'}
+        </div>
+        <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
+          <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem;" onclick="window.Admin.approveApp('${esc(a.id)}')">승인하고 코드 발급</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; color: #c14a4a;" onclick="window.Admin.rejectApp('${esc(a.id)}')">반려</button>
+        </div>
+      </div>`;
+
     el.innerHTML = `
+      ${pending.length ? `
+      <p style="margin: 0 0 0.45rem; font-size: 0.78rem; font-weight: 800; color: #b98a1a;">심사 대기 ${pending.length}건</p>
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.9rem;">
+        ${pending.map(appRow).join('')}
+      </div>` : `
+      <p style="margin: 0 0 0.7rem; font-size: 0.76rem; color: var(--text-muted);">대기 중인 입점 신청이 없습니다.</p>`}
+
+      <p style="margin: 0 0 0.45rem; font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">등록된 상담사 ${this._cs.length}명</p>
       <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-        ${rows || '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 0.8rem 0; margin: 0;">등록된 상담사가 없습니다. 아래에서 추가하세요.</p>'}
+        ${rows || '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 0.8rem 0; margin: 0;">등록된 상담사가 없습니다.</p>'}
       </div>
+
+      ${decided.length ? `
+      <details style="margin-top: 0.7rem;">
+        <summary style="font-size: 0.74rem; color: var(--text-muted); cursor: pointer;">지난 신청 ${decided.length}건 보기</summary>
+        <div style="margin-top: 0.4rem; display: flex; flex-direction: column; gap: 0.3rem;">
+          ${decided.map(a => `<div style="font-size: 0.74rem; color: var(--text-muted);">
+            ${esc(a.name)} · ${a.status === 'approved' ? '승인됨' : '반려됨'}${a.rejectWhy ? ' — ' + esc(a.rejectWhy) : ''}
+          </div>`).join('')}
+        </div>
+      </details>` : ''}
+
       <div style="margin-top: 0.7rem; background: var(--bg-secondary); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 0.75rem 0.85rem;">
-        <p style="margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">상담사 추가</p>
-        <input id="ac-name" placeholder="이름 (예: 김유진 심리상담사)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
-        <input id="ac-hosp" placeholder="소속 (예: 연세 마음가득 정신건강의학과)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
-        <input id="ac-mail" type="email" placeholder="이메일 (로그인 링크를 받을 주소)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
-        <input id="ac-id" placeholder="ID (비워두면 자동 · 앱 상담사 카드와 맞추려면 c1 등)" style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
-        <button id="ac-go" class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; font-size: 0.82rem;" onclick="window.Admin.addCounselor()">추가하고 코드 발급</button>
+        <p style="margin: 0 0 0.15rem; font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">상담사 직접 등록</p>
+        <p style="margin: 0 0 0.6rem; font-size: 0.7rem; line-height: 1.55; color: var(--text-muted);">
+          오프라인으로 모신 분처럼 앱에서 신청하지 않은 경우예요.
+          <b>신청서와 같은 양식</b>을 운영자가 대신 채웁니다. 심사 없이 바로 등록되고 코드가 발송돼요.</p>
+        <button class="btn-primary" style="width: 100%; padding: 0.55rem; font-size: 0.85rem;" onclick="window.App.openCounselorReg(true)">＋ 상담사 직접 등록</button>
       </div>`;
   },
 
   _apps() { return window.Storage._safeGet('cbt_counselor_apps', []) || []; },
   _customs() { return window.Storage._safeGet('cbt_custom_counselors', []) || []; },
 
-  // 승인: 신청 → 매칭 탭 상담사 카드로 (app.js의 승인 로직 재사용, confirm은 여기서)
-  approve(appId) {
-    const apps = this._apps();
-    const a = apps.find(x => x.id === appId);
-    if (!a) return;
-    if (!confirm(`'${a.name}' (${a.license})\n소속: ${a.hospital}\n\n자격·소속기관 검수를 통과 처리하고 입점을 승인할까요?`)) return;
-    const origConfirm = window.confirm, origAlert = window.alert;
-    window.confirm = () => true; window.alert = () => {};
-    try { window.App.approveCounselorApp(appId); } finally { window.confirm = origConfirm; window.alert = origAlert; }
- if (window.App && window.App.showRecordToast) window.App.showRecordToast(`'${a.name}'입점 승인 완료`);
-    this._render();
-  },
-
-  reject(appId) {
-    const apps = this._apps();
-    const a = apps.find(x => x.id === appId);
-    if (!a || a.status === 'approved') return;
-    const reason = prompt(`'${a.name}' 신청을 반려합니다.\n반려 사유를 입력하세요 (신청자에게 표시됩니다):`, '자격 서류 확인이 필요합니다');
-    if (reason === null) return;
-    a.status = 'rejected';
-    a.rejectReason = reason.trim() || '요건 미충족';
-    window.Storage._safeSet('cbt_counselor_apps', apps);
-    if (window.App && window.App.renderCounselorApps) window.App.renderCounselorApps();
-    this._render();
-  },
+  // 예전의 approve()/reject() 는 이 기기 localStorage 만 고쳤다.
+  //  다른 폰에서 낸 신청서는 애초에 보이지도 않았고, 승인해도 그 상담사는
+  //  이 기기에만 존재했다. 서버를 쓰는 approveApp()/rejectApp() 으로 대체.
 
   // 입점 상담사 노출 중단 (기본 제공 상담사는 제외, 입점분만)
   delist(counselorId) {
@@ -586,41 +639,7 @@ window.Admin = {
         <div style="font-size: 0.68rem; color: var(--text-muted); margin-top: 0.15rem;">${label}</div>
       </div>`;
 
-    const appCard = (a) => {
-      const approved = a.status === 'approved';
-      const rejected = a.status === 'rejected';
-      const delisted = a.status === 'delisted';
-      const chip = approved
-        ? '<span style="background: color-mix(in srgb, var(--accent-primary) 18%, transparent); color: var(--accent-primary); font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">승인됨</span>'
-        : rejected
-          ? '<span style="background: #e05d5d22; color: #c14a4a; font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">반려됨</span>'
-          : delisted
-            ? '<span style="background: var(--bg-secondary); color: var(--text-muted); border: 1px solid var(--glass-border); font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">노출 중단</span>'
-            : '<span style="background: #f5c74e33; color: #b98a1a; font-size: 0.68rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px;">심사 대기</span>';
-      return `
-      <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
-          <div style="display: flex; align-items: center; gap: 0.5rem; min-width: 0;">
-            ${a.photo ? `<img src="${a.photo}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : ''}
-            <strong style="font-size: 0.9rem; color: var(--text-primary);">${a.name} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.76rem;">· ${a.license}${a.career ? ` · 경력 ${a.career}년` : ''}</span></strong>
-          </div>
-          ${chip}
-        </div>
-        ${(a.tags && a.tags.length) ? `<div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem;">${a.tags.map(t => `<span style="font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.12rem 0.5rem; border-radius: 999px;">${t}</span>`).join('')}</div>` : ''}
-        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.5;">
- ${a.hospital}<br>
- ${a.addr ||'(주소 미입력)'}${a.tel ?`<br>${a.tel}`:''}<br>
- 30분 ${(a.price || 0).toLocaleString()}원 · 신청일 ${new Date(a.ts).toLocaleDateString('ko-KR')}
- ${a.intro ?`<br>${a.intro}`:''}
-          ${rejected && a.rejectReason ? `<br><span style="color: #c14a4a;">반려 사유: ${a.rejectReason}</span>` : ''}
-        </div>
-        ${(!approved && !rejected) ? `
-          <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
- <button class="btn-primary"style="flex: 1; font-size: 0.78rem; padding: 0.45rem;"onclick="window.Admin.approve('${a.id}')"> 승인</button>
-            <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem; color: #c14a4a;" onclick="window.Admin.reject('${a.id}')">반려</button>
-          </div>` : ''}
-      </div>`;
-    };
+    // appCard: 기기 사본 신청서를 그리던 카드. 서버 심사(renderCounselorBox)로 옮겨 제거.
 
     const ov = document.createElement('div');
     ov.id = 'admin-overlay';
@@ -679,12 +698,9 @@ window.Admin = {
           </div>
         </div>
 
-        <div>
- <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 상담사 입점 심사 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${apps.length}건)</span></h3>
-          <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-            ${apps.length ? apps.map(appCard).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">접수된 신청이 없습니다.</p>'}
-          </div>
-        </div>
+        ${/* 입점 심사는 위 [상담사 관리] 안으로 합쳤다.
+              심사와 추가는 결국 같은 일(계정 생성 + 코드 발급)이라
+              화면이 둘이면 어느 쪽이 진짜인지 알 수 없었다. */''}
 
         <div>
           ${this.reviewSection()}
@@ -708,20 +724,26 @@ window.Admin = {
           })()}
         </div>
 
+        ${/* '입점 상담사 관리'도 위 [상담사 관리]와 같은 목록이었다.
+              이쪽은 기기 사본이라 다른 폰에서 승인한 사람은 보이지도 않았다.
+              서버 목록 하나만 남긴다. */''}
+        ${customs.length ? `
         <div>
- <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 입점 상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${customs.length}명)</span></h3>
+          <h3 style="margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--text-primary);">구버전 기기 사본 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(${customs.length}건)</span></h3>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem; line-height: 1.5;">
+            서버로 옮기기 전에 이 기기에서 승인했던 기록입니다. 위 [상담사 관리] 목록이 진짜예요.
+            같은 분이 위에도 있으면 여기서 지워도 됩니다.</p>
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
-            ${customs.length ? customs.map(c => `
-              <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
+            ${customs.map(c => `
+              <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; opacity: 0.75;">
                 <div style="flex: 1; min-width: 0;">
                   <strong style="font-size: 0.86rem; color: var(--text-primary);">${c.name}</strong>
-                  <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${c.price.toLocaleString()}원</div>
- <div style="font-size: 0.72rem; margin-top: 0.15rem; ${c.inboxCode ?'color: var(--accent-primary); font-weight: 700;':'color: var(--text-muted);'}"> 수신함 코드: ${c.inboxCode ||'(서버 미연결 — 발급 안 됨)'}</div>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${(c.price || 0).toLocaleString()}원</div>
                 </div>
-                <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">노출 중단</button>
-              </div>`).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">입점 승인된 상담사가 없습니다.</p>'}
+                <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">이 기기에서 삭제</button>
+              </div>`).join('')}
           </div>
-        </div>
+        </div>` : ''}
 
       </div>`;
     document.body.appendChild(ov);
