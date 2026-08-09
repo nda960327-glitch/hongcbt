@@ -20,7 +20,7 @@
 // ============================================================================
 import crypto from 'node:crypto';
 
-const APP_URL = process.env.HONGCBT_URL || 'https://hongcbt.pages.dev';
+const APP_URL = process.env.HONGCBT_URL || 'https://neurumind.com';
 const AB = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';   // 헷갈리는 0/O/1/I 는 뺀다
 
 function makeCode() {
