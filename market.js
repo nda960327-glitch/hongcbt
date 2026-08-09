@@ -130,7 +130,11 @@ export async function handleMarket(request, env, cors, path) {
       const r = await db.prepare(
         'SELECT * FROM bookings WHERE counselor_id = ? ORDER BY when_ts DESC LIMIT 200'
       ).bind(me.id).all();
-      return json({ items: (r.results || []).map(rowBooking), scope: 'counselor' }, 200, cors);
+      // 본인 화면에서는 자기 메모가 보여야 한다 (내담자용 rowBooking 에는 없다)
+      return json({
+        items: (r.results || []).map(x => ({ ...rowBooking(x), cnote: x.cnote || '' })),
+        scope: 'counselor'
+      }, 200, cors);
     }
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
@@ -174,6 +178,153 @@ export async function handleMarket(request, env, cors, path) {
       }
       return json({ ok: true }, 200, cors);
     }
+  }
+
+  // ── 상담 완료 → 확인 → 정산 ─────────────────────────────────────────
+  //  돈이 걸린 구간이라 '누가 무엇을 했는지'를 전부 시각으로 남긴다.
+  const AUTO_CONFIRM_MS = 72 * 3600000;   // 내담자가 아무 말 없으면 3일 뒤 자동 확정
+
+  // 상담사: 상담을 마쳤다
+  if (path === '/bookings/done' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const id = s(body.id, MAX.id);
+    const b = await db.prepare('SELECT * FROM bookings WHERE id = ? AND counselor_id = ?')
+      .bind(id, me.id).first();
+    if (!b) return json({ error: 'not-found' }, 404, cors);
+    if (b.status !== 'confirmed') return json({ error: '완료 처리할 수 있는 상태가 아닙니다' }, 400, cors);
+    if (b.when_ts > nowMs()) return json({ error: '상담 시각 전에는 완료 처리할 수 없습니다' }, 400, cors);
+    const t = nowMs();
+    await db.prepare(
+      'UPDATE bookings SET status = ?, done_at = ?, auto_at = ?, cnote = COALESCE(?, cnote) WHERE id = ?'
+    ).bind('done', t, t + AUTO_CONFIRM_MS, s(body.note, 1000) || null, id).run();
+    return json({ ok: true, autoAt: t + AUTO_CONFIRM_MS }, 200, cors);
+  }
+
+  // 내담자: 잘 받았다 (확인하면 정산이 확정된다)
+  if (path === '/bookings/confirm' && method === 'POST') {
+    const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
+    if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
+    const r = await db.prepare(
+      "UPDATE bookings SET confirm_at = ? WHERE id = ? AND client_id = ? AND status = 'done' AND confirm_at = 0"
+    ).bind(nowMs(), id, clientId).run();
+    return json({ ok: true }, 200, cors);
+  }
+
+  // 내담자: 이의 있음 — 정산을 멈춘다
+  if (path === '/bookings/dispute' && method === 'POST') {
+    const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
+    const why = s(body.why, 500);
+    if (!id || !clientId || !why) return json({ error: '사유를 적어주세요' }, 400, cors);
+    await db.prepare(
+      "UPDATE bookings SET dispute = ?, dispute_at = ?, status = 'disputed' WHERE id = ? AND client_id = ? AND settled_at = 0"
+    ).bind(why, nowMs(), id, clientId).run();
+    return json({ ok: true }, 200, cors);
+  }
+
+  // 상담사 메모 (내담자에게 보이지 않는다)
+  if (path === '/bookings/note' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    await db.prepare('UPDATE bookings SET cnote = ? WHERE id = ? AND counselor_id = ?')
+      .bind(s(body.note, 1000), s(body.id, MAX.id), me.id).run();
+    return json({ ok: true }, 200, cors);
+  }
+
+  // 환불 — 상담사가 스스로, 또는 운영자가
+  if (path === '/bookings/refund' && method === 'POST') {
+    const id = s(body.id, MAX.id);
+    const admin = isAdmin(env, code);
+    let owner = null;
+    if (!admin) {
+      owner = await whoami(db, cred);
+      if (!owner) return json({ error: 'bad-code' }, 403, cors);
+    }
+    const b = admin
+      ? await db.prepare('SELECT * FROM bookings WHERE id = ?').bind(id).first()
+      : await db.prepare('SELECT * FROM bookings WHERE id = ? AND counselor_id = ?').bind(id, owner.id).first();
+    if (!b) return json({ error: 'not-found' }, 404, cors);
+    if (b.settled_at) return json({ error: '이미 정산이 끝난 상담입니다' }, 400, cors);
+    const amount = Math.max(0, Math.min(b.price || 0, num(body.amount) || (b.price || 0)));
+    await db.prepare(
+      "UPDATE bookings SET status = 'refunded', refund = ?, refund_at = ?, refund_why = ? WHERE id = ?"
+    ).bind(amount, nowMs(), s(body.why, 300), id).run();
+    return json({ ok: true, refund: amount }, 200, cors);
+  }
+
+  // 정산 대기 목록 (운영자)
+  if (path === '/settle' && method === 'GET') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const t = nowMs();
+    const r = await db.prepare(
+      `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
+         FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
+        WHERE b.status = 'done' AND b.settled_at = 0
+          AND (b.confirm_at > 0 OR b.auto_at <= ?)
+        ORDER BY b.done_at ASC LIMIT 300`
+    ).bind(t).all();
+    const items = (r.results || []).map(x => {
+      const p = payoutOf(x.price || 0);
+      return {
+        id: x.id, counselorId: x.counselor_id, counselor: x.cname || x.counselor_name,
+        clientName: x.client_name, time: x.time_label, price: x.price,
+        doneAt: x.done_at, confirmed: !!x.confirm_at, auto: !x.confirm_at,
+        payout: p,
+        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
+      };
+    });
+    const sum = items.reduce((a, x) => a + x.payout.counselor, 0);
+    return json({ items, counselorTotal: sum }, 200, cors);
+  }
+
+  // 지급 완료 처리 (운영자)
+  if (path === '/settle/pay' && method === 'POST') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const ids = (Array.isArray(body.ids) ? body.ids : []).map(x => s(x, MAX.id)).filter(Boolean).slice(0, 200);
+    if (!ids.length) return json({ error: 'ids 없음' }, 400, cors);
+    const t = nowMs();
+    await db.batch(ids.map(id =>
+      db.prepare("UPDATE bookings SET settled_at = ? WHERE id = ? AND status = 'done' AND settled_at = 0").bind(t, id)));
+    return json({ ok: true, n: ids.length }, 200, cors);
+  }
+
+  // ── 숙제 ────────────────────────────────────────────────────────────
+  if (path === '/homework' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const clientId = s(body.clientId, MAX.id);
+    const text = s(body.text, 200);
+    if (!clientId || !text) return json({ error: '내담자와 내용을 확인해주세요' }, 400, cors);
+    const id = rid('hw');
+    await db.prepare(
+      `INSERT INTO homework (id, counselor_id, counselor, client_id, booking_id, text, why, due_at, assigned_at)
+       VALUES (?,?,?,?,?,?,?,?,?)`
+    ).bind(id, me.id, me.name, clientId, s(body.bookingId, MAX.id),
+      text, s(body.why, 200), num(body.dueAt), nowMs()).run();
+    return json({ ok: true, id }, 200, cors);
+  }
+
+  if (path === '/homework' && method === 'GET') {
+    if (code || session) {
+      const me = await whoami(db, cred);
+      if (!me) return json({ error: 'bad-code' }, 403, cors);
+      const r = await db.prepare(
+        'SELECT * FROM homework WHERE counselor_id = ? ORDER BY assigned_at DESC LIMIT 200').bind(me.id).all();
+      return json({ items: (r.results || []).map(rowHw) }, 200, cors);
+    }
+    const cid = s(q('clientId'), MAX.id);
+    if (!cid) return json({ items: [] }, 200, cors);
+    const r = await db.prepare(
+      'SELECT * FROM homework WHERE client_id = ? ORDER BY assigned_at DESC LIMIT 50').bind(cid).all();
+    return json({ items: (r.results || []).map(rowHw) }, 200, cors);
+  }
+
+  if (path === '/homework/done' && method === 'POST') {
+    const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
+    if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
+    await db.prepare('UPDATE homework SET done_at = ?, note = ? WHERE id = ? AND client_id = ?')
+      .bind(nowMs(), s(body.note, 300), id, clientId).run();
+    return json({ ok: true }, 200, cors);
   }
 
   // ── 상담 자료 수신함 ────────────────────────────────────────────────
@@ -595,6 +746,24 @@ function maskAcct(n) {
   return '*'.repeat(Math.max(3, d.length - 4)) + d.slice(-4);
 }
 
+// 정산 배분. js/payout.js 의 SPLIT 과 같은 값이어야 한다.
+//  반올림 오차는 플랫폼이 흡수한다 — 상담사·기관 몫이 1원이라도 줄면 안 된다.
+const SPLIT = { counselor: 70, hospital: 10, pg: 3, platform: 17 };
+function payoutOf(price) {
+  const p = Math.max(0, Math.round(price || 0));
+  const counselor = Math.round(p * SPLIT.counselor / 100);
+  const hospital  = Math.round(p * SPLIT.hospital / 100);
+  const pg        = Math.round(p * SPLIT.pg / 100);
+  return { gross: p, counselor, hospital, pg, platform: p - counselor - hospital - pg, split: SPLIT };
+}
+
+const rowHw = h => ({
+  id: h.id, counselorId: h.counselor_id, counselor: h.counselor,
+  clientId: h.client_id, bookingId: h.booking_id,
+  text: h.text, why: h.why || '', dueAt: h.due_at,
+  assignedAt: h.assigned_at, doneAt: h.done_at, note: h.note || ''
+});
+
 function rowProfile(c) {
   if (!c) return null;
   return {
@@ -614,7 +783,14 @@ function rowProfile(c) {
 const rowBooking = r => ({
   id: r.id, counselorId: r.counselor_id, name: r.counselor_name,
   clientId: r.client_id, clientName: r.client_name,
-  whenTs: r.when_ts, time: r.time_label, price: r.price, status: r.status
+  whenTs: r.when_ts, time: r.time_label, price: r.price, status: r.status,
+  // 상담 이후 흐름 — 화면이 '지금 누가 무엇을 할 차례인지' 판단하는 근거
+  doneAt: r.done_at || 0, confirmAt: r.confirm_at || 0, autoAt: r.auto_at || 0,
+  settledAt: r.settled_at || 0,
+  refund: r.refund || 0, refundAt: r.refund_at || 0, refundWhy: r.refund_why || '',
+  dispute: r.dispute || '', disputeAt: r.dispute_at || 0,
+  payout: payoutOf(r.price || 0)
+  // cnote(상담사 메모)는 일부러 뺀다 — 내담자에게 나가면 안 된다
 });
 const rowInbox = r => ({
   id: r.id, counselorId: r.counselor_id, counselorName: r.counselor_name,
