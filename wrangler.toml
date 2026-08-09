@@ -16,8 +16,8 @@ VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY
 VAPID_SUBJECT = "mailto:help@neurumind.com"
 
 # 상담사 앱(우렁의사 프로)의 주소. 메일에 넣는 로그인 링크가 여기로 간다.
-#  pro.neurumind.com 커스텀 도메인을 붙인 뒤 그 주소로 바꾸세요.
-PRO_URL = "https://neurumind-pro.pages.dev"
+#  Pages 프로젝트는 neurumind-pro, 커스텀 도메인은 pro.neurumind.com.
+PRO_URL = "https://pro.neurumind.com"
 
 # 상담사 마켓 저장소. 먼저 만들고 아래 database_id 를 채우세요:
 #   wrangler d1 create hongcbt
