@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { notifyCounselor } from './push.js';
+import { resolveCounselor } from './auth.js';
 
 const SIGNAL_TTL = 10 * 60 * 1000;     // 신호는 10분이면 버린다
 const RING_TIMEOUT = 60 * 1000;        // 60초 안 받으면 부재중
@@ -115,9 +116,16 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   }
 
   // ── 상담사에게 걸려온 전화가 있나 ────────────────────────────────────
+  //  상담사 아이디만으로 열어두면 안 된다. 아이디는 상담사 목록에
+  //  그대로 실려 나가는 공개값이라, 남의 전화를 훔쳐볼 수 있고
+  //  room·callId 까지 받아가면 통화를 가로챌 수도 있다.
+  //  누구인지는 자격증명으로 정한다 — 쿼리의 counselorId 는 믿지 않는다.
   if (path === '/rtc/incoming' && method === 'GET') {
-    const counselorId = s(q('counselorId'));
-    if (!counselorId) return json({ call: null }, 200, cors);
+    const me = await resolveCounselor(db, {
+      session: s(q('session'), 128), code: s(q('code'), 64)
+    });
+    if (!me) return json({ call: null, error: 'bad-code' }, 403, cors);
+    const counselorId = me.id;
     const t = nowMs();
     // 안 받고 흘러간 통화를 정리한다.
     //  이게 없으면 회선이 잠긴 채 남아서, 그다음 사람들이 전부

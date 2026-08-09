@@ -3,7 +3,7 @@
 //  존재 이유의 절반은 오프라인 캐시가 아니라 '푸시'다.
 //  상담사가 화면을 끄고 있어도 전화가 왔다는 걸 알려야 한다.
 
-const CACHE = 'uroong-pro-v1';
+const CACHE = 'uroong-pro-v2';
 const API_BASE = 'https://cbt-proxy.hongcbt.workers.dev';
 const SHELL = [
   './',
@@ -48,9 +48,9 @@ self.addEventListener('fetch', e => {
 
 // ── 내가 누구인지 (푸시를 받았을 때 어느 상담사인지 알아야 한다) ──────
 //  서비스워커는 localStorage 를 못 읽는다. 페이지가 알려준 걸 캐시에 둔다.
-async function putMe(id) {
+async function putMe(auth) {
   const c = await caches.open('uroong-pro-cfg');
-  await c.put('/__me', new Response(String(id || '')));
+  await c.put('/__me', new Response(String(auth || '')));
 }
 async function getMe() {
   const c = await caches.open('uroong-pro-cfg');
@@ -59,7 +59,7 @@ async function getMe() {
 }
 self.addEventListener('message', e => {
   const d = e.data || {};
-  if (d.type === 'me') e.waitUntil(putMe(d.id));
+  if (d.type === 'me') e.waitUntil(putMe(d.auth));
 });
 
 // ── 푸시 ─────────────────────────────────────────────────────────────
@@ -67,11 +67,11 @@ self.addEventListener('message', e => {
 //  실제 내용은 서버에 다시 물어본다. 어차피 최신 상태가 필요하다.
 self.addEventListener('push', e => {
   e.waitUntil((async () => {
-    const me = await getMe();
-    let call = null, chats = 0;
-    if (me) {
+    const auth = await getMe();
+    let call = null;
+    if (auth) {
       try {
-        const r = await fetch(API_BASE + '/api/rtc/incoming?counselorId=' + encodeURIComponent(me), { cache: 'no-store' });
+        const r = await fetch(API_BASE + '/api/rtc/incoming?' + auth, { cache: 'no-store' });
         if (r.ok) { const d = await r.json(); call = d && d.call; }
       } catch (err) {}
     }
@@ -113,7 +113,6 @@ self.addEventListener('notificationclick', e => {
   e.notification.close();
   if (e.action === 'reject') {
     e.waitUntil((async () => {
-      const me = await getMe();
       const id = (d.url || '').split('call=')[1];
       if (!id) return;
       try {

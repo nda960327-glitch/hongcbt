@@ -15,6 +15,8 @@
 //   개인키는 시크릿(VAPID_PRIVATE)으로만 들어온다. 코드에 없다.
 // ============================================================================
 
+import { resolveCounselor } from './auth.js';
+
 const TTL = 60;                    // 60초 안에 못 꽂으면 버려라 — 전화는 유통기한이 짧다
 const MAX_FAIL = 3;                // 세 번 연속 실패하면 죽은 구독으로 본다
 
@@ -124,10 +126,17 @@ export async function handlePush(request, env, cors, path, body, url) {
   const method = request.method;
 
   if (path === '/push/subscribe' && method === 'POST') {
-    const counselorId = String(body.counselorId || '').slice(0, 64);
+    // 아이디만 받으면 남의 이름으로 구독해서 그 상담사에게 오는
+    //  '전화 왔다' 신호를 대신 받아볼 수 있다. 본인 확인부터 한다.
+    const me = await resolveCounselor(db, {
+      session: String(body.session || '').slice(0, 128),
+      code: String(body.code || '').slice(0, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const counselorId = me.id;
     const sub = body.sub || {};
     const endpoint = String(sub.endpoint || '').slice(0, 900);
-    if (!counselorId || !/^https:\/\//.test(endpoint)) return json({ error: 'missing' }, 400, cors);
+    if (!/^https:\/\//.test(endpoint)) return json({ error: 'missing' }, 400, cors);
     const keys = sub.keys || {};
     await db.prepare(
       `INSERT INTO push_subs (endpoint, counselor_id, p256dh, auth, created_at, fail_count)
@@ -147,9 +156,13 @@ export async function handlePush(request, env, cors, path, body, url) {
   // 상담사가 '알림이 오나?' 를 직접 확인해볼 수 있어야 한다.
   //  안 오는 걸 통화 중에 알게 되면 늦다.
   if (path === '/push/test' && method === 'POST') {
-    const counselorId = String(body.counselorId || '').slice(0, 64);
-    if (!counselorId) return json({ error: 'missing' }, 400, cors);
-    const r = await notifyCounselor(env, counselorId);
+    // 인증이 없으면 아이디만 알아내 알림을 무한정 쏠 수 있다.
+    const me = await resolveCounselor(db, {
+      session: String(body.session || '').slice(0, 128),
+      code: String(body.code || '').slice(0, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const r = await notifyCounselor(env, me.id);
     return json({ ok: true, ...r, configured: !!env.VAPID_PRIVATE }, 200, cors);
   }
 
