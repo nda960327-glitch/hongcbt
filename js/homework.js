@@ -73,6 +73,8 @@ window.Homework = {
 
   // 수행 결과를 상담사에게 돌려보낸다
   report(h) {
+    // 서버에도 알린다 — 상담사 화면에서 '했어요'와 소감을 바로 본다
+    if (window.App && window.App.syncHomeworkDone) window.App.syncHomeworkDone(h);
     const body = [
       '[상담 숙제 결과]',
       '과제: ' + h.text,

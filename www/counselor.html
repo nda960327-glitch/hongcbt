@@ -71,6 +71,7 @@
       <div id="profile"></div>
       <div id="slots"></div>
       <div id="payout"></div>
+      <div id="homework"></div>
       <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">예약 일정</h2>
       <div id="schedule"></div>
       <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">상담 채팅</h2>
@@ -181,6 +182,7 @@
       show(await r.json());
       loadSchedule(); loadChats(); loadPresence(); loadReviews();
       loadMe();
+      loadHomework();
     }
 
     function askNotify() {
@@ -278,6 +280,7 @@
       loadPresence();
       loadReviews();
       loadMe();
+      loadHomework();
     }
 
     // 바로상담 수신 토글 — ON이어야 매칭 카드에 '지금 통화'버튼이 열린다
@@ -321,30 +324,75 @@
       const data = await r.json();
       const items = (data.items || []).sort((a, b) => a.whenTs - b.whenTs);
       const now = Date.now();
+      window.__sched = items;
       maybeNotify('bookings', items.filter(b => b.status === 'confirmed').length, '새 예약이');
       if (!items.length) {
         el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">예약이 없습니다. 내담자가 앱에서 예약하면 여기에 실시간으로 표시돼요.</div>';
         return;
       }
+      const mini = (label, fn, color) => `<button class="btn ghost"
+        style="width:auto; margin:0.4rem 0.3rem 0 0; padding:0.38rem 0.7rem; font-size:0.76rem;${color ? 'color:' + color + ';' : ''}"
+        onclick="${fn}">${label}</button>`;
+
       el.innerHTML = items.map(b => {
-        const cancelled = b.status === 'cancelled';
-        const declined = b.status === 'declined';
-        const noshow = b.status === 'noshow';
-        const inactive = cancelled || declined || noshow;
+        const dead = ['cancelled', 'declined', 'noshow', 'refunded'].includes(b.status);
         const past = b.whenTs <= now;
-        const soon = !inactive && !past && (b.whenTs - now) < 3600000;
-        return `<div class="card" style="${inactive ? 'opacity: 0.55;' : ''} ${soon ? 'border-color: var(--accent);' : ''}">
+        const soon = !dead && b.status === 'confirmed' && !past && (b.whenTs - now) < 3600000;
+        const done = b.status === 'done';
+        const disputed = b.status === 'disputed';
+        const paid = b.settledAt > 0;
+
+        // 지금 누구 차례인지 한 줄로
+        const badge =
+          b.status === 'cancelled' ? '<span class="badge-read">내담자 취소</span>'
+          : b.status === 'declined' ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">거절함 (전액 환불)</span>'
+          : b.status === 'noshow'   ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">미진행</span>'
+          : b.status === 'refunded' ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">환불함</span>'
+          : disputed ? '<span class="badge-new" style="color:#cf6b60; background:#cf6b601e;">이의 접수 — 정산 보류</span>'
+          : paid ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">정산 완료</span>'
+          : done && b.confirmAt ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">확인됨 · 정산 대기</span>'
+          : done ? '<span class="badge-new">내담자 확인 대기</span>'
+          : soon ? '<span class="badge-new">곧 시작</span>'
+          : past ? '<span class="badge-new" style="color:#e8590c; background:#e8590c1e;">완료 처리 필요</span>'
+          : '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">확정</span>';
+
+        // 완료 처리 전에는 정산이 시작되지 않는다는 걸 분명히 알린다
+        const hint = (!dead && !done && !disputed && past)
+          ? `<p class="muted" style="margin:0.35rem 0 0; color:#e8590c;">상담을 마치셨다면 [상담 완료]를 눌러주세요. 눌러야 정산이 시작됩니다.</p>` : '';
+        const autoNote = (done && !b.confirmAt && b.autoAt)
+          ? `<p class="muted" style="margin:0.35rem 0 0;">내담자가 확인하지 않아도 ${new Date(b.autoAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}에 자동 확정돼요.</p>` : '';
+        const disputeNote = disputed
+          ? `<p class="muted" style="margin:0.35rem 0 0; color:#cf6b60;">사유: ${esc(b.dispute)}<br>운영자가 확인 후 연락드립니다.</p>` : '';
+        const noteBox = b.cnote
+          ? `<p class="muted" style="margin:0.4rem 0 0; padding:0.45rem 0.6rem; background:var(--bg); border-radius:9px;">메모 · ${esc(b.cnote)}</p>` : '';
+
+        const nm = esc(b.clientName);
+        let actions = '';
+        if (!dead && !paid) {
+          if (b.status === 'confirmed' && !past) {
+            actions += mini('예약 거절 (전액 환불)', `declineBooking('${b.id}','${nm}')`, '#cf6b60');
+          }
+          if (b.status === 'confirmed' && past) {
+            actions += mini('상담 완료', `doneBooking('${b.id}','${nm}')`);
+            actions += mini('미진행 처리', `refundBooking('${b.id}','${nm}')`, '#cf6b60');
+          }
+          if (done || disputed) {
+            actions += mini('숙제 내주기', `openHomework('${b.id}','${esc(b.clientId || '')}','${nm}')`);
+          }
+          actions += mini(b.cnote ? '메모 고치기' : '메모 남기기', `editNote('${b.id}')`);
+          if (!done && !disputed && b.status === 'confirmed') {
+            actions += mini('환불', `refundBooking('${b.id}','${nm}')`, '#cf6b60');
+          }
+        }
+
+        return `<div class="card" style="${dead ? 'opacity:0.55;' : ''} ${soon || (past && b.status === 'confirmed') ? 'border-color:var(--accent);' : ''}">
           <div class="item-head" style="cursor: default;">
-            <strong style="${inactive ? 'text-decoration: line-through;' : ''}">${esc(b.clientName)} 님 ${inactive ? '' : '· 30분 상담'}</strong>
-            ${cancelled ? '<span class="badge-read">내담자 취소</span>'
-              : declined ? '<span class="badge-read" style="color: #cf6b60; border-color: #cf6b60;">거절함 (전액 환불)</span>'
-              : noshow ? '<span class="badge-read" style="color: #cf6b60; border-color: #cf6b60;">미진행 (환불·정산 제외)</span>'
-              : past ? '<span class="badge-read">완료</span>'
-              : soon ? '<span class="badge-new">곧 시작</span>'
-              : '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">확정</span>'}
+            <strong style="${dead ? 'text-decoration: line-through;' : ''}">${nm} 님 ${dead ? '' : '· 30분 상담'}</strong>
+            ${badge}
           </div>
-          <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시 결제</p>
-          ${(!inactive && !past) ? `<button class="btn ghost" style="width: auto; margin-top: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.78rem; color: #cf6b60;" onclick="declineBooking('${b.id}', '${esc(b.clientName)}')">이 예약 거절 (전액 환불)</button>` : ''}
+          <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시
+            ${!dead ? `· 내 몫 ${(b.payout ? b.payout.counselor : 0).toLocaleString()}캐시` : ''}</p>
+          ${hint}${autoNote}${disputeNote}${noteBox}${actions}
         </div>`;
       }).join('');
       renderSettlement(items);
@@ -355,6 +403,80 @@
       if (!confirm(`${client} 님의 예약을 거절할까요?\n내담자에게 전액 환불되며 취소 알림이 전달됩니다.\n(부득이한 경우에만 사용해주세요 — 잦은 거절은 노출에 불이익)`)) return;
       await api('/api/bookings/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ id })) }).catch(() => {});
       loadSchedule();
+    }
+
+    // ── 상담 이후 처리 ──────────────────────────────────────────────
+    //  완료 처리를 눌러야 정산이 시작된다. 되돌릴 수 없으니 한 번 묻는다.
+    async function doneBooking(id, name) {
+      if (!confirm(`${name} 님과의 상담을 마치셨나요?\n\n완료로 표시하면 내담자 확인을 거쳐 정산 대상이 됩니다.\n되돌릴 수 없어요.`)) return;
+      const note = prompt('다음 회기를 위한 메모를 남기시겠어요? (내담자에게는 보이지 않아요)', '') || '';
+      const r = await api('/api/bookings/done', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ id, note }))
+      }).then(x => x.json()).catch(() => null);
+      if (!r || !r.ok) { alert(r && r.error ? r.error : '처리하지 못했어요'); return; }
+      loadSchedule();
+    }
+
+    async function refundBooking(id, name) {
+      const why = prompt(`${name} 님 상담을 환불 처리합니다.\n사유를 적어주세요 (내담자에게 전달됩니다):`, '');
+      if (why === null) return;
+      if (!confirm('전액 환불로 처리할까요? 이 상담은 정산에서 빠집니다.')) return;
+      const r = await api('/api/bookings/refund', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ id, why: (why || '').trim() }))
+      }).then(x => x.json()).catch(() => null);
+      if (!r || !r.ok) { alert(r && r.error ? r.error : '처리하지 못했어요'); return; }
+      loadSchedule();
+    }
+
+    async function editNote(id) {
+      const cur = ((window.__sched || []).find(b => b.id === id) || {}).cnote || '';
+      const v = prompt('상담 메모 (내담자에게는 보이지 않아요)', cur);
+      if (v === null) return;
+      await api('/api/bookings/note', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ id, note: v }))
+      }).catch(() => {});
+      loadSchedule();
+    }
+
+    // 숙제 — 앱의 '나를 위한 미션'에 그대로 꽂힌다
+    async function openHomework(bookingId, clientId, name) {
+      if (!clientId) { alert('이 예약에는 내담자 식별자가 없어 숙제를 보낼 수 없어요.'); return; }
+      const text = prompt(`${name} 님에게 낼 숙제를 적어주세요.\n(오늘 안에 30분 이내로 할 수 있는 '행동'으로)`, '');
+      if (text === null || !text.trim()) return;
+      const why = prompt('왜 이 숙제인지 한 줄로 알려주세요. (이유를 아는 사람이 끝까지 합니다)', '') || '';
+      const r = await api('/api/homework', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(authBody({ clientId, bookingId, text: text.trim(), why: why.trim() }))
+      }).then(x => x.json()).catch(() => null);
+      if (!r || !r.ok) { alert(r && r.error ? r.error : '보내지 못했어요'); return; }
+      alert(`${name} 님에게 숙제를 보냈어요.`);
+      loadHomework();
+    }
+
+    // 내가 낸 숙제와 그 결과
+    async function loadHomework() {
+      const el = document.getElementById('homework');
+      if (!el) return;
+      const d = await api('/api/homework?' + authQS()).then(r => r.ok ? r.json() : null).catch(() => null);
+      const items = d ? (d.items || []) : [];
+      const doneN = items.filter(h => h.doneAt).length;
+      el.innerHTML = section('hw', '내가 낸 숙제',
+        items.length ? `${items.length}개 · 완료 ${doneN}` : '아직 없음',
+        items.length ? items.map(h => `
+          <div style="padding:0.6rem 0; border-top:1px solid var(--line);">
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <strong style="font-size:0.85rem; flex:1;">${esc(h.text)}</strong>
+              ${h.doneAt ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">했어요</span>'
+                         : '<span class="badge-new">진행 중</span>'}
+            </div>
+            ${h.why ? `<p class="muted" style="margin:0.2rem 0 0;">이유 · ${esc(h.why)}</p>` : ''}
+            ${h.note ? `<p class="muted" style="margin:0.2rem 0 0; color:var(--accent);">내담자 · "${esc(h.note)}"</p>` : ''}
+            <p class="muted" style="margin:0.2rem 0 0; font-size:0.72rem;">${new Date(h.assignedAt).toLocaleDateString('ko-KR')}</p>
+          </div>`).join('')
+          : '<p class="muted" style="margin:0.8rem 0 0;">아직 낸 숙제가 없어요. 상담을 완료 처리한 예약에서 [숙제 내주기]를 누르면 앱으로 바로 전달됩니다.</p>');
     }
 
     // 정산: 완료된 상담(취소·거절·미진행 제외, 시간 경과)의 70%가 상담사 몫.
@@ -538,6 +660,7 @@
       btn.textContent = '저장됨';
       setTimeout(() => { if (btn.isConnected) btn.textContent = '저장'; }, 1500);
       loadMe();
+      loadHomework();
     }
 
     function renderSlots() {
@@ -692,6 +815,7 @@
       if (!r || !r.ok) { alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
       alert('계좌를 저장했어요.');
       loadMe();
+      loadHomework();
     }
 
     function show(data) {

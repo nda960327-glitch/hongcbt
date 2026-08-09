@@ -1251,6 +1251,7 @@ window.App = {
         this._bookingSyncTick();   // 상담사가 예약을 거절했는지 동기화
         this._callQueueTick();     // 바로상담 대기열 — 회선 비면 알림
         this._reviewReplyTick();   // 상담사 리뷰 답글 수신
+        this._homeworkTick();      // 상담사가 낸 숙제 수신 → 퀘스트로
       }
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       const slots = this._todayCheckinSlots();
@@ -1690,6 +1691,45 @@ ${memory || '(없음)'}`;
   },
 
   // === 리뷰 답글 수신 — 상담사가 답글을 달면 알림 ===
+  // 상담사가 낸 숙제를 받아온다.
+  //  Homework.receive() 는 만들어져 있었는데 부르는 곳이 없어서,
+  //  상담사가 숙제를 내도 앱까지 오는 다리가 없었다.
+  //  들어오면 questSeeds() 를 통해 퀘스트에 섞이고, 챗봇 프롬프트에도 실린다.
+  async _homeworkTick() {
+    try {
+      if (!window.Homework) return;
+      const d = await window.Api.json('/api/homework?clientId=' + encodeURIComponent(this.clientId()));
+      if (!d || !Array.isArray(d.items)) return;
+      const have = new Set((window.Homework.all() || []).map(h => h.srvId || h.id));
+      let added = 0;
+      d.items.forEach(h => {
+        if (have.has(h.id)) return;
+        const rec = window.Homework.receive({
+          counselorId: h.counselorId, counselor: h.counselor,
+          text: h.text, why: h.why, dueAt: h.dueAt
+        });
+        // 서버 id 를 기억해 둔다 — 완료를 돌려보낼 때와 중복 방지에 쓴다
+        if (rec) {
+          const list = window.Homework.all();
+          const t = list.find(x => x.id === rec.id);
+          if (t) { t.srvId = h.id; window.Homework._save(list); }
+          added++;
+        }
+      });
+      if (added && window.Missions) window.Missions.renderCard();
+    } catch (e) {}
+  },
+
+  // 숙제를 마쳤다고 서버에 알린다 (상담사 화면에 결과가 뜬다)
+  async syncHomeworkDone(h) {
+    try {
+      if (!h || !h.srvId) return;
+      await window.Api.post('/api/homework/done', {
+        id: h.srvId, clientId: this.clientId(), note: h.note || ''
+      });
+    } catch (e) {}
+  },
+
   async _reviewReplyTick() {
     try {
       const res = await window.Api.f(`/api/reviews?clientId=${encodeURIComponent(this.clientId())}`);
