@@ -73,12 +73,14 @@
     <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">우렁의사</h1>
     <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 2rem; text-align: center;">당신을 기억하는 AI 마음 주치의</p>
     <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.6rem;">
- <button onclick="window.App.socialLogin('kakao')"style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;"> 카카오로 시작하기</button>
-      <button onclick="window.App.socialLogin('naver')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #03C75A; color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer;">N 네이버로 시작하기</button>
-      <button onclick="window.App.socialLogin('google')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #fff; color: #3c4043; font-weight: 700; font-size: 0.95rem; border: 1.5px solid #dadce0; cursor: pointer;">G 구글로 시작하기</button>
-      <button onclick="window.App.socialLogin('guest')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.7rem; color: var(--text-muted); font-size: 0.82rem; cursor: pointer;">로그인 없이 둘러보기 ›</button>
+      <button onclick="window.Account.login('kakao')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;">카카오로 시작하기</button>
+      <button onclick="window.Account.login('naver')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #03C75A; color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer;">네이버로 시작하기</button>
+      <button onclick="window.Account.login('google')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #fff; color: #3c4043; font-weight: 700; font-size: 0.95rem; border: 1.5px solid #dadce0; cursor: pointer;">구글로 시작하기</button>
     </div>
-    <p style="font-size: 0.68rem; color: var(--text-muted); margin-top: 1.6rem; text-align: center;">로그인하면 기기를 바꿔도 우렁이의 기억이 이어져요.<br>대화 내용은 이 기기에만 저장됩니다.</p>
+    <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 1.6rem; text-align: center; line-height: 1.7;">
+      기기를 바꿔도 우렁이의 기억과 리포트가 이어져요.<br>
+      <b style="color: var(--text-secondary);">대화 내용은 이 기기에만 저장됩니다.</b></p>
+    <button onclick="window.Account.scopeSheet()" style="all: unset; cursor: pointer; margin-top: 0.5rem; font-size: 0.72rem; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;">무엇이 저장되나요?</button>
   </div>
 
   <!-- 구독 안내 (7일 체험 종료 후) -->

@@ -43,7 +43,7 @@ window.Onboard = {
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('joy', 120) :''}</span>
         <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.35rem;">만나서 반가워요!</h2>
         <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin: 0 0 1.3rem;">저는 당신의 마음 주치의, <b>우렁이</b>예요.<br>뭐라고 불러드리면 될까요?</p>
-        <input id="ob-name" maxlength="12" placeholder="별명이나 이름 (건너뛰어도 돼요)" style="width: 100%; box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.95rem; text-align: center;">
+        <input id="ob-name" maxlength="12" placeholder="별명이나 이름" style="width: 100%; box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.95rem; text-align: center;">
         <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
  <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 </p>`);
       const input = document.getElementById('ob-name');
@@ -75,11 +75,13 @@ window.Onboard = {
       document.getElementById('ob-next').addEventListener('click', () => this._step(25));
 
     } else if (n === 25) {
-      // 프로필 (선택) — 상담사 예약·연락에 쓰인다. 부담 없게 건너뛰기 허용
+      // 프로필 — 상담사 예약·연락에 쓰인다. 값은 비워도 넘어갈 수 있지만
+      //  '건너뛰기' 버튼은 두지 않는다. 두 개의 길을 주면 대부분 아무것도 안 적고
+      //  나중에 예약할 때 다시 물어보게 된다.
       this._wrap(`
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('write', 96) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.2rem;">연락처를 남겨둘까요?</h2>
-        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 1.1rem; line-height: 1.6;">전문 상담사 예약과 연락에만 쓰여요.<br>지금 건너뛰고 나중에 설정에서 적어도 돼요.</p>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 1.1rem; line-height: 1.6;">전문 상담사 예약과 연락에만 쓰여요.<br>나중에 설정에서 바꿀 수 있어요.</p>
         <input id="ob-phone" type="tel" maxlength="13" placeholder="전화번호 (예: 010-1234-5678)"
           style="width: 100%; box-sizing: border-box; padding: 0.8rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.92rem; text-align: center;">
         <select id="ob-gender" style="width: 100%; box-sizing: border-box; margin-top: 0.6rem; padding: 0.8rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.92rem; cursor: pointer;">
@@ -87,8 +89,11 @@ window.Onboard = {
           <option value="female">여성</option>
           <option value="male">남성</option>
         </select>
-        <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
-        <button id="ob-skip" style="all: unset; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.8rem; color: var(--text-muted); cursor: pointer;">건너뛰기</button>`);
+        <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>`);
+      // 숫자만 쳐도 하이픈이 붙게. 규칙은 App.formatTel 한 곳에 있다.
+      if (window.App && window.App.autoHyphenTel) {
+        window.App.autoHyphenTel(document.getElementById('ob-phone'));
+      }
       document.getElementById('ob-next').addEventListener('click', () => {
         const ph = document.getElementById('ob-phone').value.trim();
         const ge = document.getElementById('ob-gender').value;
@@ -96,7 +101,7 @@ window.Onboard = {
         if (ge && ge !== 'none') window.Storage._safeSet('cbt_user_gender', ge);
         this._step(3);
       });
-      document.getElementById('ob-skip').addEventListener('click', () => this._step(3));
+
 
     } else if (n === 3) {
       // 고민 → 상담사 투표: 최다 득표 페르소나 추천 (기본 우렁의사)

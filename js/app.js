@@ -6,28 +6,28 @@ window.App = {
   // === 소셜 로그인 (카카오/구글/네이버) ===
   // 실서비스 연동 지점: 각 provider의 OAuth SDK 호출로 이 함수 내부만 교체하면 된다.
   // (카카오 JS SDK / Google Identity / 네이버 아이디로그인 — 각각 앱 키 등록 필요, ROADMAP 참고)
+  // 예전에는 여기서 localStorage 에 표시만 하고 '정식 출시 시 연결돼요'를 띄웠다.
+  //  이제 진짜 로그인이 있으므로 Account 로 넘긴다.
   socialLogin(provider) {
-    const names = { kakao: '카카오', naver: '네이버', google: '구글', guest: '게스트' };
-    window.Storage._safeSet('cbt_auth', { provider, name: names[provider] + ' 사용자', ts: Date.now() });
-    const sc = document.getElementById('login-screen');
-    if (sc) sc.classList.add('hidden');
-    if (provider !== 'guest') {
-      window.UI.alert(`${names[provider]} 계정으로 시작합니다!\n(정식 출시 시 실제 ${names[provider]} 로그인으로 연결돼요)`);
-    }
+    if (window.Account) window.Account.login(provider);
   },
-
-  async logout() {
-    if (!await window.UI.confirm('로그아웃할까요? (기기의 대화·기억은 그대로 남아요)')) return;
-    localStorage.removeItem('cbt_auth');
-    location.reload();
+  logout() {
+    if (window.Account) window.Account.logout();
   },
 
   init() {
-    // 0. 로그인 게이트: 계정 없으면 로그인 화면부터
-    if (!window.Storage._safeGet('cbt_auth', null)) {
-      const sc = document.getElementById('login-screen');
-      if (sc) sc.classList.remove('hidden');
-    }
+    // 0. 로그인 게이트.
+    //  '둘러보기'를 없앴으므로 로그인해야 들어온다. 판단 기준은 진짜 세션이다.
+    //  Account.init() 은 뒤에 도는데 게이트는 지금 필요하므로 저장소를 직접 본다.
+    //  로그인하고 돌아오는 길(?auth=)에는 띄우지 않는다 — 화면이 깜빡인다.
+    (() => {
+      let has = false;
+      try { has = !!localStorage.getItem('cbt_account_session'); } catch (e) {}
+      if (!has && !/[?&]auth=/.test(location.search)) {
+        const sc = document.getElementById('login-screen');
+        if (sc) sc.classList.remove('hidden');
+      }
+    })();
 
     // 1. Check first visit
     if (window.Storage.isFirstVisit()) {
