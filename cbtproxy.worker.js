@@ -19,7 +19,12 @@
 const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o"];
 const ALLOWED_TTS_MODELS = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"];
 const ALLOWED_VOICES = ["coral", "nova", "shimmer", "sage", "alloy", "echo", "ash", "onyx", "fable"];
-const MAX_TOKENS_CAP = 1500;
+// 상한을 1500 으로 두었더니 배포본에서 간판 기능이 통째로 죽어 있었습니다.
+//  · AI 마음 리포트는 8,000 을 요청합니다 (carePlan 이 JSON 스키마 끝이라
+//    잘리면 계획이 통째로 날아가고 파싱이 실패 → 캐시 환불로 끝납니다)
+//  · 장기기억 정리는 2,600 (3,000자)
+//  로컬 server.js 에는 캡이 없어서 개발 중에는 드러나지 않았습니다.
+const MAX_TOKENS_CAP = 8000;
 const MAX_MESSAGES = 40;
 const MAX_TTS_CHARS = 2000;
 
@@ -60,13 +65,21 @@ async function handleChat(body, env, cors) {
   const trimmed = messages.length > MAX_MESSAGES
     ? messages.slice(messages.length - MAX_MESSAGES) : messages;
 
+  // 반복 억제. 이걸 안 넘기면 배포본만 상투적인 말을 되풀이한다
+  //  (llm.js 는 0.4 를 보내는데 여기서 버려지고 있었다)
+  const clamp2 = v => typeof v === "number" ? Math.max(-2, Math.min(2, v)) : undefined;
+  const payload = { model, messages: trimmed, temperature, max_tokens };
+  const pp = clamp2(body.presence_penalty), fp = clamp2(body.frequency_penalty);
+  if (pp !== undefined) payload.presence_penalty = pp;
+  if (fp !== undefined) payload.frequency_penalty = fp;
+
   const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
     },
-    body: JSON.stringify({ model, messages: trimmed, temperature, max_tokens }),
+    body: JSON.stringify(payload),
   });
 
   // OpenAI 응답을 그대로 전달 (클라이언트의 기존 파싱과 호환)

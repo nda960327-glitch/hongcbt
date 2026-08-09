@@ -1428,18 +1428,38 @@ ${memory || '(없음)'}`;
  최근 2주 감정 요약 (평균·자주 나온 감정)
           </label>
         </div>
-        <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0.8rem 0;">※ 대화 원문은 전달되지 않아요. 요약본은 공유 창(또는 복사)으로 상담사에게 직접 전달하며, 전달 후에는 상담사의 개인정보 보호 의무 아래 관리됩니다.</p>
-        <div class="form-actions" style="display: flex; gap: 0.5rem;">
-          <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('share-pack-overlay').remove()">취소</button>
-          <button class="btn-primary" style="flex: 1;" onclick="window.App.sendSharePack('${bookingId}')">동의하고 전달</button>
+        <button onclick="window.App.previewSharePack('${bookingId}')"
+          style="all: unset; display: block; width: 100%; text-align: center; margin: 0.75rem 0 0; padding: 0.55rem;
+                 cursor: pointer; border: 1px dashed var(--glass-border); border-radius: 10px;
+                 font-size: 0.79rem; font-weight: 700; color: var(--accent-primary);">
+          보낼 내용 그대로 미리보기</button>
+
+        <div style="margin: 0.8rem 0 0; padding: 0.7rem 0.8rem; border-radius: 10px;
+                    background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
+          <p style="margin: 0 0 0.4rem; font-size: 0.75rem; font-weight: 800; color: var(--text-primary);">보내면 이렇게 됩니다</p>
+          <ul style="margin: 0; padding-left: 1rem; font-size: 0.72rem; line-height: 1.7; color: var(--text-secondary);">
+            <li>고른 항목의 <b>요약본</b>이 <b>${b.name}</b> 상담사의 수신함으로 전송됩니다.</li>
+            <li>대화 원문과 일기 전문은 보내지 않습니다.</li>
+            <li>전송된 자료는 상담사가 열람하며, 삭제를 원하면
+                <span style="color: var(--text-primary);">nda960327@gmail.com</span> 으로 요청할 수 있습니다.</li>
+            <li>보내지 않아도 상담은 정상 진행됩니다.</li>
+          </ul>
+        </div>
+
+        <div class="form-actions" style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
+          <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('share-pack-overlay').remove()">보내지 않기</button>
+          <button class="btn-primary" style="flex: 1;" onclick="window.App.sendSharePack('${bookingId}')">동의하고 보내기</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
   },
 
-  sendSharePack(bookingId) {
+  // 보낼 요약본을 만드는 곳은 한 군데뿐이다.
+  //  미리보기와 실제 전송이 다른 코드를 타면 "보여준 것과 보낸 것"이 어긋나고,
+  //  그러면 동의를 받은 의미가 없어진다.
+  _buildSharePack(bookingId) {
     const b = ((window.Storage._safeGet('cbt_bookings', []) || [])).find(x => x.id === bookingId);
-    if (!b) return;
+    if (!b) return null;
     const on = id => { const el = document.getElementById(id); return el && el.checked && !el.disabled; };
     const parts = [`[우렁의사 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
 
@@ -1469,7 +1489,35 @@ ${memory || '(없음)'}`;
       if (rep) parts.push(`■ AI 상담 요약 리포트 (${rep.date})\n${(rep.body || '').slice(0, 1200)}`);
     }
 
-    const text = parts.join('\n\n');
+    const picked = [
+      on('sp-records') && '사고 기록', on('sp-nights') && '하루 정리',
+      on('sp-report') && 'AI 요약 리포트', on('sp-mood') && '감정 요약'
+    ].filter(Boolean);
+    return { b, text: parts.join('\n\n'), picked };
+  },
+
+  // 동의 전에 실제로 나갈 글을 그대로 보여준다.
+  previewSharePack(bookingId) {
+    const p = this._buildSharePack(bookingId);
+    if (!p) return;
+    window.UI.alert({
+      title: '이 내용이 그대로 전달됩니다',
+      body: p.text || '(고른 항목이 없어 보낼 내용이 없습니다)',
+      okLabel: '닫기'
+    });
+  },
+
+  sendSharePack(bookingId) {
+    const built = this._buildSharePack(bookingId);
+    if (!built) return;
+    const { b, text, picked } = built;
+    if (!picked.length) { window.UI.alert('보낼 항목을 하나 이상 골라주세요'); return; }
+
+    // 무엇에 언제 동의했는지 남긴다 (본인 확인·삭제 요청 때 근거가 된다)
+    const consents = window.Storage._safeGet('cbt_share_consents', []) || [];
+    consents.unshift({ ts: Date.now(), bookingId, counselor: b.name, items: picked });
+    window.Storage._safeSet('cbt_share_consents', consents.slice(0, 50));
+
     const packs = window.Storage._safeGet('cbt_shared_packs', {}) || {};
     packs[bookingId] = { ts: Date.now(), counselor: b.name, text }; // 원문 보관 — 상담사 수신함(콘솔)에서 열람
     window.Storage._safeSet('cbt_shared_packs', packs);
@@ -1492,14 +1540,17 @@ ${memory || '(없음)'}`;
     if (ovEl) ovEl.remove();
     this.renderMyBookings();
 
- const finish = () => this.showRecordToast('상담 자료가 준비됐어요. 상담사에게 전달해주세요');
-    const fallbackShow = () => window.UI.alert('아래 내용을 복사해 상담사에게 전달해주세요:\n\n' + text.slice(0, 1500));
+    // 전송은 위에서 이미 끝났다. 아래는 '한 부 더 챙겨두기'일 뿐이므로
+    //  문구가 "이제 직접 전달하세요"로 읽히면 안 된다.
+    this.showRecordToast(`${b.name} 상담사에게 보냈어요`);
+    const copied = () => this.showRecordToast('사본도 클립보드에 담아뒀어요');
+    const fallbackShow = () => {};
     if (navigator.share) {
-      navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).then(finish).catch(() => {
- if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => this.showRecordToast('자료가 클립보드에 복사됐어요')).catch(fallbackShow);
+      navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).catch(() => {
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(copied).catch(fallbackShow);
       });
     } else if (navigator.clipboard) {
- navigator.clipboard.writeText(text).then(() => this.showRecordToast('자료가 클립보드에 복사됐어요 (상담 채팅에 붙여넣기)')).catch(fallbackShow);
+      navigator.clipboard.writeText(text).then(copied).catch(fallbackShow);
     } else {
       fallbackShow();
     }
