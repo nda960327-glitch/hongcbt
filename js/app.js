@@ -234,6 +234,8 @@ window.App = {
     if (window.Voice) window.Voice.init();
     if (window.Booking) window.Booking.init();
     if (window.Marketplace) window.Marketplace.init();
+    // 계정·동기화. 로그인 안 했으면 아무 요청도 나가지 않는다.
+    if (window.Account) window.Account.init();
     this.updateSessionUI();
 
     // 6. Initialize Chat
@@ -806,6 +808,8 @@ window.App = {
   openSettings() {
     const ov = document.getElementById('settings-overlay');
     if (ov) ov.classList.remove('hidden');
+    // 계정 칸은 열 때마다 다시 그린다 — 다른 화면에서 로그인/로그아웃했을 수 있다
+    if (window.Account) window.Account.render();
     // 설정 화면도 초기 아이콘 심기 대상이 아니어서, 열 때 한 번 채운다
     if (ov) this.hydrateInlineIcons(ov);
     if (window.Sfx) window.Sfx.play('pop');

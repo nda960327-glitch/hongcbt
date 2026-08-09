@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v113';
+﻿const CACHE_NAME = 'cbt-app-v114';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/api.js',
   './js/rtccall.js',
   './js/prolink.js',
+  './js/account.js',
   './js/i18n.js',
   './js/wallet.js',
   './js/subscription.js',

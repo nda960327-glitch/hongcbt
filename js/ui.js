@@ -95,8 +95,12 @@ window.UI = {
         <p style="margin: ${sticker ? '0.5rem' : '0'} 0 ${o.body ? '0.3rem' : '0'}; font-size: 1.03rem;
                   font-weight: 800; color: var(--text-primary); line-height: 1.45;">${this._esc(o.title)}</p>
         ${o.body ? `<p style="margin: 0; font-size: 0.84rem; line-height: 1.68; color: var(--text-secondary);">${this._body(o.body)}</p>` : ''}
+        ${o.html ? `<div style="text-align: left; margin-top: 0.7rem;">${o.html}</div>` : ''}
       </div>`;
   },
+  // o.html 은 우리가 만든 마크업만 넣는다(목록·표 같은 것).
+  //  사용자가 입력한 문자열은 절대 여기로 보내지 말 것 — title/body 로 보내면
+  //  이스케이프된다. 그래서 이 옵션은 코드에서만 쓴다.
 
   // ── 알림 — 확인 버튼 하나 ────────────────────────────────────────────
   //  UI.alert('저장했어요')  또는  UI.alert({ title, body, icon })

@@ -45,6 +45,9 @@ const PROVIDERS = {
     token: 'https://kauth.kakao.com/oauth/token',
     profile: 'https://kapi.kakao.com/v2/user/me',
     scope: 'account_email profile_nickname',
+    // 카카오의 Client Secret 은 콘솔에서 켜야 생기는 '선택' 값이다.
+    //  필수로 요구했더니 REST API 키만 넣은 상태에서 버튼이 아예 안 떴다.
+    secretOptional: true,
     id: e => e.KAKAO_CLIENT_ID, secret: e => e.KAKAO_CLIENT_SECRET,
     parse: p => ({
       uid: String(p.id),
@@ -77,7 +80,8 @@ const PROVIDERS = {
 
 const configured = (env, key) => {
   const p = PROVIDERS[key];
-  return !!(p && p.id(env) && p.secret(env));
+  if (!p || !p.id(env)) return false;
+  return p.secretOptional ? true : !!p.secret(env);
 };
 
 // 콜백 주소는 사업자 콘솔에 등록한 것과 '글자 하나까지' 같아야 한다.
@@ -205,16 +209,19 @@ export async function handleOauth(request, env, cors, path, body, url) {
     // code → access_token (비밀키가 필요하므로 반드시 서버에서)
     let tok;
     try {
+      const form = new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: P.id(env),
+        redirect_uri: callbackUrl(env, url, key),
+        code, state: st
+      });
+      // 카카오는 콘솔에서 Client Secret 을 켰을 때만 보내야 한다.
+      //  안 켰는데 빈 값을 보내면 거절당한다.
+      if (P.secret(env)) form.set('client_secret', P.secret(env));
       const r = await fetch(P.token, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: P.id(env),
-          client_secret: P.secret(env),
-          redirect_uri: callbackUrl(env, url, key),
-          code, state: st
-        }).toString()
+        body: form.toString()
       });
       tok = await r.json();
     } catch (e) {
