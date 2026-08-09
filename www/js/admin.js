@@ -41,10 +41,15 @@ window.Admin = {
     const go = async () => {
       const v = (input.value || '').trim();
       if (v.length < 6) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
+      const btn = document.getElementById('admin-code-go');
+      btn.disabled = true; btn.textContent = '확인 중…';
       const r = await window.Api.json('/api/stats?code=' + encodeURIComponent(v));
+      btn.disabled = false; btn.textContent = '입장';
       if (!r) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
       this._setCode(v);
       ov.remove();
+      // 방금 받은 통계를 그대로 넘긴다 — 같은 걸 또 부르면 그만큼 더 기다린다
+      this._stats = r;
       this._render();
     };
     document.getElementById('admin-code-go').addEventListener('click', go);
@@ -588,7 +593,9 @@ window.Admin = {
     document.body.appendChild(ov);
     this.loadCounselors();          // 상담사 목록·코드
     // 서버 통계 → 서비스 현황 그리드
-    window.Api.f('/api/stats?code=' + this.code()).then(r2 => r2.ok ? r2.json() : null).then(d => {
+    //  로그인할 때 이미 받아둔 게 있으면 그걸 먼저 그리고, 네트워크는 안 탄다.
+    //  (같은 걸 다시 부르면 콘솔이 그만큼 늦게 뜬다)
+    const paint = (d) => {
       const grid = document.getElementById('admin-stats-grid');
       if (!grid) return;
       if (!d) { grid.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 미연결 — 통계를 불러올 수 없어요.</p>'; return; }
@@ -604,8 +611,17 @@ window.Admin = {
         cell('예약', d.bookings.total, `예정 ${d.bookings.upcoming} · 완료 ${d.bookings.done} · 취소 ${d.bookings.cancelled}`) +
         cell('채팅 스레드', d.chat.threads, `답장 대기 ${d.chat.awaiting}`) +
         cell('상담 자료', d.inbox.total, `안 읽음 ${d.inbox.unread}`) +
-        cell('플랫폼 수익', d.revenue.platform.toLocaleString(), `총 결제 ${d.revenue.gross.toLocaleString()}캐시의 7%`);
-    }).catch(() => {});
+        cell('플랫폼 수익', d.revenue.platform.toLocaleString(),
+             `총 결제 ${d.revenue.gross.toLocaleString()}캐시의 ${d.revenue.split ? d.revenue.split.platform : 17}%`) +
+        (d.mailReady === false
+          ? `<div style="flex: 1 1 100%; background: rgba(201,162,39,0.1); border: 1px solid rgba(201,162,39,0.3); border-radius: 12px; padding: 0.6rem 0.8rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.6;">
+               메일 발송이 아직 설정되지 않았어요 — 상담사 로그인 링크가 나가지 않습니다.
+               ${d.counselorsWithoutEmail ? `<br>이메일 미등록 상담사 <b>${d.counselorsWithoutEmail}명</b>` : ''}
+             </div>` : '');
+    };
+    if (this._stats) paint(this._stats);
+    else window.Api.json('/api/stats?code=' + encodeURIComponent(this.code()))
+      .then(d => { if (d) this._stats = d; paint(d); });   // 실패해도 '서버 미연결'을 보여준다
     // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
     window.Api.f('/api/bookings?code=' + this.code()).then(r => r.ok ? r.json() : null).then(d => {
       const el = document.getElementById('admin-rev');

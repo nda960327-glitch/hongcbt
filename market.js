@@ -356,18 +356,57 @@ export async function handleMarket(request, env, cors, path) {
   // ── 운영 통계 ───────────────────────────────────────────────────────
   if (path === '/stats' && method === 'GET') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
-    const one = async sql => (await db.prepare(sql).first()) || {};
-    const c = await one('SELECT COUNT(*) n FROM counselors WHERE active = 1');
-    const b = await one("SELECT COUNT(*) n, COALESCE(SUM(price),0) sum FROM bookings WHERE status = 'confirmed'");
-    const i = await one('SELECT COUNT(*) n FROM inbox');
-    const rv = await one('SELECT COUNT(*) n, COALESCE(AVG(rating),0) avg FROM reviews');
-    const noMail = await one('SELECT COUNT(*) n FROM counselors WHERE active = 1 AND (email IS NULL OR email = \'\')');
+    // 전에는 지표마다 따로 물어서 D1 을 5번 왕복했다. 한 번에 가져온다.
+    //  (운영자 콘솔이 뜨는 속도가 여기에 직접 걸린다)
+    const t = nowMs();
+    const r = await db.prepare(`SELECT
+      (SELECT COUNT(*) FROM counselors WHERE active = 1) AS counselors,
+      (SELECT COUNT(*) FROM counselors WHERE active = 1 AND (email IS NULL OR email = '')) AS noMail,
+      (SELECT COUNT(DISTINCT client_id) FROM bookings) AS clientsA,
+      (SELECT COUNT(DISTINCT client_id) FROM inbox) AS clientsB,
+      (SELECT COUNT(*) FROM bookings) AS bkTotal,
+      (SELECT COUNT(*) FROM bookings WHERE status = 'confirmed' AND when_ts > ?) AS bkUpcoming,
+      (SELECT COUNT(*) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS bkDone,
+      (SELECT COUNT(*) FROM bookings WHERE status IN ('cancelled','declined','noshow')) AS bkCancelled,
+      (SELECT COALESCE(SUM(price),0) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS gross,
+      (SELECT COUNT(*) FROM inbox) AS ibTotal,
+      (SELECT COUNT(*) FROM inbox WHERE read_at = 0) AS ibUnread,
+      (SELECT COUNT(DISTINCT counselor_id || '|' || client_id) FROM chat_msgs) AS threads,
+      (SELECT COUNT(*) FROM reviews) AS rvCount,
+      (SELECT COALESCE(AVG(rating),0) FROM reviews) AS rvAvg
+    `).bind(t, t, t).first() || {};
+
+    // 답장 대기: 스레드별 마지막 발신자가 내담자인 것
+    const aw = await db.prepare(`SELECT COUNT(*) n FROM (
+        SELECT counselor_id, client_id, MAX(ts) mts FROM chat_msgs GROUP BY counselor_id, client_id
+      ) g JOIN chat_msgs m
+        ON m.counselor_id = g.counselor_id AND m.client_id = g.client_id AND m.ts = g.mts
+      WHERE m.sender = 'client'`).first() || {};
+
+    const gross = r.gross || 0;
+    const SPLIT = { counselor: 70, hospital: 10, pg: 3, platform: 17 };  // js/payout.js 와 같은 값
     return json({
-      counselors: c.n || 0, bookings: b.n || 0, gross: b.sum || 0,
-      inbox: i.n || 0, reviews: rv.n || 0, ratingAvg: Math.round((rv.avg || 0) * 10) / 10,
+      // 앱의 운영자 콘솔이 기대하는 모양 그대로 (여기가 어긋나면 화면이 빈칸이 된다)
+      uniqueClients: Math.max(r.clientsA || 0, r.clientsB || 0),
+      counselors: r.counselors || 0,
+      bookings: {
+        total: r.bkTotal || 0, upcoming: r.bkUpcoming || 0,
+        done: r.bkDone || 0, cancelled: r.bkCancelled || 0
+      },
+      chat: { threads: r.threads || 0, awaiting: aw.n || 0 },
+      inbox: { total: r.ibTotal || 0, unread: r.ibUnread || 0 },
+      reviews: { count: r.rvCount || 0, avg: Math.round((r.rvAvg || 0) * 10) / 10 },
+      revenue: {
+        gross,
+        platform: Math.round(gross * SPLIT.platform / 100),
+        counselor: Math.round(gross * SPLIT.counselor / 100),
+        hospital: Math.round(gross * SPLIT.hospital / 100),
+        pg: Math.round(gross * SPLIT.pg / 100),
+        split: SPLIT
+      },
       // 메일 발송 설정 상태는 운영자만 본다 (로그인 응답에 담으면 가입 여부가 샌다)
       mailReady: !!(env.RESEND_API_KEY && env.MAIL_FROM),
-      counselorsWithoutEmail: noMail.n || 0
+      counselorsWithoutEmail: r.noMail || 0
     }, 200, cors);
   }
 

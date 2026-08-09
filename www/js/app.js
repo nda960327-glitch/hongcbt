@@ -1177,6 +1177,9 @@ window.App = {
     }
 
     this._checkinTick();
+    // /api 를 어디로 보낼지 미리 재 둔다. 사용자가 뭘 누른 뒤에 재면
+    //  그 첫 동작만 300ms 넘게 느려진다 (운영자 콘솔 로그인이 특히 그랬다).
+    if (window.Api && window.Api.warmup) window.Api.warmup();
     setInterval(() => this._checkinTick(), 60 * 1000);
   },
 

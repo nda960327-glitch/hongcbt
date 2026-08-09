@@ -8,7 +8,33 @@
 //  상담사 마켓 기능이 통째로 404 였다. 여기 하나만 보게 만든다.
 // ============================================================================
 window.Api = {
-  _sameOrigin: undefined,      // undefined=미확인 · true=사용 · false=Worker 로
+  // undefined=미확인 · true=같은 출처 사용 · false=Worker 로
+  //  판정을 기억해 둔다. 안 그러면 앱을 켤 때마다 첫 요청이 404 를 한 번
+  //  받고서야 Worker 로 넘어가, 그 요청만 300ms 넘게 느려진다.
+  //  하필 그 첫 요청이 로그인 검사라 사용자는 '느린 앱'으로 체감한다.
+  _sameOrigin: (() => {
+    try {
+      const v = localStorage.getItem('cbt_api_same_origin');
+      const at = +(localStorage.getItem('cbt_api_same_origin_at') || 0);
+      // 하루 지나면 다시 확인 (서버를 나중에 붙일 수도 있으므로)
+      if (!v || Date.now() - at > 86400000) return undefined;
+      return v === '1';
+    } catch (e) { return undefined; }
+  })(),
+
+  _remember(v) {
+    this._sameOrigin = v;
+    try {
+      localStorage.setItem('cbt_api_same_origin', v ? '1' : '0');
+      localStorage.setItem('cbt_api_same_origin_at', String(Date.now()));
+    } catch (e) {}
+  },
+
+  // 앱이 뜰 때 조용히 한 번 재 둔다 — 사용자가 뭘 누르기 전에 끝나 있도록
+  warmup() {
+    if (this._sameOrigin !== undefined) return;
+    try { this.f('/api/presence').catch(() => {}); } catch (e) {}
+  },
 
   base() {
     return (window.LLM && window.LLM.BACKEND_URL)
@@ -27,12 +53,12 @@ window.Api = {
         // 정적 서버는 없는 경로에 404 나 index.html(HTML) 을 돌려준다
         const ct = (r.headers.get('content-type') || '');
         if (r.status !== 404 && !ct.includes('text/html')) {
-          this._sameOrigin = true;
+          this._remember(true);
           return r;
         }
-        this._sameOrigin = false;
+        this._remember(false);
       } catch (e) {
-        this._sameOrigin = false;
+        this._remember(false);
       }
     }
 
