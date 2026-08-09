@@ -81,7 +81,7 @@ window.AppLock = {
       [0, 1, 2, 3].map(i => `<span style="width: 14px; height: 14px; border-radius: 50%; ${i < buf.length ? 'background: var(--accent-primary);' : 'background: transparent; border: 2px solid var(--glass-border);'}"></span>`).join('') + '</div>';
     ov.innerHTML = `
       <div style="width: 100%; max-width: 280px; text-align: center;">
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('hide', 96) : '🔒'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('hide', 96) :''}</span>
         <h2 id="al-title" style="margin: 0.6rem 0 0; font-size: 1.05rem; color: var(--text-primary);">${title}</h2>
         ${dots()}
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;">

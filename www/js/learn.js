@@ -7,7 +7,7 @@ window.Learn = {
   distortions: [
     {
       id: 'all-or-nothing',
-      emoji: '',
+      icon: 'd_all',
       name: '이분법적 사고',
       nameEn: 'All-or-Nothing Thinking',
       brief: '세상을 흑백으로만 봐요',
@@ -18,7 +18,7 @@ window.Learn = {
     },
     {
       id: 'overgeneralization',
-      emoji: '',
+      icon: 'd_over',
       name: '과잉일반화',
       nameEn: 'Overgeneralization',
       brief: '하나를 보고 전체를 판단해요',
@@ -29,7 +29,7 @@ window.Learn = {
     },
     {
       id: 'mental-filter',
-      emoji: '',
+      icon: 'd_filter',
       name: '정신적 필터',
       nameEn: 'Mental Filter',
       brief: '안 좋은 것만 골라 봐요',
@@ -40,7 +40,7 @@ window.Learn = {
     },
     {
       id: 'disqualifying-positive',
-      emoji: '',
+      icon: 'd_disq',
       name: '긍정 격하',
       nameEn: 'Disqualifying the Positive',
       brief: '좋은 일은 운으로 돌려요',
@@ -51,7 +51,7 @@ window.Learn = {
     },
     {
       id: 'jumping-conclusions',
-      emoji: '',
+      icon: 'd_jump',
       name: '예단',
       nameEn: 'Jumping to Conclusions',
       brief: '근거 없이 결론을 내려요',
@@ -62,7 +62,7 @@ window.Learn = {
     },
     {
       id: 'magnification-minimization',
-      emoji: '',
+      icon: 'd_mag',
       name: '극대화/축소화',
       nameEn: 'Magnification/Minimization',
       brief: '단점은 크게, 장점은 작게',
@@ -73,7 +73,7 @@ window.Learn = {
     },
     {
       id: 'emotional-reasoning',
-      emoji: '',
+      icon: 'd_emo',
       name: '감정적 추리',
       nameEn: 'Emotional Reasoning',
       brief: '내 감정이 곧 사실이에요',
@@ -84,7 +84,7 @@ window.Learn = {
     },
     {
       id: 'should-statements',
-      emoji: '',
+      icon: 'd_should',
       name: '당위적 명령',
       nameEn: 'Should Statements',
       brief: '~해야만 한다고 압박해요',
@@ -95,7 +95,7 @@ window.Learn = {
     },
     {
       id: 'personalization',
-      emoji: '',
+      icon: 'd_person',
       name: '개인화',
       nameEn: 'Personalization',
       brief: '모든 게 내 탓이에요',
@@ -106,7 +106,7 @@ window.Learn = {
     },
     {
       id: 'labeling',
-      emoji: '',
+      icon: 'd_label',
       name: '낙인찍기',
       nameEn: 'Labeling',
       brief: '나와 타인에게 꼬리표를 붙여요',
@@ -218,11 +218,11 @@ window.Learn = {
     const best = window.Storage ? (window.Storage._safeGet('cbt_quiz_best', null)) : null;
     container.innerHTML = `
       <div class="quiz-intro">
-        <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg('detective', 110) : '🔍'}</span>
+ <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg('detective', 110) :''}</span>
         <h3 class="quiz-intro__title">우렁 탐정의 생각 함정 찾기</h3>
         <p class="quiz-intro__desc">문장 속에 숨어있는 인지왜곡을 찾아내면<br>내 머릿속 함정도 알아챌 수 있게 돼요.</p>
-        ${best ? `<p class="quiz-intro__best">🏆 최고 기록: ${best.score}/${best.total}</p>` : ''}
-        <button id="quiz-start" class="btn-primary" style="width: 100%;">수사 시작하기 🔍</button>
+ ${best ?`<p class="quiz-intro__best"> 최고 기록: ${best.score}/${best.total}</p>`:''}
+ <button id="quiz-start"class="btn-primary"style="width: 100%;">수사 시작하기 </button>
       </div>
     `;
     document.getElementById('quiz-start').addEventListener('click', () => this.startQuiz());
@@ -263,7 +263,7 @@ window.Learn = {
     container.innerHTML = `
       <div class="quiz-progress-row">
         <span class="quiz-progress-label">사건 ${this.currentQuizIndex + 1} / ${total}</span>
-        <span class="quiz-score-label">⭐ ${this.quizScore}</span>
+ <span class="quiz-score-label">${this.quizScore}</span>
       </div>
       <div class="quiz-progress-bar"><div style="width: ${Math.round(this.currentQuizIndex / total * 100)}%;"></div></div>
       <div class="quiz-scene">
@@ -298,13 +298,13 @@ window.Learn = {
     if (window.Sfx) window.Sfx.hit(isCorrect ? 'ripe' : 'denied');
 
     const scoreLabel = container.querySelector('.quiz-score-label');
-    if (scoreLabel) scoreLabel.textContent = `⭐ ${this.quizScore}`;
+ if (scoreLabel) scoreLabel.textContent =`${this.quizScore}`;
 
     feedback.innerHTML = `
       <div class="quiz-feedback__inner ${isCorrect ? 'is-correct' : 'is-wrong'}">
         <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(isCorrect ? 'aha' : 'oops', 64) : ''}</span>
         <div>
-          <strong>${isCorrect ? '명탐정이에요! 정답 🎉' : '아깝다! 함정에 살짝 걸렸어요'}</strong>
+ <strong>${isCorrect ?'명탐정이에요! 정답':'아깝다! 함정에 살짝 걸렸어요'}</strong>
           <p>${explanation}</p>
         </div>
       </div>
@@ -342,7 +342,7 @@ window.Learn = {
         <div class="quiz-score-big">${score}<span> / ${total}</span></div>
         <div class="quiz-progress-bar" style="margin: 0.4rem 0 0.8rem;"><div style="width: ${Math.round(pct * 100)}%;"></div></div>
         <p class="quiz-msg">${msg}</p>
-        <button id="quiz-retry" class="btn-primary" style="width: 100%;">다시 수사하기 🔍</button>
+ <button id="quiz-retry"class="btn-primary"style="width: 100%;">다시 수사하기 </button>
         <button class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="document.getElementById('distortion-cards').scrollIntoView({behavior:'smooth'}); ">카드 다시 공부하기</button>
       </div>
     `;

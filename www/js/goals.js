@@ -117,7 +117,7 @@ window.Goals = {
         <span style="flex: 1 1 0%; min-width: 0; font-size: 0.82rem; line-height: 1.55; font-weight: ${g.doneAt ? '600' : '700'};
                      color: ${g.doneAt ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${g.doneAt ? 'line-through' : 'none'};">${esc(g.text)}</span>
         <button onclick="window.Goals.remove('${g.id}')" title="지우기"
-          style="all: unset; cursor: pointer; flex-shrink: 0; font-size: 0.8rem; color: var(--text-muted); opacity: 0.55; padding: 0 0.15rem;">✕</button>
+ style="all: unset; cursor: pointer; flex-shrink: 0; font-size: 0.8rem; color: var(--text-muted); opacity: 0.55; padding: 0 0.15rem;"></button>
       </div>`;
 
     el.innerHTML = `

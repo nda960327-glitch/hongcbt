@@ -82,7 +82,7 @@
     if (!el) return;
     const cur = this._monthStats(this._mrOffset);
     const prev = this._monthStats(this._mrOffset - 1);
-    const MOOD_EMOJI = { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢', '뿌듯': '😊', '분노': '😠', '외로움': '🥲', '좌절': '😞' };
+ const MOOD_EMOJI = new Proxy({}, { get: (t, k) => (window.Icons ? window.Icons.mood(k, 14) : '') });
 
     const diff = (a, b) => {
       if (b === 0 && a === 0) return '';
@@ -112,7 +112,7 @@
     el.innerHTML = `
       <button onclick="const d = document.getElementById('mr-detail'); d.classList.toggle('hidden'); this.querySelector('.mr-chev').style.transform = d.classList.contains('hidden') ? '' : 'rotate(90deg)';"
         style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.55rem; width: 100%; cursor: pointer;">
-        <strong style="font-size: 0.88rem; color: var(--text-primary); flex-shrink: 0;">📈 ${cur.label}</strong>
+ <strong style="font-size: 0.88rem; color: var(--text-primary); flex-shrink: 0;">${cur.label}</strong>
         <span style="flex: 1; min-width: 0; font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${moodLine}</span>
         <span class="mr-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
       </button>
@@ -250,7 +250,7 @@
     });
 
     const colorFor = v => v >= 4.3 ? '#4f8a6b' : v >= 3.5 ? '#8fbf7f' : v >= 2.6 ? '#e0c36b' : v >= 1.9 ? '#dd9a62' : '#cf6b60';
-    const emoFor = v => v >= 4.3 ? '😄' : v >= 3.5 ? '🙂' : v >= 2.6 ? '😐' : v >= 1.9 ? '😟' : '😢';
+ const emoFor = v => v >= 4.3 ?'': v >= 3.5 ?'': v >= 2.6 ?'': v >= 1.9 ?'':'';
     const firstDow = new Date(y, m, 1).getDay(); // 0=일
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     const todayStr = new Date().toLocaleDateString('sv-CA');
@@ -271,7 +271,7 @@
 
     el.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
-        <h3 style="margin: 0;">🗓️ 감정 캘린더</h3>
+ <h3 style="margin: 0;"> 감정 캘린더</h3>
         <div style="display: flex; align-items: center; gap: 0.4rem;">
           <button class="btn-secondary" style="width: auto; padding: 0.2rem 0.6rem; font-size: 0.85rem;" onclick="window.Dashboard.shiftCalendar(-1)">‹</button>
           <strong style="font-size: 0.88rem; color: var(--text-primary); min-width: 82px; text-align: center;">${y}년 ${m + 1}월</strong>
@@ -333,8 +333,8 @@
     const nights = (S._safeGet('cbt_night_journal', []) || []).filter(j => inDay(j.ts));
     const missions = (S._safeGet('cbt_mission_log', []) || []).filter(m => m.done && inDay(m.ts));
     const records = (S.getThoughtRecords() || []).filter(r => !String(r.id).startsWith('rec_mock_') && inDay(new Date(r.date).getTime()));
-    const MOOD_EMOJI = { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢', '뿌듯': '😊', '분노': '😠', '외로움': '🥲', '좌절': '😞' };
-    const missionName = id => { const m = (window.Missions && window.Missions.POOL.find(x => x.id === id)); return m ? `${m.emoji} ${m.text}` : ''; };
+ const MOOD_EMOJI = new Proxy({}, { get: (t, k) => (window.Icons ? window.Icons.mood(k, 14) : '') });
+    const missionName = id => { const m = (window.Missions && window.Missions.POOL.find(x => x.id === id)); return m ? m.text : ''; };
     const hasAny = moods.length || nights.length || missions.length || records.length;
     const dateStr = new Date(dayStart).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
 
@@ -347,8 +347,8 @@
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 380px; max-height: 80vh; overflow-y: auto; text-align: left;">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
-          <h2 style="margin: 0; font-size: 1.1rem;">📖 ${dateStr}의 나</h2>
-          <button class="close-btn" onclick="document.getElementById('day-detail-overlay').remove()">✕</button>
+ <h2 style="margin: 0; font-size: 1.1rem;">${dateStr}의 나</h2>
+ <button class="close-btn"onclick="document.getElementById('day-detail-overlay').remove()"></button>
         </div>
         ${!hasAny ? `
           <div style="text-align: center; padding: 0.6rem 0 1rem;">
@@ -356,23 +356,23 @@
             <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.6rem 0 0;">이 날은 남긴 기록이 없어요.<br>기록이 없던 날도, 살아낸 하루예요.</p>
           </div>` : `
           ${moods.length ? `
-            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🫶 감정 체크인 <span style="font-weight: 500; font-size: 0.68rem;">(✕로 잘못 누른 기록 삭제)</span></p>
+ <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;"> 감정 체크인 <span style="font-weight: 500; font-size: 0.68rem;">(로 잘못 누른 기록 삭제)</span></p>
             <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.9rem;">
-              ${moods.map(m => `<span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.25rem 0.35rem 0.25rem 0.6rem;">${MOOD_EMOJI[m.emo] || '🙂'} ${esc(m.emo)} <span style="color: var(--text-muted); font-size: 0.68rem;">${new Date(m.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</span><button onclick="window.Dashboard.deleteMood(${m.ts}, '${key}')" style="all: unset; cursor: pointer; width: 16px; height: 16px; border-radius: 50%; background: var(--glass-border); color: var(--text-muted); font-size: 0.62rem; display: inline-flex; align-items: center; justify-content: center;">✕</button></span>`).join('')}
+ ${moods.map(m =>`<span style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 999px; padding: 0.25rem 0.35rem 0.25rem 0.6rem;">${MOOD_EMOJI[m.emo] ||''} ${esc(m.emo)} <span style="color: var(--text-muted); font-size: 0.68rem;">${new Date(m.ts).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit'})}</span><button onclick="window.Dashboard.deleteMood(${m.ts},'${key}')"style="all: unset; cursor: pointer; width: 16px; height: 16px; border-radius: 50%; background: var(--glass-border); color: var(--text-muted); font-size: 0.62rem; display: inline-flex; align-items: center; justify-content: center;"></button></span>`).join('')}
             </div>` : ''}
           ${nights.map(j => `
-            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🌙 하루 정리 <span style="font-weight: 600;">(${new Date(j.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 취침)</span></p>
+ <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;"> 하루 정리 <span style="font-weight: 600;">(${new Date(j.ts).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit'})} 취침)</span></p>
             <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.6; position: relative;">
-              <button onclick="window.Dashboard.deleteNight(${j.ts}, '${key}')" title="이 하루 정리 삭제" style="all: unset; cursor: pointer; position: absolute; top: 0.5rem; right: 0.6rem; color: var(--text-muted); font-size: 0.78rem; padding: 0.15rem;">✕</button>
+ <button onclick="window.Dashboard.deleteNight(${j.ts},'${key}')"title="이 하루 정리 삭제"style="all: unset; cursor: pointer; position: absolute; top: 0.5rem; right: 0.6rem; color: var(--text-muted); font-size: 0.78rem; padding: 0.15rem;"></button>
               ${j.mood ? `그날의 기분: ${MOOD_EMOJI[j.mood.emo] || ''} ${esc(j.mood.emo)}<br>` : ''}
               ${j.moment ? `남은 순간: ${esc(j.moment)}<br>` : ''}
               ${j.note ? `나에게: ${esc(j.note)}` : ''}
             </div>`).join('')}
           ${missions.length ? `
-            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">🎯 해낸 미션</p>
-            <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m => `${esc(m.text ? m.text : missionName(m.id))} <button onclick="window.Dashboard.deleteMission(${m.ts}, '${key}')" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.66rem; padding: 0.1rem 0.3rem;">✕</button>`).join('<br>')}</div>` : ''}
+ <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;"> 해낸 미션</p>
+ <div style="margin-bottom: 0.9rem; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.7;">${missions.map(m =>`${esc(m.text ? m.text : missionName(m.id))} <button onclick="window.Dashboard.deleteMission(${m.ts},'${key}')"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 0.66rem; padding: 0.1rem 0.3rem;"></button>`).join('<br>')}</div>`:''}
           ${records.length ? `
-            <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;">📝 사고 기록 ${records.length}건</p>
+ <p style="font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin: 0 0 0.4rem;"> 사고 기록 ${records.length}건</p>
             ${records.map(r => `<div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55;">"${esc((r.thought || '').slice(0, 60))}"${r.alternative ? `<br><span style="color: var(--accent-primary);">→ ${esc(r.alternative.slice(0, 60))}</span>` : ''}</div>`).join('')}
             <button class="btn-secondary" style="width: 100%; font-size: 0.8rem; margin-top: 0.2rem;" onclick="document.getElementById('day-detail-overlay').remove(); window.App.switchTab('record');">사고 기록지 전체 보기 ›</button>` : ''}
         `}
@@ -480,7 +480,7 @@
 
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '✨ 요약 다시 생성하기';
+ btn.innerHTML ='요약 다시 생성하기';
     }
   },
 
@@ -551,13 +551,13 @@ ${recent}`;
     container.innerHTML = `
       <div id="summary-report-card" style="background: var(--bg-secondary); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent); border-radius: 14px; padding: 1.15rem; box-shadow: var(--shadow-sm);">
         <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--glass-border); padding-bottom: 0.6rem; margin-bottom: 0.8rem;">
-          <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-primary);">✨ AI 상담 요약</div>
+ <div style="font-weight: 700; font-size: 0.9rem; color: var(--accent-primary);"> AI 상담 요약</div>
           <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">${report.date || ''}</span>
         </div>
         ${report.title ? `<h4 style="margin: 0 0 0.55rem 0; font-size: 0.97rem; color: var(--text-primary); line-height: 1.4;">${report.title}</h4>` : ''}
         <div id="summary-report-body" data-raw="" style="margin: 0;">${this._formatReportRows(body).join('')}</div>
         <div style="display: flex; justify-content: flex-end; margin-top: 0.85rem; border-top: 1px solid var(--glass-border); padding-top: 0.7rem;">
-          <button onclick="window.Dashboard.copySummaryReport()" class="btn-secondary-sm" style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);">📋 복사하기</button>
+ <button onclick="window.Dashboard.copySummaryReport()"class="btn-secondary-sm"style="font-size: 0.78rem; padding: 0.4rem 0.85rem; border-radius: 8px; cursor: pointer; border: 1px solid var(--glass-border); background: var(--bg-primary); color: var(--text-primary);"> 복사하기</button>
         </div>
       </div>
     `;
@@ -567,17 +567,17 @@ ${recent}`;
     const bodyEl = document.getElementById('summary-report-body');
     const card = document.getElementById('summary-report-card');
     if (!bodyEl && !card) return;
-    const text = (bodyEl ? bodyEl.innerText : card.innerText.replace(/📋 복사하기|✨ AI 상담 요약/g, '')).trim();
+ const text = (bodyEl ? bodyEl.innerText : card.innerText.replace(/ 복사하기| AI 상담 요약/g,'')).trim();
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(() => {
         if (window.App && window.App.showToast) {
           window.App.showToast('요약 리포트를 클립보드에 복사했어요');
         } else {
-          window.UI.alert('📋 요약 리포트가 클립보드에 복사되었습니다!');
+ window.UI.alert('요약 리포트가 클립보드에 복사되었습니다!');
         }
       });
     } else {
-      window.UI.alert('📋 요약 리포트 내용:\n\n' + text);
+ window.UI.alert('요약 리포트 내용:\n\n'+ text);
     }
   },
 
@@ -717,7 +717,7 @@ ${recent}`;
   shareSummaryReport() {
     const card = document.getElementById('summary-report-card');
     if (!card) return;
-    const text = card.innerText.replace(/📋 요약 복사하기|📤 상담사에게 전달 공유/g, '').trim();
+ const text = card.innerText.replace(/ 요약 복사하기| 상담사에게 전달 공유/g,'').trim();
     if (navigator.share) {
       navigator.share({
         title: '[우렁의사] AI 상담 요약 리포트',
@@ -816,10 +816,10 @@ ${recent}`;
     // 하루를 한 줄로: 시작점과 끝점을 비교해 요약
     const first = shown[0], last = shown[shown.length - 1];
     let summary;
-    if (last.v - first.v >= 1) summary = '아래에서 위로, 마음이 올라온 하루예요 ☀️';
-    else if (first.v - last.v >= 1) summary = '마음이 조금 가라앉았네요. 우렁이가 곁에 있을게요 🌙';
-    else if (last.v >= 3.5) summary = '오늘은 대체로 편안하게 흘러갔어요 🍃';
-    else summary = '오늘은 마음이 묵직한 편이었어요. 잘 버텨냈어요 ☁️';
+ if (last.v - first.v >= 1) summary ='아래에서 위로, 마음이 올라온 하루예요';
+ else if (first.v - last.v >= 1) summary ='마음이 조금 가라앉았네요. 우렁이가 곁에 있을게요';
+ else if (last.v >= 3.5) summary ='오늘은 대체로 편안하게 흘러갔어요';
+ else summary ='오늘은 마음이 묵직한 편이었어요. 잘 버텨냈어요';
 
     container.innerHTML = `
       <div style="width: 100%; flex: 1 1 100%;">

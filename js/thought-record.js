@@ -5,16 +5,16 @@ window.ThoughtRecord = {
     'emotional-reasoning':'d_emo','should-statements':'d_should','personalization':'d_person','labeling':'d_label'
   },
   distortions: [
-    { id: 'all-or-nothing', label: '이분법적 사고', emoji: '' },
-    { id: 'overgeneralization', label: '과잉일반화', emoji: '' },
-    { id: 'mental-filter', label: '정신적 필터', emoji: '' },
-    { id: 'disqualifying-positive', label: '긍정 격하', emoji: '' },
-    { id: 'jumping-conclusions', label: '예단', emoji: '' },
-    { id: 'magnification-minimization', label: '극대화/축소화', emoji: '' },
-    { id: 'emotional-reasoning', label: '감정적 추리', emoji: '' },
-    { id: 'should-statements', label: '당위적 명령', emoji: '' },
-    { id: 'personalization', label: '개인화', emoji: '' },
-    { id: 'labeling', label: '낙인찍기', emoji: '' }
+    { id: 'all-or-nothing', label: '이분법적 사고', icon: 'd_all' },
+    { id: 'overgeneralization', label: '과잉일반화', icon: 'd_over' },
+    { id: 'mental-filter', label: '정신적 필터', icon: 'd_filter' },
+    { id: 'disqualifying-positive', label: '긍정 격하', icon: 'd_disq' },
+    { id: 'jumping-conclusions', label: '예단', icon: 'd_jump' },
+    { id: 'magnification-minimization', label: '극대화/축소화', icon: 'd_mag' },
+    { id: 'emotional-reasoning', label: '감정적 추리', icon: 'd_emo' },
+    { id: 'should-statements', label: '당위적 명령', icon: 'd_should' },
+    { id: 'personalization', label: '개인화', icon: 'd_person' },
+    { id: 'labeling', label: '낙인찍기', icon: 'd_label' }
   ],
   
   init() {
@@ -161,7 +161,7 @@ window.ThoughtRecord = {
     div.style.cssText = 'padding: 1rem 1.05rem; margin-bottom: 1rem;';
     div.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.2rem;">
-        <strong style="font-size: 0.92rem; color: var(--text-primary);">🧠 나의 생각 함정 패턴</strong>
+ <strong style="font-size: 0.92rem; color: var(--text-primary);"> 나의 생각 함정 패턴</strong>
         <span style="font-size: 0.68rem; color: var(--text-muted);">기록 ${total}건 기준</span>
       </div>
       <p style="margin: 0 0 0.75rem; font-size: 0.74rem; color: var(--text-muted);">가장 자주 걸리는 함정은 <b style="color: var(--accent-secondary);">${top ? top.label : ''}</b>이에요. 패턴을 알면 절반은 이긴 거예요.</p>
@@ -217,7 +217,7 @@ window.ThoughtRecord = {
         noticeBanner.style.cssText = 'background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent); border-radius: 12px; padding: 0.95rem 1.1rem; margin-bottom: 1.1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; box-shadow: var(--shadow-sm);';
         noticeBanner.innerHTML = `
           <div style="font-size: 0.84rem; color: var(--text-primary); line-height: 1.45;">
-            💡 <strong>가이드용 샘플 사고 기록 안내</strong><br>
+ <strong>가이드용 샘플 사고 기록 안내</strong><br>
             현재 기록은 0건일 때 안내되는 <strong>샘플 데이터</strong>입니다. 챗봇 대화나 직접 작성으로 내 사고 기록이 생성되면 <strong>샘플은 자동으로 삭제</strong>됩니다!
           </div>
           <span style="background: var(--accent-primary); color: #fff; font-size: 0.73rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 20px; white-space: nowrap; flex-shrink: 0;">샘플 데이터</span>
@@ -266,8 +266,8 @@ window.ThoughtRecord = {
           ${record.source === 'chat' ? '<span style="background: color-mix(in srgb, var(--accent-primary) 14%, transparent); color: var(--accent-primary); font-size: 0.7rem; font-weight: 700; padding: 0.12rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">AI 자동 기록</span>' : ''}
         </span>
         <span style="display: inline-flex; gap: 0.1rem;">
-          ${isMock ? '' : `<button class="btn-edit-record" data-id="${record.id}" aria-label="수정" title="수정" style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.3rem; font-size: 0.9rem;">✏️</button>`}
-          <button class="btn-delete-record" data-id="${record.id}" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):'✕'}</button>
+ ${isMock ?'':`<button class="btn-edit-record"data-id="${record.id}"aria-label="수정"title="수정"style="background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.3rem; font-size: 0.9rem;"></button>`}
+ <button class="btn-delete-record"data-id="${record.id}"aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:16}):''}</button>
         </span>
       </div>
       <div class="record-body">
@@ -372,7 +372,7 @@ window.ThoughtRecord = {
       <input type="text" class="emotion-name" placeholder="감정 (예: 우울함, 불안함)" required>
       <input type="range" class="emotion-intensity" min="0" max="100" value="50">
       <span class="intensity-value">50%</span>
-      <button type="button" class="btn-remove-emotion" aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:14}):'✕'}</button>
+ <button type="button"class="btn-remove-emotion"aria-label="삭제">${window.Icons?window.Icons.svg('close',{size:14}):''}</button>
     `;
     
     const slider = row.querySelector('.emotion-intensity');
@@ -509,7 +509,7 @@ window.ThoughtRecord = {
     if (!prefilled.editId && !prefilled.situation && !prefilled.thought) {
       const d = window.Storage._safeGet('cbt_wiz_draft', null);
       if (d && d.wiz && Date.now() - d.ts < 24 * 3600000) {
-        if (await window.UI.confirm('✍️ 쓰다 만 사고 기록이 있어요.\n이어서 쓸까요? (취소하면 새로 시작하고 초안은 지워져요)')) {
+ if (await window.UI.confirm('쓰다 만 사고 기록이 있어요.\n이어서 쓸까요? (취소하면 새로 시작하고 초안은 지워져요)')) {
           this._wiz = d.wiz;
           this._wizStep(d.step || 1);
           return;
@@ -540,7 +540,7 @@ window.ThoughtRecord = {
     const dots = step ? `<div style="display: flex; gap: 0.35rem; justify-content: center; margin-bottom: 1.1rem;">${Array.from({ length: TOTAL }, (_, i) =>
       `<span style="width: 8px; height: 8px; border-radius: 50%; background: ${i < step ? 'var(--accent-primary)' : 'var(--glass-border)'}; transition: background 0.3s;"></span>`).join('')}</div>` : '';
     ov.innerHTML = `<div style="width: 100%; max-width: 400px; margin: auto; padding: 1.6rem 0 2rem;">${dots}${inner}</div>
-      <button onclick="window.ThoughtRecord._wizClose()" style="all: unset; position: fixed; top: 0.9rem; right: 1.1rem; font-size: 1.3rem; cursor: pointer; opacity: 0.6; padding: 0.3rem;">✕</button>`;
+ <button onclick="window.ThoughtRecord._wizClose()"style="all: unset; position: fixed; top: 0.9rem; right: 1.1rem; font-size: 1.3rem; cursor: pointer; opacity: 0.6; padding: 0.3rem;"></button>`;
     document.body.appendChild(ov);
     const ta = ov.querySelector('textarea');
     if (ta) setTimeout(() => ta.focus(), 150);
@@ -701,7 +701,7 @@ window.ThoughtRecord = {
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; text-align: center;">친구가 같은 생각을 한다면,<br>뭐라고 말해줄래요?</h2>
         <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">나에게도 그 다정함을 돌려주세요.<br>조금 더 균형 잡힌 생각을 적어봐요.</p>
         <textarea id="trw-input" rows="4" placeholder="예: 한 번 조용히 넘어갔다고 내 의견이 별로라는 증거는 아니야" style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.alternative)}</textarea>
-        <button id="trw-hint" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.65rem; margin-top: 0.6rem; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent); color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer;">💡 우렁이에게 힌트 받기</button>
+ <button id="trw-hint"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.65rem; margin-top: 0.6rem; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent); color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer;"> 우렁이에게 힌트 받기</button>
         <div id="trw-hint-box" class="hidden" style="margin-top: 0.6rem; padding: 0.85rem 1rem; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent); font-size: 0.85rem; line-height: 1.6;"></div>
         ${this._wizNav(4, '다음 ›')}`, 5);
       this._wizBindBack(4, () => { w.alternative = document.getElementById('trw-input').value; });
@@ -717,7 +717,7 @@ window.ThoughtRecord = {
       this._wizWrap(`
         <h2 style="margin: 0 0 0.3rem; font-size: 1.25rem; text-align: center;">지금은 어때요?</h2>
         <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">방금 쓴 생각을 한 번 소리 내어 읽고,<br>같은 감정을 다시 느껴보세요.</p>
-        ${w.alternative ? `<div style="padding: 0.8rem 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--glass-border); font-size: 0.86rem; line-height: 1.6; margin-bottom: 1rem;">💬 ${esc(w.alternative)}</div>` : ''}
+ ${w.alternative ?`<div style="padding: 0.8rem 1rem; border-radius: 12px; background: var(--bg-secondary); border: 1px solid var(--glass-border); font-size: 0.86rem; line-height: 1.6; margin-bottom: 1rem;">${esc(w.alternative)}</div>`:''}
         <div style="display: flex; flex-direction: column; gap: 0.7rem;">
           ${w.emotions.map((e, i) => `
             <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
@@ -728,7 +728,7 @@ window.ThoughtRecord = {
               <input type="range" data-name="${esc(e.name)}" data-i="${i}" min="0" max="100" value="${w.after[e.name]}" style="width: 100%; accent-color: var(--accent-primary);">
             </div>`).join('')}
         </div>
-        ${this._wizNav(5, '기록 저장하기 ✓')}`, 6);
+ ${this._wizNav(5,'기록 저장하기')}`, 6);
       this._wizBindBack(5);
       document.querySelectorAll('#tr-wizard input[type=range]').forEach(sl => sl.addEventListener('input', () => {
         w.after[sl.dataset.name] = parseInt(sl.value, 10);
@@ -754,7 +754,7 @@ window.ThoughtRecord = {
     const box = document.getElementById('trw-hint-box');
     if (!btn || !box) return;
     btn.style.pointerEvents = 'none';
-    btn.textContent = '우렁이가 생각 중… 🐌';
+ btn.textContent ='우렁이가 생각 중…';
     let hint = '이렇게 스스로에게 물어보세요:\n· 이 생각이 100% 사실이라는 증거는 뭘까?\n· 반대되는 증거는 하나도 없을까?\n· 가장 친한 친구가 이 생각을 말했다면 나는 뭐라고 답할까?';
     try {
       if (window.LLM) {
@@ -773,8 +773,8 @@ window.ThoughtRecord = {
       }
     } catch (e) {}
     box.classList.remove('hidden');
-    box.innerHTML = `🐌 ${hint.replace(/\n/g, '<br>')}`;
-    btn.textContent = '💡 다른 힌트 받기';
+ box.innerHTML =`${hint.replace(/\n/g,'<br>')}`;
+ btn.textContent ='다른 힌트 받기';
     btn.style.pointerEvents = '';
   },
 
@@ -821,14 +821,14 @@ window.ThoughtRecord = {
     const drop = before - after;
     const bar = (v, color) => `<div style="width: 100%; background: var(--bg-tertiary); border-radius: 99px; height: 12px; overflow: hidden;"><div style="width: ${v}%; background: ${color}; height: 100%; border-radius: 99px; transition: width 0.8s;"></div></div>`;
     this._wizWrap(`
-      <div style="text-align: center;">${window.Stickers ? window.Stickers.svg('proud', 110) : '🎉'}</div>
+ <div style="text-align: center;">${window.Stickers ? window.Stickers.svg('proud', 110) :''}</div>
       <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.3rem; text-align: center;">${editing ? '수정 완료!' : '기록 완료!'}</h2>
       <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin: 0 0 1.2rem; line-height: 1.6;">${drop > 0 ? `생각을 정리하는 것만으로<br>마음의 무게가 <b style="color: var(--accent-primary);">${drop}%p</b> 가벼워졌어요.` : '지금 당장 가벼워지지 않아도 괜찮아요.<br>알아차린 것 자체가 큰 걸음이에요.'}</p>
       <div style="display: flex; flex-direction: column; gap: 0.8rem; text-align: left;">
         <div><div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem;"><span>기록 전</span><b>${before}%</b></div>${bar(before, 'linear-gradient(90deg, #f87171, #ef4444)')}</div>
         <div><div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem;"><span>기록 후</span><b>${after}%</b></div>${bar(after, 'linear-gradient(90deg, #34d399, #10b981)')}</div>
       </div>
-      <button onclick="window.ThoughtRecord._wizClose()" class="btn-primary" style="width: 100%; margin-top: 1.4rem;">확인 🌿</button>`);
+ <button onclick="window.ThoughtRecord._wizClose()"class="btn-primary"style="width: 100%; margin-top: 1.4rem;">확인 </button>`);
   }
 };
 

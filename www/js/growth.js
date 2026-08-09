@@ -4,18 +4,18 @@
 // ============================================================================
 window.Growth = {
   BADGES: [
-    { id: 'first_chat', emoji: '🐌', name: '첫 만남',       desc: '우렁이와 첫 대화',   metric: 'chats',   goal: 1 },
-    { id: 'chat50',     emoji: '💬', name: '단골 손님',     desc: '대화 50회',          metric: 'chats',   goal: 50 },
-    { id: 'chat200',    emoji: '🗣️', name: '속마음 단짝',   desc: '대화 200회',         metric: 'chats',   goal: 200 },
-    { id: 'streak3',    emoji: '🌱', name: '사흘의 새싹',   desc: '3일 연속 방문',      metric: 'streak',  goal: 3 },
-    { id: 'streak7',    emoji: '🔥', name: '일주일 불꽃',   desc: '7일 연속 방문',      metric: 'streak',  goal: 7 },
-    { id: 'streak30',   emoji: '🏆', name: '한 달의 마음',  desc: '30일 연속 방문',     metric: 'streak',  goal: 30 },
-    { id: 'record5',    emoji: '📝', name: '마음 기록가',   desc: '사고 기록 5개',      metric: 'records', goal: 5 },
-    { id: 'mood30',     emoji: '🌈', name: '감정 관찰자',   desc: '기분 기록 30개',     metric: 'moods',   goal: 30 },
-    { id: 'breath10',   emoji: '🫧', name: '숨 고르기 달인', desc: '호흡 연습 10회',     metric: 'breaths', goal: 10 },
-    { id: 'night7',     emoji: '🌙', name: '굿나잇 요정',   desc: '하루 정리 7회',      metric: 'nights',  goal: 7 },
-    { id: 'mission5',   emoji: '🚶', name: '작은 실천가',   desc: '행동 미션 5개',      metric: 'missions', goal: 5 },
-    { id: 'mission20',  emoji: '🏃', name: '실천 마스터',   desc: '행동 미션 20개',     metric: 'missions', goal: 20 }
+ { id:'first_chat', icon:'chat', name:'첫 만남', desc:'우렁이와 첫 대화', metric:'chats', goal: 1 },
+ { id:'chat50', icon:'bubble', name:'단골 손님', desc:'대화 50회', metric:'chats', goal: 50 },
+ { id:'chat200', icon:'heart', name:'속마음 단짝', desc:'대화 200회', metric:'chats', goal: 200 },
+ { id:'streak3', icon:'sprout', name:'사흘의 새싹', desc:'3일 연속 방문', metric:'streak', goal: 3 },
+ { id:'streak7', icon:'bolt', name:'일주일 불꽃', desc:'7일 연속 방문', metric:'streak', goal: 7 },
+ { id:'streak30', icon:'medal', name:'한 달의 마음', desc:'30일 연속 방문', metric:'streak', goal: 30 },
+ { id:'record5', icon:'note', name:'마음 기록가', desc:'사고 기록 5개', metric:'records', goal: 5 },
+ { id:'mood30', icon:'faceSmile', name:'감정 관찰자', desc:'기분 기록 30개', metric:'moods', goal: 30 },
+ { id:'breath10', icon:'breath', name:'숨 고르기 달인', desc:'호흡 연습 10회', metric:'breaths', goal: 10 },
+ { id:'night7', icon:'moon', name:'굿나잇 요정', desc:'하루 정리 7회', metric:'nights', goal: 7 },
+ { id:'mission5', icon:'check', name:'작은 실천가', desc:'행동 미션 5개', metric:'missions', goal: 5 },
+ { id:'mission20', icon:'star', name:'실천 마스터', desc:'행동 미션 20개', metric:'missions', goal: 20 }
   ],
 
   init() {
@@ -102,7 +102,7 @@ window.Growth = {
     });
     window.Storage._safeSet('cbt_badges', earned);
     if (newly.length && !silent && window.App && window.App.showRecordToast) {
-      const label = newly.map(b => `${b.emoji} '${b.name}'`).join(', ');
+      const label = newly.map(b => `'${b.name}'`).join(', ');
       window.App.showRecordToast(newly.length === 1 ? `${label} 뱃지 획득!` : `뱃지 ${newly.length}개 획득! ${label}`);
       if (window.App.playNotify) window.App.playNotify();
       if (window.App.stickerPop) window.App.stickerPop('party', 1600);
@@ -174,7 +174,7 @@ window.Growth = {
     const pct = lv >= 30 ? 100 : Math.min(100, Math.round((xp - curBase) / (nextAt - curBase) * 100));
     el.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.8rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-tertiary)), var(--bg-tertiary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent); border-radius: 14px; padding: 0.85rem 1rem; margin-bottom: 0.85rem;">
-        <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(info.sticker, 62) : '🐌'}</span>
+ <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg(info.sticker, 62) :''}</span>
         <div style="flex: 1; min-width: 0;">
           <div style="display: flex; align-items: baseline; gap: 0.4rem;">
             <strong style="font-size: 0.95rem; color: var(--text-primary); font-family: var(--font-heading);">Lv.${lv} ${info.name}</strong>
@@ -193,7 +193,7 @@ window.Growth = {
     const line = document.getElementById('growth-streak-line');
     if (line) {
       const st = this.stats().streak;
-      line.textContent = st >= 2 ? `🔥 ${st}일 연속 방문 중` : (st === 1 ? '🌱 오늘부터 스트릭 시작!' : '');
+ line.textContent = st >= 2 ?`${st}일 연속 방문 중`: (st === 1 ?'오늘부터 스트릭 시작!':'');
     }
     // 스트릭 보호권
     const shieldRow = document.getElementById('shield-row');
@@ -201,7 +201,7 @@ window.Growth = {
       const n = this.shields();
       shieldRow.innerHTML = `
         <div style="display: flex; align-items: center; gap: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
-          <span style="font-size: 1.5rem;">🛡️</span>
+ <span style="font-size: 1.5rem;"></span>
           <div style="flex: 1; min-width: 0;">
             <strong style="font-size: 0.85rem; color: var(--text-primary); display: block;">스트릭 보호권 ${'●'.repeat(n)}${'○'.repeat(this.SHIELD_MAX - n)}</strong>
             <span style="font-size: 0.72rem; color: var(--text-muted);">하루 빠져도 자동으로 그 날을 메꿔 스트릭을 지켜줘요 (최대 ${this.SHIELD_MAX}개)</span>
@@ -217,7 +217,7 @@ window.Growth = {
       const has = !!earned[b.id];
       const cur = Math.min(s[b.metric] || 0, b.goal);
       return `<div title="${b.desc}" style="text-align: center; padding: 0.6rem 0.2rem; border-radius: 12px; background: ${has ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'}; border: 1px solid ${has ? 'color-mix(in srgb, var(--accent-primary) 35%, transparent)' : 'var(--glass-border)'}; ${has ? '' : 'opacity: 0.55;'}">
-        <div style="font-size: 1.5rem; ${has ? '' : 'filter: grayscale(1); opacity: 0.6;'}">${b.emoji}</div>
+        <div style="line-height: 0; color: var(--accent-primary); ${has ? '' : 'filter: grayscale(1); opacity: 0.45;'}">${window.Icons ? window.Icons.svg(b.icon || 'medal', { size: 26 }) : ''}</div>
         <div style="font-size: 0.66rem; font-weight: 700; color: var(--text-primary); margin-top: 0.15rem;">${b.name}</div>
         <div style="font-size: 0.58rem; color: var(--text-muted);">${b.desc}</div>
         ${has ? '' : `<div style="margin-top: 0.3rem;">
@@ -256,7 +256,7 @@ window.Growth = {
   },
 
   // 대시보드 '지난 밤들' — 하루 정리 아카이브
-  MOOD_EMOJI: { '기쁨': '😄', '편안': '🙂', '보통': '😐', '불안': '😟', '우울': '😢' },
+ // 기분 아이콘은 Icons.mood() 한 곳에서만 정한다 (자리마다 달라지지 않게)
 
   // 자유 일기 — 아무 때나 쓰는 한 편 (하루정리와 같은 일기장에 꽂힌다)
   writeDiary() {
@@ -268,13 +268,13 @@ window.Growth = {
     ov.innerHTML = `
       <div class="glass-card" style="width: 100%; max-width: 430px; padding: 1.1rem; background: var(--bg-secondary);">
         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
-          <strong style="font-size: 0.95rem; color: var(--text-primary);">✍️ 자유 일기</strong>
-          <button onclick="document.getElementById('diary-write-overlay').remove()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;">✕</button>
+ <strong style="font-size: 0.95rem; color: var(--text-primary);"> 자유 일기</strong>
+ <button onclick="document.getElementById('diary-write-overlay').remove()"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;"></button>
         </div>
         <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">형식 없이, 지금 마음 가는 대로. 우렁이가 읽고 짧은 답글을 달아줘요.</p>
         <textarea id="diary-write-text" rows="7" maxlength="1200" placeholder="오늘은…"
           style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; font-family: inherit; resize: vertical; line-height: 1.7;"></textarea>
-        <button class="btn-primary" style="width: 100%; margin-top: 0.7rem;" onclick="window.Growth.saveDiary()">📓 일기장에 꽂기</button>
+ <button class="btn-primary"style="width: 100%; margin-top: 0.7rem;"onclick="window.Growth.saveDiary()"> 일기장에 꽂기</button>
       </div>`;
     document.body.appendChild(ov);
     setTimeout(() => { const t = document.getElementById('diary-write-text'); if (t) t.focus(); }, 150);
@@ -358,13 +358,13 @@ window.Growth = {
       const mo = d.toISOString().slice(0, 7);
       const monthHead = mo !== lastMonth ? `<h2 class="mhead">${d.getFullYear()}년 ${d.getMonth() + 1}월</h2>` : '';
       lastMonth = mo;
-      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : (j.free ? '✍️' : '🌙');
+ const emoji = j.mood && window.Icons ? window.Icons.mood(j.mood.emo, 14) : '';
       return `${monthHead}<div class="entry">
         <div class="ehead"><span class="edate">${d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}${j.free ? ' · 자유 일기' : ''}</span>
         <span class="eweather">마음 날씨 ${emoji}${j.mood && j.mood.emo ? ' ' + esc(j.mood.emo) : ''}</span></div>
         ${j.moment ? `<p class="emoment">${esc(j.moment)}</p>` : ''}
-        ${j.note ? `<p class="enote">✎ 나에게: ${esc(j.note)}</p>` : ''}
-        ${j.reply ? `<p class="ereply">🐌 우렁이: ${esc(j.reply)}</p>` : ''}
+ ${j.note ?`<p class="enote"> 나에게: ${esc(j.note)}</p>`:''}
+ ${j.reply ?`<p class="ereply"> 우렁이: ${esc(j.reply)}</p>`:''}
       </div>`;
     }).join('');
     const coverMeta = `${first.getFullYear()}.${first.getMonth() + 1}.${first.getDate()} ~ ${lastD.getFullYear()}.${lastD.getMonth() + 1}.${lastD.getDate()}`;
@@ -382,10 +382,10 @@ h1{font-size:22px;margin:0}p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px
 h2.mhead{font-size:15px;color:#4f8a6b;margin:26px 0 2px;border-bottom:2px solid #e4efe8;padding-bottom:4px}
 @media print{body{padding:0}}
 </style></head><body>
-<h1>📓 ${esc(name) || '나'}의 마음 일기장</h1>
+<h1>${esc(name) ||'나'}의 마음 일기장</h1>
 <p class="meta">${coverMeta} · 모두 ${journal.length}편 · 우렁이와 함께 쓴 기록</p>
 ${entries}
-<p style="font-size:11px;color:#a99c8c;margin-top:24px">— 느리지만 계속 가고 있는 기록. 🐌</p>
+<p style="font-size:11px;color:#a99c8c;margin-top:24px">— 느리지만 계속 가고 있는 기록. </p>
 </body></html>`;
     if (mode === 'print') {
       const w = window.open('', '_blank');
@@ -420,7 +420,7 @@ ${entries}
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
         <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('note', { size: 19 }) : ''}</span>
         <strong style="font-size: 1.05rem; color: var(--text-primary);">나의 일기장</strong>
-        <button onclick="window.Growth.closeDiaryFull()" style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+ <button onclick="window.Growth.closeDiaryFull()"style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;"></button>
       </div>
       <p style="margin: 0 0 0.85rem; font-size: 0.76rem; color: var(--text-muted);">지금까지 ${total}편을 남겼어요</p>
 
@@ -505,17 +505,17 @@ ${entries}
       }
       const d = new Date(j.ts);
       const dateStr = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-      const emoji = j.mood ? (this.MOOD_EMOJI[j.mood.emo] || '🌙') : (j.free ? '✍️' : '🌙');
+ const emoji = j.mood && window.Icons ? window.Icons.mood(j.mood.emo, 14) : '';
       html += `<div style="padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); margin-bottom: 0.5rem; position: relative;">
-        <button onclick="window.Growth.deleteDiary(${j.ts})" title="삭제" style="all: unset; position: absolute; top: 0.45rem; right: 0.6rem; cursor: pointer; color: var(--text-muted); opacity: 0.6; font-size: 0.8rem; padding: 0.15rem;">✕</button>
+ <button onclick="window.Growth.deleteDiary(${j.ts})"title="삭제"style="all: unset; position: absolute; top: 0.45rem; right: 0.6rem; cursor: pointer; color: var(--text-muted); opacity: 0.6; font-size: 0.8rem; padding: 0.15rem;"></button>
         <div style="display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 700; color: var(--text-primary); padding-right: 1.4rem;">
           <span style="font-size: 1.1rem;">${emoji}</span>${dateStr}${j.free ? '' : ' 밤'}
           <span style="flex: 1;"></span>
-          <span style="font-size: 0.68rem; font-weight: 600; color: var(--text-muted);">${j.free ? '자유 일기' : '🕐 ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 취침'}</span>
+ <span style="font-size: 0.68rem; font-weight: 600; color: var(--text-muted);">${j.free ?'자유 일기':''+ d.toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit'}) +'취침'}</span>
         </div>
         ${j.moment ? `<p style="margin: 0.35rem 0 0; font-size: 0.83rem; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap;">${esc(j.moment)}</p>` : ''}
-        ${j.note ? `<p style="margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;">💬 나에게: ${esc(j.note)}</p>` : ''}
-        ${j.reply ? `<p style="margin: 0.45rem 0 0; font-size: 0.76rem; color: var(--text-primary); line-height: 1.55; background: color-mix(in srgb, var(--accent-primary) 9%, transparent); border-left: 3px solid var(--accent-primary); border-radius: 0 8px 8px 0; padding: 0.4rem 0.6rem;">🐌 ${esc(j.reply)}</p>` : ''}
+ ${j.note ?`<p style="margin: 0.3rem 0 0; font-size: 0.78rem; color: var(--text-muted); line-height: 1.5;"> 나에게: ${esc(j.note)}</p>`:''}
+ ${j.reply ?`<p style="margin: 0.45rem 0 0; font-size: 0.76rem; color: var(--text-primary); line-height: 1.55; background: color-mix(in srgb, var(--accent-primary) 9%, transparent); border-left: 3px solid var(--accent-primary); border-radius: 0 8px 8px 0; padding: 0.4rem 0.6rem;">${esc(j.reply)}</p>`:''}
       </div>`;
     });
     if (!q && !dq && !this._diaryShowAll && items.length > 10) {
@@ -528,7 +528,7 @@ ${entries}
     // 쓰다 만 하루 정리가 있으면 이어쓰기 (12시간 보관)
     const d = window.Storage._safeGet('cbt_night_draft', null);
     if (d && d.night && Date.now() - d.ts < 12 * 3600000) {
-      if (await window.UI.confirm('🌙 쓰다 만 하루 정리가 있어요. 이어서 쓸까요?')) {
+ if (await window.UI.confirm('쓰다 만 하루 정리가 있어요. 이어서 쓸까요?')) {
         this._night = d.night;
         this._nightStep(d.step || 1);
         return;
@@ -563,14 +563,14 @@ ${entries}
       ov.id = 'night-overlay';
       ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #faf6ec; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
       ov.innerHTML = `<div style="width: 100%; max-width: 320px; text-align: center;">${inner}</div>
-        <button onclick="document.getElementById('night-overlay').remove()" style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.8; padding: 0.3rem;">✕</button>`;
+ <button onclick="document.getElementById('night-overlay').remove()"style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.8; padding: 0.3rem;"></button>`;
       document.body.appendChild(ov);
     };
     const nextBtn = (label, fn) => `<button id="ng-next" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.1rem;">${label}</button>`;
 
     if (n === 1) {
       wrap(`
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 110) : '🌙'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 110) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem; color: #ffffff;">오늘 하루도 살아냈네요</h2>
         <p style="font-size: 0.92rem; color: #e9e2d2; line-height: 1.65;">자기 전에 딱 3분,<br>우렁이랑 오늘을 같이 정리하고 자요.</p>
         ${nextBtn('좋아, 시작할게')}`);
@@ -670,12 +670,12 @@ ${entries}
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #232f3b 0%, #141c24 100%); color: #faf6ec; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
     ov.innerHTML = `
       <div style="width: 100%; max-width: 320px; text-align: center;">
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('love', 110) : '💤'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('love', 110) :''}</span>
         <h2 style="margin: 0.8rem 0 0.5rem; font-size: 1.25rem; color: #ffffff;">오늘 하루 정리 완료</h2>
         <p style="font-size: 0.95rem; color: #f3edde; line-height: 1.75; white-space: pre-line;">${goodnight}</p>
-        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards();" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 🌙</button>
-        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;">🫧 4·7·8 호흡하면서 잠들기</button>
-        <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.SleepSounds && window.SleepSounds.open();" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.55rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;">🌧️ 빗소리 들으면서 잠들기</button>
+ <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards();"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 </button>
+ <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;"> 4·7·8 호흡하면서 잠들기</button>
+ <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.SleepSounds && window.SleepSounds.open();"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.55rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;"> 빗소리 들으면서 잠들기</button>
       </div>`;
     document.body.appendChild(ov);
   }

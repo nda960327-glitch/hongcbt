@@ -19,7 +19,7 @@ window.Assess = {
 
   // --------------------------------------------------------------------------
   //  자가검진 — 표준 선별도구(PHQ-9·GAD-7, 공개 도구) + 탐색 문항(비표준) 분리
-  //  ⚠️ 표준 문항의 문구·순서·채점은 원 도구 그대로 유지할 것 (임의 수정 금지)
+ // 표준 문항의 문구·순서·채점은 원 도구 그대로 유지할 것 (임의 수정 금지)
   // --------------------------------------------------------------------------
   SECTIONS: [
     {
@@ -574,14 +574,14 @@ window.Assess = {
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem; border: 1.5px solid color-mix(in srgb, #c96a5a 25%, transparent); margin-bottom: 0.8rem;">
         <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
-          ⚠️ <b>이것은 진단이 아니라 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
+ <b>이것은 진단이 아니라 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
           나머지는 기록 기반의 탐색 지표입니다. 마음이 걱정되면 전문가를 만나보세요. 위기 순간엔 <b>109</b>, <b>1577-0199</b>.
         </p>
       </div>
 
       <div class="glass-card" style="padding: 0.95rem; margin-bottom: 0.8rem;">
         <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.65rem;">
-          <strong style="font-size: 0.9rem; color: var(--text-primary);">📊 데이터 충분도</strong>
+ <strong style="font-size: 0.9rem; color: var(--text-primary);"> 데이터 충분도</strong>
           <span style="font-size: 1.05rem; font-weight: 800; color: ${canGen ? 'var(--accent-primary)' : '#c96a5a'};">${m.total}%</span>
         </div>
         <div style="height: 12px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden; margin-bottom: 0.8rem; position: relative;">
@@ -596,14 +596,14 @@ window.Assess = {
       </div>
 
       <div class="glass-card" style="padding: 0.95rem; margin-bottom: 0.8rem;">
-        <strong style="font-size: 0.86rem; color: var(--text-primary);">🧪 데이터 신뢰도: <span style="color: ${relTxt[1]};">${relTxt[0]}</span></strong>
+ <strong style="font-size: 0.86rem; color: var(--text-primary);"> 데이터 신뢰도: <span style="color: ${relTxt[1]};">${relTxt[0]}</span></strong>
         ${m.flags.length ? `<ul style="margin: 0.5rem 0 0; padding-left: 1.1rem; font-size: 0.74rem; color: var(--text-muted); line-height: 1.6;">${m.flags.map(f => `<li>${f}</li>`).join('')}</ul>` : `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: var(--text-muted);">입력 패턴이 자연스러워요.</p>`}
       </div>
 
       <div class="glass-card" style="padding: 0.95rem; margin-bottom: 0.8rem;">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
           <div>
-            <strong style="font-size: 0.86rem; color: var(--text-primary);">📝 표준 자가검진 <span style="font-size: 0.66rem; font-weight: 800; color: #c96a5a;">필수</span></strong>
+ <strong style="font-size: 0.86rem; color: var(--text-primary);"> 표준 자가검진 <span style="font-size: 0.66rem; font-weight: 800; color: #c96a5a;">필수</span></strong>
             <p style="margin: 0.2rem 0 0; font-size: 0.72rem; color: var(--text-muted);">${(() => { const st = this.qaStatus();
               return st.state === 'valid' ? `완료 · ${st.left}일 뒤 만료돼요`
                 : st.state === 'expired' ? `${st.days}일 전에 했어요 — 최근 2주 상태를 묻는 검사라 다시 해야 해요`
@@ -627,7 +627,7 @@ window.Assess = {
       <div id="assess-risk"></div>
 
       <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
-        🔍 AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
+ AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
       </button>
       <p style="margin: 0.4rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불</p>
 
@@ -646,10 +646,10 @@ window.Assess = {
             <div id="as-${r.id}" class="hidden" style="padding: 0 0.85rem 0.85rem;">
               ${this._reportHtml(r)}
               <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.8rem;">
-                <button class="btn-primary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; background: var(--success-color, #10b981); border: none;" onclick="window.Assess.sendToCounselor('${r.id}')">📤 상담사에게 보내기</button>
-                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.download('${r.id}')">📄 저장</button>
-                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;" onclick="window.Assess.printPdf('${r.id}')">🖨 인쇄·PDF</button>
-                <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; color: #c96a5a;" onclick="window.Assess.deleteReport('${r.id}')">🗑 삭제</button>
+ <button class="btn-primary"style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; background: var(--success-color, #10b981); border: none;"onclick="window.Assess.sendToCounselor('${r.id}')"> 상담사에게 보내기</button>
+ <button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;"onclick="window.Assess.download('${r.id}')"> 저장</button>
+ <button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem;"onclick="window.Assess.printPdf('${r.id}')"> 인쇄·PDF</button>
+ <button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.35rem 0.7rem; color: #c96a5a;"onclick="window.Assess.deleteReport('${r.id}')"> 삭제</button>
               </div>
             </div>
           </div>`).join('')}
@@ -753,7 +753,7 @@ window.Assess = {
     if (!el) return;
     el.innerHTML = `
       <div style="margin-top: 0.9rem; padding: 1rem; border-radius: 14px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); text-align: center;">
-        <p style="margin: 0 0 0.2rem; font-size: 1rem; font-weight: 800; color: var(--text-primary);">다 답하셨어요 👏</p>
+ <p style="margin: 0 0 0.2rem; font-size: 1rem; font-weight: 800; color: var(--text-primary);">다 답하셨어요 </p>
         <p style="margin: 0 0 0.9rem; font-size: 0.78rem; color: var(--text-muted); line-height: 1.6;">천천히 끝까지 해주셔서 고마워요. 저장하면 점수가 계산돼요.</p>
         <button class="btn-primary" style="width: 100%;" onclick="window.Assess.saveQuiz()">결과 저장하기</button>
         <button onclick="window.Assess._prevQ()" style="all: unset; display: block; width: 100%; text-align: center; cursor: pointer; font-size: 0.76rem; color: var(--text-muted); padding: 0.6rem 0;">‹ 마지막 문항 다시 보기</button>
@@ -822,11 +822,11 @@ window.Assess = {
     if (box) {
       box.innerHTML = `
         <div class="glass-card" style="padding: 1rem; border: 2px solid ${color}; background: color-mix(in srgb, ${color} 10%, transparent); margin-bottom: 0.8rem;">
-          <p style="margin: 0 0 0.3rem; font-size: 0.92rem; font-weight: 800; color: ${color};">🛟 ${COPY.t}</p>
+ <p style="margin: 0 0 0.3rem; font-size: 0.92rem; font-weight: 800; color: ${color};">${COPY.t}</p>
           <p style="margin: 0 0 0.7rem; font-size: 0.8rem; line-height: 1.7; color: var(--text-secondary);">${COPY.d}</p>
           <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-            <a href="tel:109" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: #fff; background: ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">📞 ${COPY.cta} (109)</a>
-            <button onclick="window.Safety && window.Safety.open()" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: ${color}; border: 1px solid ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">🛟 안전 계획 만들기</button>
+ <a href="tel:109"style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: #fff; background: ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;">${COPY.cta} (109)</a>
+ <button onclick="window.Safety && window.Safety.open()"style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 800; color: ${color}; border: 1px solid ${color}; padding: 0.45rem 0.85rem; border-radius: 999px;"> 안전 계획 만들기</button>
             <button onclick="window.App.switchTab('counselors')" style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--text-secondary); border: 1px solid var(--glass-border); padding: 0.45rem 0.85rem; border-radius: 999px;">전문 상담사 찾기</button>
           </div>
         </div>`;
@@ -901,7 +901,7 @@ section{break-inside:avoid}
 b{font-weight:800}
 @media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
 </style></head><body>
-<h1>🔍 우렁의사 AI 마음 리포트</h1>
+<h1> 우렁의사 AI 마음 리포트</h1>
 <p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 109 / 1577-0199</p>
 <div class="box">${inner}</div>
 <p style="font-size:11px;color:#8a8073">이 리포트는 우렁의사 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>

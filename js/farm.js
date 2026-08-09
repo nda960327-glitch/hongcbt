@@ -137,7 +137,7 @@ window.Farm = {
         ${this.WATER_PACKS.map((p, i) => `
           <button onclick="window.Farm.buyWater(${i})"
             style="all: unset; box-sizing: border-box; cursor: pointer; text-align: center; padding: 0.6rem 0.25rem; border-radius: 12px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary);">
-            <div style="font-size: 1.15rem; line-height: 1.3;">💧</div>
+ <div style="font-size: 1.15rem; line-height: 1.3;"></div>
             <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">물 ${p.water}</div>
             <div style="font-size: 0.66rem; font-weight: 700; color: #c9a227;">${p.cash.toLocaleString()}캐시</div>
           </button>`).join('')}
@@ -179,7 +179,7 @@ window.Farm = {
     el.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
         <strong style="font-size: 0.88rem; color: var(--text-primary);">무엇을 심을까요?</strong>
-        <button onclick="window.Farm.closePicker()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.4rem;">✕</button>
+ <button onclick="window.Farm.closePicker()"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.4rem;"></button>
       </div>
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem;">
         ${this.CROPS.map(c => `
@@ -428,7 +428,7 @@ window.Farm = {
                  border: 1.5px solid ${ripe ? 'var(--accent-primary)' : 'var(--glass-border)'};
                  background: ${ripe ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-tertiary)'};">
           <span role="button" title="뽑기" onclick="event.stopPropagation(); window.Farm.pull(${i});"
-            style="position: absolute; top: 2px; right: 5px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.7; padding: 0.15rem; line-height: 1;">✕</span>
+ style="position: absolute; top: 2px; right: 5px; font-size: 0.72rem; color: var(--text-muted); opacity: 0.7; padding: 0.15rem; line-height: 1;"></span>
           <div style="line-height: 0; margin: 0.1rem 0 0.05rem;">${this.cropArt(this._stageArt(slot, c), 30)}</div>
           <div style="height: 4px; margin: 0.3rem 0.4rem 0.25rem; border-radius: 999px; background: var(--bg-secondary); overflow: hidden;">
             <div style="height: 100%; width: ${pct}%; background: var(--accent-primary);"></div>

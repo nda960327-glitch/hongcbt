@@ -160,14 +160,14 @@ window.CallTalk = {
         <div id="call-clock" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.3rem;">00:00</div>
       </div>
       <div style="text-align: center; width: 100%;">
-        <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;">👩‍⚕️</div>
+ <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;"></div>
         <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
         <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
         <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}`}</p>
-        <button onclick="window.CallTalk.dialSafe('${c.safeTel}')" style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);">📞 안심번호로 전화 연결</button>
+ <button onclick="window.CallTalk.dialSafe('${c.safeTel}')"style="margin-top: 1.1rem; border: none; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; font-size: 0.95rem; padding: 0.75rem 1.4rem; cursor: pointer; box-shadow: 0 6px 16px rgba(0,0,0,0.3);"> 안심번호로 전화 연결</button>
         <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 260px; line-height: 1.5;">050 안심번호로 연결되어 <b>서로의 실제 번호는 공개되지 않아요.</b> 통화를 마치면 아래 종료 버튼으로 정산을 끝내주세요.</p>
       </div>
-      <button onclick="window.CallTalk.end()" style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);">📞</button>
+ <button onclick="window.CallTalk.end()"style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);"></button>
       <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
     document.body.appendChild(ov);
   },
@@ -195,7 +195,7 @@ window.CallTalk = {
     rec.interimResults = false;
     rec.continuous = false;
     this._listening = true;
-    this._setStatus('듣고 있어요 🎙️');
+ this._setStatus('듣고 있어요');
 
     rec.onresult = async (e) => {
       const text = (e.results[0] && e.results[0][0] && e.results[0][0].transcript || '').trim();
@@ -296,7 +296,7 @@ window.CallTalk = {
         <p style="margin: 0; font-size: 0.82rem; opacity: 0.75;">${p.tagline || ''}</p>
         <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">0캐시 사용 중 · 30초당 ${this.RATE}</p>
       </div>
-      <button onclick="window.CallTalk.end()" style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);">📞</button>
+ <button onclick="window.CallTalk.end()"style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);"></button>
       <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
     document.body.appendChild(ov);
   }

@@ -74,7 +74,7 @@ window.SafetyPlan = {
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
         <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('lifering', { size: 20 }) : ''}</span>
         <strong style="font-size: 1.05rem; color: var(--text-primary);">나의 안전계획</strong>
-        <button onclick="window.SafetyPlan.close()" style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+ <button onclick="window.SafetyPlan.close()"style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;"></button>
       </div>
       <p style="margin: 0 0 1rem; font-size: 0.8rem; line-height: 1.75; color: var(--text-secondary);">
         위기가 닥치면 머리가 하얘져서 아무것도 안 떠올라요. 그래서 <b>괜찮은 지금</b> 미리 적어둡니다.

@@ -227,9 +227,9 @@ window.Room = {
     this.place(id);
     if (window.App) {
       const thanks = [
-        `'${it.name}'…?! 내 방에?! 고마워, 집들이 하자!! 💚`,
+`'${it.name}'…?! 내 방에?! 고마워, 집들이 하자!!`,
         `우와 '${it.name}' 생겼다!! 방이 점점 근사해져!`,
-        `'${it.name}' 최고야… 이 은혜 상추로 갚을게 🥬`,
+`'${it.name}'최고야… 이 은혜 상추로 갚을게`,
         `고마워!! '${it.name}' 놓으니까 우리 집 같아졌어`
       ];
       window.App.showRecordToast(thanks[Math.floor(Math.random() * thanks.length)]);
@@ -344,7 +344,7 @@ window.Room = {
         <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('star', { size: 19 }) : ''}</span>
         <strong style="font-size: 1.05rem; color: var(--text-primary);">우렁이가 할 수 있는 일</strong>
         <button onclick="document.getElementById('idle-book-ov').remove(); window.Sfx && window.Sfx.play('close');"
-          style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+ style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;"></button>
       </div>
       <p style="margin: 0 0 0.9rem; font-size: 0.78rem; line-height: 1.65; color: var(--text-muted);">
         ${got} / ${list.length}가지를 열었어요 · 레벨이 오를 때마다 하나씩 늘어나요<br>

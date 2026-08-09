@@ -129,7 +129,7 @@ window.App = {
       if (gapH >= 48) {
         setTimeout(() => {
           this.stickerPop('waiting', 2400);
-          this.showRecordToast(`💚 우렁이가 ${Math.floor(gapH / 24)}일 동안 문 앞에서 기다렸대요`);
+ this.showRecordToast(`우렁이가 ${Math.floor(gapH / 24)}일 동안 문 앞에서 기다렸대요`);
         }, 1200);
       }
     } catch (e) {}
@@ -179,7 +179,7 @@ window.App = {
         window.Storage._safeSet('cbt_user_name', nameVal);
         window.Storage._safeSet('cbt_user_phone', phoneVal);
         window.Storage._safeSet('cbt_user_gender', genderVal);
-        this.showRecordToast(nameVal ? `✅ 프로필 저장! ${nameVal}님이라고 부를게요` : '✅ 프로필이 저장되었어요');
+ this.showRecordToast(nameVal ?`프로필 저장! ${nameVal}님이라고 부를게요`:'프로필이 저장되었어요');
         this.renderHomeGreeting();
       });
     }
@@ -314,7 +314,7 @@ window.App = {
         const globalModal = document.getElementById('global-install-modal');
         if (globalModal) globalModal.classList.add('hidden');
       } else {
-        window.UI.alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼 ➔ '홈 화면에 추가'를 선택하세요.)\n(크롬의 경우 메뉴 ➔ '앱 설치'를 선택하세요.)");
+ window.UI.alert("앱 설치 기능이 이 브라우저에서 지원되지 않거나 이미 설치되어 있습니다.\n\n(iOS Safari의 경우 하단의 공유 버튼'홈 화면에 추가'를 선택하세요.)\n(크롬의 경우 메뉴'앱 설치'를 선택하세요.)");
       }
     };
 
@@ -930,13 +930,13 @@ window.App = {
   personaGreetingsAlt: {
     en: {
       woorung: "Hi, I'm Dr. Woorung! I'll be right here with you. How's your heart today?",
-      haru: "Hey! I'm Haetnim ☀️ Got any gloomy thoughts? Let's dry them out in the sun together.",
+ haru:"Hey! I'm Haetnim Got any gloomy thoughts? Let's dry them out in the sun together.",
       dalnim: "...Hello, I'm Dalnim. You don't have to be 'fine' here. Pour it all out — I'll hold every bit of it.",
       sonamu: "Welcome, I'm Sonamu. Take one slow breath... and let's begin, gently."
     },
     ja: {
       woorung: "こんにちは、ウロン先生です。今日の心はどうですか？ゆっくり話しましょう。",
-      haru: "やっほー！ヘッニムだよ☀️ 心にかかった曇り、一緒にお日さまに当てて乾かそう。",
+ haru:"やっほー！ヘッニムだよ 心にかかった曇り、一緒にお日さまに当てて乾かそう。",
       dalnim: "…こんにちは、タルニムです。ここではいい人のふりをしなくて大丈夫。全部、受け止めますよ。",
       sonamu: "ようこそ、ソナムです。ひと呼吸おいて…ゆっくり始めましょうか。"
     }
@@ -1010,7 +1010,7 @@ window.App = {
       });
       document.body.appendChild(toast);
     }
-    const miniSticker = window.Stickers ? window.Stickers.svg('joy', 30) : '📝';
+ const miniSticker = window.Stickers ? window.Stickers.svg('joy', 30) :'';
     toast.innerHTML = `<span style="line-height:0; flex-shrink:0;">${miniSticker}</span> <span></span> <span style="color: var(--accent-primary); font-weight: 800;">대시보드 ›</span>`;
     toast.querySelectorAll('span')[1].textContent = text;
     if (sfx && window.Sfx) window.Sfx.play(sfx);
@@ -1062,7 +1062,7 @@ window.App = {
     const lv = window.Growth ? window.Growth.level() : 1;
     const streak = (window.Storage.getStreak && window.Storage.getStreak()) || 0;
     const info = window.Growth ? window.Growth.levelInfo(lv) : null;
-    subEl.innerHTML = 'Lv.' + lv + (info ? ' ' + info.name : '') + (streak >= 2 ? ' · 🔥 ' + streak + '일 연속' : '');
+ subEl.innerHTML ='Lv.'+ lv + (info ?''+ info.name :'') + (streak >= 2 ?'·'+ streak +'일 연속':'');
     const ava = document.querySelector('.my-hero__ava');
     if (ava && window.Stickers && info) ava.innerHTML = window.Stickers.svg(info.sticker, 62);
   },
@@ -1352,10 +1352,10 @@ ${memory || '(없음)'}`;
         </div>
         <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
           ${b.whenTs && Math.abs(b.whenTs - now) < 3600000
-            ? `<button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 예약 상담 시작 <span style="font-size: 0.66rem; font-weight: 500;">(30분 정액 · 추가 과금 없음)</span></button>`
-            : `<button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.startHumanCall('${b.counselorId}')">📞 전화 상담</button>`}
-          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openHumanChat('${b.counselorId}')">💬 채팅</button>
-          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;" onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ? '📎 자료 전달됨 ✓' : '📎 상담 자료 보내기'}</button>
+ ?`<button class="btn-primary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 예약 상담 시작 <span style="font-size: 0.66rem; font-weight: 500;">(30분 정액 · 추가 과금 없음)</span></button>`
+ :`<button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 전화 상담</button>`}
+ <button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.openHumanChat('${b.counselorId}')"> 채팅</button>
+ <button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ?'자료 전달됨':'상담 자료 보내기'}</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem; color: #c14a4a;" onclick="window.App.cancelBooking('${b.id}')">예약 취소</button>
         </div>
       </div>`).join('')
@@ -1381,11 +1381,11 @@ ${memory || '(없음)'}`;
               ${cancelled || b.status === 'noshow'
                 ? `<span style="font-size: 0.78rem; color: var(--text-muted);">${b.status === 'noshow' ? '상담 미진행 · ' : b.cancelledBy === 'counselor' ? '상담사 사정으로 취소 · ' : ''}환불 ${(b.refunded || 0).toLocaleString()}캐시 완료</span>`
                 : rv
-                  ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">⭐ ${rv.rating}.0 리뷰 작성 완료</span>`
-                  : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeReview('${b.id}')">⭐ 리뷰 남기기</button>`}
+ ?`<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">${rv.rating}.0 리뷰 작성 완료</span>`
+ :`<button class="btn-primary"style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;"onclick="window.App.writeReview('${b.id}')"> 리뷰 남기기</button>`}
               <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.switchTab('counselors')">다시 예약</button>
             </div>
-            ${(() => { const rep = (window.Storage._safeGet('cbt_review_replies', {}) || {})[b.id]; return rep ? `<p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--text-secondary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border-radius: 8px; padding: 0.5rem 0.7rem;">💌 <b>${b.name}</b>의 답글: ${rep.text.replace(/</g, '&lt;')}</p>` : ''; })()}
+ ${(() => { const rep = (window.Storage._safeGet('cbt_review_replies', {}) || {})[b.id]; return rep ?`<p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--text-secondary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border-radius: 8px; padding: 0.5rem 0.7rem;"><b>${b.name}</b>의 답글: ${rep.text.replace(/</g,'&lt;')}</p>`:''; })()}
           </div>`;
         }).join('');
     }
@@ -1408,24 +1408,24 @@ ${memory || '(없음)'}`;
     ov.className = 'modal-overlay';
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 400px; max-height: 84vh; overflow-y: auto;">
-        <h2 style="margin-top: 0;">📎 상담 자료 보내기</h2>
+ <h2 style="margin-top: 0;"> 상담 자료 보내기</h2>
         <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 0.9rem;"><b>${b.name}</b> 상담사에게 전달할 자료를 골라주세요.<br>동의한 항목만 요약본에 담깁니다.</p>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
           <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
             <input type="checkbox" id="sp-records" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${records.length ? '' : 'disabled'}>
-            📝 사고 기록 최근 ${Math.min(records.length, 5)}건 ${records.length ? '' : '(없음)'}
+ 사고 기록 최근 ${Math.min(records.length, 5)}건 ${records.length ?'':'(없음)'}
           </label>
           <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
             <input type="checkbox" id="sp-nights" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${nights.length ? '' : 'disabled'}>
-            🌙 하루 정리 최근 ${Math.min(nights.length, 7)}건 ${nights.length ? '' : '(없음)'}
+ 하루 정리 최근 ${Math.min(nights.length, 7)}건 ${nights.length ?'':'(없음)'}
           </label>
           <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
             <input type="checkbox" id="sp-report" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${reports.length ? '' : 'disabled'}>
-            ✨ AI 상담 요약 리포트 최신 1건 ${reports.length ? '' : '(없음)'}
+ AI 상담 요약 리포트 최신 1건 ${reports.length ?'':'(없음)'}
           </label>
           <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
             <input type="checkbox" id="sp-mood" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;">
-            📊 최근 2주 감정 요약 (평균·자주 나온 감정)
+ 최근 2주 감정 요약 (평균·자주 나온 감정)
           </label>
         </div>
         <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0.8rem 0;">※ 대화 원문은 전달되지 않아요. 요약본은 공유 창(또는 복사)으로 상담사에게 직접 전달하며, 전달 후에는 상담사의 개인정보 보호 의무 아래 관리됩니다.</p>
@@ -1492,14 +1492,14 @@ ${memory || '(없음)'}`;
     if (ovEl) ovEl.remove();
     this.renderMyBookings();
 
-    const finish = () => this.showRecordToast('📎 상담 자료가 준비됐어요. 상담사에게 전달해주세요');
+ const finish = () => this.showRecordToast('상담 자료가 준비됐어요. 상담사에게 전달해주세요');
     const fallbackShow = () => window.UI.alert('아래 내용을 복사해 상담사에게 전달해주세요:\n\n' + text.slice(0, 1500));
     if (navigator.share) {
       navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).then(finish).catch(() => {
-        if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => this.showRecordToast('📋 자료가 클립보드에 복사됐어요')).catch(fallbackShow);
+ if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => this.showRecordToast('자료가 클립보드에 복사됐어요')).catch(fallbackShow);
       });
     } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => this.showRecordToast('📋 자료가 클립보드에 복사됐어요 (상담 채팅에 붙여넣기)')).catch(fallbackShow);
+ navigator.clipboard.writeText(text).then(() => this.showRecordToast('자료가 클립보드에 복사됐어요 (상담 채팅에 붙여넣기)')).catch(fallbackShow);
     } else {
       fallbackShow();
     }
@@ -1538,10 +1538,10 @@ ${memory || '(없음)'}`;
 
     // 시간대별 기본 인사 + 스티커
     let hello, sticker;
-    if (h >= 5 && h < 11) { hello = `좋은 아침이에요, ${who} ☀️`; sticker = 'joy'; }
+ if (h >= 5 && h < 11) { hello =`좋은 아침이에요, ${who}`; sticker ='joy'; }
     else if (h < 17) { hello = `${who}, 오늘 하루 잘 흘러가고 있나요?`; sticker = 'cheer'; }
-    else if (h < 21) { hello = `수고한 저녁이에요, ${who} 🌆`; sticker = 'tea'; }
-    else { hello = `고요한 밤이에요, ${who} 🌙`; sticker = 'sleepy'; }
+ else if (h < 21) { hello =`수고한 저녁이에요, ${who}`; sticker ='tea'; }
+ else { hello =`고요한 밤이에요, ${who}`; sticker ='sleepy'; }
 
     // 오늘 상태를 읽고 '다음 한 걸음' 제안 (우선순위)
     const checkedIn = (window.Storage._safeGet('cbt_mood_log', []) || []).some(m => new Date(m.ts).toLocaleDateString('sv-CA') === today);
@@ -1551,15 +1551,15 @@ ${memory || '(없음)'}`;
 
     let sub, action;
     if (!checkedIn) { sub = '아직 오늘 마음을 안 물어봤네요. 지금 기분 어때요?'; action = null; /* 바로 아래 체크인 카드가 있음 */ }
-    else if ((h >= 20 || h < 2) && !nightDone) { sub = '자기 전 3분, 오늘 하루를 같이 정리해볼까요?'; action = { label: '🌙 하루 정리하기', fn: "window.Growth && window.Growth.startNight()" }; }
+ else if ((h >= 20 || h < 2) && !nightDone) { sub ='자기 전 3분, 오늘 하루를 같이 정리해볼까요?'; action = { label:'하루 정리하기', fn:"window.Growth && window.Growth.startNight()"}; }
     else if (mission && !mission.done && h >= 9 && h < 21) { sub = `오늘의 미션이 기다리고 있어요 — "${(mission.text || '').slice(0, 24)}…"`; action = null; }
-    else if (streak >= 2) { sub = `${streak}일 연속으로 마음을 돌보는 중이에요. 대단해요! 🔥`; action = null; }
-    else { const cheers = ['오늘도 당신 곁엔 우렁이가 있어요 🐌', '작은 한 걸음이면 충분한 하루예요', '숨 한 번 크게 — 잘하고 있어요']; sub = cheers[Math.floor(Math.random() * cheers.length)]; action = null; }
+ else if (streak >= 2) { sub =`${streak}일 연속으로 마음을 돌보는 중이에요. 대단해요!`; action = null; }
+ else { const cheers = ['오늘도 당신 곁엔 우렁이가 있어요','작은 한 걸음이면 충분한 하루예요','숨 한 번 크게 — 잘하고 있어요']; sub = cheers[Math.floor(Math.random() * cheers.length)]; action = null; }
 
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1.05rem; display: flex; align-items: center; gap: 0.75rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary)), var(--bg-secondary));">
         <span style="line-height: 0; flex-shrink: 0;">${(() => {
-          if (!window.Stickers) return '🐌';
+ if (!window.Stickers) return'';
           // 가끔(15%) 햇님·달님·소나무가 대신 인사한다
           if (Math.random() < 0.15) {
             const friends = ['haru', 'dalnim', 'sonamu'];
@@ -1626,7 +1626,7 @@ ${memory || '(없음)'}`;
       b.refunded = b.price;
       if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 상담 미진행 전액 환불`);
       try { fetch('/api/bookings/noshow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
-      this.showRecordToast(`😥 미진행 상담 ${b.price.toLocaleString()}캐시가 전액 환불됐어요`);
+ this.showRecordToast(`미진행 상담 ${b.price.toLocaleString()}캐시가 전액 환불됐어요`);
       if (this.currentTab === 'mypage') this.renderMyBookings();
     }
     window.Storage._safeSet('cbt_bookings', bookings);
@@ -1644,8 +1644,8 @@ ${memory || '(없음)'}`;
         if (rv.reply && (!seen[rv.bookingId] || seen[rv.bookingId].ts !== rv.reply.ts)) {
           seen[rv.bookingId] = { text: rv.reply.text, ts: rv.reply.ts, counselor: rv.counselorName };
           changed = true;
-          if (this._notifOn('chat')) { this.notify(`💌 ${rv.counselorName}님의 답글`, rv.reply.text); this.playWoorung(); }
-          this.showRecordToast(`💌 ${rv.counselorName}님이 리뷰에 답글을 남겼어요`);
+ if (this._notifOn('chat')) { this.notify(`${rv.counselorName}님의 답글`, rv.reply.text); this.playWoorung(); }
+ this.showRecordToast(`${rv.counselorName}님이 리뷰에 답글을 남겼어요`);
           this._setNavBadge('mypage', true);
         }
       });
@@ -1668,7 +1668,7 @@ ${memory || '(없음)'}`;
       const waits = window.Storage._safeGet('cbt_call_waits', []) || [];
       if (!waits.find(w => w.counselorId === c.id)) waits.push({ counselorId: c.id, name: c.name, ts: Date.now() });
       window.Storage._safeSet('cbt_call_waits', waits);
-      this.showRecordToast(`🔔 ${c.name}님 대기 ${d.position}번째로 등록! 회선이 비면 알려드려요`);
+ this.showRecordToast(`${c.name}님 대기 ${d.position}번째로 등록! 회선이 비면 알려드려요`);
       if (window.Marketplace) window.Marketplace.renderCounselors();
     }).catch(() => {});
   },
@@ -1706,9 +1706,9 @@ ${memory || '(없음)'}`;
           continue;
         }
         if (d.free && d.position <= 1) {
-          this.notify(`⚡ ${w.name}님과 통화 가능!`, '회선이 비었어요. 지금 바로 걸어보세요 (대기 1순위)');
+ this.notify(`${w.name}님과 통화 가능!`,'회선이 비었어요. 지금 바로 걸어보세요 (대기 1순위)');
           this.playWoorung();
-          this.showRecordToast(`⚡ ${w.name}님 회선이 비었어요! 지금 걸어보세요`);
+ this.showRecordToast(`${w.name}님 회선이 비었어요! 지금 걸어보세요`);
           if (window.Marketplace) window.Marketplace.fetchPresence(true);
         }
       } catch (e) {}
@@ -1735,8 +1735,8 @@ ${memory || '(없음)'}`;
         window.Storage._safeSet(key, cur.slice(-200));
         const c = window.Marketplace ? window.Marketplace.getCounselor(cid) : null;
         const name = (c && c.name) || fresh[0].counselorName || '상담사';
-        if (this._notifOn('chat')) { this.notify(`💬 ${name}님의 답장`, fresh[fresh.length - 1].text); this.playWoorung(); }
-        this.showRecordToast(`💬 ${name}님이 답장했어요 (마이페이지 › 채팅)`);
+ if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, fresh[fresh.length - 1].text); this.playWoorung(); }
+ this.showRecordToast(`${name}님이 답장했어요 (마이페이지 › 채팅)`);
         this._setNavBadge('mypage', true);
       }
     } catch (e) {}
@@ -1763,7 +1763,7 @@ ${memory || '(없음)'}`;
           changed = true;
           if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 예약 취소(상담사 사정) 전액 환불`);
           if (this._notifOn('booking')) { this.notify('예약 취소 안내', `${b.name}님 사정으로 [${b.time}] 예약이 취소되어 전액 환불되었어요.`); this.playWoorung(); }
-          this.showRecordToast(`😥 ${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
+ this.showRecordToast(`${b.name}님 사정으로 예약이 취소됐어요 (전액 환불)`);
         }
       });
       if (changed) {
@@ -1784,7 +1784,7 @@ ${memory || '(없음)'}`;
     const monthKey = new Date().toISOString().slice(0, 7);
     if (S._safeGet('cbt_backup_nudged', '') === monthKey) return;
     S._safeSet('cbt_backup_nudged', monthKey);
-    setTimeout(() => this.showRecordToast('💾 우렁이의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
+ setTimeout(() => this.showRecordToast('우렁이의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
   },
 
   // 예약 30분 전 리마인더 (1분 주기 체크인 틱에서 호출)
@@ -1812,7 +1812,7 @@ ${memory || '(없음)'}`;
       const last = window.Storage._safeGet('cbt_last_mood_ts', 0) || 0;
       const waitMin = Math.ceil((20 * 60000 - (Date.now() - last)) / 60000);
       if (Date.now() - last < 20 * 60000) {
-        this.showRecordToast(`🕐 방금 마음을 들었어요 — ${waitMin}분 뒤에 다시 물어볼게요`);
+ this.showRecordToast(`방금 마음을 들었어요 — ${waitMin}분 뒤에 다시 물어볼게요`);
         return;
       }
       window.Storage._safeSet('cbt_last_mood_ts', Date.now());
@@ -1829,7 +1829,7 @@ ${memory || '(없음)'}`;
     if (window.Growth) window.Growth.checkAwards();
     if (replacing) {
       // 교체 모드: 조용히 바꿨다고만 알리고 끝 (반응 토스트·팝·호흡 권유 생략)
-      this.showRecordToast(`${emoji} 방금 체크인을 '${emo}'(으)로 바꿨어요`);
+      this.showRecordToast(`방금 체크인을 '${emo}'(으)로 바꿨어요`);
       document.querySelectorAll('[data-mood-row] button').forEach(b => b.style.background = '');
       const rb = document.querySelector(`[data-mood-row] button[data-emo="${emo}"]`);
       if (rb) rb.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
@@ -1838,14 +1838,14 @@ ${memory || '(없음)'}`;
     }
     // 우렁이 반응 토스트
     const reactions = {
-      '기쁨': ['우로록! 좋은 날이네 ✨', '오늘 기분 최고구나!'],
-      '편안': ['잔잔한 하루, 좋다 🍃', '평온함 기록 완료!'],
+'기쁨': ['우로록! 좋은 날이네','오늘 기분 최고구나!'],
+'편안': ['잔잔한 하루, 좋다','평온함 기록 완료!'],
       '보통': ['그런 날도 있지. 기록해뒀어', '무난한 하루도 소중해'],
       '불안': ['마음이 조마조마하구나. 호흡 한 번 어때?', '불안할 땐 우렁이한테 말해줘'],
       '우울': ['마음이 무겁구나… 우렁이가 있어', '힘든 마음, 잘 기록해뒀어']
     };
     const msgs = reactions[emo] || ['기록했어!'];
-    this.showRecordToast(`${emoji} ${msgs[Math.floor(Math.random() * msgs.length)]}`);
+    this.showRecordToast(msgs[Math.floor(Math.random() * msgs.length)]);
     // 우렁이 리액션 팝: 고른 감정에 맞는 표정으로 등장
     const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'shelter', '우울': 'shelter' };
     this.stickerPop(popMap[emo] || 'joy', 1300);
@@ -1872,7 +1872,7 @@ ${memory || '(없음)'}`;
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: var(--bg-primary); display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;';
     ov.innerHTML = `
       <div style="display: flex; gap: 0.5rem; align-items: center; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
-        <button id="cs-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;">✕</button>
+ <button id="cs-close"style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;"></button>
         <input id="cs-input" placeholder="대화 내용 검색 (예: 발표, 칵테일바)" style="flex: 1; min-width: 0; padding: 0.6rem 0.9rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
       </div>
       <div id="cs-results" style="flex: 1; overflow-y: auto; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.5rem;">
@@ -1940,7 +1940,7 @@ ${memory || '(없음)'}`;
 
     const shareOut = () => {
       if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
-      else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('📋 리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => window.UI.alert(full.slice(0, 1500)));
+ else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => window.UI.alert(full.slice(0, 1500)));
       else window.UI.alert(full.slice(0, 1500));
     };
 
@@ -1958,20 +1958,20 @@ ${memory || '(없음)'}`;
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 360px;">
-        <h2 style="margin: 0 0 0.3rem; font-size: 1.1rem;">📊 리포트 보내기</h2>
+ <h2 style="margin: 0 0 0.3rem; font-size: 1.1rem;"> 리포트 보내기</h2>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.9rem;">누구에게 보낼까요? 선택한 상담사의 채팅방으로 전달돼요.</p>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
           ${cands.map(c => `
             <button style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); cursor: pointer;"
               onclick="document.getElementById('report-send-overlay').remove(); window.App._deliverReportTo('${c.id}', ${JSON.stringify(c.name).replace(/"/g, '&quot;')})">
-              <span style="flex-shrink: 0; line-height: 0;">${window.Icons ? window.Icons.svg('counselor', { size: 22 }) : '👩‍⚕️'}</span>
+ <span style="flex-shrink: 0; line-height: 0;">${window.Icons ? window.Icons.svg('counselor', { size: 22 }) :''}</span>
               <span style="flex: 1; min-width: 0;">
                 <strong style="display: block; font-size: 0.88rem; color: var(--text-primary);">${c.name}</strong>
                 <span style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital || ''} ${c.upcoming ? '· 예약 예정' : '· 지난 상담'}</span>
               </span>
               <span style="color: var(--accent-primary); font-weight: 800;">›</span>
             </button>`).join('')}
-          <button class="btn-secondary" style="width: 100%; font-size: 0.82rem;" id="report-share-out">📤 카카오톡·문자로 직접 공유</button>
+ <button class="btn-secondary"style="width: 100%; font-size: 0.82rem;"id="report-share-out"> 카카오톡·문자로 직접 공유</button>
           <button class="btn-secondary" style="width: 100%; font-size: 0.82rem;" onclick="document.getElementById('report-send-overlay').remove()">취소</button>
         </div>
       </div>`;
@@ -1986,9 +1986,9 @@ ${memory || '(없음)'}`;
     if (!await window.UI.confirm(`${name}님에게 이 리포트를 보낼까요?`)) return;
     const key = 'cbt_hchat_' + counselorId;
     const msgs = window.Storage._safeGet(key, []) || [];
-    const text = `📊 [AI 상담 요약 리포트]\n\n${full}`;
+ const text =`[AI 상담 요약 리포트]\n\n${full}`;
     msgs.push({ role: 'me', text, ts: Date.now() });
-    msgs.push({ role: 'sys', text: `✅ 리포트가 ${name}님께 전달됐어요.\n상담사님이 이 리포트를 먼저 읽고 상담을 준비합니다.`, ts: Date.now() });
+ msgs.push({ role:'sys', text:`리포트가 ${name}님께 전달됐어요.\n상담사님이 이 리포트를 먼저 읽고 상담을 준비합니다.`, ts: Date.now() });
     window.Storage._safeSet(key, msgs.slice(-200));
     // 서버 채팅으로도 전송 → 상담사 페이지에 실제 도착
     try {
@@ -2009,7 +2009,7 @@ ${memory || '(없음)'}`;
     const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
     reviews[bookingId] = { rating, text, ts: Date.now() };
     window.Storage._safeSet('cbt_reviews', reviews);
-    // 서버로도 — 상담사 페이지 '⭐ 내 리뷰'에 도착
+ // 서버로도 — 상담사 페이지'내 리뷰'에 도착
     const b = (window.Storage._safeGet('cbt_bookings', []) || []).find(x => x.id === bookingId);
     if (b) {
       try {
@@ -2019,7 +2019,7 @@ ${memory || '(없음)'}`;
         }).catch(() => {});
       } catch (e) {}
     }
-    window.UI.alert('소중한 리뷰가 등록되었습니다. 감사합니다! ⭐');
+ window.UI.alert('소중한 리뷰가 등록되었습니다. 감사합니다!');
     this.renderMyBookings();
   },
 
@@ -2050,10 +2050,10 @@ ${memory || '(없음)'}`;
         ${rejected && a.rejectReason ? `<p style="margin: 0.4rem 0 0; font-size: 0.74rem; color: #c14a4a;">반려 사유: ${a.rejectReason} — 보완 후 다시 신청해주세요.</p>` : ''}
         ${delisted ? '<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">운영팀에 의해 노출이 중단되었어요. 문의는 고객센터로 부탁드려요.</p>' : ''}
         ${(!rejected && !delisted) ? `<p style="margin: 0.4rem 0 0; font-size: 0.7rem; color: var(--text-muted);">${approved ? '상담사 매칭 탭에 노출되고 있어요.' : '운영팀이 자격·소속기관을 검토 중이에요. 승인되면 알려드릴게요.'}</p>` : ''}
-        ${(approved && a.inboxCode) ? `<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;">🔑 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html" target="_blank" style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>` : ''}
+ ${(approved && a.inboxCode) ?`<p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700;"> 내 수신함 코드: ${a.inboxCode} — <a href="/counselor.html"target="_blank"style="color: var(--accent-primary);">상담사 수신함 열기 ›</a></p>`:''}
         <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.55rem;">
-          <button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.openAvailSettings()">🗓️ 상담 가능 시간 설정</button>
-          ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.editCounselorProfile('${a.id}')">✏️ 프로필 수정</button>` : ''}
+ <button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;"onclick="window.App.openAvailSettings()"> 상담 가능 시간 설정</button>
+ ${approved ?`<button class="btn-secondary"style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;"onclick="window.App.editCounselorProfile('${a.id}')"> 프로필 수정</button>`:''}
           ${approved ? `<button class="btn-secondary" style="width: auto; font-size: 0.74rem; padding: 0.32rem 0.7rem;" onclick="window.App.switchTab('counselors')">매칭 탭에서 보기 ›</button>` : ''}
         </div>
       </div>`;
@@ -2073,9 +2073,9 @@ ${memory || '(없음)'}`;
     ov.className = 'modal-overlay';
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 400px; max-height: 86vh; overflow-y: auto;">
-        <h2 style="margin-top: 0;">✏️ 프로필 수정</h2>
+ <h2 style="margin-top: 0;"> 프로필 수정</h2>
         <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.9rem;">
-          <div id="ce-photo-preview" style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;">${a.photo ? `<img src="${a.photo}" style="width: 100%; height: 100%; object-fit: cover;">` : '📷'}</div>
+ <div id="ce-photo-preview"style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;">${a.photo ?`<img src="${a.photo}"style="width: 100%; height: 100%; object-fit: cover;">`:''}</div>
           <button type="button" class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.8rem;" onclick="document.getElementById('ce-photo-file').click()">사진 변경</button>
           <input type="file" id="ce-photo-file" accept="image/*" style="display: none;">
         </div>
@@ -2149,7 +2149,7 @@ ${memory || '(없음)'}`;
     if (ov) ov.remove();
     this.renderCounselorApps();
     if (window.Marketplace) window.Marketplace.renderCounselors();
-    this.showRecordToast('✏️ 프로필이 수정됐어요. 매칭 카드에 바로 반영됩니다');
+ this.showRecordToast('프로필이 수정됐어요. 매칭 카드에 바로 반영됩니다');
   },
 
   // 관리자 승인 (데모) — 실서비스에서는 백엔드 관리자 콘솔에서 검수 후 승인한다.
@@ -2190,7 +2190,7 @@ ${memory || '(없음)'}`;
     });
     window.Storage._safeSet('cbt_custom_counselors', customs);
     this.renderCounselorApps();
-    window.UI.alert('입점이 승인되었습니다! 🎉\n상담사 매칭 탭에서 카드로 노출됩니다.');
+ window.UI.alert('입점이 승인되었습니다! \n상담사 매칭 탭에서 카드로 노출됩니다.');
     // 서버 명부 등록 + 상담사 전용 수신함 코드 발급 (서버 꺼져 있으면 조용히 생략)
     const newCu = customs[0];
     try {
@@ -2323,7 +2323,7 @@ ${memory || '(없음)'}`;
   clearCregPhoto() {
     this._cregPhoto = null;
     const pv = document.getElementById('creg-photo-preview');
-    if (pv) pv.innerHTML = '📷';
+ if (pv) pv.innerHTML ='';
     const rm = document.getElementById('creg-photo-remove');
     if (rm) rm.classList.add('hidden');
     const file = document.getElementById('creg-photo-file');
@@ -2441,7 +2441,7 @@ ${memory || '(없음)'}`;
         .filter(x => x.counselorId === c.id && x.status !== 'cancelled' && x.whenTs && x.whenTs > Date.now())
         .sort((x, y) => x.whenTs - y.whenTs)[0];
       const bkWarn = nextBk
-        ? `\n\n📌 주의: [${nextBk.time}] 예약이 잡혀 있어요.\n예약 시간(전후 1시간)에 걸면 30분 정액으로 추가 과금이 없습니다.\n지금 거는 전화는 예약과 별개인 '바로상담'이라 위 요금이 차감돼요.`
+ ?`\n\n 주의: [${nextBk.time}] 예약이 잡혀 있어요.\n예약 시간(전후 1시간)에 걸면 30분 정액으로 추가 과금이 없습니다.\n지금 거는 전화는 예약과 별개인'바로상담'이라 위 요금이 차감돼요.`
         : '';
       if (!await window.UI.confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
@@ -2455,7 +2455,7 @@ ${memory || '(없음)'}`;
         const d = await res.json().catch(() => ({}));
         if (window.Marketplace) window.Marketplace.fetchPresence(true);
         if (d.reason === 'busy') {
-          if (await window.UI.confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. 😢\n\n🔔 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
+ if (await window.UI.confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. \n\n 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
         } else {
           window.UI.alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
         }
@@ -2476,7 +2476,7 @@ ${memory || '(없음)'}`;
     const clientName = window.Storage._safeGet('cbt_user_name', '') || '익명';
     let msgs = window.Storage._safeGet(key, []) || [];
     if (msgs.length === 0) {
-      msgs.push({ role: 'sys', text: `🙌 ${c.name}님과의 상담 채팅방이 열렸어요.\n남기신 메시지는 상담사님께 전달되며, 답장이 오면 여기에 표시됩니다.`, ts: Date.now() });
+ msgs.push({ role:'sys', text:`${c.name}님과의 상담 채팅방이 열렸어요.\n남기신 메시지는 상담사님께 전달되며, 답장이 오면 여기에 표시됩니다.`, ts: Date.now() });
       window.Storage._safeSet(key, msgs);
     }
 
@@ -2511,12 +2511,12 @@ ${memory || '(없음)'}`;
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: var(--bg-primary); display: flex; flex-direction: column; max-width: 480px; margin: 0 auto;';
     ov.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
-        <button id="hchat-close" style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;">✕</button>
+ <button id="hchat-close"style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;"></button>
         <div style="flex: 1; min-width: 0;">
           <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</strong>
           <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${c.hospital}</span>
         </div>
-        <button id="hchat-call" class="btn-primary" style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem; flex-shrink: 0;">📞 통화</button>
+ <button id="hchat-call"class="btn-primary"style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem; flex-shrink: 0;"> 통화</button>
       </div>
       <div id="hchat-msgs" style="flex: 1; overflow-y: auto; padding: 1rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem;"></div>
       <div style="display: flex; gap: 0.5rem; padding: 0.7rem 0.9rem calc(0.7rem + var(--safe-bottom, 0px)); border-top: 1px solid var(--glass-border); background: var(--bg-secondary);">
@@ -2550,7 +2550,7 @@ ${memory || '(없음)'}`;
       msgs.push({ role: 'me', text: t, ts: Date.now() });
       // 첫 발송 시 한 번만: 전달 안내
       if (!msgs.some(m => m.role === 'sys' && m.text.includes('전달되었'))) {
-        msgs.push({ role: 'sys', text: '✅ 메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [📞 통화] 버튼을 이용해주세요.', ts: Date.now() });
+ msgs.push({ role:'sys', text:'메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [ 통화] 버튼을 이용해주세요.', ts: Date.now() });
       }
       window.Storage._safeSet(key, msgs.slice(-200));
       // 서버 채팅함으로 전송 → 상담사 페이지(/counselor.html)에 도착
@@ -2590,7 +2590,7 @@ ${memory || '(없음)'}`;
   },
 
   async resetAllAppData() {
-    if (await window.UI.confirm('🚨 정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
+ if (await window.UI.confirm('정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
       if (await window.UI.confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?')) {
         if (window.Storage && window.Storage.clearAllData) {
           window.Storage.clearAllData();

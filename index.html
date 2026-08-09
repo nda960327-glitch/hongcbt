@@ -31,8 +31,8 @@
         <a href="tel:15770199" class="crisis-btn"><span class="crisis-icon" data-icon="hospital" data-icon-size="22"></span>정신건강위기상담<span class="crisis-number">1577-0199</span></a>
         <a href="tel:109" class="crisis-btn"><span class="crisis-icon" data-icon="heart" data-icon-size="22"></span>생명의전화<span class="crisis-number">109</span></a>
       </div>
-      <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="document.getElementById('crisis-modal').classList.add('hidden'); window.Safety && window.Safety.open();">🛟 나의 안전 계획 열기</button>
-      <button class="btn-secondary" style="width: 100%; margin-bottom: 0.5rem;" onclick="document.getElementById('crisis-modal').classList.add('hidden'); window.Calm && window.Calm.startBreath('478');">🫧 지금 마음 가라앉히기 (호흡)</button>
+ <button class="btn-primary"style="width: 100%; margin-bottom: 0.5rem;"onclick="document.getElementById('crisis-modal').classList.add('hidden'); window.Safety && window.Safety.open();"> 나의 안전 계획 열기</button>
+ <button class="btn-secondary"style="width: 100%; margin-bottom: 0.5rem;"onclick="document.getElementById('crisis-modal').classList.add('hidden'); window.Calm && window.Calm.startBreath('478');"> 지금 마음 가라앉히기 (호흡)</button>
       <button id="crisis-close" class="btn-secondary">대화 계속하기</button>
       <p class="crisis-disclaimer">이 앱은 전문 상담을 대체하지 않습니다</p>
     </div>
@@ -73,7 +73,7 @@
     <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">우렁의사</h1>
     <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 2rem; text-align: center;">당신을 기억하는 AI 마음 주치의</p>
     <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.6rem;">
-      <button onclick="window.App.socialLogin('kakao')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;">💬 카카오로 시작하기</button>
+ <button onclick="window.App.socialLogin('kakao')"style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;"> 카카오로 시작하기</button>
       <button onclick="window.App.socialLogin('naver')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #03C75A; color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer;">N 네이버로 시작하기</button>
       <button onclick="window.App.socialLogin('google')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #fff; color: #3c4043; font-weight: 700; font-size: 0.95rem; border: 1.5px solid #dadce0; cursor: pointer;">G 구글로 시작하기</button>
       <button onclick="window.App.socialLogin('guest')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.7rem; color: var(--text-muted); font-size: 0.82rem; cursor: pointer;">로그인 없이 둘러보기 ›</button>
@@ -126,23 +126,23 @@
       <div class="glass-card home-card">
         <p class="home-card__t">지금 마음은 어때요?</p>
         <div id="quick-mood-row" class="home-mood" data-mood-row>
-          <button class="home-mood__btn" data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')">
+ <button class="home-mood__btn"data-emo="기쁨"onclick="window.App.quickMood(5,'기쁨','')">
             <span data-sticker="joy" data-sticker-size="46"></span>
             <span class="home-mood__lbl">기쁨</span>
           </button>
-          <button class="home-mood__btn" data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')">
+ <button class="home-mood__btn"data-emo="편안"onclick="window.App.quickMood(4,'편안','')">
             <span data-sticker="empathy" data-sticker-size="46"></span>
             <span class="home-mood__lbl">편안</span>
           </button>
-          <button class="home-mood__btn" data-emo="보통" onclick="window.App.quickMood(3,'보통','😐')">
+ <button class="home-mood__btn"data-emo="보통"onclick="window.App.quickMood(3,'보통','')">
             <span data-sticker="blank" data-sticker-size="46"></span>
             <span class="home-mood__lbl">보통</span>
           </button>
-          <button class="home-mood__btn" data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')">
+ <button class="home-mood__btn"data-emo="불안"onclick="window.App.quickMood(2,'불안','')">
             <span data-sticker="surprise" data-sticker-size="46"></span>
             <span class="home-mood__lbl">불안/불편</span>
           </button>
-          <button class="home-mood__btn" data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')">
+ <button class="home-mood__btn"data-emo="우울"onclick="window.App.quickMood(1.5,'우울','')">
             <span data-sticker="sad" data-sticker-size="46"></span>
             <span class="home-mood__lbl">우울/고통</span>
           </button>
@@ -160,7 +160,7 @@
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
       <div id="night-card" class="hidden" style="margin: 0 1.25rem 0.7rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
-        <button onclick="window.Growth && window.Growth.dismissNightToday()" title="오늘은 그냥 잘래요" style="all: unset; position: absolute; top: 0.5rem; right: 0.75rem; font-size: 1rem; opacity: 0.55; cursor: pointer; padding: 0.25rem; z-index: 1;">✕</button>
+ <button onclick="window.Growth && window.Growth.dismissNightToday()"title="오늘은 그냥 잘래요"style="all: unset; position: absolute; top: 0.5rem; right: 0.75rem; font-size: 1rem; opacity: 0.55; cursor: pointer; padding: 0.25rem; z-index: 1;"></button>
         <button onclick="window.Growth && window.Growth.startNight()" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.85rem; width: 100%; padding: 1rem 1.1rem; cursor: pointer;">
           <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
           <span style="flex: 1; min-width: 0; text-align: left;">
@@ -333,7 +333,7 @@
         <button id="btn-new-record" class="btn-primary btn-sm" style="width: auto; padding: 0.45rem 0.9rem; border-radius: var(--radius-full); font-size: 0.82rem; font-weight: 700;">+ 새 기록</button>
       </div>
       <div style="padding: 0 1.25rem 0.8rem;">
-        <input id="record-search" placeholder="🔍 기록 검색 (상황·생각·대안)" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.9rem; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.86rem;">
+ <input id="record-search"placeholder="기록 검색 (상황·생각·대안)"style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.9rem; border-radius: 999px; background: var(--bg-secondary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.86rem;">
       </div>
       <div id="record-empty" class="empty-state">
         <div class="empty-icon" data-sticker="empathy" data-sticker-size="104"></div>
@@ -347,7 +347,7 @@
         <div class="modal-content glass-card record-form-modal">
           <div class="form-header">
             <h3>새 사고 기록</h3>
-            <button id="record-form-close" class="close-btn">✕</button>
+ <button id="record-form-close"class="close-btn"></button>
           </div>
           <form id="record-form">
             <div class="form-group">
@@ -407,28 +407,28 @@
 
 
       <div class="dashboard-grid">
-        <!-- ★ 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
+ <!-- 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
         <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0.85rem 0.9rem 0.5rem;">
           <div id="game-hud" style="margin-bottom: 0.75rem;"></div>
 
           <div id="game-stage">
-            <!-- 🏡 방 -->
+ <!-- 방 -->
             <div class="game-view" id="gv-room">
               <div id="room-body"></div>
             </div>
 
-            <!-- 🌱 농장 -->
+ <!-- 농장 -->
             <div class="game-view hidden" id="gv-farm">
               <div id="farm-body"></div>
             </div>
 
-            <!-- 👒 옷장 -->
+ <!-- 옷장 -->
             <div class="game-view hidden" id="gv-closet">
               <p class="game-view-tip">입힌 옷은 방 안의 우렁이와 앱 곳곳의 우렁이에게 전부 적용돼요.</p>
               <div id="closet-body"></div>
             </div>
 
-            <!-- 🗡️ 퀘스트 -->
+ <!-- 퀘스트 -->
             <div class="game-view hidden" id="gv-quest">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem;">
                 <strong class="q-title" data-ic="quest">오늘의 퀘스트</strong>
@@ -437,11 +437,11 @@
               <div style="margin-bottom: 0.9rem; padding-bottom: 0.9rem; border-bottom: 1px solid var(--glass-border);">
                 <p class="q-sub" data-ic="checkin">지금 마음은 어때요? <span class="q-reward" data-ic="water">물 +2</span></p>
                 <div class="home-mood" data-mood-row>
-                  <button class="home-mood__btn" data-emo="기쁨" onclick="window.App.quickMood(5,'기쁨','😄')"><span data-sticker="joy" data-sticker-size="42"></span><span class="home-mood__lbl">기쁨</span></button>
-                  <button class="home-mood__btn" data-emo="편안" onclick="window.App.quickMood(4,'편안','🙂')"><span data-sticker="empathy" data-sticker-size="42"></span><span class="home-mood__lbl">편안</span></button>
-                  <button class="home-mood__btn" data-emo="보통" onclick="window.App.quickMood(3,'보통','😐')"><span data-sticker="blank" data-sticker-size="42"></span><span class="home-mood__lbl">보통</span></button>
-                  <button class="home-mood__btn" data-emo="불안" onclick="window.App.quickMood(2,'불안','😟')"><span data-sticker="surprise" data-sticker-size="42"></span><span class="home-mood__lbl">불안/불편</span></button>
-                  <button class="home-mood__btn" data-emo="우울" onclick="window.App.quickMood(1.5,'우울','😢')"><span data-sticker="sad" data-sticker-size="42"></span><span class="home-mood__lbl">우울/고통</span></button>
+ <button class="home-mood__btn"data-emo="기쁨"onclick="window.App.quickMood(5,'기쁨','')"><span data-sticker="joy"data-sticker-size="42"></span><span class="home-mood__lbl">기쁨</span></button>
+ <button class="home-mood__btn"data-emo="편안"onclick="window.App.quickMood(4,'편안','')"><span data-sticker="empathy"data-sticker-size="42"></span><span class="home-mood__lbl">편안</span></button>
+ <button class="home-mood__btn"data-emo="보통"onclick="window.App.quickMood(3,'보통','')"><span data-sticker="blank"data-sticker-size="42"></span><span class="home-mood__lbl">보통</span></button>
+ <button class="home-mood__btn"data-emo="불안"onclick="window.App.quickMood(2,'불안','')"><span data-sticker="surprise"data-sticker-size="42"></span><span class="home-mood__lbl">불안/불편</span></button>
+ <button class="home-mood__btn"data-emo="우울"onclick="window.App.quickMood(1.5,'우울','')"><span data-sticker="sad"data-sticker-size="42"></span><span class="home-mood__lbl">우울/고통</span></button>
                 </div>
               </div>
               <div id="mission-card-hub" data-mission-card></div>
@@ -449,16 +449,16 @@
               </div>
             </div>
 
-            <!-- 🏅 훈장 (방의 하위 화면 — 방의 🏅 버튼으로 진입) -->
+ <!-- 훈장 (방의 하위 화면 — 방의 버튼으로 진입) -->
             <div class="game-view hidden" id="gv-medal">
               <button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>
-              <strong style="display: block; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;">🏅 우렁이 훈장</strong>
+ <strong style="display: block; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;"> 우렁이 훈장</strong>
               <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
               <div id="shield-shop" style="margin: 0.7rem 0 0;"></div>
               <div id="shield-row" class="hidden" style="display: none;"></div>
             </div>
 
-            <!-- 💌 서재 (편지·리포트·감정날씨·지난밤들) -->
+ <!-- 서재 (편지·리포트·감정날씨·지난밤들) -->
             <!-- 돌봄 — 치료가 실제로 굴러가는 화면. 계획·변화·목표를 한자리에. -->
             <div class="game-view hidden" id="gv-care">
               <div id="careplan-card" class="hidden" style="margin-bottom: 0.7rem;"></div>
@@ -571,7 +571,7 @@
 
           <nav id="game-nav"></nav>
 
-          <!-- 🐌 나의 우렁이 — 방 화면에서만 표시 -->
+ <!-- 나의 우렁이 — 방 화면에서만 표시 -->
           <div id="my-snail-panel" style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem;">
               <strong style="font-size: 0.84rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.35rem;" data-ic="sprout" data-ic-size="17">나의 우렁이</strong>
@@ -612,7 +612,7 @@
         <div id="assess-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
           <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
             <button onclick="window.Assess.close()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
-            <strong style="font-size: 1.05rem; color: var(--text-primary);">🔍 AI 마음 리포트 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 진단 아님</span></strong>
+ <strong style="font-size: 1.05rem; color: var(--text-primary);"> AI 마음 리포트 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 진단 아님</span></strong>
           </div>
           <div id="assess-body" style="padding: 1rem;"></div>
         </div>
@@ -621,7 +621,7 @@
         <div id="report-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
           <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
             <button onclick="window.Dashboard.closeReports()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
-            <strong style="font-size: 1.05rem; color: var(--text-primary);">📑 AI 상담 요약 리포트</strong>
+ <strong style="font-size: 1.05rem; color: var(--text-primary);"> AI 상담 요약 리포트</strong>
           </div>
           <div style="padding: 1rem;">
             <div class="glass-card" style="padding: 0.95rem;">
@@ -629,7 +629,7 @@
               <div style="display: flex; gap: 0.45rem;">
                 <input id="report-topic-input" maxlength="40" placeholder='주제 입력 (비우면 최근 대화 전체 요약)'
                   style="flex: 1; min-width: 0; box-sizing: border-box; padding: 0.6rem 0.75rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.85rem;">
-                <button id="btn-generate-summary" onclick="window.Dashboard.generateFromInput()" class="btn-primary" style="width: auto; flex-shrink: 0; font-size: 0.82rem; padding: 0.55rem 0.9rem;">✨ 생성</button>
+ <button id="btn-generate-summary"onclick="window.Dashboard.generateFromInput()"class="btn-primary"style="width: auto; flex-shrink: 0; font-size: 0.82rem; padding: 0.55rem 0.9rem;"> 생성</button>
               </div>
               <div style="display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.55rem;">
                 <button onclick="window.Dashboard.setTopicAndGo('')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent); padding: 0.2rem 0.55rem; border-radius: 999px;">전체 요약</button>
@@ -680,7 +680,7 @@
     <!-- Detail Modal for distortion cards -->
     <div id="distortion-detail-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card detail-modal">
-        <button class="close-btn" id="detail-close">✕</button>
+ <button class="close-btn"id="detail-close"></button>
         <div id="detail-content"></div>
       </div>
     </div>
@@ -734,7 +734,7 @@
             <option value="55000">55,000원</option>
             <option value="60000">60,000원</option>
           </select>
-          <p style="font-size: 0.72rem; color: var(--text-muted); margin: -0.2rem 0 0;">⚡ 바로상담(전화) 요금은 예약 상담료 기준 <b>+25%로 자동 책정</b>돼요. (예: 40,000원 → 30초당 830캐시)</p>
+ <p style="font-size: 0.72rem; color: var(--text-muted); margin: -0.2rem 0 0;"> 바로상담(전화) 요금은 예약 상담료 기준 <b>+25%로 자동 책정</b>돼요. (예: 40,000원 → 30초당 830캐시)</p>
           <textarea id="creg-intro" rows="2" placeholder="자기소개" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; resize: vertical;"></textarea>
           <!-- 전문분야 (상담사가 직접 선택 — 매칭 카드에 뱃지로 노출) -->
           <div>
@@ -743,7 +743,7 @@
           </div>
           <!-- 프로필 사진 -->
           <div style="display: flex; align-items: center; gap: 0.8rem;">
-            <div id="creg-photo-preview" style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;">📷</div>
+ <div id="creg-photo-preview"style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; overflow: hidden; flex-shrink: 0;"></div>
             <div style="flex: 1;">
               <strong style="font-size: 0.85rem; color: var(--text-primary); display: block;">프로필 사진</strong>
               <span style="font-size: 0.72rem; color: var(--text-muted);">얼굴이 보이는 사진일수록 예약률이 높아요</span>
@@ -1212,7 +1212,7 @@
       <div class="modal-content glass-card" style="max-height: 80vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
           <h2 class="card-head" style="margin: 0;"><span class="h-ico" data-icon="dashboard" data-icon-size="22"></span>CBT 상세 리포트</h2>
-          <button class="close-btn" onclick="closeReportDetail()">✕</button>
+ <button class="close-btn"onclick="closeReportDetail()"></button>
         </div>
         
         <div style="background: color-mix(in srgb, var(--accent-primary) 6%, transparent); padding: 1.2rem; border-radius: 14px; margin-bottom: 1.5rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 12%, transparent);">
@@ -1303,7 +1303,7 @@
     <!-- Counselor Profile Modal -->
     <div id="counselor-profile-modal" class="modal-overlay hidden">
       <div class="modal-content glass-card" style="max-height: 85vh; overflow-y: auto; padding-bottom: 2rem; position: relative;">
-        <button class="close-btn" style="position: absolute; top: 1rem; right: 1rem; z-index: 10;" onclick="window.Marketplace.closeProfile()">✕</button>
+ <button class="close-btn"style="position: absolute; top: 1rem; right: 1rem; z-index: 10;"onclick="window.Marketplace.closeProfile()"></button>
         <div id="counselor-profile-content">
           <!-- dynamically inserted -->
         </div>

@@ -324,5 +324,22 @@
       '</svg>';
   };
 
-  window.Icons = { svg, stars, art: ART, palette: P, line: LINE, faces: FACES, hand: WR, handPalette: W };
+  // 감정 이름 → 직접 그린 표정 아이콘.
+  //  기분 칩·일기 날씨·리포트가 전부 이걸 쓴다. 전에는 자리마다 이모지를
+  //  따로 박아 두어서 기기 폰트에 따라 다른 얼굴이 보였다.
+  const MOOD_FACE = {
+    '기쁨': 'faceGrin', '뿌듯': 'faceGrin',
+    '편안': 'faceSmile',
+    '보통': 'faceNeutral',
+    '불안': 'faceDown', '분노': 'faceDown', '좌절': 'faceDown',
+    '우울': 'faceSad', '외로움': 'faceSad'
+  };
+  function mood(name, size) {
+    const key = MOOD_FACE[String(name || '').trim()];
+    if (!key) return '';
+    return svg(key, { size: size || 15 });
+  }
+
+  window.Icons = { svg, stars, art: ART, palette: P, line: LINE, faces: FACES,
+                   hand: WR, handPalette: W, mood, MOOD_FACE };
 })();

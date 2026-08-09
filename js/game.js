@@ -6,7 +6,7 @@
 // ============================================================================
 window.Game = {
 
-  // 옷장·훈장은 탭이 아니라 방 안의 하위 화면 (방의 👒 / 🏅 버튼으로 진입)
+ // 옷장·훈장은 탭이 아니라 방 안의 하위 화면 (방의 / 버튼으로 진입)
   VIEWS: [
     { id: 'room',   ico: 'home',   name: '방' },
     { id: 'quest',  ico: 'quest',  name: '퀘스트' },
@@ -115,7 +115,7 @@ window.Game = {
     el.innerHTML = `
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem;">
         <strong style="font-size: 0.94rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.3rem;">${title}</strong>
-        <button onclick="window.Game.closeSheet()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.35rem;">✕</button>
+ <button onclick="window.Game.closeSheet()"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1rem; padding: 0.1rem 0.35rem;"></button>
       </div>${inner}`;
     el.classList.remove('hidden');
     if (window.Sfx) window.Sfx.play('pop');
@@ -124,9 +124,9 @@ window.Game = {
 
   openCheckin() {
     const EMO = [
-      { v: 5, e: '기쁨', s: 'joy', i: '😄' }, { v: 4, e: '편안', s: 'empathy', i: '🙂' },
-      { v: 3, e: '보통', s: 'blank', i: '😐' }, { v: 2, e: '불안', s: 'surprise', i: '😟' },
-      { v: 1.5, e: '우울', s: 'sad', i: '😢' }
+ { v: 5, e:'기쁨', s:'joy', i:''}, { v: 4, e:'편안', s:'empathy', i:''},
+ { v: 3, e:'보통', s:'blank', i:''}, { v: 2, e:'불안', s:'surprise', i:''},
+ { v: 1.5, e:'우울', s:'sad', i:''}
     ];
     const last = window.Storage._safeGet('cbt_last_mood_ts', 0) || 0;
     const waitMin = Math.ceil((20 * 60000 - (Date.now() - last)) / 60000);
@@ -215,7 +215,7 @@ window.Game = {
       window.UI.alert(`씨앗코인이 부족해요. (${this.SHIELD_COIN_PRICE}코인 필요)\n농장에서 작물을 수확해보세요.`);
       return;
     }
-    if (!await window.UI.confirm(`🛡️ 스트릭 보호권 1개를 ${this.SHIELD_COIN_PRICE}코인에 살까요?`)) return;
+ if (!await window.UI.confirm(`스트릭 보호권 1개를 ${this.SHIELD_COIN_PRICE}코인에 살까요?`)) return;
     window.Farm.spendCoins(this.SHIELD_COIN_PRICE);
     window.Storage._safeSet('cbt_streak_shields', G.shields() + 1);
     if (window.Sfx) window.Sfx.hit('shield');
@@ -234,7 +234,7 @@ window.Game = {
     if (streak < 2 && G.shields() === 0) { el.innerHTML = ''; return; }
     el.innerHTML = `
       <p style="margin: 0; font-size: 0.66rem; color: var(--text-muted); text-align: right;">
-        🛡️ 보호권 ${G.shields()}개
+ 보호권 ${G.shields()}개
         <button onclick="window.Game.buyShieldWithCoins()" style="all: unset; cursor: pointer; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--glass-border); margin-left: 0.3rem;">코인으로 채우기</button>
       </p>`;
   }

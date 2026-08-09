@@ -179,7 +179,7 @@
     this.renderCounselors();
   },
 
-  // === 즐겨찾는 상담사 (♥) — 항상 맨 위에 고정 ===
+ // === 즐겨찾는 상담사 () — 항상 맨 위에 고정 ===
   favs() {
     return (window.Storage && window.Storage._safeGet('cbt_favs', [])) || [];
   },
@@ -229,7 +229,7 @@
     row.innerHTML = `
       <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.Marketplace.openSortSheet()">${sortLabel} ${caret}</button>
       <button class="cc-chip ${this._availOnly ? 'on' : ''}" style="flex-shrink: 0;" onclick="window.Marketplace.toggleAvail()">바로상담 가능만</button>
-      <button class="cc-chip" style="flex-shrink: 0;" onclick="window.Marketplace.requestUserLocation()">${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''}<span id="gps-status-text">${this.hasGps ? '내 위치 ✓' : '내 위치'}</span></button>`;
+ <button class="cc-chip"style="flex-shrink: 0;"onclick="window.Marketplace.requestUserLocation()">${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) :''}<span id="gps-status-text">${this.hasGps ?'내 위치':'내 위치'}</span></button>`;
   },
 
   // 정렬 바텀시트 — 배달앱처럼 아래에서 올라오는 선택지
@@ -244,7 +244,7 @@
         <strong style="font-size: 0.98rem; color: var(--text-primary); display: block; margin-bottom: 0.3rem;">정렬</strong>
         ${this.SORTS.map(([v, label], i) => `
           <button onclick="window.Marketplace.pickSort('${v}')" style="all: unset; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 0.8rem 0.15rem; font-size: 0.93rem; cursor: pointer; color: ${this._sort === v ? 'var(--accent-primary)' : 'var(--text-primary)'}; font-weight: ${this._sort === v ? '800' : '500'}; ${i < this.SORTS.length - 1 ? 'border-bottom: 1px solid var(--glass-border);' : ''}">
-            <span>${label}</span>${this._sort === v ? '<span style="font-weight: 900;">✓</span>' : ''}
+ <span>${label}</span>${this._sort === v ?'<span style="font-weight: 900;"></span>':''}
           </button>`).join('')}
       </div>`;
     wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
@@ -290,7 +290,7 @@
         (c.tags || []).some(t => t.toLowerCase().includes(q)));
     }
 
-    // 1순위: ♥ 즐겨찾기, 2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
+ // 1순위: 즐겨찾기, 2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
     const stateRank = { avail: 0, busy: 1, off: 2 };
     filtered.sort((a, b) => {
       const f = (this.isFav(a.id) ? 0 : 1) - (this.isFav(b.id) ? 0 : 1);
@@ -306,7 +306,7 @@
 
     if (!filtered.length) {
       list.innerHTML = `<div style="text-align: center; padding: 2.2rem 1rem; color: var(--text-muted);">
-        <div style="margin-bottom: 0.5rem;">${window.Stickers ? window.Stickers.svg('think', 72) : '🔍'}</div>
+ <div style="margin-bottom: 0.5rem;">${window.Stickers ? window.Stickers.svg('think', 72) :''}</div>
         <p style="font-size: 0.88rem; margin: 0;">${this._query ? `'${this._query.replace(/[<>&"']/g, '')}' 검색 결과가 없어요` : '조건에 맞는 상담사가 없어요'}</p>
         <p style="font-size: 0.76rem; margin: 0.3rem 0 0;">검색어나 필터를 바꿔보세요</p>
       </div>`;
@@ -612,7 +612,7 @@
           <h2 style="margin: 0;">${counselor.name}</h2>
           <p class="meta-line" style="color: var(--text-muted); font-size: 0.9rem; margin: 0.3rem 0;">${window.Icons ? window.Icons.svg('hospital', { size: 15 }) : ''}${counselor.hospital}</p>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.4rem 0;">
-            <span style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;">📍 내 위치에서 ${dist} km</span>
+ <span style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;"> 내 위치에서 ${dist} km</span>
           </div>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.5rem 0;">
             ${window.Icons ? window.Icons.stars(counselor.rating, 17) : ''}

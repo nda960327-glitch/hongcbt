@@ -185,7 +185,7 @@ window.Closet = {
     const it = this.item(id);
     if (!it || !this._grant(id)) return false;
     if (window.App) {
-      window.App.showRecordToast(`🎁 옷장에 '${it.name}' 도착! ${reason || ''}`.trim());
+ window.App.showRecordToast(`옷장에'${it.name}'도착! ${reason ||''}`.trim());
       window.App.stickerPop('gift', 1600);
     }
     if (window.App && window.App.notify) window.App.notify('우렁이 옷장', `'${it.name}'을(를) 얻었어요!`);
@@ -226,10 +226,10 @@ window.Closet = {
     this.equip(id);
     if (window.App) {
       const thanks = [
-        `우와아 '${it.name}'…?! 나 주는 거야?! 고마워!! 💚`,
+`우와아'${it.name}'…?! 나 주는 거야?! 고마워!!`,
         `헉 '${it.name}' 진짜 갖고 싶었는데!! 평생 잘 입을게!`,
         `'${it.name}' 받았다!! 나 오늘 제일 행복한 달팽이야`,
-        `고마워… '${it.name}' 소중하게 아껴 입을게 🥹`
+`고마워…'${it.name}'소중하게 아껴 입을게`
       ];
       window.App.showRecordToast(thanks[Math.floor(Math.random() * thanks.length)]);
       window.App.stickerPop(['love', 'stareyes', 'dance', 'bow'][Math.floor(Math.random() * 4)], 1700);
@@ -360,11 +360,11 @@ window.Closet = {
       <button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>
       ${this.scene()}
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem;">
-        <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">🌰 ${coins.toLocaleString()}코인</span>
-        <span style="font-size: 0.72rem; color: var(--text-muted);">💰 ${cash.toLocaleString()}캐시</span>
+ <span style="font-size: 0.76rem; font-weight: 800; color: var(--accent-primary);">${coins.toLocaleString()}코인</span>
+ <span style="font-size: 0.72rem; color: var(--text-muted);">${cash.toLocaleString()}캐시</span>
         <button onclick="window.Closet.unequipAll()" style="all: unset; margin-left: auto; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); cursor: pointer; border-bottom: 1px solid var(--glass-border);">전부 벗기</button>
         <button onclick="window.Closet.toggleShop()" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.76rem; font-weight: 800; color: ${this._shopOpen ? 'var(--text-muted)' : '#fff'}; background: ${this._shopOpen ? 'var(--bg-tertiary)' : 'var(--accent-primary)'}; border: 1px solid ${this._shopOpen ? 'var(--glass-border)' : 'transparent'}; padding: 0.35rem 0.8rem; border-radius: 999px;">
-          ${this._shopOpen ? '닫기 ▲' : '🛍 쇼핑하기 ▼'}
+ ${this._shopOpen ?'닫기 ▲':'쇼핑하기 ▼'}
         </button>
       </div>
       <div style="${this._shopOpen ? '' : 'display: none;'} margin-top: 0.5rem;">

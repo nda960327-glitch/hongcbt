@@ -171,7 +171,7 @@ window.Voice = {
           svg = window.Icons.svg(this.isTtsEnabled ? 'volume-2' : 'volume-off', { size: 14 }) || '';
         }
       } catch (e) { svg = ''; }
-      iconSpan.innerHTML = svg || (this.isTtsEnabled ? '🔊' : '🔇');
+ iconSpan.innerHTML = svg || (this.isTtsEnabled ?'':'');
     }
   },
 

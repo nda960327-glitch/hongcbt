@@ -81,11 +81,11 @@ window.Calm = {
   // --- 5-4-3-2-1 그라운딩 ---
   startGrounding() {
     const steps = [
-      ['👀', '지금 눈에 보이는 것', '5가지', '천천히 둘러보며 하나씩 마음속으로 이름 붙여보세요'],
-      ['🖐️', '몸에 닿아 있는 감촉', '4가지', '옷의 무게, 의자의 단단함, 발바닥의 바닥…'],
-      ['👂', '지금 들리는 소리', '3가지', '멀리서 나는 소리까지 귀 기울여보세요'],
-      ['👃', '지금 맡을 수 있는 냄새', '2가지', '없다면 좋아하는 냄새 두 가지를 떠올려도 좋아요'],
-      ['👅', '지금 느껴지는 맛', '1가지', '물 한 모금도 좋아요. 천천히.']
+ ['','지금 눈에 보이는 것','5가지','천천히 둘러보며 하나씩 마음속으로 이름 붙여보세요'],
+ ['','몸에 닿아 있는 감촉','4가지','옷의 무게, 의자의 단단함, 발바닥의 바닥…'],
+ ['','지금 들리는 소리','3가지','멀리서 나는 소리까지 귀 기울여보세요'],
+ ['','지금 맡을 수 있는 냄새','2가지','없다면 좋아하는 냄새 두 가지를 떠올려도 좋아요'],
+ ['','지금 느껴지는 맛','1가지','물 한 모금도 좋아요. 천천히.']
     ];
     let i = 0;
     const render = () => {
@@ -124,7 +124,7 @@ window.Calm = {
     const ov = document.createElement('div');
     ov.id = 'calm-overlay';
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10003; background: linear-gradient(180deg, #33493d 0%, #1f2f26 100%); color: #f2ede4; display: flex; align-items: center; justify-content: center; padding: 2rem 1.4rem;';
-    ov.innerHTML = inner + `<button onclick="window.Calm.close()" style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.4rem; cursor: pointer; opacity: 0.7; padding: 0.3rem;">✕</button>`;
+ ov.innerHTML = inner +`<button onclick="window.Calm.close()"style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.4rem; cursor: pointer; opacity: 0.7; padding: 0.3rem;"></button>`;
     document.body.appendChild(ov);
   },
 

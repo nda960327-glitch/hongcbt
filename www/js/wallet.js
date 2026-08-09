@@ -35,7 +35,7 @@ window.Wallet = {
   async charge(pay, bonus = 0) {
     if (!pay || pay <= 0) return false;
     const total = pay + bonus;
-    if (!await window.UI.confirm(`${pay.toLocaleString()}원을 결제하고 ${total.toLocaleString()}캐시를 받을까요?${bonus ? `\n🎁 보너스 +${bonus.toLocaleString()}캐시 포함!` : ''}\n(현재는 테스트 충전 — 스토어 결제 연동 전)`)) return false;
+ if (!await window.UI.confirm(`${pay.toLocaleString()}원을 결제하고 ${total.toLocaleString()}캐시를 받을까요?${bonus ?`\n 보너스 +${bonus.toLocaleString()}캐시 포함!`:''}\n(현재는 테스트 충전 — 스토어 결제 연동 전)`)) return false;
     const bal = this.balance() + total;
     window.Storage._safeSet('cbt_cash', bal);
     this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);

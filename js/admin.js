@@ -25,7 +25,7 @@ window.Admin = {
     ov.className = 'modal-overlay';
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 300px; text-align: center;">
-        <h2 style="margin: 0 0 0.8rem; font-size: 1.05rem;">🛠️ 운영자 코드</h2>
+ <h2 style="margin: 0 0 0.8rem; font-size: 1.05rem;"> 운영자 코드</h2>
         <input id="admin-code-input" type="password" inputmode="numeric" placeholder="코드 입력" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); outline: none; text-align: center; font-size: 1rem;">
         <p id="admin-code-err" class="hidden" style="color: #c14a4a; font-size: 0.76rem; margin: 0.5rem 0 0;">코드가 올바르지 않습니다.</p>
         <div style="display: flex; gap: 0.5rem; margin-top: 0.9rem;">
@@ -61,7 +61,7 @@ window.Admin = {
     const origConfirm = window.confirm, origAlert = window.alert;
     window.confirm = () => true; window.alert = () => {};
     try { window.App.approveCounselorApp(appId); } finally { window.confirm = origConfirm; window.alert = origAlert; }
-    if (window.App && window.App.showRecordToast) window.App.showRecordToast(`✅ '${a.name}' 입점 승인 완료`);
+ if (window.App && window.App.showRecordToast) window.App.showRecordToast(`'${a.name}'입점 승인 완료`);
     this._render();
   },
 
@@ -250,15 +250,15 @@ window.Admin = {
         </div>
         ${(a.tags && a.tags.length) ? `<div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem;">${a.tags.map(t => `<span style="font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.12rem 0.5rem; border-radius: 999px;">${t}</span>`).join('')}</div>` : ''}
         <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.35rem; line-height: 1.5;">
-          🏥 ${a.hospital}<br>
-          📍 ${a.addr || '(주소 미입력)'}${a.tel ? `<br>☎️ ${a.tel}` : ''}<br>
-          💰 30분 ${(a.price || 0).toLocaleString()}원 · 신청일 ${new Date(a.ts).toLocaleDateString('ko-KR')}
-          ${a.intro ? `<br>💬 ${a.intro}` : ''}
+ ${a.hospital}<br>
+ ${a.addr ||'(주소 미입력)'}${a.tel ?`<br>${a.tel}`:''}<br>
+ 30분 ${(a.price || 0).toLocaleString()}원 · 신청일 ${new Date(a.ts).toLocaleDateString('ko-KR')}
+ ${a.intro ?`<br>${a.intro}`:''}
           ${rejected && a.rejectReason ? `<br><span style="color: #c14a4a;">반려 사유: ${a.rejectReason}</span>` : ''}
         </div>
         ${(!approved && !rejected) ? `
           <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
-            <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem;" onclick="window.Admin.approve('${a.id}')">✅ 승인</button>
+ <button class="btn-primary"style="flex: 1; font-size: 0.78rem; padding: 0.45rem;"onclick="window.Admin.approve('${a.id}')"> 승인</button>
             <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem; color: #c14a4a;" onclick="window.Admin.reject('${a.id}')">반려</button>
           </div>` : ''}
       </div>`;
@@ -269,23 +269,23 @@ window.Admin = {
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10006; background: var(--bg-primary); overflow-y: auto; max-width: 480px; margin: 0 auto;';
     ov.innerHTML = `
       <div style="position: sticky; top: 0; z-index: 1; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border); padding: 0.85rem 1.1rem; display: flex; align-items: center; gap: 0.6rem;">
-        <strong style="font-size: 1rem; color: var(--text-primary);">🛠️ 운영자 콘솔</strong>
+ <strong style="font-size: 1rem; color: var(--text-primary);"> 운영자 콘솔</strong>
         <span style="font-size: 0.66rem; font-weight: 700; color: #b98a1a; background: #f5c74e33; padding: 0.15rem 0.5rem; border-radius: 999px;">데모 · 실서비스는 별도 어드민</span>
         <span style="flex: 1;"></span>
-        <button onclick="window.Admin.close()" style="all: unset; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.4rem;">✕</button>
+ <button onclick="window.Admin.close()"style="all: unset; font-size: 1.2rem; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.4rem;"></button>
       </div>
       <div style="padding: 1rem 1.1rem 2rem; display: flex; flex-direction: column; gap: 1.2rem;">
 
         <div>
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem;">
-            <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);">📊 서비스 현황 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(서버 집계)</span></h3>
-            <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.6rem;" onclick="window.Admin._render()">🔄 새로고침</button>
+ <h3 style="margin: 0; font-size: 0.95rem; color: var(--text-primary);"> 서비스 현황 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(서버 집계)</span></h3>
+ <button class="btn-secondary"style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.6rem;"onclick="window.Admin._render()"> 새로고침</button>
           </div>
           <div id="admin-stats-grid" style="display: flex; gap: 0.45rem; flex-wrap: wrap;">
             <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 통계를 불러오는 중…</p>
           </div>
           <div style="margin-top: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.7;">
-            <b style="color: var(--text-primary);">📱 이 기기 사용자</b> ·
+ <b style="color: var(--text-primary);"> 이 기기 사용자</b> ·
             ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `무료 플랜 (오늘 ${window.Subscription.chatLeft()}/30회 남음)`) : '-'}
             · 누적 대화 ${(S._safeGet('cbt_total_chats', 0) || 0).toLocaleString()}회 · 체크인 ${((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString()}회 · 심사 대기 ${pending.length}건
           </div>
@@ -293,7 +293,7 @@ window.Admin = {
         </div>
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">💼 수익 구조</h3>
+ <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
             <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
             플랫폼 <b style="color: var(--accent-primary);">7%</b> · PG 수수료 3~4%(실비) · 병원 10% · <b style="color: var(--text-primary);">상담사 나머지 약 80%</b><br>
@@ -310,7 +310,7 @@ window.Admin = {
         </div>
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">🗂️ 상담사 입점 심사 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${apps.length}건)</span></h3>
+ <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 상담사 입점 심사 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${apps.length}건)</span></h3>
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
             ${apps.length ? apps.map(appCard).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">접수된 신청이 없습니다.</p>'}
           </div>
@@ -322,7 +322,7 @@ window.Admin = {
         </div>
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">📥 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(이 기기 기록)</span></h3>
+ <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(이 기기 기록)</span></h3>
           <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="/counselor.html" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 열람 코드 1234</p>
           ${(() => {
             const packs = Object.entries(S._safeGet('cbt_shared_packs', {}) || {});
@@ -339,14 +339,14 @@ window.Admin = {
         </div>
 
         <div>
-          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">👩‍⚕️ 입점 상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${customs.length}명)</span></h3>
+ <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 입점 상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(${customs.length}명)</span></h3>
           <div style="display: flex; flex-direction: column; gap: 0.6rem;">
             ${customs.length ? customs.map(c => `
               <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
                 <div style="flex: 1; min-width: 0;">
                   <strong style="font-size: 0.86rem; color: var(--text-primary);">${c.name}</strong>
                   <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${c.price.toLocaleString()}원</div>
-                  <div style="font-size: 0.72rem; margin-top: 0.15rem; ${c.inboxCode ? 'color: var(--accent-primary); font-weight: 700;' : 'color: var(--text-muted);'}">🔑 수신함 코드: ${c.inboxCode || '(서버 미연결 — 발급 안 됨)'}</div>
+ <div style="font-size: 0.72rem; margin-top: 0.15rem; ${c.inboxCode ?'color: var(--accent-primary); font-weight: 700;':'color: var(--text-muted);'}"> 수신함 코드: ${c.inboxCode ||'(서버 미연결 — 발급 안 됨)'}</div>
                 </div>
                 <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">노출 중단</button>
               </div>`).join('') : '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 1rem 0;">입점 승인된 상담사가 없습니다.</p>'}

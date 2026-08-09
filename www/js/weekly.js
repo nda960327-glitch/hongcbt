@@ -70,7 +70,7 @@ window.Weekly = {
       (s.topEmo.length ? `자주 만난 감정은 ${s.topEmo.join(', ')} 이었네요.\n` : '') +
       (s.nights.length ? `하루 정리를 ${s.nights.length}번 함께했고, ` : '') +
       (s.records.length ? `사고 기록을 ${s.records.length}개 남겼어요.\n` : '\n') +
-      `\n다음 주의 당신에게도 우렁이가 꼭 붙어있을게요. 🐌`;
+`\n다음 주의 당신에게도 우렁이가 꼭 붙어있을게요.`;
   },
 
   async generate(force) {
@@ -115,7 +115,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
 - 실제 데이터 속 구체적인 순간을 한두 개 짚어주기 (절대 지어내지 말 것)
 - 힘들었던 날은 진지하게 수고를 알아주고, 좋았던 순간은 호들갑스럽게 같이 기뻐하기
 - 다음 주를 위한 아주 작은 제안 하나 — 우렁이답게 게으르고 만만한 걸로
-- 전체 6~9문장, 마지막에 "— 느리지만 계속 가고 있는, 우렁이 🐌" 서명
+- 전체 6~9문장, 마지막에"— 느리지만 계속 가고 있는, 우렁이"서명
 - 편지 본문만 출력
 
 [결 참고용 예시 — 그대로 베끼지 말고 리듬만]
@@ -155,7 +155,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     this.renderCard();
     if (window.App) {
       if (window.App._notifOn && window.App._notifOn('letter')) {
-        if (window.App.notify) window.App.notify('💌 우렁이의 주간 편지', '이번 주를 돌아본 편지가 도착했어요');
+ if (window.App.notify) window.App.notify('우렁이의 주간 편지','이번 주를 돌아본 편지가 도착했어요');
         if (window.App.playWoorung) window.App.playWoorung();
       }
       if (window.App.showRecordToast) window.App.showRecordToast('주간 편지가 도착했어요 (대시보드)');
@@ -174,7 +174,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
       return;
     }
     const btn = document.getElementById('weekly-generate');
-    if (btn) { btn.disabled = true; btn.textContent = '우렁이가 편지 쓰는 중… ✍️'; }
+ if (btn) { btn.disabled = true; btn.textContent ='우렁이가 편지 쓰는 중…'; }
     await this.generate(false);
     this.renderCard();
   },
@@ -209,7 +209,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     // 제목·날짜
     c2.fillStyle = '#362f28';
     c2.font = 'bold 40px "Gowun Batang", serif';
-    c2.fillText('💌 우렁이의 주간 편지', PAD, 110);
+ c2.fillText('우렁이의 주간 편지', PAD, 110);
     c2.fillStyle = '#7f7264';
     c2.font = '24px "Noto Sans KR", sans-serif';
     c2.fillText(new Date(l.ts).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }), PAD, 156);
@@ -221,7 +221,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     // 푸터
     c2.fillStyle = '#4f8a6b';
     c2.font = 'bold 26px "Noto Sans KR", sans-serif';
-    c2.fillText('🐌 우렁의사 — 당신을 기억하는 AI 마음 주치의', PAD, H - 60);
+ c2.fillText('우렁의사 — 당신을 기억하는 AI 마음 주치의', PAD, H - 60);
 
     cv.toBlob(async blob => {
       if (!blob) return;
@@ -249,7 +249,7 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     const letterHtml = (l, open) => `
       <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 14px; padding: 1rem 1.1rem; ${open ? '' : 'cursor: pointer;'}" ${open ? '' : `onclick="this.querySelector('.wl-body').classList.toggle('hidden')"`}>
         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: ${open ? '0.6rem' : '0.3rem'};">
-          <span style="font-size: 1.05rem;">💌</span>
+ <span style="font-size: 1.05rem;"></span>
           <strong style="font-size: 0.85rem; color: var(--text-primary);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}의 편지</strong>
           <span style="flex: 1;"></span>
           <span style="font-size: 0.68rem; color: var(--text-muted);">체크인 ${l.stats.moods} · 하루정리 ${l.stats.nights} · 기록 ${l.stats.records}</span>
@@ -260,14 +260,14 @@ ${(window.Storage.getUserMemory() || '').slice(0, 1500) || '(없음)'}
     el.innerHTML = `
       ${latest ? letterHtml(latest, true) : `
         <div style="text-align: center; padding: 0.4rem 0 0.6rem;">
-          <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('think', 84) : '💌'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('think', 84) :''}</span>
           <p style="font-size: 0.83rem; color: var(--text-muted); margin: 0.5rem 0 0;">아직 받은 편지가 없어요.<br>일주일을 보내고 나면 우렁이가 편지를 써드려요.</p>
         </div>`}
       <div style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
         <button id="weekly-generate" class="btn-primary" style="flex: 1.4; font-size: 0.85rem; ${thisWeek ? 'opacity: 0.5; cursor: default;' : ''}" onclick="window.Weekly.requestLetter()">
-          ${thisWeek ? '✅ 이번 주 편지 도착함' : '💌 이번 주 편지 받기'}
+ ${thisWeek ?'이번 주 편지 도착함':'이번 주 편지 받기'}
         </button>
-        ${latest ? `<button class="btn-secondary" style="flex: 1; font-size: 0.85rem;" onclick="window.Weekly.shareCard('${latest.id}')">🖼 카드로 저장</button>` : ''}
+ ${latest ?`<button class="btn-secondary"style="flex: 1; font-size: 0.85rem;"onclick="window.Weekly.shareCard('${latest.id}')"> 카드로 저장</button>`:''}
       </div>
       ${thisWeek ? `<p style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; text-align: center;">우렁이는 한 주에 한 통만 써요 · 다음 편지는 ${this.waitText()}</p>` : ''}
       ${list.length > 1 ? `

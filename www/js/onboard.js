@@ -4,14 +4,14 @@
 // ============================================================================
 window.Onboard = {
   CONCERNS: [
-    { id: 'dep',    emoji: '🌧️', label: '우울감·무기력',   persona: 'dalnim' },
-    { id: 'anx',    emoji: '🌪️', label: '불안·걱정',       persona: 'haru' },
-    { id: 'stress', emoji: '🔥', label: '스트레스·번아웃', persona: 'sonamu' },
-    { id: 'rel',    emoji: '👥', label: '대인관계',        persona: 'haru' },
-    { id: 'self',   emoji: '🪞', label: '자존감',          persona: 'haru' },
-    { id: 'sleep',  emoji: '🌙', label: '수면 문제',       persona: 'sonamu' },
-    { id: 'vent',   emoji: '🗯️', label: '감정 쏟아내기',   persona: 'dalnim' },
-    { id: 'talk',   emoji: '☕', label: '그냥 대화 상대',   persona: 'woorung' }
+ { id:'dep', icon:'moon', label:'우울감·무기력', persona:'dalnim'},
+ { id:'anx', icon:'bolt', label:'불안·걱정', persona:'haru'},
+ { id:'stress', icon:'lifering', label:'스트레스·번아웃', persona:'sonamu'},
+ { id:'rel', icon:'link', label:'대인관계', persona:'haru'},
+ { id:'self', icon:'heart', label:'자존감', persona:'haru'},
+ { id:'sleep', icon:'moonly', label:'수면 문제', persona:'sonamu'},
+ { id:'vent', icon:'bubble', label:'감정 쏟아내기', persona:'dalnim'},
+ { id:'talk', icon:'chat', label:'그냥 대화 상대', persona:'woorung'}
   ],
 
   needed() {
@@ -40,12 +40,12 @@ window.Onboard = {
     const d = this._data;
     if (n === 1) {
       this._wrap(`
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('joy', 120) : '🐌'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('joy', 120) :''}</span>
         <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.35rem;">만나서 반가워요!</h2>
         <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin: 0 0 1.3rem;">저는 당신의 마음 주치의, <b>우렁이</b>예요.<br>뭐라고 불러드리면 될까요?</p>
         <input id="ob-name" maxlength="12" placeholder="별명이나 이름 (건너뛰어도 돼요)" style="width: 100%; box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.95rem; text-align: center;">
         <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
-        <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 🔒</p>`);
+ <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 </p>`);
       const input = document.getElementById('ob-name');
       setTimeout(() => input.focus(), 200);
       document.getElementById('ob-next').addEventListener('click', () => {
@@ -56,13 +56,13 @@ window.Onboard = {
 
     } else if (n === 2) {
       this._wrap(`
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('empathy', 100) : '💚'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('empathy', 100) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem;">${d.name ? d.name + ' 님, ' : ''}요즘 마음은 어때요?</h2>
         <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 1.1rem;">해당하는 것을 모두 골라주세요.</p>
         <div id="ob-chips" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
           ${this.CONCERNS.map(c => `
             <button data-id="${c.id}" style="all: unset; box-sizing: border-box; padding: 0.75rem 0.5rem; border-radius: 14px; cursor: pointer; text-align: center; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
-              <span style="display: block; font-size: 1.4rem; margin-bottom: 0.2rem;">${c.emoji}</span>${c.label}
+              <span style="display: block; line-height: 0; margin-bottom: 0.35rem; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(c.icon || 'mind', { size: 24 }) : ''}</span>${c.label}
             </button>`).join('')}
         </div>
         <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1.1rem;">다음 ›</button>`);
@@ -77,7 +77,7 @@ window.Onboard = {
     } else if (n === 25) {
       // 프로필 (선택) — 상담사 예약·연락에 쓰인다. 부담 없게 건너뛰기 허용
       this._wrap(`
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('write', 96) : '📝'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('write', 96) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.2rem;">연락처를 남겨둘까요?</h2>
         <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 0 0 1.1rem; line-height: 1.6;">전문 상담사 예약과 연락에만 쓰여요.<br>지금 건너뛰고 나중에 설정에서 적어도 돼요.</p>
         <input id="ob-phone" type="tel" maxlength="13" placeholder="전화번호 (예: 010-1234-5678)"

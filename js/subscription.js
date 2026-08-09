@@ -120,7 +120,7 @@ window.Subscription = {
     window.Storage._safeSet('cbt_sub_until', base + 30 * 86400000);
     const m = document.getElementById('sub-paywall-modal');
     if (m) m.classList.add('hidden');
-    window.UI.alert(`구독이 시작되었습니다! 🎉\n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
+ window.UI.alert(`구독이 시작되었습니다! \n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
     this.renderCard();
     this.renderBadge();
   },

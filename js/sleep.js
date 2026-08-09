@@ -9,9 +9,9 @@ window.SleepSounds = {
   _current: null,
 
   SOUNDS: [
-    { id: 'rain',  emoji: '🌧️', name: '빗소리',   desc: '창밖에 비 내리는 밤' },
-    { id: 'waves', emoji: '🌊', name: '파도',     desc: '밀려왔다 밀려가는 바닷가' },
-    { id: 'white', emoji: '🌫️', name: '백색소음', desc: '생각을 덮어주는 고른 소리' }
+ { id:'rain', icon:'water', name:'빗소리', desc:'창밖에 비 내리는 밤'},
+ { id:'waves', icon:'moonly', name:'파도', desc:'밀려왔다 밀려가는 바닷가'},
+ { id:'white', icon:'bubble', name:'백색소음', desc:'생각을 덮어주는 고른 소리'}
   ],
 
   _audioCtx() {
@@ -113,14 +113,14 @@ window.SleepSounds = {
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10004; background: linear-gradient(180deg, #1c2733 0%, #10161d 100%); color: #f5f1e6; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem;';
     ov.innerHTML = `
       <div style="width: 100%; max-width: 320px; text-align: center;">
-        <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 100) : '😴'}</span>
+ <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 100) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; color: #ffffff;">수면 사운드</h2>
         <p style="font-size: 0.86rem; color: #d9d2c0; margin: 0 0 1.2rem;">잔잔한 소리가 생각을 덮어줄 거예요.<br>화면을 꺼도 소리는 계속돼요.</p>
         <div id="sleep-sound-btns" style="display: flex; flex-direction: column; gap: 0.55rem; margin-bottom: 1rem;"></div>
         <p style="font-size: 0.78rem; color: #cfc7b4; margin: 0 0 0.4rem;">자동 끄기</p>
         <div id="sleep-timer-btns" style="display: flex; gap: 0.4rem; justify-content: center;"></div>
       </div>
-      <button onclick="window.SleepSounds.stop(true); document.getElementById('sleep-overlay').remove();" style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.8; padding: 0.3rem;">✕</button>`;
+ <button onclick="window.SleepSounds.stop(true); document.getElementById('sleep-overlay').remove();"style="all: unset; position: absolute; top: 1rem; right: 1.2rem; font-size: 1.3rem; cursor: pointer; opacity: 0.8; padding: 0.3rem;"></button>`;
     document.body.appendChild(ov);
     this._updateUI();
   },
@@ -132,7 +132,7 @@ window.SleepSounds = {
         const on = this._current === s.id;
         return `<button onclick="window.SleepSounds.${on ? 'stop()' : `start('${s.id}')`}"
           style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left; padding: 0.8rem 1rem; border-radius: 14px; cursor: pointer; background: ${on ? 'rgba(151,199,235,0.22)' : 'rgba(255,255,255,0.1)'}; border: 1.5px solid ${on ? '#97c7eb' : 'transparent'};">
-          <span style="font-size: 1.5rem;">${s.emoji}</span>
+          <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg(s.icon || 'moonly', { size: 24 }) : ''}</span>
           <span style="flex: 1;">
             <strong style="display: block; font-size: 0.95rem; color: #ffffff;">${s.name} ${on ? '<span style="font-size:0.7rem; color:#97c7eb;">재생 중</span>' : ''}</strong>
             <span style="font-size: 0.76rem; color: #cfc7b4;">${s.desc}</span>

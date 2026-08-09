@@ -4,28 +4,28 @@
 // ============================================================================
 window.StickerShop = {
   PACKS: [
-    { id: 'basic', name: '기본 감정', emoji: '🙂', price: 0,
+ { id:'basic', name:'기본 감정',  price: 0,
       desc: '처음부터 함께하는 기본 표정들',
       stickers: ['joy', 'empathy', 'sad', 'cheer', 'blank', 'sleepy'] },
-    { id: 'reaction', name: '리액션 팩', emoji: '😆', price: 1500,
+ { id:'reaction', name:'리액션 팩',  price: 1500,
       desc: '폭소·삐짐·반짝… 대화가 살아나는 리액션',
       stickers: ['laugh', 'hmph', 'stareyes', 'ok', 'no', 'shy', 'judge', 'bow'] },
-    { id: 'feelings', name: '격한 감정 팩', emoji: '🌋', price: 2000,
+ { id:'feelings', name:'격한 감정 팩',  price: 2000,
       desc: '말로 못 할 마음은 격하게 — 분노·대성통곡·기절',
       stickers: ['rage', 'bigcry', 'panic', 'faint', 'ghost', 'dizzy', 'melt', 'hide'] },
-    { id: 'daily', name: '일상 팩', emoji: '☕', price: 1500,
+ { id:'daily', name:'일상 팩',  price: 1500,
       desc: '배고픔·티타임·춤… 소소한 하루 공유용',
       stickers: ['hungry', 'run', 'cold', 'hot', 'sing', 'dance', 'tea', 'party'] },
-    { id: 'special', name: '스페셜 팩', emoji: '🦸', price: 2500,
+ { id:'special', name:'스페셜 팩',  price: 2500,
       desc: '히어로·탐정·선물… 우렁이의 특별한 모습들',
       stickers: ['hero', 'detective', 'gift', 'muscle', 'write', 'aha', 'peek', 'love', 'proud', 'surprise'] },
-    { id: 'haru_pack', name: '햇님 팩', emoji: '☀️', price: 2000, skin: 'haru',
+ { id:'haru_pack', name:'햇님 팩',  price: 2000, skin:'haru',
       desc: '햇살 캐릭터 햇님의 표정 모음',
       stickers: ['joy', 'cheer', 'laugh', 'ok', 'stareyes', 'proud', 'dance', 'love'] },
-    { id: 'dalnim_pack', name: '달님 팩', emoji: '🌙', price: 2000, skin: 'dalnim',
+ { id:'dalnim_pack', name:'달님 팩',  price: 2000, skin:'dalnim',
       desc: '포근한 밤의 달님 표정 모음',
       stickers: ['empathy', 'sad', 'sleepy', 'tea', 'shy', 'love', 'blank', 'bow'] },
-    { id: 'sonamu_pack', name: '소나무 팩', emoji: '🌲', price: 2000, skin: 'sonamu',
+ { id:'sonamu_pack', name:'소나무 팩',  price: 2000, skin:'sonamu',
       desc: '단단한 소나무의 표정 모음',
       stickers: ['think', 'ok', 'empathy', 'proud', 'tea', 'write', 'aha', 'bow'] }
   ],
@@ -51,7 +51,7 @@ window.StickerShop = {
   async buy(packId) {
     const pack = this.PACKS.find(p => p.id === packId);
     if (!pack || this.has(packId)) return;
-    if (!await window.UI.confirm(`'${pack.emoji} ${pack.name}' (${pack.stickers.length}종)을\n${pack.price.toLocaleString()}캐시로 구매할까요?\n구매한 이모티콘은 채팅에서 계속 쓸 수 있어요.`)) return;
+    if (!await window.UI.confirm(`'${pack.name}' (${pack.stickers.length}종)을\n${pack.price.toLocaleString()}캐시로 구매할까요?\n구매한 이모티콘은 채팅에서 계속 쓸 수 있어요.`)) return;
     if (!window.Wallet || !window.Wallet.spend(pack.price, `이모티콘 '${pack.name}' 구매`)) {
       window.UI.alert(`캐시가 부족해요. (${pack.price.toLocaleString()}캐시 필요)\n마이페이지에서 충전해주세요.`);
       return;
@@ -60,7 +60,7 @@ window.StickerShop = {
     o[packId] = Date.now();
     window.Storage._safeSet('cbt_sticker_packs', o);
     if (window.App) {
-      window.App.showRecordToast(`${pack.emoji} '${pack.name}' 구매 완료! 채팅에서 바로 써보세요`);
+      window.App.showRecordToast(`'${pack.name}' 구매 완료! 채팅에서 바로 써보세요`);
       window.App.stickerPop(pack.stickers[0], 1500);
       window.App.playWoorung();
     }
@@ -117,12 +117,12 @@ window.StickerShop = {
 
     panel.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.45rem; margin-bottom: 0.45rem; position: sticky; top: -0.6rem; background: var(--bg-secondary); padding: 0.4rem 0; z-index: 1;">
-        <strong style="font-size: 0.82rem; color: var(--text-primary);">${pack.emoji} ${pack.name}</strong>
+        <strong style="font-size: 0.82rem; color: var(--text-primary);">${pack.name}</strong>
         ${has
           ? (pack.price ? '<span style="font-size: 0.62rem; font-weight: 800; color: var(--accent-primary);">보유 중</span>' : '')
-          : `<button onclick="window.StickerShop.buy('${pack.id}')" style="all: unset; font-size: 0.68rem; font-weight: 800; color: #fff; background: var(--accent-secondary); padding: 0.2rem 0.6rem; border-radius: 999px; cursor: pointer;">🔓 ${pack.price.toLocaleString()}캐시로 열기</button>`}
+ :`<button onclick="window.StickerShop.buy('${pack.id}')"style="all: unset; font-size: 0.68rem; font-weight: 800; color: #fff; background: var(--accent-secondary); padding: 0.2rem 0.6rem; border-radius: 999px; cursor: pointer;">${pack.price.toLocaleString()}캐시로 열기</button>`}
         <span style="flex: 1;"></span>
-        <button onclick="window.StickerShop.closeDrawer()" style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;">✕</button>
+ <button onclick="window.StickerShop.closeDrawer()"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;"></button>
       </div>
       ${!has ? `<p style="margin: 0 0 0.4rem; font-size: 0.64rem; color: var(--text-muted);">${pack.desc}</p>` : ''}
       <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem; min-height: 150px;">
@@ -141,7 +141,7 @@ window.StickerShop = {
             style="all: unset; box-sizing: border-box; cursor: pointer; flex: 1; text-align: center; font-size: 1.05rem; padding: 0.3rem 0; border-radius: 10px; position: relative;
                    background: ${p.id === pack.id ? 'color-mix(in srgb, var(--accent-primary) 14%, transparent)' : 'transparent'};
                    ${owned[p.id] ? '' : 'opacity: 0.55;'}">
-            ${p.emoji}${owned[p.id] ? '' : '<span style="position: absolute; top: 1px; right: 4px; font-size: 0.5rem;">🔒</span>'}
+ ${window.Stickers ? window.Stickers.svg(p.stickers[0], 22) : ''}${owned[p.id] ?'':'<span style="position: absolute; top: 1px; right: 4px; font-size: 0.5rem;"></span>'}
           </button>`).join('')}
       </div>`;
   },
@@ -174,7 +174,7 @@ window.StickerShop = {
       if (window.LLM) {
         responses = await window.LLM.generateResponse(`(방금 '${label}' 이모티콘을 보냈어요 — 짧고 다정하게, 어울리는 스티커나 말로 반응해주세요)`);
       } else {
-        responses = [{ text: `${label} 이모티콘 잘 받았어! 🐌`, delay: 300 }];
+ responses = [{ text:`${label} 이모티콘 잘 받았어!`, delay: 300 }];
       }
       if (seq !== App._replySeq) return;
       App.removeTypingIndicator();

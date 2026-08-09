@@ -386,7 +386,7 @@ window.CarePlan = {
       return `[케어플랜] 2주 과정이 끝났습니다(${d}일차). 초점은 "${p.focus}"였습니다.`
         + ` 잘 지킨 것과 못 지킨 것을 같이 돌아보고, 표준 검진(PHQ-9·GAD-7) 재검사를 권해 변화를 확인하세요.`;
     }
-    const acts = this.weekActions(w).map((a, i) => `${this.isDone(this.weekIndex(), i) ? '✓' : '·'} ${a}`).join(' / ');
+ const acts = this.weekActions(w).map((a, i) =>`${this.isDone(this.weekIndex(), i) ?'':'·'} ${a}`).join('/');
     const rate = Math.round(this.progress() * 100);
     return `[케어플랜 ${d}일차 · ${this.weekIndex()}주차]
 초점: ${p.focus}
@@ -394,7 +394,7 @@ window.CarePlan = {
 할 일: ${acts || '(없음)'} — 이번 주 실행률 ${rate}%
 ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → "${x.then}"`).join(' / ') : ''}
 · 이 계획을 아는 사람처럼 대화하세요. 실행률이 낮으면 다그치지 말고 무엇이 걸렸는지 물으세요.
-· 사용자가 이미 한 일을 다시 시키지 마세요(✓ 표시된 것).`;
+· 사용자가 이미 한 일을 다시 시키지 마세요( 표시된 것).`;
   },
 
   // --------------------------------------------------------------------------
@@ -473,7 +473,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
           <span style="flex: 1 1 0%; min-width: 0; font-size: 0.82rem; line-height: 1.55; font-weight: ${done ? '600' : '700'};
                        color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(a)}</span>
           <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
-                       color: ${done ? 'var(--text-muted)' : '#6f97ab'};">${done ? '✓' : '+2' + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '')}</span>
+ color: ${done ?'var(--text-muted)':'#6f97ab'};">${done ?'':'+2'+ (window.Icons ? window.Icons.svg('water', { size: 12 }) :'')}</span>
         </button>`;
     }).join('');
 

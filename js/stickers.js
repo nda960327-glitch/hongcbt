@@ -618,7 +618,7 @@ window.Stickers = {
           <path d="M62 101 q8 -5 16 0" fill="none" stroke="#3F352A" stroke-width="2.6" stroke-linecap="round"/>`)
         + `<g class="${p}-soul"><path d="M104 40 q6 -8 12 0 q0 8 -6 8 q-6 0 -6 -8z M104 48 l-2 5 M110 48 l0 6 M116 48 l2 5" fill="#EAF2F8" stroke="#B9CBD8" stroke-width="1.8" opacity="0.9"/></g>`);
 
-      // ── 반짝: ✦✦ 눈 + 헤벌쭉 기대 ────────────────────────────────────
+ // ── 반짝: 눈 + 헤벌쭉 기대 ────────────────────────────────────
       case 'stareyes': return wrap(`
         .${p}-body{animation:${p}-bounce 0.8s ease-in-out infinite}
         .${p}-eye{animation:${p}-tw 1s ease-in-out infinite;transform-origin:center}
