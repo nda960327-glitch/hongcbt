@@ -381,10 +381,10 @@ ${recent}` }],
     const title = name ? esc(name) + '님을 위한 미션' : '나를 위한 미션';
     return `
       <div style="margin-top: 0.8rem; padding-top: 0.75rem; border-top: 1px dashed var(--glass-border);">
-        <div style="display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.45rem;">
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem 0.35rem; margin-bottom: 0.45rem;">
           <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('target', { size: 15 }) : ''}</span>
-          <strong style="font-size: 0.78rem; color: var(--text-primary);">${title}</strong>
-          <span style="margin-left: auto; font-size: 0.64rem; color: var(--text-muted);">무작위가 아니라 내 기록에서 나온 것</span>
+          <strong style="font-size: 0.78rem; color: var(--text-primary); flex-shrink: 0;">${title}</strong>
+          <span style="margin-left: auto; font-size: 0.64rem; color: var(--text-muted); flex: 0 1 auto; min-width: 0;">무작위가 아니라 내 기록에서 나온 것</span>
         </div>
         ${rows.map(r => {
           const done = this.rxDone(r.text);

@@ -1476,15 +1476,23 @@
         bar.id = 'sw-update-bar';
         bar.style.cssText =
           'position:fixed; left:50%; transform:translateX(-50%); bottom:calc(4.6rem + env(safe-area-inset-bottom));' +
-          'z-index:10120; display:flex; align-items:center; gap:0.6rem; max-width:min(92vw,420px);' +
+          // 글꼴을 키워 쓰는 기기에서는 한 줄에 다 못 들어간다.
+          //  그때는 글자가 윗줄을 통째로 쓰고 버튼이 아랫줄로 내려간다.
+          'z-index:10120; display:flex; align-items:center; gap:0.5rem 0.6rem; flex-wrap:wrap;' +
+          'justify-content:flex-end; max-width:min(92vw,420px);' +
           'padding:0.6rem 0.7rem 0.6rem 0.95rem; border-radius:14px; font-size:0.82rem;' +
           'background:var(--bg-secondary,#fff); color:var(--text-primary,#333);' +
           'border:1px solid var(--glass-border,rgba(0,0,0,.1)); box-shadow:0 6px 22px rgba(0,0,0,.18);';
         bar.innerHTML =
-          '<span style="flex:1;">새 버전이 준비됐어요</span>' +
+          // 버튼이 안 줄어들어야 글자가 남은 자리를 다 쓴다.
+          //  flex-shrink 를 안 걸었더니 버튼이 자리를 다 가져가고
+          //  '새 버전이 준비됐어요'가 한 글자씩 세로로 떨어졌다.
+          '<span style="flex:1 1 9rem; word-break:keep-all;">새 버전이 준비됐어요</span>' +
           '<button id="sw-update-go" style="all:unset; cursor:pointer; font-weight:800; padding:0.35rem 0.7rem;' +
+          'flex:0 0 auto; white-space:nowrap;' +
           'border-radius:9px; background:var(--accent-primary,#4f8a6b); color:#fff;">지금 적용</button>' +
           '<button id="sw-update-later" style="all:unset; cursor:pointer; font-size:0.78rem; font-weight:700;' +
+          'flex:0 0 auto; white-space:nowrap;' +
           'color:var(--text-muted,#888); padding:0.35rem 0.3rem;">나중에</button>';
         document.body.appendChild(bar);
         document.getElementById('sw-update-go').addEventListener('click', applyUpdate);

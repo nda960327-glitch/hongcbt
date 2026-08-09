@@ -887,10 +887,10 @@ window.App = {
       card.innerHTML = `
         <div style="display: flex; gap: 0.8rem; align-items: center;">
           <span style="flex-shrink: 0;">${window.Personas.avatarSvg(p.id, 52)}</span>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 800; font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between;">
+          <div style="flex: 1 1 130px; min-width: 0;">
+            <div style="font-weight: 800; font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; flex-wrap: wrap;">
               <span>${p.name}</span>
-              ${isActive ? `<span style="font-size:0.72rem; background: color-mix(in srgb, ${p.color} 20%, transparent); color: ${p.color}; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700;">● 현재 활성 상담사</span>` : ''}
+              ${isActive ? `<span style="font-size:0.72rem; background: color-mix(in srgb, ${p.color} 20%, transparent); color: ${p.color}; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700; white-space: nowrap; flex-shrink: 0;">● 현재 활성 상담사</span>` : ''}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;">${p.tagline}</div>
           </div>
@@ -906,8 +906,8 @@ window.App = {
             ${(p.howto || []).map(h => `<li>${h}</li>`).join('')}
           </ol>
         </div>` : ''}
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.55rem; padding-top: 0.4rem; border-top: 1px dashed var(--glass-border);">
-          <span style="font-size: 0.74rem; color: var(--text-muted); flex: 1; padding-right: 0.5rem;"><b>이럴 때:</b> ${p.fit}</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.55rem; padding-top: 0.4rem; border-top: 1px dashed var(--glass-border);">
+          <span style="font-size: 0.74rem; color: var(--text-muted); flex: 1 1 11rem; min-width: 0;"><b>이럴 때:</b> ${p.fit}</span>
           <button class="btn-primary" style="font-size: 0.76rem; padding: 0.35rem 0.85rem; border-radius: var(--radius-full); width: auto; flex-shrink: 0; background: ${p.color}; border: none;">${isActive ? '대화 계속하기 ›' : '상담사 선택 ›'}</button>
         </div>`;
       card.addEventListener('click', () => this.selectPersona(p.id));

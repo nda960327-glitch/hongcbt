@@ -3,6 +3,29 @@
    세이지 그린 + 테라코타 파스텔 · 부드러운 카드 · 넉넉한 여백
    ============================================================ */
 
+/* ============================================================
+   한국어 줄바꿈 — 이 앱에서 가장 많은 화면 깨짐의 원인이었다.
+
+   브라우저는 한국어를 '음절 사이 어디서나 끊을 수 있는 글'로 본다.
+   그래서 어떤 한국어 덩어리든 min-content 폭이 '한 글자'가 된다.
+   flex 안에서 자리가 모자라면 그 한 글자까지 줄어들 수 있고,
+   실제로 '새 버전이 준비됐어요' 가 폭 15px · 9줄로 세로로 떨어졌다.
+   '우렁의사'가 '우렁의 / 사'로, '현재 활성 상담사'가 '상담 / 사'로
+   갈라진 것도 전부 같은 이유다.
+
+   keep-all 은 영어처럼 '띄어쓰기에서만' 끊게 한다. 그러면 min-content 가
+   '가장 긴 어절'이 되어 칸이 한 글자로 찌그러지지 않는다.
+
+   안전장치는 break-word 여야 한다. anywhere 로 두면 도로 아미타불이다 —
+   anywhere 는 min-content 계산에까지 관여해서 '한 글자'로 되돌려 놓는다.
+   (실제로 anywhere 를 넣었을 때 '새 버전이 준비됐어요'는 여전히 폭 15px·9줄이었다)
+   break-word 는 자리가 정말 없을 때만 끊고 최소 폭은 건드리지 않는다.
+   ============================================================ */
+* {
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
 /* ========== WARM DARK (default :root) ========== */
 :root {
   color-scheme: light dark;
@@ -1012,8 +1035,9 @@ textarea:focus { border-color: var(--accent-primary); }
 .cc2-live span { color: var(--text-muted); }
 .cc2-live.is-busy { border-color: color-mix(in srgb, #cf6b60 35%, transparent); background: color-mix(in srgb, #cf6b60 9%, var(--bg-tertiary)); color: #cf6b60; cursor: default; }
 .cc2-live.is-off { border: 1px dashed var(--glass-border); background: var(--bg-tertiary); color: var(--text-muted); opacity: 0.7; cursor: default; }
-.cc2-links { display: flex; align-items: center; justify-content: center; gap: 0.9rem; margin-top: 0.35rem; }
-.cc2-links button { all: unset; font-size: 0.74rem; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0.3rem 0.2rem; }
+/* 두 링크가 한 줄을 다투다 '채팅 문의'가 30px 로 줄어 두 줄이 됐다 */
+.cc2-links { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0.35rem 0.9rem; margin-top: 0.35rem; }
+.cc2-links button { all: unset; font-size: 0.74rem; font-weight: 600; color: var(--text-muted); cursor: pointer; padding: 0.3rem 0.2rem; white-space: nowrap; }
 .cc2-links i { width: 1px; height: 10px; background: var(--glass-border); }
 
 /* ========== 인지왜곡 학습 리뉴얼 ========== */
@@ -1275,9 +1299,11 @@ textarea:focus { border-color: var(--accent-primary); }
 /* 홈 공용 카드 */
 .home-card { margin: 0 1.25rem 0.7rem; padding: 0.9rem 1rem; }
 .home-card__head {
+  /* 오른쪽 힌트가 자리를 가져가면 제목이 세 줄로 갈라졌다 */
   display: flex; align-items: center; justify-content: space-between;
-  gap: 0.5rem; margin-bottom: 0.6rem;
+  flex-wrap: wrap; gap: 0.3rem 0.5rem; margin-bottom: 0.6rem;
 }
+.home-card__head .home-card__t { flex: 1 1 auto; }
 .home-card__t { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
 .home-card__head .home-card__t { margin: 0; }
 .home-card__hint { font-size: 0.7rem; color: var(--text-muted); }
@@ -1293,7 +1319,13 @@ textarea:focus { border-color: var(--accent-primary); }
   transition: background var(--transition-fast);
 }
 .home-mood__btn > span:first-child { line-height: 0; }
-.home-mood__lbl { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); }
+/* 다섯 칸이 화면을 정확히 나눠 갖는 줄이라, 글꼴을 키워 쓰는 기기에서
+   '불안/불편'이 '불안/ / 불편'으로 갈라졌다. rem 은 시스템 글꼴 배율을
+   따라 커지므로, 이 줄만은 화면 폭(vw)을 기준으로 잡아 칸을 넘지 않게 한다. */
+.home-mood__lbl {
+  font-size: min(0.68rem, 3vw); font-weight: 700; color: var(--text-muted);
+  white-space: nowrap;
+}
 
 /* 상담 시작하기 — AI / 전문 상담사 2열 */
 .home-start { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin: 0 1.25rem; }
@@ -1596,6 +1628,17 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
   .message-bubble { max-width: 88%; }
   .form-actions { flex-wrap: wrap; }
 }
+/* 여백을 rem 으로 잡으면 시스템 글꼴 배율만큼 같이 커진다.
+   320px 화면에서 '글자 크게'를 쓰면 겹겹의 여백이 150px 을 먹어,
+   내용이 들어갈 자리가 171px 밖에 안 남았다(상담사 소개가 6줄로 찢어진 원인).
+   좁은 화면에서는 여백만 화면 기준(px)으로 고정한다. */
+@media (max-width: 360px) {
+  .modal-content { padding: 1.1rem 0.9rem; }
+  .glass-card { padding: 0.85rem 0.8rem; }
+  .home-card { margin-left: 0.7rem; margin-right: 0.7rem; padding: 0.8rem 0.75rem; }
+  .my-row { padding: 0.75rem 0.7rem; }
+  .my-hero { margin-left: 0.7rem; margin-right: 0.7rem; padding: 0.85rem 0.8rem; }
+}
 /* 큰 폰(≥430px): 콘텐츠 폭 유지하며 여백만 살짝 */
 @media (min-width: 430px) {
   .tab-content { padding-left: 4px; padding-right: 4px; }
@@ -1701,7 +1744,8 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
    마이탭 리디자인 — 프로필 헤더 + 재화 카드 + 메뉴 리스트
    ============================================================ */
 .my-hero {
-  display: flex; align-items: center; gap: 0.85rem;
+  /* 이름과 수정 버튼이 한 줄을 다투면 이름이 세 줄로 쪼개진다 */
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.85rem;
   margin: 1rem 1.25rem 0.9rem; padding: 1rem 1.1rem;
   border-radius: var(--radius-lg);
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)), var(--bg-secondary));
@@ -1709,7 +1753,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
   box-shadow: var(--shadow-sm);
 }
 .my-hero__ava { line-height: 0; flex-shrink: 0; }
-.my-hero__txt { flex: 1 1 0%; min-width: 0; }
+.my-hero__txt { flex: 1 1 120px; min-width: 0; }   /* 이름이 세 줄로 쪼개지지 않게 */
 .my-hero__txt strong { display: block; font-size: 1.05rem; font-weight: 800; color: var(--text-primary); font-family: var(--font-heading); }
 .my-hero__txt span { display: block; font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; }
 .my-hero__edit {
@@ -1737,7 +1781,8 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 }
 .my-row {
   all: unset; box-sizing: border-box; cursor: pointer;
-  display: flex; align-items: center; gap: 0.75rem;
+  /* 오른쪽 버튼이 자리를 다 차지하면 글이 아랫줄로 내려가게 둔다 */
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.75rem;
   width: 100%; padding: 0.85rem 1rem;
   border-bottom: 1px solid var(--glass-border);
   transition: background var(--transition-fast);
@@ -1746,7 +1791,11 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .my-row:active { background: var(--bg-tertiary); }
 .my-row--static { cursor: default; }
 .my-row__ico { flex-shrink: 0; font-size: 1.15rem; line-height: 1; width: 26px; text-align: center; }
-.my-row__txt { flex: 1 1 0%; min-width: 0; }
+/* min-width:0 은 '얼마든지 줄어들어도 된다'는 뜻이다. 오른쪽에 [전체 보기]
+   같은 버튼이 붙은 줄에서는 글이 64px 까지 밀려 '나의 상담 내역'이
+   세 줄로 쪼개졌다. 기준 폭을 140px 로 주면, 그만큼도 안 나올 때는
+   버튼이 아랫줄로 내려간다(.my-row 의 flex-wrap). */
+.my-row__txt { flex: 1 1 140px; min-width: 0; }
 .my-row__txt b { display: block; font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
 .my-row__txt > span { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem; line-height: 1.5; }
 .my-row__txt > span b { display: inline; font-size: inherit; color: var(--text-secondary); }
