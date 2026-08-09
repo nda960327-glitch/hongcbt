@@ -14,7 +14,21 @@ window.Admin = {
   code() { return sessionStorage.getItem('cbt_admin_code') || ''; },
   _setCode(v) { try { sessionStorage.setItem('cbt_admin_code', v || ''); } catch (e) {} },
 
+  // js/api.js 가 못 실려 오면(배포 중 새로고침·순간 오프라인) window.Api 가 없다.
+  //  전에는 그럴 때 버튼을 눌러도 조용히 아무 일도 안 일어나 '안 눌린다'로 보였다.
+  //  이제 눈에 보이는 안내를 띄우고, 새로고침으로 복구할 길을 준다.
+  _api() {
+    if (window.Api && window.Api.json) return window.Api;
+    const msg = '앱 파일 일부를 불러오지 못했어요.\n새로고침하면 대개 해결됩니다.';
+    if (window.UI) {
+      window.UI.confirm({ title: '잠시만요', body: msg, okLabel: '새로고침', cancelLabel: '닫기' })
+        .then(ok => { if (ok) location.reload(true); });
+    } else if (confirm(msg + '\n\n새로고침할까요?')) location.reload(true);
+    return null;
+  },
+
   open() {
+    if (!this._api()) return;
     if (this.code()) { this._render(); return; }
     this._askCode();
   },
@@ -41,9 +55,11 @@ window.Admin = {
     const go = async () => {
       const v = (input.value || '').trim();
       if (v.length < 6) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
+      const api = this._api();
+      if (!api) return;
       const btn = document.getElementById('admin-code-go');
       btn.disabled = true; btn.textContent = '확인 중…';
-      const r = await window.Api.json('/api/stats?code=' + encodeURIComponent(v));
+      const r = await api.json('/api/stats?code=' + encodeURIComponent(v));
       btn.disabled = false; btn.textContent = '입장';
       if (!r) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
       this._setCode(v);
@@ -70,6 +86,17 @@ window.Admin = {
   _cs: null,          // 서버에서 받아온 상담사 목록
   _showCode: {},      // id → 코드 보이기 여부
 
+  // 누른 즉시 눌렸다는 걸 보여준다.
+  //  실제 지연은 0.2초여도 아무 반응이 없으면 '느리다'로 읽히고,
+  //  사용자는 한 번 더 누른다 (그래서 정말로 느려진다).
+  async _busy(el, label, fn) {
+    const b = typeof el === 'string' ? document.getElementById(el) : el;
+    const old = b ? b.textContent : '';
+    if (b) { b.disabled = true; b.style.opacity = '0.6'; b.textContent = label; }
+    try { return await fn(); }
+    finally { if (b && b.isConnected) { b.disabled = false; b.style.opacity = ''; b.textContent = old; } }
+  },
+
   async loadCounselors() {
     const d = await window.Api.json('/api/admin/counselors?code=' + encodeURIComponent(this.code()));
     this._cs = d ? (d.items || []) : null;
@@ -91,16 +118,18 @@ window.Admin = {
       window.UI.alert('이메일 형식이 올바르지 않아요'); return;
     }
     if (!id) id = 'c' + Date.now().toString(36).slice(-6);   // 안 적으면 자동
-    const r = await window.Api.json('/api/admin/counselors', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim(), email })
-    });
+    const r = await this._busy('ac-go', '발급 중…', () =>
+      window.Api.json('/api/admin/counselors', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim(), email })
+      }));
     if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '추가하지 못했어요'); return; }
     ['ac-name', 'ac-hosp', 'ac-mail', 'ac-id'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
     this._showCode[r.id] = true;
     if (window.Sfx) window.Sfx.hit('levelup');
-    await this.loadCounselors();
+    // 코드는 이미 손에 있다. 목록이 다시 내려오기를 기다릴 이유가 없다.
     this.shareCounselor(r.id, r.name, r.code);
+    this.loadCounselors();
   },
 
   // 발급된 코드를 전달하기 좋은 형태로 한 번에 보여준다
@@ -274,7 +303,7 @@ window.Admin = {
         <input id="ac-hosp" placeholder="소속 (예: 연세 마음가득 정신건강의학과)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
         <input id="ac-mail" type="email" placeholder="이메일 (로그인 링크를 받을 주소)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
         <input id="ac-id" placeholder="ID (비워두면 자동 · 앱 상담사 카드와 맞추려면 c1 등)" style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
-        <button class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; font-size: 0.82rem;" onclick="window.Admin.addCounselor()">추가하고 코드 발급</button>
+        <button id="ac-go" class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; font-size: 0.82rem;" onclick="window.Admin.addCounselor()">추가하고 코드 발급</button>
       </div>`;
   },
 
