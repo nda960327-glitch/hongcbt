@@ -2,19 +2,21 @@
 //  운영자 콘솔 (데모 백오피스)
 //  실서비스에서는 별도 웹 어드민 + 서버로 분리될 화면. 지금은 시연·검수용으로
 //  앱 안에서 상담사 입점 심사(승인/반려), 입점 관리, 핵심 지표를 보여준다.
-//  진입: 마이페이지 하단 '운영자 콘솔' → 코드 입력 (기본 1234 — 아래 PASS 수정)
+//  진입: 마이페이지 하단 '운영자 콘솔' → Worker 시크릿 ADMIN_CODE 입력
 // ============================================================================
 window.Admin = {
-  PASS: '1234',
+  // 서버로 보낼 운영자 코드는 앱에 넣지 않는다.
+  //  전에는 PASS: '1234' 를 그대로 /api/stats · /api/bookings 의 code 로 보냈다.
+  //  이 파일은 모든 사용자에게 배포되므로, 그건 곧 아무나 전체 예약 내역
+  //  (내담자 이름·시각·금액)을 조회할 수 있다는 뜻이었다.
+  //  이제 운영자가 직접 입력하고, 그 세션에만 들고 있는다.
+  //  틀린 코드면 서버가 403 을 준다 — 진짜 검증은 서버에서만 한다.
+  code() { return sessionStorage.getItem('cbt_admin_code') || ''; },
+  _setCode(v) { try { sessionStorage.setItem('cbt_admin_code', v || ''); } catch (e) {} },
 
   open() {
-    // prompt()가 막힌 환경(웹뷰 등)에서도 동작하도록 자체 입력 오버레이 사용
-    let code = null;
-    try { code = prompt('운영자 코드를 입력하세요'); } catch (e) { code = undefined; }
-    if (code === undefined) { this._askCode(); return; }
-    if (code === null) return;
-    if (code !== this.PASS) { try { alert('코드가 올바르지 않습니다.'); } catch (e) {} return; }
-    this._render();
+    if (this.code()) { this._render(); return; }
+    this._askCode();
   },
 
   _askCode() {
@@ -26,7 +28,7 @@ window.Admin = {
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 300px; text-align: center;">
  <h2 style="margin: 0 0 0.8rem; font-size: 1.05rem;"> 운영자 코드</h2>
-        <input id="admin-code-input" type="password" inputmode="numeric" placeholder="코드 입력" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); outline: none; text-align: center; font-size: 1rem;">
+        <input id="admin-code-input" type="password" placeholder="코드 입력" autocomplete="off" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); outline: none; text-align: center; font-size: 1rem;">
         <p id="admin-code-err" class="hidden" style="color: #c14a4a; font-size: 0.76rem; margin: 0.5rem 0 0;">코드가 올바르지 않습니다.</p>
         <div style="display: flex; gap: 0.5rem; margin-top: 0.9rem;">
           <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('admin-code-overlay').remove()">취소</button>
@@ -35,9 +37,15 @@ window.Admin = {
       </div>`;
     document.body.appendChild(ov);
     const input = document.getElementById('admin-code-input');
-    const go = () => {
-      if (input.value === this.PASS) { ov.remove(); this._render(); }
-      else document.getElementById('admin-code-err').classList.remove('hidden');
+    // 여기서는 형식만 본다. 맞는 코드인지는 서버가 판단한다(틀리면 통계가 403).
+    const go = async () => {
+      const v = (input.value || '').trim();
+      if (v.length < 6) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
+      const r = await window.Api.json('/api/stats?code=' + encodeURIComponent(v));
+      if (!r) { document.getElementById('admin-code-err').classList.remove('hidden'); return; }
+      this._setCode(v);
+      ov.remove();
+      this._render();
     };
     document.getElementById('admin-code-go').addEventListener('click', go);
     input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
@@ -356,7 +364,7 @@ window.Admin = {
       </div>`;
     document.body.appendChild(ov);
     // 서버 통계 → 서비스 현황 그리드
-    window.Api.f('/api/stats?code=' + this.PASS).then(r2 => r2.ok ? r2.json() : null).then(d => {
+    window.Api.f('/api/stats?code=' + this.code()).then(r2 => r2.ok ? r2.json() : null).then(d => {
       const grid = document.getElementById('admin-stats-grid');
       if (!grid) return;
       if (!d) { grid.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">서버 미연결 — 통계를 불러올 수 없어요.</p>'; return; }
@@ -375,7 +383,7 @@ window.Admin = {
         cell('플랫폼 수익', d.revenue.platform.toLocaleString(), `총 결제 ${d.revenue.gross.toLocaleString()}캐시의 7%`);
     }).catch(() => {});
     // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
-    window.Api.f('/api/bookings?code=' + this.PASS).then(r => r.ok ? r.json() : null).then(d => {
+    window.Api.f('/api/bookings?code=' + this.code()).then(r => r.ok ? r.json() : null).then(d => {
       const el = document.getElementById('admin-rev');
       if (!el) return;
       if (!d) { el.textContent = '서버 미연결 — 정산 집계 불가'; return; }
