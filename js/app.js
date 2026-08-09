@@ -2261,25 +2261,123 @@ ${memory || '(없음)'}`;
   },
 
   // 리뷰 작성 → 저장 (완료된 상담) + 서버 전송 (상담사가 보고 답글 가능)
-  async writeReview(bookingId) {
-    const rating = parseInt(await window.UI.prompt('별점을 남겨주세요 (1~5)', '5'), 10);
-    if (!rating || rating < 1 || rating > 5) return;
-    const text = await window.UI.prompt('상담은 어떠셨나요? 한 줄 후기를 남겨주세요.', '') || '';
-    const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
-    reviews[bookingId] = { rating, text, ts: Date.now() };
-    window.Storage._safeSet('cbt_reviews', reviews);
- // 서버로도 — 상담사 페이지'내 리뷰'에 도착
+  // ==========================================================================
+  //  상담 후기
+  //   전에는 prompt 두 번이었다 — '별점을 1~5로 입력하세요'에 숫자를 타이핑.
+  //   상담을 마치고 마음이 아직 정리 안 된 사람에게 시키기엔 딱딱하고,
+  //   무엇보다 별점이 뭘 뜻하는지 알 수가 없었다. 별을 눌러 고르게 한다.
+  // ==========================================================================
+  REVIEW_LABEL: ['', '아쉬웠어요', '그저 그랬어요', '괜찮았어요', '좋았어요', '정말 좋았어요'],
+
+  writeReview(bookingId) {
     const b = (window.Storage._safeGet('cbt_bookings', []) || []).find(x => x.id === bookingId);
-    if (b) {
-      try {
-        window.Api.f('/api/reviews', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ bookingId, counselorId: b.counselorId, counselorName: b.name, clientId: this.clientId(), clientName: window.Storage._safeGet('cbt_user_name', '') || '익명', rating, text })
-        }).catch(() => {});
-      } catch (e) {}
-    }
- window.UI.alert('소중한 리뷰가 등록되었습니다. 감사합니다!');
+    if (!b) return;
+    const old = document.getElementById('review-overlay');
+    if (old) old.remove();
+
+    let rating = 0;
+    const ov = document.createElement('div');
+    ov.id = 'review-overlay';
+    ov.style.cssText =
+      'position: fixed; inset: 0; z-index: 10090; background: rgba(33,26,20,0.55);' +
+      'backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);' +
+      'display: flex; align-items: center; justify-content: center; padding: 1.2rem;';
+    ov.innerHTML = `
+      <div class="modal-content glass-card" style="max-width: 340px; width: 100%;">
+        <h2 style="margin: 0 0 0.2rem; font-size: 1.05rem;">상담은 어떠셨나요?</h2>
+        <p style="margin: 0 0 1rem; font-size: 0.78rem; color: var(--text-muted);">
+          ${(b.name || '상담사').replace(/</g, '&lt;')} · ${b.timeLabel || ''}</p>
+
+        <div id="rv-stars" style="display: flex; justify-content: center; gap: 0.35rem; margin-bottom: 0.35rem;">
+          ${[1, 2, 3, 4, 5].map(n => `
+            <button type="button" data-n="${n}" aria-label="별 ${n}개"
+              style="all: unset; cursor: pointer; padding: 0.15rem; line-height: 0;">
+              <svg width="34" height="34" viewBox="0 0 24 24" class="rv-star" data-n="${n}">
+                <path d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.45L12 17.45 6.2 20.5l1.1-6.45-4.7-4.6 6.5-.95z"
+                  fill="none" stroke="var(--glass-border)" stroke-width="1.6" stroke-linejoin="round"/>
+              </svg>
+            </button>`).join('')}
+        </div>
+        <p id="rv-label" style="text-align: center; margin: 0 0 0.9rem; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); min-height: 1.2em;">별을 눌러 평가해주세요</p>
+
+        <textarea id="rv-text" rows="4" maxlength="300"
+          placeholder="어떤 점이 도움이 되었나요? (선택)&#10;다음 분에게 큰 도움이 됩니다."
+          style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-family: inherit; font-size: 0.86rem; line-height: 1.6; resize: vertical;"></textarea>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin: 0.35rem 0 0.9rem;">
+          <span style="font-size: 0.7rem; color: var(--text-muted);">이름은 가려서 올라가요</span>
+          <span id="rv-count" style="font-size: 0.7rem; color: var(--text-muted);">0/300</span>
+        </div>
+
+        <div class="form-actions" style="margin-top: 0;">
+          <button class="btn-secondary" id="rv-cancel">취소</button>
+          <button class="btn-primary" id="rv-go">후기 남기기</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+
+    const paint = n => {
+      ov.querySelectorAll('.rv-star').forEach(s => {
+        const on = Number(s.dataset.n) <= n;
+        const p = s.querySelector('path');
+        p.setAttribute('fill', on ? '#f0b429' : 'none');
+        p.setAttribute('stroke', on ? '#f0b429' : 'var(--glass-border)');
+      });
+      const lab = ov.querySelector('#rv-label');
+      lab.textContent = n ? this.REVIEW_LABEL[n] : '별을 눌러 평가해주세요';
+      lab.style.color = n ? 'var(--text-primary)' : 'var(--text-muted)';
+    };
+    ov.querySelectorAll('#rv-stars button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        rating = Number(btn.dataset.n);
+        paint(rating);
+        if (window.Sfx) { try { window.Sfx.play('pop'); } catch (e) {} }
+        try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+      });
+    });
+
+    const ta = ov.querySelector('#rv-text');
+    ta.addEventListener('input', () => { ov.querySelector('#rv-count').textContent = ta.value.length + '/300'; });
+
+    ov.querySelector('#rv-cancel').addEventListener('click', () => ov.remove());
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+
+    ov.querySelector('#rv-go').addEventListener('click', async () => {
+      if (!rating) {
+        // 별점 없이 보내면 이 후기는 평점에 아무 의미도 못 준다
+        const lab = ov.querySelector('#rv-label');
+        lab.textContent = '별점을 먼저 골라주세요';
+        lab.style.color = '#c14a4a';
+        return;
+      }
+      const btn = ov.querySelector('#rv-go');
+      btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '올리는 중…';
+      await this._saveReview(b, rating, ta.value.trim());
+      ov.remove();
+    });
+
+    setTimeout(() => paint(0), 0);
+  },
+
+  async _saveReview(b, rating, text) {
+    const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
+    reviews[b.id] = { rating, text, ts: Date.now() };
+    window.Storage._safeSet('cbt_reviews', reviews);
+
+    // 서버로도 보낸다 — 상담사 앱의 '받은 후기'에 도착하고, 답글이 달린다
+    await window.Api.f('/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        bookingId: b.id, counselorId: b.counselorId, counselorName: b.name,
+        clientId: this.clientId(),
+        clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
+        rating, text
+      })
+    }).catch(() => {});
+
+    if (window.Sfx) { try { window.Sfx.hit('levelup'); } catch (e) {} }
+    this.showRecordToast('후기를 남겼어요. 고맙습니다');
     this.renderMyBookings();
+    if (window.Marketplace) window.Marketplace.renderCounselors();
   },
 
   // 신청서의 진짜 주인은 서버다. 기기에 있는 건 사본일 뿐이라,
