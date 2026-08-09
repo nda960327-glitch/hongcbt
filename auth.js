@@ -69,22 +69,41 @@ export async function resolveCounselor(db, { session, code }) {
 //  이메일 헤더는 ASCII 만 허용해서, 비ASCII 이름은 RFC 2047 로 인코딩해야 한다.
 //  (안 하면 Resend 가 422 Invalid `from` field 로 거절한다 — 실제로 여기서 막혔다)
 //  인코딩해 두면 받는 쪽 메일함에는 '우렁의사' 로 제대로 보인다.
-function encodeFrom(from) {
-  const s = String(from || '').trim();
-  const m = s.match(/^(.*)<([^>]+)>\s*$/);
-  if (!m) return s;                                  // 주소만 온 경우
-  const nameRaw = m[1].trim().replace(/^"|"$/g, '');
-  const addr = m[2].trim();
-  if (!nameRaw) return addr;
-  if (!/[^\x00-\x7F]/.test(nameRaw)) return `${nameRaw} <${addr}>`;   // ASCII 면 그대로
-  const bytes = new TextEncoder().encode(nameRaw);
+const SENDER_NAME = '우렁의사';
+
+function rfc2047(name) {
+  const bytes = new TextEncoder().encode(name);
   let bin = '';
   bytes.forEach(b => { bin += String.fromCharCode(b); });
-  return `=?UTF-8?B?${btoa(bin)}?= <${addr}>`;
+  return `=?UTF-8?B?${btoa(bin)}?=`;
+}
+
+// 발신 주소를 정한다. 사람이 옮겨 적는 값에 형식을 기대하지 않는다 —
+//  터미널에서 한글이 깨지거나 따옴표·전각기호가 섞이면 Resend 가 422 로 거절하고,
+//  실제로 여기서 계속 막혔다. 그래서 순서를 이렇게 둔다:
+//    1) MAIL_FROM 에서 주소 형태가 깨끗이 뽑히면 그걸 쓴다
+//    2) 안 되면 APP_URL 의 도메인으로 noreply@도메인 을 만든다
+//  이름(우렁의사)은 언제나 코드가 붙인다.
+function pickAddress(env) {
+  const raw = String(env.MAIL_FROM || '').trim().replace(/^["']|["']$/g, '');
+  const m = raw.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/);
+  if (m) return { addr: m[0], src: 'mail_from' };
+  const host = String(env.APP_URL || '').replace(/^https?:\/\//, '').replace(/[/:].*$/, '').trim();
+  if (/^[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$/.test(host)) return { addr: 'noreply@' + host, src: 'app_url' };
+  return { addr: '', src: 'none' };
+}
+
+function encodeFrom(env) {
+  const { addr } = pickAddress(env);
+  if (!addr) return String(env.MAIL_FROM || '');
+  return `${rfc2047(SENDER_NAME)} <${addr}>`;
 }
 
 async function sendMail(env, to, link, name) {
-  if (!env.RESEND_API_KEY || !env.MAIL_FROM) return { sent: false, reason: 'not-configured' };
+  // MAIL_FROM 은 선택이다. 없거나 형식이 깨져 있어도 APP_URL 도메인으로 만든다.
+  //  설정 하나 잘못 적었다고 상담사 로그인이 통째로 막히면 안 된다.
+  if (!env.RESEND_API_KEY) return { sent: false, reason: 'no-api-key' };
+  if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   const html = `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
   <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">우렁의사 상담사</p>
@@ -107,7 +126,7 @@ async function sendMail(env, to, link, name) {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: encodeFrom(env.MAIL_FROM), to: [to],
+        from: encodeFrom(env), to: [to],
         subject: '우렁의사 상담사 로그인 링크 (15분 유효)',
         html
       })
@@ -122,12 +141,8 @@ async function sendMail(env, to, link, name) {
     //  잘못 들어가 있던 적이 있어 키가 로그로 새어 나갔다.
     //  설정값이라도 '비밀이 잘못 들어올 수 있는 자리'는 마스킹한다.
     //  형태만 알려주면 원인 파악에는 충분하다.
-    const f = String(env.MAIL_FROM || '');
-    const shape = !f ? 'empty'
-      : /^re_/.test(f) ? 'looks-like-api-key'
-      : f.includes('@') ? (/<[^>]+@[^>]+>/.test(f) ? 'name-and-address' : 'address-only')
-      : 'no-@';
-    detail += ' | from-shape=' + shape + ' len=' + f.length;
+    const pick = pickAddress(env);
+    detail += ' | addr-src=' + pick.src + ' domain=' + (pick.addr.split('@')[1] || '-');
     return { sent: false, reason: 'http-' + r.status, detail };
   } catch (e) {
     return { sent: false, reason: 'network', detail: String(e && e.message || e).slice(0, 200) };

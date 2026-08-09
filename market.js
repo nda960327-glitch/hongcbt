@@ -556,7 +556,7 @@ export async function handleMarket(request, env, cors, path) {
         split: SPLIT
       },
       // 메일 발송 설정 상태는 운영자만 본다 (로그인 응답에 담으면 가입 여부가 샌다)
-      mailReady: !!(env.RESEND_API_KEY && env.MAIL_FROM),
+      mailReady: !!env.RESEND_API_KEY,
       counselorsWithoutEmail: r.noMail || 0
     }, 200, cors);
   }
