@@ -55,6 +55,17 @@ window.Account = {
     try { v ? localStorage.setItem('cbt_account_session', v) : localStorage.removeItem('cbt_account_session'); }
     catch (e) {}
   },
+  // 마지막으로 확인된 '나'. 서버에 못 닿아도 로그인 칸(과 로그아웃)을 그릴 수 있어야 한다.
+  _cachedUser() {
+    try { return JSON.parse(localStorage.getItem('cbt_account_user') || 'null'); } catch (e) { return null; }
+  },
+  _cacheUser(u) {
+    try {
+      u ? localStorage.setItem('cbt_account_user', JSON.stringify(u))
+        : localStorage.removeItem('cbt_account_user');
+    } catch (e) {}
+  },
+
   _meta() {
     try { return JSON.parse(localStorage.getItem('cbt_sync_meta') || '{}'); } catch (e) { return {}; }
   },
@@ -77,9 +88,21 @@ window.Account = {
       .then(d => (d && d.items) || []).catch(() => []);
 
     if (this._session()) {
-      const d = await this._api('/api/oauth/me?session=' + encodeURIComponent(this._session())).catch(() => null);
-      if (d && d.ok) { this.user = d.user; await this.pull(); }
-      else this._setSession('');          // 만료됐거나 탈퇴한 계정
+      // 확인이 안 됐다고 로그아웃시키면 안 된다.
+      //  전에는 응답이 없으면 곧장 세션을 지웠는데, 지하철에서 앱을 켜면
+      //  그 자리에서 로그아웃돼 버렸다. '서버가 아니라고 한 것'과
+      //  '서버에 못 닿은 것'은 완전히 다른 일이다.
+      this.user = this._cachedUser();          // 우선 지난번에 본 나로 그린다
+      const d = await this._api('/api/oauth/me?session=' + encodeURIComponent(this._session()))
+        .then(r => ({ got: true, d: r })).catch(() => ({ got: false }));
+      if (d.got && d.d && d.d.ok) {
+        this.user = d.d.user;
+        this._cacheUser(d.d.user);
+        await this.pull();
+      } else if (d.got && d.d && d.d.ok === false) {
+        this._setSession(''); this._cacheUser(null); this.user = null;   // 서버가 아니라고 했다
+      }
+      // d.got 이 false 면(네트워크 실패) 로그인 상태를 그대로 둔다
     }
     this.render();
 
@@ -128,6 +151,7 @@ window.Account = {
     }
     this._setSession(d.session);
     this.user = d.user;
+    this._cacheUser(d.user);
     if (window.Sfx) { try { window.Sfx.hit('levelup'); } catch (e) {} }
     await this.pull();
     if (window.UI) {
@@ -206,7 +230,7 @@ window.Account = {
     })) return;
     const s = this._session();
     await this._post('/api/oauth/logout', { session: s }).catch(() => {});
-    this._setSession(''); this._setMeta({}); this.user = null;
+    this._setSession(''); this._setMeta({}); this._cacheUser(null); this.user = null;
     this.render();
     if (window.App) window.App.showRecordToast('로그아웃했어요');
   },
@@ -223,7 +247,7 @@ window.Account = {
     await this._post('/api/sync/wipe', { session: s }).catch(() => {});
     const r = await this._post('/api/oauth/delete', { session: s }).catch(() => null);
     if (!r || !r.ok) { window.UI.alert('삭제하지 못했어요. 잠시 뒤 다시 시도해주세요.'); return; }
-    this._setSession(''); this._setMeta({}); this.user = null;
+    this._setSession(''); this._setMeta({}); this._cacheUser(null); this.user = null;
     this.render();
     window.UI.alert('계정을 삭제했어요.');
   },
@@ -281,7 +305,18 @@ window.Account = {
       return;
     }
 
-    if (!this.providers.length) { el.innerHTML = ''; return; }   // 아직 준비 안 된 곳은 안 보여준다
+    // 로그인 수단을 아직 못 받아왔을 때(오프라인·첫 로딩).
+    //  마이 탭은 비워 두지만, 설정의 '계정' 칸은 비면 고장난 것처럼 보인다.
+    if (!this.providers.length) {
+      el.innerHTML = boxId === 'account-box-settings'
+        ? `<p style="font-size:0.8rem; color:var(--text-muted); line-height:1.6; margin:0.2rem 0 0;">
+             로그인하면 폰을 바꿔도 리포트와 레벨이 따라와요.<br>
+             지금은 연결이 어려워 로그인 수단을 불러오지 못했어요.
+             <button style="all:unset; cursor:pointer; color:var(--accent-primary); font-weight:700;"
+               onclick="window.Account.init()">다시 시도</button></p>`
+        : '';
+      return;
+    }
     const BTN = {
       kakao: 'background:#FEE500; color:#191600;',
       naver: 'background:#03C75A; color:#fff;',
