@@ -57,6 +57,173 @@ window.Admin = {
     if (ov) ov.remove();
   },
 
+  // ==========================================================================
+  //  상담사 관리 — 터미널 없이 여기서 다 한다
+  //   추가하면 코드가 즉시 발급되고, [링크 복사] 한 번이면 전달 준비가 끝난다.
+  //   코드는 비밀번호와 같아서 목록에서는 가려 두고 눌러야 보인다.
+  // ==========================================================================
+  _cs: null,          // 서버에서 받아온 상담사 목록
+  _showCode: {},      // id → 코드 보이기 여부
+
+  async loadCounselors() {
+    const d = await window.Api.json('/api/admin/counselors?code=' + encodeURIComponent(this.code()));
+    this._cs = d ? (d.items || []) : null;
+    this.renderCounselorBox();
+  },
+
+  counselorLink(code) {
+    const base = location.origin + location.pathname.replace(/[^/]*$/, '');
+    return base + 'counselor.html';
+  },
+
+  async addCounselor() {
+    const name = (document.getElementById('ac-name') || {}).value || '';
+    const hospital = (document.getElementById('ac-hosp') || {}).value || '';
+    let id = ((document.getElementById('ac-id') || {}).value || '').trim();
+    if (!name.trim()) { window.UI.alert('상담사 이름을 적어주세요'); return; }
+    if (!id) id = 'c' + Date.now().toString(36).slice(-6);   // 안 적으면 자동
+    const r = await window.Api.json('/api/admin/counselors', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id, name: name.trim(), hospital: hospital.trim() })
+    });
+    if (!r || !r.ok) { window.UI.alert(r && r.error ? r.error : '추가하지 못했어요'); return; }
+    ['ac-name', 'ac-hosp', 'ac-id'].forEach(k => { const el = document.getElementById(k); if (el) el.value = ''; });
+    this._showCode[r.id] = true;
+    if (window.Sfx) window.Sfx.hit('levelup');
+    await this.loadCounselors();
+    this.shareCounselor(r.id, r.name, r.code);
+  },
+
+  // 발급된 코드를 전달하기 좋은 형태로 한 번에 보여준다
+  shareCounselor(id, name, code) {
+    const link = this.counselorLink();
+    const msg = `[우렁의사] ${name} 선생님 상담사 페이지 안내\n\n`
+      + `주소: ${link}\n열람 코드: ${code}\n\n`
+      + `· 위 주소를 열고 코드를 붙여넣으면 로그인됩니다.\n`
+      + `· 코드는 비밀번호와 같습니다. 단톡방에 올리지 마세요.\n`
+      + `· 코드가 새면 즉시 알려주세요. 새로 발급해 드립니다.`;
+    window.UI.confirm({
+      title: '코드가 발급됐어요',
+      body: msg,
+      okLabel: '이 안내문 복사하기',
+      cancelLabel: '닫기'
+    }).then(ok => {
+      if (!ok) return;
+      try {
+        navigator.clipboard.writeText(msg)
+          .then(() => window.App && window.App.showRecordToast('복사했어요. 상담사에게 붙여넣어 전달하세요'))
+          .catch(() => {});
+      } catch (e) {}
+    });
+  },
+
+  async rotateCounselor(id, name) {
+    if (!await window.UI.confirm({
+      title: '코드를 새로 발급할까요?',
+      body: `${name} 선생님의 지금 코드는 즉시 못 쓰게 됩니다.\n새 코드를 다시 전달해야 해요.`,
+      okLabel: '새로 발급', danger: true
+    })) return;
+    const r = await window.Api.json('/api/admin/counselors/rotate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id })
+    });
+    if (!r || !r.ok) { window.UI.alert('발급하지 못했어요'); return; }
+    this._showCode[id] = true;
+    await this.loadCounselors();
+    this.shareCounselor(id, name, r.code);
+  },
+
+  async toggleCounselor(id, name, on) {
+    if (!on && !await window.UI.confirm({
+      title: `${name} 선생님을 정지할까요?`,
+      body: '즉시 로그인이 막히고 매칭 목록에서도 빠집니다.\n기록은 지워지지 않아요.',
+      okLabel: '정지', danger: true
+    })) return;
+    await window.Api.json('/api/admin/counselors/active', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id, active: on })
+    });
+    if (window.Sfx) window.Sfx.play(on ? 'ripe' : 'close');
+    this.loadCounselors();
+  },
+
+  async removeCounselor(id, name) {
+    const typed = await window.UI.prompt({
+      title: `${name} 선생님을 완전히 삭제할까요?`,
+      body: `예약·수신함·채팅·후기가 전부 함께 지워집니다. 되돌릴 수 없어요.\n계속하려면 아래에 ID(${id})를 그대로 입력하세요.`,
+      placeholder: id, okLabel: '삭제', cancelLabel: '취소'
+    });
+    if (typed !== id) { if (typed !== null) window.UI.alert('ID 가 달라서 취소했어요'); return; }
+    const r = await window.Api.json('/api/admin/counselors/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: this.code(), id, confirm: id })
+    });
+    if (!r || !r.ok) { window.UI.alert('삭제하지 못했어요'); return; }
+    if (window.App) window.App.showRecordToast(`${name} 선생님을 삭제했어요`);
+    this.loadCounselors();
+  },
+
+  peekCode(id) { this._showCode[id] = !this._showCode[id]; this.renderCounselorBox(); },
+
+  copyCode(code) {
+    try {
+      navigator.clipboard.writeText(code)
+        .then(() => window.App && window.App.showRecordToast('코드를 복사했어요'))
+        .catch(() => {});
+    } catch (e) {}
+  },
+
+  renderCounselorBox() {
+    const el = document.getElementById('admin-counselor-box');
+    if (!el) return;
+    const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
+
+    if (this._cs === null) {
+      el.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">불러오는 중…</p>';
+      return;
+    }
+    const rows = this._cs.map(c => {
+      const on = !!c.active;
+      const shown = !!this._showCode[c.id];
+      return `
+      <div style="background: var(--bg-tertiary); border: 1px solid ${on ? 'var(--glass-border)' : '#c14a4a55'}; border-radius: 12px; padding: 0.75rem 0.85rem; ${on ? '' : 'opacity: 0.7;'}">
+        <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+          <strong style="font-size: 0.88rem; color: var(--text-primary);">${esc(c.name)}</strong>
+          <span style="font-size: 0.7rem; color: var(--text-muted);">${esc(c.hospital || '')}</span>
+          <span style="flex: 1;"></span>
+          ${on
+            ? (c.available
+              ? '<span style="font-size: 0.64rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 16%, transparent); padding: 0.12rem 0.45rem; border-radius: 999px;">수신 중</span>'
+              : '<span style="font-size: 0.64rem; font-weight: 800; color: var(--text-muted); background: var(--bg-secondary); padding: 0.12rem 0.45rem; border-radius: 999px;">부재중</span>')
+            : '<span style="font-size: 0.64rem; font-weight: 800; color: #c14a4a; background: #c14a4a1e; padding: 0.12rem 0.45rem; border-radius: 999px;">정지됨</span>'}
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.45rem;">
+          <code style="flex: 1; min-width: 0; font-size: 0.74rem; letter-spacing: 0.02em; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${shown ? esc(c.code) : '••••-••••-••••-••••'}</code>
+          <button onclick="window.Admin.peekCode('${esc(c.id)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0.3rem 0.45rem;">${shown ? '가리기' : '보기'}</button>
+          ${shown ? `<button onclick="window.Admin.copyCode('${esc(c.code)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.3rem 0.45rem;">복사</button>` : ''}
+        </div>
+        <div style="display: flex; gap: 0.3rem; margin-top: 0.5rem; flex-wrap: wrap;">
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" onclick="window.Admin.shareCounselor('${esc(c.id)}','${esc(c.name)}','${esc(c.code)}')">안내문</button>
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" onclick="window.Admin.rotateCounselor('${esc(c.id)}','${esc(c.name)}')">코드 재발급</button>
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem; ${on ? 'color: #c14a4a;' : 'color: var(--accent-primary);'}" onclick="window.Admin.toggleCounselor('${esc(c.id)}','${esc(c.name)}',${on ? 'false' : 'true'})">${on ? '정지' : '정지 해제'}</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a;" onclick="window.Admin.removeCounselor('${esc(c.id)}','${esc(c.name)}')">삭제</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+        ${rows || '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; padding: 0.8rem 0; margin: 0;">등록된 상담사가 없습니다. 아래에서 추가하세요.</p>'}
+      </div>
+      <div style="margin-top: 0.7rem; background: var(--bg-secondary); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 0.75rem 0.85rem;">
+        <p style="margin: 0 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-primary);">상담사 추가</p>
+        <input id="ac-name" placeholder="이름 (예: 김유진 심리상담사)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
+        <input id="ac-hosp" placeholder="소속 (예: 연세 마음가득 정신건강의학과)" style="width: 100%; box-sizing: border-box; margin-bottom: 0.35rem; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
+        <input id="ac-id" placeholder="ID (비워두면 자동 · 앱 상담사 카드와 맞추려면 c1 등)" style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 9px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.8rem; outline: none;">
+        <button class="btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.5rem; font-size: 0.82rem;" onclick="window.Admin.addCounselor()">추가하고 코드 발급</button>
+      </div>`;
+  },
+
   _apps() { return window.Storage._safeGet('cbt_counselor_apps', []) || []; },
   _customs() { return window.Storage._safeGet('cbt_custom_counselors', []) || []; },
 
@@ -294,7 +461,7 @@ window.Admin = {
           </div>
           <div style="margin-top: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.7;">
  <b style="color: var(--text-primary);"> 이 기기 사용자</b> ·
-            ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `무료 플랜 (오늘 ${window.Subscription.chatLeft()}/30회 남음)`) : '-'}
+            ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `무료 플랜 (오늘 ${window.Subscription.chatLeft()}/${window.Subscription.FREE_DAILY_CHATS}회 남음)`) : '-'}
             · 누적 대화 ${(S._safeGet('cbt_total_chats', 0) || 0).toLocaleString()}회 · 체크인 ${((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString()}회 · 심사 대기 ${pending.length}건
           </div>
           <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0.4rem 0 0;">※ 가입자·구독자 정확 집계는 회원 서버 구축 후 가능 — 지금은 서버에 기록을 남긴 기기 수를 이용자 수로 셉니다.</p>
@@ -304,16 +471,23 @@ window.Admin = {
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
             <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
-            플랫폼 <b style="color: var(--accent-primary);">7%</b> · PG 수수료 3~4%(실비) · 병원 10% · <b style="color: var(--text-primary);">상담사 나머지 약 80%</b><br>
+            상담사 <b style="color: var(--text-primary);">70%</b> · 소속 기관 10% · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">17%</b><br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
-              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 80 · 병원 10 · 플랫폼 7 · PG 실비)
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 70 · 기관 10 · PG 3 · 플랫폼 17)
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
               구글 수수료 15% 선차감 후 <b>순액 기준</b> 정산 — 구독 9,900원 → 순입금 8,415원 (전액 플랫폼, API 원가 차감)
             </div>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);">상담사 관리 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.74rem;">(서버 · 코드 발급)</span></h3>
+          <div id="admin-counselor-box">
+            <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">불러오는 중…</p>
           </div>
         </div>
 
@@ -331,7 +505,7 @@ window.Admin = {
 
         <div>
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 전달된 상담 자료 <span style="font-weight: 500; color: var(--text-muted); font-size: 0.78rem;">(이 기기 기록)</span></h3>
-          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="/counselor.html" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 열람 코드 1234</p>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.5rem;">서버 수신함은 <a href="/counselor.html" target="_blank" style="color: var(--accent-primary); font-weight: 700;">상담사 전용 페이지(/counselor.html)</a>에서 열람 — 코드는 위 [상담사 관리]에서 발급</p>
           ${(() => {
             const packs = Object.entries(S._safeGet('cbt_shared_packs', {}) || {});
             if (!packs.length) return '<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; padding: 0.6rem 0 1rem;">아직 전달된 자료가 없습니다.<br><span style="font-size: 0.72rem;">내담자가 예약 카드에서 \'상담 자료 보내기\'로 동의·전달하면 여기 쌓여요.</span></p>';
@@ -363,6 +537,7 @@ window.Admin = {
 
       </div>`;
     document.body.appendChild(ov);
+    this.loadCounselors();          // 상담사 목록·코드
     // 서버 통계 → 서비스 현황 그리드
     window.Api.f('/api/stats?code=' + this.code()).then(r2 => r2.ok ? r2.json() : null).then(d => {
       const grid = document.getElementById('admin-stats-grid');

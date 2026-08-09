@@ -21,6 +21,22 @@ const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const nowMs = () => Date.now();
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
 
+// 상담사 코드. 이 문자열 하나가 그 사람의 수신함 열쇠라서
+//  · 암호학적 난수를 쓰고 (Math.random 아님)
+//  · 헷갈리는 0/O/1/I 를 뺀 32자 알파벳으로 22자 → 추측 불가
+//  · 5자마다 하이픈을 넣어 전화로 불러줄 수 있게 한다
+function makeCode() {
+  const AB = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b = new Uint8Array(20);
+  crypto.getRandomValues(b);
+  let out = '';
+  for (let i = 0; i < 20; i++) {
+    out += AB[b[i] % AB.length];
+    if (i % 5 === 4 && i !== 19) out += '-';
+  }
+  return out;
+}
+
 function json(data, status, cors) {
   return new Response(JSON.stringify(data), {
     status: status || 200,
@@ -338,6 +354,61 @@ export async function handleMarket(request, env, cors, path) {
       counselors: c.n || 0, bookings: b.n || 0, gross: b.sum || 0,
       inbox: i.n || 0, reviews: rv.n || 0, ratingAvg: Math.round((rv.avg || 0) * 10) / 10
     }, 200, cors);
+  }
+
+  // ── 상담사 관리 (운영자만) ──────────────────────────────────────────
+  //  터미널 없이 앱에서 다 되게 한다. 상담사 한 명 넣자고 wrangler 를
+  //  띄우게 만들면 결국 아무도 관리하지 않는다.
+  if (path.startsWith('/admin/counselors')) {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+
+    if (path === '/admin/counselors' && method === 'GET') {
+      const r = await db.prepare(
+        'SELECT id, name, hospital, code, available, busy_until, active, created FROM counselors ORDER BY created DESC'
+      ).all();
+      return json({ items: r.results || [] }, 200, cors);
+    }
+
+    if (path === '/admin/counselors' && method === 'POST') {
+      const id = s(body.id, MAX.id).trim();
+      const name = s(body.name).trim();
+      if (!id || !name) return json({ error: 'id·name 필요' }, 400, cors);
+      if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) return json({ error: 'id 는 영문·숫자만' }, 400, cors);
+      const dup = await db.prepare('SELECT id FROM counselors WHERE id = ?').bind(id).first();
+      if (dup) return json({ error: '이미 있는 ID 입니다' }, 409, cors);
+      const newCode = makeCode();
+      await db.prepare(
+        `INSERT INTO counselors (id, name, hospital, code, available, busy_until, active, created)
+         VALUES (?,?,?,?,0,0,1,?)`
+      ).bind(id, name, s(body.hospital, 120), newCode, nowMs()).run();
+      return json({ ok: true, id, name, code: newCode }, 200, cors);
+    }
+
+    if (path === '/admin/counselors/rotate' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      const newCode = makeCode();
+      const r = await db.prepare('UPDATE counselors SET code = ? WHERE id = ?').bind(newCode, id).run();
+      return json({ ok: true, id, code: newCode }, 200, cors);
+    }
+
+    if (path === '/admin/counselors/active' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      await db.prepare('UPDATE counselors SET active = ? WHERE id = ?')
+        .bind(body.active ? 1 : 0, id).run();
+      return json({ ok: true }, 200, cors);
+    }
+
+    // 완전 삭제는 남긴 기록까지 지우므로 확인 문구를 서버에서도 요구한다
+    if (path === '/admin/counselors/delete' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      if (body.confirm !== id) return json({ error: 'confirm 불일치' }, 400, cors);
+      for (const t of ['chat_msgs', 'inbox', 'bookings', 'call_queue']) {
+        await db.prepare(`DELETE FROM ${t} WHERE counselor_id = ?`).bind(id).run();
+      }
+      await db.prepare('DELETE FROM reviews WHERE counselor_id = ?').bind(id).run();
+      await db.prepare('DELETE FROM counselors WHERE id = ?').bind(id).run();
+      return json({ ok: true }, 200, cors);
+    }
   }
 
   // ── 오래된 기록 정리 (운영자만) ─────────────────────────────────────
