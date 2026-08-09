@@ -15,6 +15,8 @@
 import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt } from './auth.js';
 import { handleRtc } from './rtc.js';
 import { handlePush } from './push.js';
+import { handleOauth } from './oauth.js';
+import { handleSync } from './sync.js';
 
 const MAX = { text: 4000, name: 40, id: 64 };
 const CALL_LOCK_MS = 35 * 60 * 1000;      // 통화 잠금 자동 해제
@@ -141,6 +143,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
   // 웹 푸시 구독 — 상담사 앱이 화면을 꺼도 전화를 받게
   if (path.startsWith('/push/')) {
     const r = await handlePush(request, env, cors, path, body, url);
+    if (r) return r;
+  }
+
+  // 소셜 로그인 (카카오·네이버·구글)
+  if (path.startsWith('/oauth/')) {
+    const r = await handleOauth(request, env, cors, path, body, url);
+    if (r) return r;
+  }
+
+  // 계정 동기화 — 대화 원문은 올라오지 않는다 (sync.js 흰 목록 참고)
+  if (path === '/sync' || path.startsWith('/sync/')) {
+    const r = await handleSync(request, env, cors, path, body, url);
     if (r) return r;
   }
 
