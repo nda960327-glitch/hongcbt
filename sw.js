@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v118';
+﻿const CACHE_NAME = 'cbt-app-v119';
 const ASSETS = [
   './',
   './index.html',
@@ -113,7 +113,13 @@ self.addEventListener('fetch', (event) => {
 
   if (isCode) {
     event.respondWith(
-      fetch(req)
+      // cache:'reload' 가 없으면 이 fetch 도 브라우저 HTTP 캐시에서 답을 받는다.
+      //  Pages 가 js·css 에 max-age=14400(4시간) 을 붙여 보내고 있어서,
+      //  '네트워크 우선'이 실제로는 '4시간 묵은 것 우선'이었다.
+      //  앱을 고쳐 배포해도 기기가 옛 코드를 계속 쓰던 진짜 원인이다.
+      //  (_headers 로 서버 쪽도 no-cache 로 바꿨지만, 이미 캐시를 받아 둔
+      //   기기가 스스로 빠져나오려면 이쪽도 필요하다)
+      fetch(req, { cache: 'reload' })
         .then((res) => {
           // 최신본을 받아오면 캐시도 같이 갱신해 오프라인에 대비한다.
           const copy = res.clone();

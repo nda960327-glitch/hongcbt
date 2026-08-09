@@ -1,0 +1,33 @@
+# Cloudflare Pages 캐시 지시
+#
+#  Pages 기본값은 js·css·sw.js 에 max-age=14400 (4시간) 을 붙인다.
+#  그러면 앱을 고쳐 배포해도 최대 4시간 동안 기기가 옛 파일을 쓴다.
+#  서비스워커가 '네트워크 우선'으로 받아오려 해도, 그 fetch 자체가
+#  브라우저 HTTP 캐시에서 응답을 받아버리므로 소용이 없다.
+#  (인터넷 기록을 지워도 그대로였던 이유)
+#
+#  no-cache 는 '저장은 하되 쓸 때마다 서버에 물어보라'는 뜻이다.
+#  ETag 가 있으므로 안 바뀌었으면 304 (본문 없음) 로 끝나 비용이 거의 없다.
+#  절대 no-store 로 두지 말 것 — 매번 전부 다시 받아 느려진다.
+
+/sw.js
+  Cache-Control: no-cache
+
+/index.html
+  Cache-Control: no-cache
+
+/js/*
+  Cache-Control: no-cache
+
+/css/*
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: no-cache
+
+# 그림·글꼴은 내용이 바뀌면 파일명을 바꾸므로 오래 캐시해도 된다
+/*.png
+  Cache-Control: public, max-age=604800
+
+/*.svg
+  Cache-Control: public, max-age=604800

@@ -194,7 +194,9 @@
 
     async function initSW() {
       if (!('serviceWorker' in navigator)) return;
-      try { SWREG = await navigator.serviceWorker.register('./sw.js', { scope: './' }); } catch (e) { return; }
+      // updateViaCache:'none' — sw.js 가 HTTP 캐시를 거치면 새 버전을 못 본다
+      try { SWREG = await navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' }); } catch (e) { return; }
+      try { SWREG.update(); } catch (e) {}
       navigator.serviceWorker.addEventListener('message', ev => {
         const d = ev.data || {};
         if (d.type === 'push' && d.call) showIncoming(d.call);

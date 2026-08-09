@@ -805,9 +805,46 @@ window.App = {
   },
 
   // === 설정 전체화면 (마이탭에서 진입) ===
+  // 캐시가 꼬여 새 버전이 안 올라올 때의 최후 수단.
+  //  '인터넷 기록 삭제'로는 서비스워커도 그 캐시도 지워지지 않는다.
+  //  기록(localStorage)은 건드리지 않는다 — 코드만 새로 받는다.
+  async hardRefresh() {
+    if (window.UI && !await window.UI.confirm({
+      title: '최신 버전으로 새로고침할까요?',
+      body: '앱 코드만 새로 받아요.\n대화·기억·레벨은 그대로 남습니다.',
+      okLabel: '새로고침'
+    })) return;
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } catch (e) {}
+    // 주소에 표식을 붙여 HTTP 캐시까지 확실히 우회한다
+    location.replace(location.pathname + '?fresh=' + Date.now());
+  },
+
+  // 지금 돌고 있는 코드가 몇 번째 판인지 보여준다.
+  //  '업데이트가 됐나?'를 눈으로 확인할 방법이 없으면 서로 답답해진다.
+  async _showBuild() {
+    const el = document.getElementById('app-build');
+    if (!el) return;
+    try {
+      const r = await fetch('./sw.js', { cache: 'no-store' });
+      const t = await r.text();
+      const m = t.match(/cbt-app-(v\d+)/);
+      el.textContent = m ? '· ' + m[1] : '';
+    } catch (e) { el.textContent = ''; }
+  },
+
   openSettings() {
     const ov = document.getElementById('settings-overlay');
     if (ov) ov.classList.remove('hidden');
+    this._showBuild();
     // 계정 칸은 열 때마다 다시 그린다 — 다른 화면에서 로그인/로그아웃했을 수 있다
     if (window.Account) window.Account.render();
     // 설정 화면도 초기 아이콘 심기 대상이 아니어서, 열 때 한 번 채운다

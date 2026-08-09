@@ -1216,7 +1216,17 @@
         </div>
 
         <p style="text-align: center; margin: 1rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
-          우렁의사 <span id="app-version">v1.0.0</span>
+          우렁의사 <span id="app-version">v1.0.0</span> <span id="app-build" style="opacity: 0.75;"></span>
+        </p>
+
+        <!-- 최후의 수단.
+             캐시가 꼬여 새 버전이 안 올라오면 사용자는 손쓸 방법이 없다.
+             '인터넷 기록 삭제'로는 서비스워커와 그 캐시가 지워지지 않는다. -->
+        <p style="text-align: center; margin: 0.5rem 0 0;">
+          <button onclick="window.App.hardRefresh()" style="all: unset; font-size: 0.72rem; color: var(--accent-primary); font-weight: 700; cursor: pointer; padding: 0.4rem 0.6rem; text-decoration: underline; text-underline-offset: 3px;">최신 버전으로 새로고침</button>
+        </p>
+        <p style="text-align: center; margin: 0.15rem 0 0; font-size: 0.66rem; color: var(--text-muted); line-height: 1.5;">
+          화면이 예전 그대로면 눌러주세요.<br>기록·기억은 지워지지 않아요.
         </p>
 
         <!-- 운영자 콘솔 진입 (데모 백오피스) -->
@@ -1525,7 +1535,11 @@
       });
 
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+          // updateViaCache:'none' — sw.js 자체도 HTTP 캐시를 거치지 않게 한다.
+          //  이게 없으면 sw.js 가 4시간 캐시돼서, 새 버전이 나와도
+          //  브라우저가 옛 sw.js 를 보고 '바뀐 게 없다'고 판단한다.
+          try { reg.update(); } catch (e) {}     // 켤 때마다 한 번 확인
           // 앱을 열어둔 채로도 주기적으로 새 버전을 확인한다
           setInterval(() => { try { reg.update(); } catch (e) {} }, 60 * 60 * 1000);
           document.addEventListener('visibilitychange', () => {

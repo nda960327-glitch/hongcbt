@@ -36,7 +36,8 @@ self.addEventListener('fetch', e => {
   if (url.origin !== location.origin) return;      // API·폰트는 건드리지 않는다
   e.respondWith((async () => {
     try {
-      const net = await fetch(req);
+      // cache:'reload' 가 없으면 브라우저 HTTP 캐시가 옛 파일을 돌려준다
+      const net = await fetch(req, { cache: 'reload' });
       if (net && net.ok) { const c = await caches.open(CACHE); c.put(req, net.clone()); }
       return net;
     } catch (err) {
