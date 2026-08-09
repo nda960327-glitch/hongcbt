@@ -796,6 +796,19 @@ export async function handleMarket(request, env, cors, path) {
     }
   }
 
+  // 메일 발송 기록 (운영자만).
+  //  매직링크가 조용히 실패하면 상담사는 로그인을 못 하는데 아무도 모른다.
+  //  대부분 도메인 미인증(403)이나 키 오류(401)이고, 사유를 봐야 고칠 수 있다.
+  if (path === '/maillog' && method === 'GET') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const r = await db.prepare(
+      'SELECT addr, ok, reason, detail, ts FROM mail_log ORDER BY ts DESC LIMIT 30').all();
+    const items = (r.results || []).map(x => ({
+      addr: x.addr, ok: !!x.ok, reason: x.reason || '', detail: x.detail || '', ts: x.ts
+    }));
+    return json({ items, fails: items.filter(x => !x.ok).length }, 200, cors);
+  }
+
   // ── 오래된 기록 정리 (운영자만) ─────────────────────────────────────
   if (path === '/purge' && method === 'POST') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
