@@ -3,7 +3,7 @@
 //  여기엔 푸시가 없다. 운영자는 알림을 받을 이유가 없고,
 //  이 앱의 존재 이유는 'PC에서 빨리 열리는 것' 하나다.
 
-const CACHE = 'uroong-ops-v1';
+const CACHE = 'uroong-ops-v2';
 const SHELL = [
   './',
   './index.html',

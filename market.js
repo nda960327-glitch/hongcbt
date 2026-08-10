@@ -955,8 +955,13 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
 
     if (path === '/admin/counselors' && method === 'GET') {
+      // subs = 이 상담사가 등록한 푸시 구독 기기 수.
+      //  0 이면 전화가 와도 폰이 울리지 않는다 — 운영자가 가장 먼저 봐야 할 값인데
+      //  지금까지는 DB 를 직접 열어야만 알 수 있었다.
       const r = await db.prepare(
-        'SELECT id, name, hospital, email, code, available, busy_until, active, created FROM counselors ORDER BY created DESC'
+        `SELECT c.id, c.name, c.hospital, c.email, c.code, c.available, c.busy_until, c.active, c.created,
+                (SELECT COUNT(*) FROM push_subs p WHERE p.counselor_id = c.id) AS subs
+           FROM counselors c ORDER BY c.created DESC LIMIT 500`
       ).all();
       return json({ items: r.results || [] }, 200, cors);
     }
@@ -1032,6 +1037,289 @@ export async function handleMarket(request, env, cors, path, ctx) {
       await db.prepare("UPDATE applications SET status = 'delisted' WHERE counselor_id = ?").bind(id).run();
       await db.prepare('DELETE FROM counselors WHERE id = ?').bind(id).run();
       return json({ ok: true }, 200, cors);
+    }
+  }
+
+  // ── 운영자 콘솔 확장 (ops 앱 전용) ──────────────────────────────────
+  //  여기 있는 것들은 전부 '읽기'거나 '공지·점검' 이다. 돈과 계정을 건드리는
+  //  일은 위쪽 블록에 그대로 두고, 이 블록은 운영자가 상황을 '보는' 데 쓴다.
+  //  전에는 통화가 몇 건 붙었는지, AI 호출이 한도에 얼마나 다가갔는지,
+  //  누가 연락처를 빼돌리려 했는지를 알려면 wrangler d1 로 SQL 을 쳐야 했다.
+  //  결국 아무도 안 봤고, 사고는 언제나 뒤늦게 발견됐다.
+  const OPS_PATHS = [
+    '/admin/calls', '/admin/clients', '/admin/timeseries', '/admin/usage',
+    '/admin/contact-attempts', '/admin/reviews', '/admin/reviews/delete',
+    '/admin/broadcast', '/admin/push-test'
+  ];
+  if (OPS_PATHS.includes(path)) {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+
+    // KST 자정. 서버는 UTC 로 돌지만 운영자는 한국 시간으로 '오늘'을 센다 —
+    //  UTC 자정으로 자르면 오전 9시 이전 통화가 전부 어제로 밀린다.
+    const KST = 9 * 3600000;
+    const t = nowMs();
+    const dayStart = Math.floor((t + KST) / 86400000) * 86400000 - KST;
+    // sqlite 에서 ms 타임스탬프를 KST 날짜 문자열로 바꾸는 식 (정수 나눗셈)
+    const DAYEXPR = c => `strftime('%Y-%m-%d', (${c} + 32400000) / 1000, 'unixepoch')`;
+
+    // ── ① 통화 관제 ───────────────────────────────────────────────────
+    //  '지금 붙어 있는 통화'가 맨 위에 보여야 한다. 회선이 잠긴 채 남은
+    //  좀비 통화를 운영자가 눈으로 찾아 끊을 수 있어야 하기 때문이다.
+    if (path === '/admin/calls' && method === 'GET') {
+      try {
+        const r = await db.prepare(
+          `SELECT c.*, k.name AS cname
+             FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+            ORDER BY c.ring_at DESC LIMIT 100`
+        ).all();
+        const items = (r.results || []).map(x => {
+          const connected = !!x.connect_at;
+          const live = !x.end_at;
+          const ms = connected ? ((x.end_at || t) - x.connect_at) : 0;
+          return {
+            id: x.id, dir: x.dir || 'to-counselor',
+            counselorId: x.counselor_id, counselorName: x.cname || '(삭제된 상담사)',
+            clientId: String(x.client_id || '').slice(0, 8),   // 앞 8자만 — 식별에는 충분하다
+            ringAt: x.ring_at, connectAt: x.connect_at || 0, endAt: x.end_at || 0,
+            endBy: x.end_by || '', billed: x.billed || 0, rate: x.rate || 0,
+            lastSeen: x.last_seen || 0, connected, live, ms
+          };
+        });
+        // 오늘 요약은 100건 제한과 무관해야 한다 — 따로 센다
+        const g = await db.prepare(
+          `SELECT COUNT(*) total,
+                  SUM(CASE WHEN connect_at > 0 THEN 1 ELSE 0 END) conn,
+                  SUM(CASE WHEN connect_at > 0 AND end_at > 0 THEN end_at - connect_at ELSE 0 END) sumMs,
+                  SUM(CASE WHEN connect_at > 0 AND end_at > 0 THEN 1 ELSE 0 END) doneN
+             FROM calls WHERE ring_at >= ?`
+        ).bind(dayStart).first() || {};
+        const total = g.total || 0, conn = g.conn || 0, doneN = g.doneN || 0;
+        return json({
+          items,
+          today: {
+            total, connected: conn, missed: total - conn,
+            connectRate: total ? Math.round(conn * 1000 / total) / 10 : 0,
+            avgMs: doneN ? Math.round((g.sumMs || 0) / doneN) : 0
+          },
+          live: items.filter(x => x.live).length, now: t
+        }, 200, cors);
+      } catch (e) {
+        return json({ items: [], today: null, error: 'no-table', now: t }, 200, cors);
+      }
+    }
+
+    // ── ② 이용자 현황 ─────────────────────────────────────────────────
+    //  내담자는 계정이 없다. 그래서 '몇 명이 실제로 쓰고 있나'를 볼 방법이
+    //  누적 기기 수 하나뿐이었다. 활동 흔적(채팅·예약·통화)을 clientId 로 묶는다.
+    if (path === '/admin/clients' && method === 'GET') {
+      try {
+        const r = await db.prepare(
+          `SELECT g.client_id, MAX(g.last_ts) last_ts,
+                  SUM(g.msgs) msgs, SUM(g.bks) bks, SUM(g.cls) cls, MAX(g.nm) nm
+             FROM (
+               SELECT client_id, MAX(ts) last_ts, COUNT(*) msgs, 0 bks, 0 cls, MAX(client_name) nm
+                 FROM chat_msgs GROUP BY client_id
+               UNION ALL
+               SELECT client_id, MAX(created) last_ts, 0, COUNT(*), 0, MAX(client_name)
+                 FROM bookings GROUP BY client_id
+               UNION ALL
+               SELECT client_id, MAX(ring_at) last_ts, 0, 0, COUNT(*), ''
+                 FROM calls GROUP BY client_id
+             ) g
+            GROUP BY g.client_id ORDER BY last_ts DESC LIMIT 100`
+        ).all();
+        const rows = r.results || [];
+        // 마지막으로 대화한 상담사 — 이름은 따로 한 번에 받아 맞춘다
+        //  (100줄짜리 상관 서브쿼리 두 번보다 왕복 한 번이 싸다)
+        const last = await db.prepare(
+          `SELECT m.client_id, m.counselor_id FROM chat_msgs m
+             JOIN (SELECT client_id, MAX(ts) mts FROM chat_msgs GROUP BY client_id) x
+               ON x.client_id = m.client_id AND x.mts = m.ts LIMIT 300`
+        ).all();
+        const lastOf = {};
+        (last.results || []).forEach(x => { lastOf[x.client_id] = x.counselor_id; });
+        const cs = await db.prepare('SELECT id, name FROM counselors LIMIT 500').all();
+        const nameOf = {};
+        (cs.results || []).forEach(x => { nameOf[x.id] = x.name; });
+        return json({
+          items: rows.map(x => ({
+            clientId: String(x.client_id || '').slice(0, 8),   // 앞 8자만
+            clientName: x.nm || '',                            // 이름은 그대로 (문의 응대에 필요)
+            lastTs: x.last_ts || 0,
+            msgs: x.msgs || 0, bookings: x.bks || 0, calls: x.cls || 0,
+            lastCounselor: nameOf[lastOf[x.client_id]] || ''
+          })), now: t
+        }, 200, cors);
+      } catch (e) {
+        return json({ items: [], error: 'query-failed', now: t }, 200, cors);
+      }
+    }
+
+    // ── ③ 추이 (최근 14일) ────────────────────────────────────────────
+    //  숫자 하나(누적)로는 '늘고 있나 줄고 있나'를 절대 알 수 없다.
+    if (path === '/admin/timeseries' && method === 'GET') {
+      const DAYS = 14;
+      const from = dayStart - (DAYS - 1) * 86400000;
+      const bucket = {};
+      const keys = [];
+      for (let i = 0; i < DAYS; i++) {
+        const d = new Date(from + i * 86400000 + KST).toISOString().slice(0, 10);
+        keys.push(d);
+        bucket[d] = { d, msgs: 0, bookings: 0, calls: 0, newClients: 0 };
+      }
+      const put = (rows, field) => (rows || []).forEach(x => {
+        if (bucket[x.d]) bucket[x.d][field] = x.n || 0;
+      });
+      try {
+        // Promise.all 이 아니라 batch — D1 은 한 연결에 동시 실행을 싫어한다
+        //  (/badge 에서 실제로 일부 쿼리가 조용히 실패한 적이 있다). 왕복도 한 번이다.
+        const res = await db.batch([
+          db.prepare(`SELECT ${DAYEXPR('ts')} d, COUNT(*) n FROM chat_msgs WHERE ts >= ? GROUP BY d ORDER BY d LIMIT 40`).bind(from),
+          db.prepare(`SELECT ${DAYEXPR('created')} d, COUNT(*) n FROM bookings WHERE created >= ? GROUP BY d ORDER BY d LIMIT 40`).bind(from),
+          db.prepare(`SELECT ${DAYEXPR('ring_at')} d, COUNT(*) n FROM calls WHERE ring_at >= ? AND connect_at > 0 GROUP BY d ORDER BY d LIMIT 40`).bind(from),
+          db.prepare(
+            `SELECT ${DAYEXPR('f')} d, COUNT(*) n FROM
+               (SELECT client_id, MIN(ts) f FROM chat_msgs GROUP BY client_id)
+              WHERE f >= ? GROUP BY d ORDER BY d LIMIT 40`).bind(from)
+        ]);
+        const rs = i => (res[i] && res[i].results) || [];
+        put(rs(0), 'msgs'); put(rs(1), 'bookings');
+        put(rs(2), 'calls'); put(rs(3), 'newClients');
+      } catch (e) {
+        return json({ days: keys.map(k => bucket[k]), error: 'query-failed' }, 200, cors);
+      }
+      return json({ days: keys.map(k => bucket[k]), from, to: dayStart, now: t }, 200, cors);
+    }
+
+    // ── ④ AI 사용량·차단 ──────────────────────────────────────────────
+    //  usage 의 day 는 UTC 기준이다 (cbtproxy.worker.js 의 utcDay()).
+    //  여기서 KST 로 바꿔 보여주면 카운터와 화면이 어긋난다 — UTC 그대로 쓴다.
+    if (path === '/admin/usage' && method === 'GET') {
+      // cbtproxy.worker.js 의 LIMIT 과 같은 값이어야 한다. 한쪽만 고치면
+      //  게이지가 거짓말을 한다 (실제로는 막혔는데 화면은 여유로 보인다).
+      const LIMITS = { ip: 600, client: 400, all: 300000 };
+      const utcDay = ms => new Date(ms).toISOString().slice(0, 10);
+      const today = utcDay(t);
+      const from = utcDay(t - 6 * 86400000);
+      try {
+        const res = await db.batch([
+          db.prepare("SELECT day, n FROM usage WHERE kind = 'all' AND key = 'total' AND day >= ? ORDER BY day ASC LIMIT 14")
+            .bind(from),
+          db.prepare("SELECT key, n FROM usage WHERE kind = 'client' AND day = ? ORDER BY n DESC LIMIT 10")
+            .bind(today),
+          db.prepare('SELECT id, day, kind, key, n, ts FROM blocks ORDER BY ts DESC LIMIT 50')
+        ]);
+        const rs = i => (res[i] && res[i].results) || [];
+        const d = { results: rs(0) }, tops = { results: rs(1) }, blk = { results: rs(2) };
+        const days = (d.results || []).map(x => ({ d: x.day, n: x.n || 0 }));
+        const todayN = (days.find(x => x.d === today) || {}).n || 0;
+        return json({
+          today, todayN, limits: LIMITS, days,
+          // 기기 식별자는 앞 8자만. 한 기기를 특정할 이유는 '막을 때'뿐이다.
+          topClients: (tops.results || []).map(x => ({ key: String(x.key || '').slice(0, 8), n: x.n || 0 })),
+          blocks: (blk.results || []).map(x => ({
+            id: x.id, day: x.day, kind: x.kind,
+            // IP 는 개인정보다 — 뒤 두 마디를 가린다 (어느 대역인지는 남는다)
+            key: x.kind === 'ip' ? String(x.key || '').replace(/^((?:\d+\.){2})\d+\.\d+$/, '$1x.x')
+                                 : String(x.key || '').slice(0, 8),
+            n: x.n || 0, ts: x.ts
+          }))
+        }, 200, cors);
+      } catch (e) {
+        return json({ today, todayN: 0, limits: LIMITS, days: [], topClients: [], blocks: [], error: 'no-table' }, 200, cors);
+      }
+    }
+
+    // ── ⑤ 연락처 시도 감사 ────────────────────────────────────────────
+    //  한두 번은 실수다. 같은 두 사람 사이에서 반복되면 직거래 유도다.
+    if (path === '/admin/contact-attempts' && method === 'GET') {
+      try {
+        const res = await db.batch([
+          db.prepare(
+            `SELECT a.id, a.counselor_id, a.client_id, a.sender, a.n, a.ts, k.name cname
+               FROM contact_attempts a LEFT JOIN counselors k ON k.id = a.counselor_id
+              ORDER BY a.ts DESC LIMIT 100`),
+          db.prepare(
+            `SELECT counselor_id, client_id, COUNT(*) c, SUM(n) sn, MAX(ts) last
+               FROM contact_attempts GROUP BY counselor_id, client_id
+              HAVING c >= 3 ORDER BY c DESC LIMIT 20`)
+        ]);
+        const r = { results: (res[0] && res[0].results) || [] };
+        const rep = { results: (res[1] && res[1].results) || [] };
+        const key = (a, b) => a + '|' + String(b || '').slice(0, 8);
+        const hot = {};
+        (rep.results || []).forEach(x => { hot[key(x.counselor_id, x.client_id)] = x.c; });
+        return json({
+          items: (r.results || []).map(x => ({
+            id: x.id, counselorId: x.counselor_id, counselorName: x.cname || '(삭제된 상담사)',
+            clientId: String(x.client_id || '').slice(0, 8),
+            sender: x.sender, n: x.n || 0, ts: x.ts,
+            repeat: hot[key(x.counselor_id, x.client_id)] || 0
+          })),
+          repeats: (rep.results || []).map(x => ({
+            counselorId: x.counselor_id, clientId: String(x.client_id || '').slice(0, 8),
+            count: x.c, masked: x.sn || 0, lastTs: x.last
+          })), now: t
+        }, 200, cors);
+      } catch (e) {
+        return json({ items: [], repeats: [], error: 'no-table', now: t }, 200, cors);
+      }
+    }
+
+    // ── ⑥ 리뷰 관리 ───────────────────────────────────────────────────
+    //  욕설·개인정보가 섞인 후기는 상담사 카드에 그대로 붙는다. 지울 수 있어야 한다.
+    if (path === '/admin/reviews' && method === 'GET') {
+      const r = await db.prepare(
+        `SELECT r.id, r.counselor_id, r.client_name, r.rating, r.body, r.reply, r.reply_ts, r.ts, k.name cname
+           FROM reviews r LEFT JOIN counselors k ON k.id = r.counselor_id
+          ORDER BY r.ts DESC LIMIT 100`).all();
+      const items = (r.results || []).map(x => ({
+        id: x.id, counselorId: x.counselor_id, counselorName: x.cname || '(삭제된 상담사)',
+        clientName: x.client_name || '익명', rating: x.rating || 0,
+        text: x.body || '', reply: x.reply || '', replyTs: x.reply_ts || 0, ts: x.ts
+      }));
+      const avg = items.length ? items.reduce((a, x) => a + x.rating, 0) / items.length : 0;
+      return json({ items, avg: Math.round(avg * 10) / 10 }, 200, cors);
+    }
+
+    // 삭제는 되돌릴 수 없다 — 화면의 확인창만 믿지 않고 서버도 id 를 되묻는다
+    if (path === '/admin/reviews/delete' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      if (!id) return json({ error: 'missing-id' }, 400, cors);
+      if (body.confirm !== id) return json({ error: 'confirm 불일치' }, 400, cors);
+      await db.prepare('DELETE FROM reviews WHERE id = ?').bind(id).run();
+      return json({ ok: true, id }, 200, cors);
+    }
+
+    // ── ⑦ 전체 공지 ───────────────────────────────────────────────────
+    //  점검 안내·정책 변경을 상담사 1,000명에게 개별 메일로 보낼 수는 없다.
+    //  이미 매일 여는 화면(수신함)에 꽂는 것이 가장 확실하다.
+    if (path === '/admin/broadcast' && method === 'POST') {
+      const text = s(body.text, 2000).trim();
+      if (!text) return json({ error: '내용을 적어주세요' }, 400, cors);
+      const r = await db.prepare('SELECT id FROM counselors WHERE active = 1 LIMIT 500').all();
+      const rows = r.results || [];
+      if (!rows.length) return json({ ok: true, n: 0 }, 200, cors);
+      const ts = nowMs();
+      // 한 건씩 왕복하면 500명에 500번이다. batch 는 한 트랜잭션 한 왕복.
+      await db.batch(rows.map(c => db.prepare(
+        `INSERT INTO inbox (id, counselor_id, counselor_name, booking_id, client_id, client_name, body, read_at, ts)
+         VALUES (?,?,?,'','admin',?,?,0,?)`
+      ).bind(rid('ib'), c.id, '운영자', '운영자 공지', text, ts)));
+      // 푸시는 응답을 붙잡지 않는다 — 500개 왕복을 기다리면 화면이 멈춘다
+      const wake = Promise.all(rows.map(c => notifyCounselor(env, c.id).catch(() => {})));
+      if (ctx && ctx.waitUntil) ctx.waitUntil(wake);
+      return json({ ok: true, n: rows.length }, 200, cors);
+    }
+
+    // ── ⑧ 푸시 점검 ───────────────────────────────────────────────────
+    //  "전화가 안 울려요" 문의의 9할은 구독이 없거나 죽은 것이다.
+    //  운영자가 눌러 보면 바로 안다 — 상담사에게 설명을 시키지 않는다.
+    if (path === '/admin/push-test' && method === 'POST') {
+      const id = s(body.counselorId, MAX.id);
+      if (!id) return json({ error: 'missing-id' }, 400, cors);
+      const r = await notifyCounselor(env, id).catch(() => ({ sent: 0, total: 0 }));
+      return json({ ok: true, sent: r.sent || 0, total: r.total || 0, vapid: !!env.VAPID_PRIVATE }, 200, cors);
     }
   }
 
