@@ -583,6 +583,7 @@ function viewDash() {
     <div class="sec-title">전체 현황<span class="right muted">서버 집계</span></div>
     <div class="stats">
       ${tile('누적 이용자', won(d.uniqueClients), '서버에 기록을 남긴 기기 수')}
+      ${tile('구독 중', won(d.subs ? d.subs.active : 0), d.subs ? `체험 중 ${won(d.subs.trial)}명 · 앱이 하루 1회 자진 신고한 집계` : '집계 준비 중', d.subs && d.subs.active > 0)}
       ${tile('입점 상담사', won(d.counselors), d.counselorsWithoutEmail ? `이메일 미등록 ${d.counselorsWithoutEmail}` : '전원 이메일 등록됨')}
       ${tile('예약', won(d.bookings.total), `예정 ${won(d.bookings.upcoming)} · 완료 ${won(d.bookings.done)} · 취소 ${won(d.bookings.cancelled)}`)}
       ${tile('채팅 스레드', won(d.chat.threads), `답장 대기 ${won(d.chat.awaiting)}`)}
@@ -791,9 +792,9 @@ function viewCounselors() {
     <div class="card">
       <p class="muted" style="margin-bottom: 0.7rem;">
         오프라인으로 모신 분처럼 앱에서 신청하지 않은 경우입니다. 심사 없이 바로 등록되고,
-        이메일을 넣으면 코드가 그 주소로 발송됩니다. (상담료·소개글 등 나머지 정보는 상담사가 프로 앱에서 채웁니다.)</p>
+        이메일을 넣으면 코드가 그 주소로 발송됩니다. <b>ID 는 서버가 랜덤으로 배정합니다.</b>
+        (상담료·소개글 등 나머지 정보는 상담사가 프로 앱에서 채웁니다.)</p>
       <div class="row wrap" style="gap: 0.5rem;">
-        <input id="new-id" type="text" placeholder="ID (영문·숫자, 예: c250811)" style="flex: 1 1 180px; width: auto;" autocomplete="off">
         <input id="new-name" type="text" placeholder="이름" style="flex: 1 1 140px; width: auto;" autocomplete="off">
       </div>
       <div class="row wrap" style="gap: 0.5rem; margin-top: 0.5rem;">
@@ -1536,17 +1537,16 @@ async function removeCs(id) {
 }
 
 async function addCs(btn) {
-  const id = ($('new-id').value || '').trim();
+  // ID 는 서버가 랜덤 배정한다 — 사람이 지어내다 나던 오타·중복이 사라졌다
   const name = ($('new-name').value || '').trim();
   const hospital = ($('new-hospital').value || '').trim();
   const email = ($('new-email').value || '').trim();
-  if (!id || !name) { alertBox('확인해주세요', 'ID 와 이름은 반드시 필요합니다.'); return; }
-  if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) { alertBox('ID 형식', 'ID 는 영문·숫자·-·_ 만 쓸 수 있어요.'); return; }
-  const r = await busy(btn, '등록 중…', () => adminPost('/api/admin/counselors', { id, name, hospital, email }));
+  if (!name) { alertBox('확인해주세요', '이름은 반드시 필요합니다.'); return; }
+  const r = await busy(btn, '등록 중…', () => adminPost('/api/admin/counselors', { name, hospital, email }));
   if (!r || !r.ok) { alertBox('등록하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
-  ['new-id', 'new-name', 'new-hospital', 'new-email'].forEach(k => { const el = $(k); if (el) el.value = ''; });
+  ['new-name', 'new-hospital', 'new-email'].forEach(k => { const el = $(k); if (el) el.value = ''; });
   await loadCounselors();
-  if (r.mailed) toast(`${name} 선생님께 코드를 메일로 보냈어요`);
+  if (r.mailed) toast(`${name} 선생님께 코드를 메일로 보냈어요 (ID ${r.id})`);
   shareText(name, r.code);
 }
 

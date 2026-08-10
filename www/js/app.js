@@ -1754,6 +1754,7 @@ window.App = {
       this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다
       this._morningTick();         // 아침에 딱 한 번, 오늘의 마음가짐을 묻는다
       this._crisisFollowupTick();  // 힘든 밤 다음 날, 우렁이가 먼저 안부를 묻는다
+      this._subsPingTick();        // 하루 한 번, 구독 상태를 집계 서버에 알린다
       this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
       if (window.Cards) window.Cards.render();
       const slots = this._todayCheckinSlots();
@@ -1870,6 +1871,27 @@ window.App = {
       window.Storage._safeSet('cbt_crisis_followup', { ...f, done: true });
       const p = window.Personas ? window.Personas.getActive() : { name: '우렁이' };
       this.notify(p.name, '어제 마음이 많이 무거워 보였어요. 오늘은 조금 어때요? 잠깐이라도 좋으니 이야기해요.', 'chat');
+    } catch (e) {}
+  },
+
+  // 구독자 수 집계 — 구독·체험 상태를 하루 한 번만 서버에 알린다 (결제 검증 아님)
+  _subsPingTick() {
+    try {
+      if (!window.Subscription || !window.Storage) return;
+      const today = new Date().toLocaleDateString('sv-CA');
+      if (window.Storage._safeGet('cbt_subs_ping_date', '') === today) return;
+      let plan = null, until = 0;
+      if (window.Subscription.isSubscribed()) {
+        plan = 'sub'; until = window.Subscription.subUntil();
+      } else if (window.Subscription.hasAccess && window.Subscription.hasAccess()) {
+        plan = 'trial'; until = Date.now() + Math.max(1, window.Subscription.trialDaysLeft() || 1) * 86400000;
+      }
+      if (!plan) return; // 무료 플랜은 셀 필요 없다 (이용자 수는 이미 있다)
+      window.Storage._safeSet('cbt_subs_ping_date', today);
+      window.Api.f('/api/subs-ping', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: this.clientId(), plan, until })
+      }).catch(() => {});
     } catch (e) {}
   },
 

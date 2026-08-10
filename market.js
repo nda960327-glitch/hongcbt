@@ -134,6 +134,23 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (r) return r;
   }
 
+  // 구독 집계 핑 — 구독은 기기 안(localStorage)에만 있어서 서버는 몇 명이
+  //  구독 중인지 몰랐다. 앱이 하루 한 번 자기 상태만 알려준다 (결제 검증 아님,
+  //  운영자 대시보드 숫자용. 개인정보는 기기 id 뿐).
+  if (path === '/subs-ping' && method === 'POST') {
+    const cid = s(body.clientId, MAX.id).replace(/[^\w-]/g, '');
+    const plan = body.plan === 'sub' ? 'sub' : 'trial';
+    const until = Math.max(0, Math.min(nowMs() + 400 * 86400000, num(body.until)));
+    if (!cid || !until) return json({ error: 'missing' }, 400, cors);
+    try {
+      await db.prepare(
+        `INSERT INTO subs (client_id, plan, until, updated) VALUES (?,?,?,?)
+         ON CONFLICT(client_id) DO UPDATE SET plan = excluded.plan, until = excluded.until, updated = excluded.updated`
+      ).bind(cid, plan, until, nowMs()).run();
+    } catch (e) {}
+    return json({ ok: true }, 200, cors);
+  }
+
   // 원격 진단 — 실기기의 통화가 어느 단계에서 죽는지 서버가 알아야 고친다
   if (path === '/diag' && method === 'POST') {
     try {
@@ -705,8 +722,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (SELECT COUNT(*) FROM inbox WHERE read_at = 0) AS ibUnread,
       (SELECT COUNT(DISTINCT counselor_id || '|' || client_id) FROM chat_msgs) AS threads,
       (SELECT COUNT(*) FROM reviews) AS rvCount,
-      (SELECT COALESCE(AVG(rating),0) FROM reviews) AS rvAvg
-    `).bind(t, t, t).first() || {};
+      (SELECT COALESCE(AVG(rating),0) FROM reviews) AS rvAvg,
+      (SELECT COUNT(*) FROM subs WHERE plan = 'sub' AND until > ?) AS subsActive,
+      (SELECT COUNT(*) FROM subs WHERE plan = 'trial' AND until > ?) AS trialActive
+    `).bind(t, t, t, t, t).first() || {};
 
     // 답장 대기: 스레드별 마지막 발신자가 내담자인 것
     const aw = await db.prepare(`SELECT COUNT(*) n FROM (
@@ -720,6 +739,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     return json({
       // 앱의 운영자 콘솔이 기대하는 모양 그대로 (여기가 어긋나면 화면이 빈칸이 된다)
       uniqueClients: Math.max(r.clientsA || 0, r.clientsB || 0),
+      subs: { active: r.subsActive || 0, trial: r.trialActive || 0 },
       counselors: r.counselors || 0,
       bookings: {
         total: r.bkTotal || 0, upcoming: r.bkUpcoming || 0,
@@ -967,12 +987,23 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
 
     if (path === '/admin/counselors' && method === 'POST') {
-      const id = s(body.id, MAX.id).trim();
       const name = s(body.name).trim();
-      if (!id || !name) return json({ error: 'id·name 필요' }, 400, cors);
-      if (!/^[A-Za-z0-9_-]{1,32}$/.test(id)) return json({ error: 'id 는 영문·숫자만' }, 400, cors);
-      const dup = await db.prepare('SELECT id FROM counselors WHERE id = ?').bind(id).first();
-      if (dup) return json({ error: '이미 있는 ID 입니다' }, 409, cors);
+      if (!name) return json({ error: 'name 필요' }, 400, cors);
+      // ID 는 운영자가 지어내지 않는다 — 서버가 랜덤으로 배정한다.
+      //  (직접 입력받던 시절엔 오타·중복·규칙 고민을 사람이 떠안았다)
+      let id = s(body.id, MAX.id).trim();
+      if (id && !/^[A-Za-z0-9_-]{1,32}$/.test(id)) return json({ error: 'id 는 영문·숫자만' }, 400, cors);
+      if (!id) {
+        for (let i = 0; i < 5; i++) {
+          const cand = 'c' + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
+          const taken = await db.prepare('SELECT id FROM counselors WHERE id = ?').bind(cand).first();
+          if (!taken) { id = cand; break; }
+        }
+        if (!id) return json({ error: 'ID 생성 실패 — 다시 시도해주세요' }, 500, cors);
+      } else {
+        const dup = await db.prepare('SELECT id FROM counselors WHERE id = ?').bind(id).first();
+        if (dup) return json({ error: '이미 있는 ID 입니다' }, 409, cors);
+      }
       // 이메일은 로그인 식별자다. 겹치면 남의 수신함으로 링크가 갈 수 있으므로 막는다.
       const email = s(body.email, 160).trim().toLowerCase();
       if (email) {
