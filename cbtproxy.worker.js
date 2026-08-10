@@ -148,6 +148,9 @@ async function handleChat(body, env, cors) {
   const pp = clamp2(body.presence_penalty), fp = clamp2(body.frequency_penalty);
   if (pp !== undefined) payload.presence_penalty = pp;
   if (fp !== undefined) payload.frequency_penalty = fp;
+  // 클라이언트가 원하면 스트리밍으로. 옛 클라이언트는 stream 을 안 보내므로 그대로 통짜 응답.
+  const wantStream = body.stream === true;
+  if (wantStream) payload.stream = true;
 
   const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -158,7 +161,16 @@ async function handleChat(body, env, cors) {
     body: JSON.stringify(payload),
   });
 
-  // OpenAI 응답을 그대로 전달 (클라이언트의 기존 파싱과 호환)
+  // 스트리밍: SSE 를 버퍼링 없이 그대로 흘려보낸다.
+  //  전에는 전체를 기다렸다 한 번에 줬는데, 그 몇 초가 사용자에게는 침묵이었다.
+  if (wantStream && upstream.ok && upstream.body) {
+    return new Response(upstream.body, {
+      status: 200,
+      headers: { ...cors, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+    });
+  }
+
+  // OpenAI 응답을 그대로 전달 (클라이언트의 기존 파싱과 호환 · 스트림 요청이 실패한 경우 포함)
   const data = await upstream.text();
   return new Response(data, {
     status: upstream.status,

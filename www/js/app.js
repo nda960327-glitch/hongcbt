@@ -535,10 +535,18 @@ window.App = {
     // 기다렸다가 '한 번만' 답한다. 새 메시지가 오면 이전 예약·응답은 폐기.
     const seq = ++this._replySeq;
     clearTimeout(this._replyTimer);
+    this._removeDraft(); // 이전 요청의 스트리밍 초안이 남아 있으면 걷어낸다
     this._replyTimer = setTimeout(async () => {
       let responses;
+      let drafted = false;
       if (window.LLM) {
-        responses = await window.LLM.generateResponse(text);
+        // 스트리밍 초안: 조각이 도착하는 대로 말풍선에 흘린다.
+        //  그 사이 사용자가 또 보냈으면(seq 변경) 이 스트림의 초안은 그리지 않는다.
+        responses = await window.LLM.generateResponse(text, (draftText) => {
+          if (seq !== this._replySeq || !draftText) return;
+          drafted = true;
+          this._showDraft(draftText);
+        });
       } else {
         responses = window.Chatbot.processInput(text);
       }
@@ -546,8 +554,39 @@ window.App = {
       // (새 요청이 전체 맥락을 담아 다시 답한다 — 타이핑 표시는 그쪽이 이어받음)
       if (seq !== this._replySeq) return;
       this.removeTypingIndicator();
+      this._removeDraft();
+      // 초안으로 이미 다 읽고 있었는데 말풍선마다 또 타이핑 연기를 하면 답답하다
+      if (drafted && Array.isArray(responses)) {
+        responses = responses.map(r => ({ ...r, delay: Math.min(r.delay || 0, 150) }));
+      }
       await this.displayBotResponses(responses);
     }, waitMs);
+  },
+
+  // === 스트리밍 초안 말풍선 — 완성되면 정식 말풍선(분할·카드)으로 교체된다 ===
+  _showDraft(text) {
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    let el = document.getElementById('chat-draft');
+    if (!el) {
+      this.removeTypingIndicator();
+      el = document.createElement('div');
+      el.id = 'chat-draft';
+      el.className = 'message bot';
+      el.innerHTML = `
+        <div class="message-avatar">${this._msgAvatar({ role: 'bot' })}</div>
+        <div class="message-bubble"><p></p></div>`;
+      this._tintBubble(el, { role: 'bot' });
+      container.appendChild(el);
+    }
+    const p = el.querySelector('p');
+    if (p) p.textContent = text; // textContent — 스트림 중간엔 HTML 해석 금지
+    if (this._isNearBottom(container)) container.scrollTop = container.scrollHeight;
+  },
+
+  _removeDraft() {
+    const el = document.getElementById('chat-draft');
+    if (el) el.remove();
   },
 
   // 연결이 끊겨 답을 못 받았을 때, 마지막에 한 말을 그대로 다시 보낸다.
@@ -1141,7 +1180,7 @@ window.App = {
     if (window.Sfx) window.Sfx.play('close');
   },
 
-  // 채팅 도구 더보기 메뉴 (검색·상담사 바꾸기·초기화)
+  // 채팅 도구 더보기 메뉴 (검색·상담사 바꾸기·내보내기·초기화)
   toggleChatMenu(e) {
     if (e) e.stopPropagation();
     const m = document.getElementById('chat-more-menu');
@@ -2597,6 +2636,133 @@ ${memory || '(없음)'}`;
       }));
     };
     input.addEventListener('input', doSearch);
+  },
+
+  // ── 대화 내보내기 ────────────────────────────────────────────────────────
+  //  일기장 내보내기(Growth.exportDiary)와 같은 뼈대다: 독립 HTML 문서를 만들어
+  //  mode 에 따라 파일로 내려받거나(download) 새 창에서 인쇄한다(print).
+  //  다른 점은 말풍선의 좌우 정렬과 상담사 색 — 종이 위에서도 누가 한 말인지
+  //  한눈에 보여야 상담사에게 내밀 수 있는 자료가 된다.
+  //  인자 없이 부르면 어떤 방식으로 내보낼지 먼저 묻는다.
+  exportChat(mode) {
+    const msgs = (window.Storage && window.Storage.getMessages()) || [];
+    // 스티커·그림 카드만 있는 말도 기록에 남긴다. 셋 다 없는 빈 말은 버린다.
+    const rows = msgs.filter(m => m && ((m.text && String(m.text).trim()) || m.sticker || (m.viz && m.viz.type)));
+    if (!rows.length) { window.UI.alert('아직 나눈 대화가 없어요.'); return; }
+
+    if (mode !== 'download' && mode !== 'print') {
+      window.UI.alert({
+        title: '대화 내보내기',
+        body: `지금까지 나눈 ${rows.length.toLocaleString()}개의 말을 한 장의 기록으로 만들어요.`,
+        icon: 'download',
+        okLabel: '닫기',
+        html: `<div style="display: flex; gap: 0.5rem;">
+          <button class="btn-secondary" style="flex: 1; font-size: 0.82rem; padding: 0.6rem;"
+            onclick="window.UI.closeAll(); window.App.exportChat('download')">파일로 저장(HTML)</button>
+          <button class="btn-secondary" style="flex: 1; font-size: 0.82rem; padding: 0.6rem;"
+            onclick="window.UI.closeAll(); window.App.exportChat('print')">인쇄 · PDF</button>
+        </div>`
+      });
+      return;
+    }
+
+    const esc = s => this._escHtml(s);
+    // 상담사 색을 옅게 깔기 위한 변환 — 문서엔 CSS 변수가 없으니 직접 rgba 로 만든다
+    const tint = (hex, a) => {
+      const h = String(hex || '').replace('#', '');
+      if (h.length !== 6) return `rgba(120, 120, 120, ${a})`;
+      const n = parseInt(h, 16);
+      if (isNaN(n)) return `rgba(120, 120, 120, ${a})`;
+      return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+    };
+    const persona = id => {
+      let p = null;
+      try { p = id && window.Personas ? window.Personas.get(id) : null; } catch (e) {}
+      return { name: (p && p.name) || '우렁의사', color: (p && p.color) || '#4f8a6b' };
+    };
+    const dayLabel = d => d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+    let lastDay = null;
+    const body = rows.map(m => {
+      const d = m.timestamp ? new Date(m.timestamp) : null;
+      const valid = d && !isNaN(d.getTime());
+      let sep = '';
+      if (valid) {
+        const key = d.toLocaleDateString('sv-CA');
+        if (key !== lastDay) { sep = `<div class="dsep"><span>${esc(dayLabel(d))}</span></div>`; lastDay = key; }
+      }
+      const time = valid ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
+      const mine = m.role === 'user';
+      const text = String(m.text || '').trim();
+
+      // 글이 없는 말(스티커·그림 카드)은 말풍선 대신 한 줄로 적는다
+      if (!text) {
+        const note = m.sticker ? `(스티커: ${esc(m.sticker)})` : `(그림 카드: ${esc(m.viz && m.viz.type)})`;
+        return `${sep}<div class="row ${mine ? 'me' : 'you'}"><p class="note">${note}</p></div>`;
+      }
+
+      const safe = esc(text).replace(/\n/g, '<br>');
+      if (mine) {
+        return `${sep}<div class="row me">
+          <div class="bubble mine"><p>${safe}</p>${time ? `<span class="t">${esc(time)}</span>` : ''}</div>
+        </div>`;
+      }
+      const p = persona(m.persona);
+      return `${sep}<div class="row you">
+        <p class="who" style="color: ${p.color};">${esc(p.name)}</p>
+        <div class="bubble bot" style="background: ${tint(p.color, 0.12)}; border-color: ${tint(p.color, 0.32)};">
+          <p>${safe}</p>${time ? `<span class="t">${esc(time)}</span>` : ''}</div>
+      </div>`;
+    }).join('');
+
+    // 기간 — 시각이 없는 옛 메시지가 섞여 있어도 안전하게 유효한 것만 본다
+    const stamps = rows.map(m => (m.timestamp ? new Date(m.timestamp) : null))
+      .filter(d => d && !isNaN(d.getTime()));
+    const span = stamps.length
+      ? `${dayLabel(stamps[0])} ~ ${dayLabel(stamps[stamps.length - 1])}`
+      : '기간 정보 없음';
+
+    const doc = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우렁의사 상담 기록</title>
+<style>
+body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fbf7f0;color:#3a342e;max-width:640px;margin:0 auto;padding:32px 24px;line-height:1.7}
+h1{font-size:22px;margin:0}
+p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px}
+.dsep{text-align:center;margin:26px 0 14px}
+.dsep span{font-size:11.5px;font-weight:700;color:#8a8073;background:#f1e9dc;border-radius:999px;padding:3px 12px}
+.row{display:flex;flex-direction:column;margin:10px 0}
+.row.me{align-items:flex-end}
+.row.you{align-items:flex-start}
+.who{margin:0 0 3px 4px;font-size:11.5px;font-weight:800}
+.bubble{max-width:78%;border:1px solid transparent;border-radius:14px;padding:9px 13px}
+.bubble p{margin:0;font-size:13.5px;line-height:1.65;word-break:break-word}
+.bubble.mine{background:#e8eef1;border-color:#cfdbe2}
+.bubble .t{display:block;margin-top:4px;font-size:10.5px;color:#a99c8c}
+.note{margin:0;font-size:11.5px;color:#8a8073;font-style:italic}
+.foot{margin-top:28px;padding-top:12px;border-top:1px dashed #ddd2c2;font-size:11px;color:#a99c8c;line-height:1.6}
+@media print{body{padding:0;background:#fff}.bubble{page-break-inside:avoid}}
+</style></head><body>
+<h1>우렁의사 상담 기록</h1>
+<p class="meta">${esc(span)} · 모두 ${rows.length.toLocaleString()}개의 말</p>
+${body}
+<p class="foot">이 기록은 내 기기에서 만든 개인 문서입니다. 상담사에게 보여주면 좋은 참고 자료가 됩니다.</p>
+</body></html>`;
+
+    if (mode === 'print') {
+      const w = window.open('', '_blank');
+      if (!w) { window.UI.alert('팝업이 차단됐어요. 팝업을 허용해주세요.'); return; }
+      w.document.write(doc); w.document.close();
+      setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+    } else {
+      const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `우렁의사_상담기록_${new Date().toLocaleDateString('sv-CA')}.html`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+      this.showRecordToast('상담 기록을 파일로 저장했어요');
+    }
   },
 
   // 저장 배열의 idx 번째 메시지로 점프한다.

@@ -73,7 +73,7 @@
   },
 
   // 채팅 완성 요청. ①동일 출처 프록시 ②Worker ③사용자 개인 키 순으로 시도한다.
-  async _chatCompletion(payload) {
+  async _chatCompletion(payload, ms) {
     const isHttp = typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
     // 기기 식별자를 함께 보낸다. 서버가 기기 단위로 사용량을 세어
     //  한 대가 폭주할 때 그 기기만 막을 수 있게 (전체를 막으면 애먼 사람이 다친다).
@@ -90,7 +90,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
-        });
+        }, ms);
         const contentType = r.headers.get("content-type") || "";
         if (r.ok && contentType.includes("application/json")) {
           this._proxyAvailable = true;
@@ -110,7 +110,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
-        });
+        }, ms);
         if (r.status !== 404) return r;
       } catch (e) {}
     }
@@ -125,7 +125,84 @@
         "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify(payload)
-    });
+    }, ms);
+  },
+
+  // --------------------------------------------------------------------------
+  //  스트리밍 채팅 — 첫 글자가 도착하는 순간부터 화면에 흐르게 한다
+  //  onDelta(누적 전체 텍스트) 를 조각이 올 때마다 부르고, 끝나면 전체를 돌려준다.
+  //  경유지가 스트림을 몰라 통짜 JSON 을 주면 그것도 조용히 받아준다:
+  //   · Worker/개인 키 → text/event-stream (진짜 스트림)
+  //   · 로컬 dev 서버 → JSON 헤더를 달고 SSE 본문을 파이프하므로 첫 글자로 판별
+  // --------------------------------------------------------------------------
+  async _chatStream(payload, onDelta) {
+    const res = await this._chatCompletion({ ...payload, stream: true }, 90000);
+    if (!res || !res.ok) return { ok: false, status: res ? res.status : 0 };
+
+    if (!res.body || !res.body.getReader) {
+      // 아주 옛 브라우저 — 통짜로 받는다
+      try {
+        const data = await res.json();
+        const t = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        return { ok: true, text: String(t).trim(), streamed: false };
+      } catch (e) { return { ok: false, status: 500 }; }
+    }
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', full = '', mode = '';
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        if (!mode) {
+          const head = buf.trimStart();
+          if (!head) continue;
+          mode = head.startsWith('data:') ? 'sse' : 'json';
+        }
+        if (mode !== 'sse') continue; // JSON 이면 끝까지 모아서 한 번에 파싱
+        let nl;
+        while ((nl = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith('data:')) continue;
+          const chunk = line.slice(5).trim();
+          if (!chunk || chunk === '[DONE]') continue;
+          try {
+            const j = JSON.parse(chunk);
+            const piece = j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content;
+            if (piece) {
+              full += piece;
+              if (onDelta) { try { onDelta(full); } catch (e) {} }
+            }
+          } catch (e) {} // 조각 하나가 깨져도 스트림은 계속
+        }
+      }
+    } catch (e) {
+      // 중간에 끊겼어도 받은 만큼은 살린다 — 그마저 없으면 실패로
+      if (!full.trim()) return { ok: false, status: 0 };
+    }
+    if (mode === 'json') {
+      try {
+        const data = JSON.parse(buf);
+        if (data.error) return { ok: false, status: 500 };
+        full = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+      } catch (e) { return { ok: false, status: 500 }; }
+    }
+    return { ok: true, text: String(full).trim(), streamed: mode === 'sse' };
+  },
+
+  // 초안 표시용 텍스트 정리 — 마커·구분자가 사용자 눈에 새지 않게.
+  //  최종 표시는 기존 파이프라인이 다시 하므로 여기선 '가리는 것'만 한다.
+  _scrubDraft(t) {
+    return String(t || '')
+      .replace(/\[(그림|스티커|이동|주제리포트|세션끝)[^\]]*\]/g, '')
+      .replace(/위험감지/g, '')
+      .replace(/\[[^\]]*$/, '')          // 꼬리에서 아직 안 닫힌 마커
+      .replace(/\s*\|{2,}\s*/g, '\n')    // ||| → 줄바꿈
+      .replace(/\|+\s*$/, '')
+      .replace(/^\[\d+\s*\/\s*\d+\]\s*/, ''); // 첫 줄의 [3/6] 단계 표시
   },
 
   // --------------------------------------------------------------------------
@@ -848,7 +925,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
   // --------------------------------------------------------------------------
   SESSION_GAP_MS: 3 * 60 * 60 * 1000,   // 3시간 넘게 자리를 비우면 새 세션
 
-  async generateResponse(userText) {
+  // onDraft: 스트리밍 중 조각이 올 때마다 (정리된 누적 텍스트) 를 받는 콜백 — app.js 가 초안 말풍선을 그린다
+  async generateResponse(userText, onDraft) {
     // --- 세션 경계 판정 ---
     const history = (window.Storage && window.Storage.getMessages()) || [];
     let meta = (window.Storage && window.Storage.getSessionMeta()) || { startIndex: 0, lastAt: 0 };
@@ -875,28 +953,28 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       // 위험한 턴이거나 재치가 필요한 턴이면 상위 모델로 올린다.
       const risky = this._isRiskyTurn(userText);
       const witty = this._isWittyTurn(userText);
-      const response = await this._chatCompletion({
+      // 스트리밍으로 받는다 — 첫 글자가 도착하는 순간부터 초안 말풍선에 흐른다.
+      //  마커·말풍선 분할 등 최종 다듬기는 완성된 전체 텍스트로 아래에서 그대로 한다.
+      const stream = await this._chatStream({
         model: (risky || witty) ? this.MODEL_HIGH : this.MODEL,
         messages: messages,
         temperature: 0.9,       // 따뜻함·유머·자연스러움
         max_tokens: 700,
         presence_penalty: 0.4,  // 상투적 반복 억제
         frequency_penalty: 0.4
-      });
+      }, onDraft ? (t) => onDraft(this._scrubDraft(t)) : null);
 
-      if (!response.ok) {
-        console.error("OpenAI API error status:", response.status);
+      if (!stream.ok) {
+        console.error("OpenAI API error status:", stream.status);
         // 대본 챗봇으로 몰래 넘기지 않는다. 엉뚱한 답을 진짜 상담인 척 내보내는 것이
         // 솔직한 안내보다 훨씬 해롭기 때문이다.
         // transient: 화면에만 띄우고 대화 기록엔 남기지 않는다.
         //  저장해버리면 다음 요청의 히스토리에 '연결 실패' 안내가 상담사 발화로 섞여
         //  AI 가 자기가 그런 말을 한 줄 알고 이어 말한다.
-        return [{ text: this._offlineNotice(response.status), delay: 300, transient: true }];
+        return [{ text: this._offlineNotice(stream.status), delay: 300, transient: true }];
       }
 
-      const data = await response.json();
-      let botText = (data.choices && data.choices[0] && data.choices[0].message.content) || "";
-      botText = botText.trim();
+      let botText = (stream.text || "").trim();
 
       if (!botText) {
         return [{ text: "미안해요, 방금 제 말이 끊겼어요. 조금 전 이야기를 한 번만 더 들려주실래요?", delay: 300 }];
