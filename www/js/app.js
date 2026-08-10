@@ -3797,7 +3797,9 @@ ${body}
   // ==========================================================================
   async startHumanCall(counselorId) {
     const c = window.Marketplace.getCounselor(counselorId);
-    if (!c || !window.CallTalk) return;
+    // 조용히 실패하면 사용자는 '전화가 안 된다'는 것만 안다 — 이유를 소리 내서 말한다
+    if (!c) { this.showRecordToast('상담사 정보를 불러오지 못했어요. 새로고침 후 다시 걸어주세요'); return; }
+    if (!window.CallTalk || !window.RtcCall) { this.showRecordToast('통화 모듈을 불러오지 못했어요. 앱을 완전히 껐다 다시 열어주세요'); return; }
     // 예약 시간 전후 1시간 안이면 회기권 통화(추가 과금 없음), 아니면 30초당 실시간 과금
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const prepaid = bookings.some(b => b.counselorId === c.id && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
@@ -3923,6 +3925,27 @@ ${body}
             if (d.type === 'chat' && d.msg && d.msg.counselorId === c.id && acceptMsg(d.msg)) {
               if (document.getElementById('hchat-overlay')) render();
               this.playWoorung();
+            }
+            // 통화 상태가 채팅방에 실시간으로 — '전화 거는 중…' → '통화 중' → (끝나면 기록 칩)
+            if (d.type === 'call-state' && d.counselorId === c.id) {
+              const box = document.getElementById('hchat-msgs');
+              let chip = document.getElementById('hchat-callstate');
+              if (d.state === 'ended') {
+                if (chip) chip.remove();
+              } else if (box) {
+                if (!chip) {
+                  chip = document.createElement('div');
+                  chip.id = 'hchat-callstate';
+                  chip.style.cssText = 'align-self: center; display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.2rem 0;'
+                    + 'padding: 0.4rem 0.95rem; border-radius: 999px; font-size: 0.78rem; font-weight: 700;'
+                    + 'background: color-mix(in srgb, var(--accent-primary) 12%, transparent);'
+                    + 'border: 1px solid color-mix(in srgb, var(--accent-primary) 40%, transparent); color: var(--accent-primary);'
+                    + 'animation: pulse 1.6s ease-in-out infinite;';
+                  box.appendChild(chip);
+                }
+                chip.textContent = d.state === 'connected' ? '📞 통화 중' : '📞 전화 거는 중…';
+                box.scrollTop = box.scrollHeight;
+              }
             }
           } catch (err) {}
         };

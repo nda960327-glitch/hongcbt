@@ -34,6 +34,7 @@ window.CallTalk = {
     const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사', tagline: '' };
     this._active = true;
     this._human = false;
+    this._connected = false;
     this._rate = this.RATE;
     this._startTs = Date.now();
     this._lastTalk = Date.now();
@@ -59,6 +60,7 @@ window.CallTalk = {
       this._setStatus('통화 중');
       // 과금은 받는 순간부터다. 벨이 울리는 동안 돈이 나가면 사기다 —
       //  시계도 여기서 0부터 다시 센다 (연결음은 통화 시간이 아니다).
+      this._connected = true;
       this._startTs = Date.now();
       this._lastTalk = Date.now();
       this._bill();
@@ -110,6 +112,7 @@ window.CallTalk = {
     if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
     this._active = true;
     this._human = true;
+    this._connected = false;
     this._counselorId = c.id; // 통화 종료 시 서버 회선 해제용
     this._startTs = Date.now();
     this._spent = 0;
@@ -124,10 +127,9 @@ window.CallTalk = {
     this._billStarted = false;
     this._renderHumanOverlay(c, prepaid);
     this._voice(c.id, prepaid ? 0 : this._rate);   // 앱 안에서 음성 연결 (번호 없음)
-    if (window.App && window.App.ringStart) {
-      window.App.ringStart();
-      setTimeout(() => { if (window.App.ringStop) window.App.ringStop(); this._setStatus('전화 연결 버튼을 눌러주세요'); }, 2400);
-    }
+    // 연결음은 상담사가 받을 때까지 계속 울린다 — 진짜 전화가 그렇듯이.
+    //  멈추는 곳은 셋뿐: 받았을 때(connected) · 실패했을 때(error) · 끊었을 때(end)
+    if (window.App && window.App.ringStart) window.App.ringStart();
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
     // 과금과 회기권 30분 계산은 여기서 시작하지 않는다 —
     //  상담사가 실제로 받은 순간(connected 이벤트)부터다. 벨 울리는 동안은 무료.
@@ -138,6 +140,7 @@ window.CallTalk = {
   _startHumanBilling() {
     if (this._billStarted || !this._active) return;
     this._billStarted = true;
+    this._connected = true;
     const c = this._pendingCounselor;
     this._startTs = Date.now(); // 통화 시간도 연결부터 센다 — 연결음은 통화가 아니다
     if (!this._prepaid) {
@@ -190,7 +193,10 @@ window.CallTalk = {
         if (sp && d.spent) sp.textContent = d.spent.toLocaleString() + '캐시 사용 중';
       }
       if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
-      if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
+      if (type === 'error') {
+        this._setStatus(d.message || '연결하지 못했어요');
+        if (window.App && window.App.ringStop) window.App.ringStop(); // 실패했는데 벨만 울리면 잔인하다
+      }
     };
     const ok = await window.RtcCall.call({
       counselorId, clientId: window.App.clientId(), rate: rate || 0
@@ -237,7 +243,10 @@ window.CallTalk = {
   _updateClock() {
     const el = document.getElementById('call-clock');
     if (!el) return;
-    const s = Math.floor((Date.now() - this._startTs) / 1000);
+    // 벨이 울리는 동안은 00:00 — 통화 시간은 연결된 순간부터만 센다.
+    //  (연결 전에 숫자가 올라가면 요금이 나가는 줄 알고 놀란다. 실제로도 안 나간다)
+    if (!this._connected) { el.textContent = '00:00'; return; }
+    const s = Math.max(0, Math.floor((Date.now() - this._startTs) / 1000));
     el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   },
 
@@ -310,8 +319,8 @@ window.CallTalk = {
     if (!this._active) return;
     // 흔적용 스냅샷 — 아래에서 상태를 지우기 전에 떠 둔다
     const humanCall = this._human;
-    const connected = this._billStarted;
-    const callSecs = connected ? Math.floor((Date.now() - this._startTs) / 1000) : 0;
+    const connected = !!this._connected;
+    const callSecs = connected ? Math.max(0, Math.floor((Date.now() - this._startTs) / 1000)) : 0;
     const callee = this._pendingCounselor;
     // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
     if (this._human && this._counselorId) {
@@ -373,10 +382,14 @@ window.CallTalk = {
       window.Voice.stopSpeaking();
       if (this._ttsWasEnabled !== null) window.Voice.isTtsEnabled = this._ttsWasEnabled;
     }
-    const secs = Math.floor((Date.now() - this._startTs) / 1000);
     const ov = document.getElementById('call-overlay');
     if (ov) ov.remove();
-    window.UI.alert(`${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(secs / 60)}분 ${secs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`);
+    // 요약은 정직하게: 연결 안 된 전화는 통화 시간 0초·0캐시다.
+    //  벨 울린 52초를 '통화 시간'이라고 쓰면 돈 나간 줄 알고 놀란다.
+    this._connected = false;
+    window.UI.alert(connected
+      ? `${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(callSecs / 60)}분 ${callSecs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`
+      : `${reason ? reason + '\n\n' : ''}통화가 연결되지 않았어요\n· 통화 시간: 0초\n· 사용 캐시: 0캐시`);
   },
 
   _renderOverlay(p) {

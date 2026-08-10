@@ -40,6 +40,16 @@ function billFor(rate, ms) {
   return Math.ceil(ms / 30000) * rate;
 }
 
+// 통화 상태(거는 중·통화 중·끝)를 양쪽 앱에 실시간으로 민다 — 저장하지 않는 순간 신호.
+//  카톡처럼 채팅방에 '전화 거는 중…'이 떠 있으려면 이게 있어야 한다.
+function pushCallState(env, ctx, counselorId, clientId, state, extra) {
+  if (!env.HUB || !ctx || !ctx.waitUntil) return;
+  const evt = JSON.stringify({ type: 'call-state', counselorId, clientId, state, ...(extra || {}) });
+  const pub = (ch) => env.HUB.get(env.HUB.idFromName(ch))
+    .fetch('https://hub/publish', { method: 'POST', body: evt }).catch(() => {});
+  ctx.waitUntil(Promise.all([pub('c:' + counselorId), pub('cl:' + clientId)]));
+}
+
 // 통화 기록 한 줄을 채팅 스레드에 남기고, 열린 앱들에는 실시간으로 민다.
 //  부재중 전화가 여기서 나온다 — 카톡처럼 양쪽 대화에 남아야
 //  상담사가 "전화 왔었네" 하고 회신할 수 있다.
@@ -135,6 +145,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  응답보다 뒤에 보낸다 — 푸시가 느려도 전화 거는 쪽은 기다리지 않는다.
     const wake = notifyCounselor(env, counselorId).catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
+    // 열려 있는 앱에는 웹소켓으로 즉시 — 3초 폴링보다 벨이 훨씬 빨리 울린다
+    pushCallState(env, ctx, counselorId, clientId, 'ringing', { callId: id, room });
 
     return json({ ok: true, room, callId: id }, 200, cors);
   }
@@ -185,7 +197,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const id = s(body.callId, 80);
     await db.prepare('UPDATE calls SET connect_at = ? WHERE id = ? AND connect_at = 0')
       .bind(nowMs(), id).run();
-    const r = await db.prepare('SELECT connect_at, rate FROM calls WHERE id = ?').bind(id).first();
+    const r = await db.prepare('SELECT counselor_id, client_id, connect_at, rate FROM calls WHERE id = ?').bind(id).first();
+    if (r) pushCallState(env, ctx, r.counselor_id, r.client_id, 'connected', { callId: id });
     return json({ ok: true, connectAt: r ? r.connect_at : 0, rate: r ? r.rate : 0 }, 200, cors);
   }
 
@@ -227,6 +240,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       ? (by === 'counselor' ? '부재중 전화 (상담사가 걸었어요)' : '부재중 전화 (받지 않았어요)')
       : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
     await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
+    pushCallState(env, ctx, r.counselor_id, r.client_id, 'ended', { callId: id });
     // 내담자가 걸었는데 못 받고 끝났다 — 상담사 폰이 이걸 알아야 회신한다
     if (!r.connect_at && by !== 'counselor') {
       const wake = notifyCounselor(env, r.counselor_id).catch(() => {});

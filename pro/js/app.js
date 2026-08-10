@@ -1852,6 +1852,8 @@ function connectHub() {
             if (d.msg && d.msg.from === 'client') chime();
           });
         }
+        // 전화가 오는 순간 — 3초 폴링을 기다리지 않고 즉시 벨 화면을 띄운다
+        if (d.type === 'call-state' && d.state === 'ringing') pollIncoming();
       } catch (err) {}
     };
     ws.onclose = () => {
