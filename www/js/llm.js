@@ -651,13 +651,13 @@ ${persona.style}
 Respond ENTIRELY in natural, casual English (like texting a close friend). All counseling principles above still apply.
 · Humor must be native English wit: wordplay, puns, playful exaggeration, light self-deprecation — never translated Korean jokes.
 · Onomatopoeia: replace Korean sounds with English ones ("whoa!!", "aww", "phew").
-· SYSTEM MARKERS MUST STAY IN THEIR EXACT ORIGINAL FORM: every [스티커:이름] token (e.g. [스티커:기쁨] [스티커:폭소] [스티커:파티]), [세션끝], [주제리포트: topic], and the crisis word '위험감지'. Never translate these tokens — keep the Korean sticker names as-is.`;
+· SYSTEM MARKERS MUST STAY IN THEIR EXACT ORIGINAL FORM: every [스티커:이름] token (e.g. [스티커:기쁨] [스티커:폭소] [스티커:파티]), every [그림:종류|...] token (keep the Korean card type names such as 감정온도·감정파도·생각저울·가치나침반·수업진행·요약카드·버튼·수업카드), [세션끝], [주제리포트: topic], and the crisis word '위험감지'. Never translate these tokens — keep the Korean names as-is. Inside [그림:...] only the free-text arguments (emotion name, thought sentence, button label) may be in the user's language.`;
     } else if (lang === 'ja') {
       prompt += `\n\n[言語 — 日本語モード]
 すべて自然でカジュアルな日本語で返答してください（親しい友達とのLINEのように）。上記のカウンセリング原則はすべて適用されます。
 · ユーモアは日本式で: ダジャレ、軽いツッコミ、ボケ、自虐ネタ。韓国語や英語のジョークの直訳は禁止。
 · 擬音語も日本式に（「えええ！？」「うんうん」「よしよし」）。
-· システムマーカーは原形のまま維持すること: すべての [스티커:이름] トークン（例 [스티커:기쁨] [스티커:폭소]）、[세션끝]、[주제리포트: topic]、危機ワード '위험감지'。これらは絶対に翻訳しない（スティッカー名は韓国語のまま）。`;
+· システムマーカーは原形のまま維持すること: すべての [스티커:이름] トークン（例 [스티커:기쁨] [스티커:폭소]）、すべての [그림:종류|...] トークン（カード種別名 감정온도·감정파도·생각저울·가치나침반·수업진행·요약카드·버튼·수업카드 は韓国語のまま）、[세션끝]、[주제리포트: topic]、危機ワード '위험감지'。これらは絶対に翻訳しない。[그림:...] の中では自由記述の引数（感情名・考えの文・ボタンのラベル）のみユーザーの言語で書いてよい。`;
     }
 
     // 사용자가 마이페이지에서 설정한 별명
@@ -742,7 +742,21 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 · 위기·심각하고 깊은 대화에서는 절대 금지. 이때만큼은 글로만 진심을 전하세요.
 
 [연속 메시지 처리]
-사용자는 한 생각을 여러 메시지로 쪼개 연달아 보내곤 합니다. 마지막 몇 개가 연속이라면 하나하나 답하지 말고 전체 흐름을 읽어 '한 번에' 반응하세요. 진짜 친구는 카톡 세 개에 답장 세 개를 달지 않습니다.`;
+사용자는 한 생각을 여러 메시지로 쪼개 연달아 보내곤 합니다. 마지막 몇 개가 연속이라면 하나하나 답하지 말고 전체 흐름을 읽어 '한 번에' 반응하세요. 진짜 친구는 카톡 세 개에 답장 세 개를 달지 않습니다.
+
+[그림 카드 — 말로 하기 어려운 것을 눈으로]
+[그림:종류|인자|인자] 표식을 쓰면 말풍선 안에 그림 카드가 그려집니다. 인자는 |로 구분합니다.
+· [그림:감정온도|불안|72] — 감정 이름과 0~100 강도. 사용자가 점수를 말했을 때, 또는 점수를 매겨준 직후.
+· [그림:감정파도|화남|80] — 감정을 파도 곡선 위의 '지금 여기'로. 감정이 치솟아 있을 때(달님의 주력).
+· [그림:생각저울|다 내 잘못이야|내 몫은 여기까지고 나머지는 상황 탓이었어] — 원래 생각 → 다시 본 생각. 인지 재구성을 마쳤을 때(햇님의 주력).
+· [그림:가치나침반|성장|자기 전 10분 책 읽기] — 가치 한 단어와 오늘의 한 걸음. 가치를 찾았을 때(소나무의 주력).
+· [그림:수업진행|3|6|고통감내] — 현재 단계/전체 단계/단계 이름. 구조화 수업 진행 중 매 단계 첫 답장에.
+· [그림:요약카드|오늘의 정리|파도는 지나간다;찬물 세수가 잘 들었다;내일 팀장에게 한 문장 말하기] — 항목은 ;로 구분(최대 6개). 수업이나 긴 대화를 마무리할 때.
+· [그림:버튼|3분 호흡할래=지금 호흡하고 올게|다른 얘기=다른 얘기 하고 싶어] — 채팅 속 선택 버튼. '라벨=사용자가 보낼 말' 형식, 최대 3개.
+· [그림:수업카드] — 당신의 6단계 수업 코스를 카드로 보여주고 시작 버튼을 답니다. 수업을 권할 때는 "'햇살 수업 시작'이라고 말해봐" 같은 안내 대신 반드시 이 카드를 쓰세요.
+
+규칙: 한 답장에 그림 카드는 1개까지. 매번 쓰지 말고 '그릴 만한 것이 실제로 있을 때'만 — 숫자가 나왔을 때, 생각이 바뀌었을 때, 방향이 정해졌을 때, 선택지를 내밀 때, 수업 단계가 넘어갈 때. 위기·심각한 대화에서는 금지. 표식 앞뒤 말은 평소처럼 자연스럽게 하세요(그림이 말을 대신하지 않습니다).
+버튼은 "이런 거 해볼래?" 하고 손을 내미는 자리에 씁니다 — 사용자가 뭘 해야 할지 몰라 멈추는 순간에.`;
 
     // ── 조건부: 우렁이 의성어 (우렁의사 페르소나일 때만) ──
     if (!persona || persona.id === 'woorung') {
@@ -972,21 +986,30 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       const items = [];
       parts.forEach(pt => {
         let stickerName = null;
-        const cleaned = this._stripEmoji(pt.replace(/\[스티커:\s*([^\]]+)\]/g, (m, ko) => {
+        const vizes = [];
+        // [그림:종류|...] 마커 → 시각 카드 말풍선으로 분리 (문법이 틀리면 조용히 삭제)
+        const cleaned = this._stripEmoji(pt.replace(/\[그림:\s*([^\]]+)\]/g, (m, body) => {
+          const v = window.ChatViz ? window.ChatViz.parse(body) : null;
+          if (v && window.ChatViz.render(v)) vizes.push(v);
+          return '';
+        }).replace(/\[스티커:\s*([^\]]+)\]/g, (m, ko) => {
           stickerName = STICKER_KO[ko.trim()] || stickerName;
           return '';
         })).replace(/\s{2,}/g, ' ').trim();
         if (cleaned) items.push({ text: cleaned });
+        if (!crisis) vizes.forEach(v => items.push({ viz: v })); // 위기 시 그림 금지
         if (stickerName && !crisis) items.push({ sticker: stickerName }); // 위기 시 스티커 금지
       });
-      if (items.length === 0) items.push({ text: botText.replace(/\[스티커:[^\]]*\]/g, '').trim() || '응, 듣고 있어.' });
+      if (items.length === 0) items.push({ text: botText.replace(/\[스티커:[^\]]*\]/g, '').replace(/\[그림:[^\]]*\]/g, '').trim() || '응, 듣고 있어.' });
 
       if (crisis) {
         items.push({ text: "당신의 안전이 무엇보다 중요해요. 혼자 견디지 말고 꼭 도움을 받아요.\n· 자살예방상담전화 109 (24시간)\n· 정신건강상담전화 1577-0199\n· 응급상황 시 112 / 119" });
       }
 
       const lastTextIdx = (() => { for (let i = items.length - 1; i >= 0; i--) if (items[i].text) return i; return -1; })();
-      return items.map((it, i) => it.sticker
+      return items.map((it, i) => it.viz
+        ? { viz: it.viz, delay: 420 }
+        : it.sticker
         ? { sticker: it.sticker, delay: 350 }
         : {
             text: it.text,

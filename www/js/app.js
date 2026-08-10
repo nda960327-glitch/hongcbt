@@ -514,13 +514,19 @@ window.App = {
       }
       
       if (window.Sfx) window.Sfx.play('recv');
-      if (response.sticker) {
+      // 말한 상담사를 메시지에 새겨둔다 — 나중에 다시 볼 때 얼굴·말풍선 색이 섞이지 않게
+      const pid = window.Personas ? window.Personas.getActive().id : 'woorung';
+      if (response.viz) {
+        // 시각 카드 말풍선 (음성 없음 — 그림은 읽어줄 것이 없다)
+        this.displayMessage({ role: 'bot', viz: response.viz, persona: pid });
+        window.Storage.saveMessage({ role: 'bot', viz: response.viz, persona: pid, text: '', timestamp: new Date().toISOString() });
+      } else if (response.sticker) {
         // 우렁이 스티커 말풍선 (음성 없음)
-        this.displayMessage({ role: 'bot', sticker: response.sticker });
-        window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, text: '', timestamp: new Date().toISOString() });
+        this.displayMessage({ role: 'bot', sticker: response.sticker, persona: pid });
+        window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, persona: pid, text: '', timestamp: new Date().toISOString() });
       } else {
-        this.displayMessage({ role: 'bot', text: response.text });
-        window.Storage.saveMessage({ role: 'bot', text: response.text, timestamp: new Date().toISOString() });
+        this.displayMessage({ role: 'bot', text: response.text, persona: pid });
+        window.Storage.saveMessage({ role: 'bot', text: response.text, persona: pid, timestamp: new Date().toISOString() });
         if (window.Voice) {
           const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
           window.Voice.speak(response.text, personaId);
@@ -586,6 +592,23 @@ window.App = {
       return;
     }
 
+    // 시각 카드 말풍선 — 숫자·변화·방향은 글보다 그림이 빠르다 (chatviz.js)
+    if (msg.viz && window.ChatViz) {
+      const inner = window.ChatViz.render(msg.viz);
+      if (inner) {
+        wrapper.innerHTML = `
+          <div class="message-avatar">${this._msgAvatar(msg)}</div>
+          <div class="message-bubble viz-bubble">
+            ${inner}
+            <span class="message-time">${time}</span>
+          </div>`;
+        this._tintBubble(wrapper, msg);
+        container.appendChild(wrapper);
+        this._smartScroll(msg);
+        return;
+      }
+    }
+
     let html = '';
     if (msg.role === 'bot') {
       html = `
@@ -605,8 +628,22 @@ window.App = {
     }
 
     wrapper.innerHTML = html;
+    this._tintBubble(wrapper, msg);
     container.appendChild(wrapper);
     this._smartScroll(msg);
+  },
+
+  // 상담사마다 말풍선 색을 달리한다.
+  //  넷이 같은 회색이면 지난 대화를 훑을 때 누가 한 말인지 아바타를 일일이 봐야 한다.
+  //  우렁의사는 초록, 햇님은 주황, 달님은 보라, 소나무는 짙은 녹색 — 각자의 color 값.
+  _tintBubble(wrapper, msg) {
+    if (!msg || msg.role !== 'bot' || !window.Personas) return;
+    const id = msg.persona || window.Personas.getActive().id;
+    const p = window.Personas.get(id);
+    const bubble = wrapper.querySelector('.message-bubble');
+    if (!p || !bubble) return;
+    bubble.style.background = `color-mix(in srgb, ${p.color} 16%, var(--bg-secondary))`;
+    bubble.style.borderColor = `color-mix(in srgb, ${p.color} 42%, transparent)`;
   },
 
   // 말풍선 옆 아바타 — 그 메시지를 보낸 상담사의 얼굴을 쓴다.
@@ -965,9 +1002,9 @@ window.App = {
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
   personaGreetings: {
     woorung: '안녕하세요, 우렁의사예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
-    haru: '안녕! 나는 생각 교정 전문(CBT) 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 하고 싶으면 "햇살 수업 시작"이라고 해봐 — 6단계로 이끌어줄게.',
-    dalnim: '…안녕하세요, 달님이에요. 저는 변증법적 행동치료(DBT) 상담사예요 — 다 받아주는 것에서 시작해서, 치솟는 감정 파도를 넘기는 기술까지 함께 찾아요. ||| 어디에도 못 꺼낸 말, 미움도 욕도 다듬지 말고 그냥 쏟아내세요. 판단하지 않아요. 그리고 파도가 좀 가라앉으면, 다음에 쓸 기술을 하나 쥐여드릴게요. ||| 감정 다루는 법을 차근차근 배우고 싶으면 "달빛 수업 시작"이라고 말해주세요.',
-    sonamu: '반갑습니다, 소나무입니다. 저는 수용전념치료(ACT) 상담사예요 — 괴로운 생각과 싸우는 대신, 생각에서 한 발 떨어져 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이나 감정이 있다면 말해보세요. 없애려는 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면 "솔숲 수업 시작"이라고 해보세요.'
+    haru: '안녕! 나는 생각 교정 전문(CBT) 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
+    dalnim: '…안녕하세요, 달님이에요. 저는 변증법적 행동치료(DBT) 상담사예요 — 다 받아주는 것에서 시작해서, 치솟는 감정 파도를 넘기는 기술까지 함께 찾아요. ||| 어디에도 못 꺼낸 말, 미움도 욕도 다듬지 말고 그냥 쏟아내세요. 판단하지 않아요. 그리고 파도가 좀 가라앉으면, 다음에 쓸 기술을 하나 쥐여드릴게요. ||| 감정 다루는 법을 차근차근 배우고 싶다면, 이 코스로 시작하셔도 좋아요. [그림:수업카드]',
+    sonamu: '반갑습니다, 소나무입니다. 저는 수용전념치료(ACT) 상담사예요 — 괴로운 생각과 싸우는 대신, 생각에서 한 발 떨어져 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이나 감정이 있다면 말해보세요. 없애려는 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
   },
 
   // 영어/일본어 모드용 첫 인사
@@ -992,12 +1029,24 @@ window.App = {
       || this.personaGreetings[id] || this.personaGreetings.woorung;
     // '|||' 는 말풍선을 나누라는 내부 기호다. 통째로 뿌리면 화면에 그대로 노출된다.
     const parts = String(text).split('|||').map(t => t.trim()).filter(Boolean);
-    parts.forEach((t, i) => {
-      const msg = { role: 'bot', text: t, persona: id, timestamp: new Date(Date.now() + i).toISOString() };
+    // 인사말에 [그림:수업카드] 가 있으면 그 자리에서 수업 카드 말풍선으로 갈라놓는다
+    const msgs = [];
+    parts.forEach(t => {
+      const viz = [];
+      const body = t.replace(window.ChatViz ? window.ChatViz.RX : /\[그림:\s*([^\]]+)\]/g, (m, b) => {
+        const v = window.ChatViz ? window.ChatViz.parse(b) : null;
+        if (v) { if (!v.args.length && v.type === '수업카드') v.args = [id]; viz.push(v); }
+        return '';
+      }).trim();
+      if (body) msgs.push({ role: 'bot', text: body, persona: id });
+      viz.forEach(v => msgs.push({ role: 'bot', viz: v, persona: id, text: '' }));
+    });
+    msgs.forEach((m, i) => {
+      const msg = { ...m, timestamp: new Date(Date.now() + i).toISOString() };
       window.Storage.saveMessage(msg);
       setTimeout(() => this.displayMessage(msg), i * 450);
     });
-    if (window.Voice) window.Voice.speak(parts.join(' '), id);
+    if (window.Voice) window.Voice.speak(msgs.map(m => m.text).filter(Boolean).join(' '), id);
   },
 
   selectPersona(id) {

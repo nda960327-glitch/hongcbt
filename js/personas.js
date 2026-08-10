@@ -89,7 +89,8 @@ window.Personas = {
       name: '소나무',
       tagline: '싸움을 멈추고 삶의 방향을 찾아주는 수용전념 선생님',
       tags: ['#수용전념', '#가치나침반', '#생각과거리두기'],
-      color: '#4a7d6d',
+      // 우렁의사(#4f8a6b)와 같은 초록 계열이라 말풍선이 구별되지 않았다 — 더 깊은 청록으로.
+      color: '#2f6b5c',
       desc: '소나무는 폭풍과 싸우지 않아요. 바람은 지나가게 두고, 뿌리는 제 방향으로 자랍니다. 괴로운 생각·감정을 없애려는 싸움을 멈추고(수용), 생각에서 한 발 떨어져(거리두기), 내가 진짜 원하는 삶의 방향(가치)을 찾아 그쪽으로 작은 한 걸음을 옮기게 돕는 수용전념치료(ACT) 전문가예요.',
       fit: '불안·잡념을 없애려 할수록 더 커질 때, "이 기분만 사라지면 살 텐데"라며 삶이 멈춰 있을 때, 뭘 위해 사는지 모르겠을 때.',
       method: 'ACT · 수용전념치료',
@@ -150,8 +151,10 @@ window.Personas = {
   },
 
   // 수업 소개 바텀시트 (단계 미리보기 + 시작 버튼)
-  openProgram() {
-    const p = this.getActive();
+  //  id 를 주면 그 상담사의 수업으로 연다 — 채팅 속 수업 카드는 그 말을 한
+  //  상담사의 코스를 열어야 하는데, 그 사이 상담사를 바꿨을 수 있다.
+  openProgram(id) {
+    const p = this.get(id || this.getActive().id);
     const prog = this.programOf(p.id);
     if (!prog || document.getElementById('program-sheet')) return;
     const wrap = document.createElement('div');
@@ -176,18 +179,21 @@ window.Personas = {
             </div>`).join('')}
         </div>
         <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.75rem; text-align: center;">한 번에 한 단계씩, 채팅으로 진행돼요 · 힘들면 언제든 멈춰도 괜찮아요</p>
-        <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;" onclick="window.Personas.startProgram()"><span style="display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19, line: '#fff' }) : ''}지금 시작하기</span></button>
+        <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;" onclick="window.Personas.startProgram('${p.id}')"><span style="display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19, line: '#fff' }) : ''}지금 시작하기</span></button>
       </div>`;
     wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
     document.body.appendChild(wrap);
     if (window.Sfx) window.Sfx.play('pop');
   },
 
-  startProgram() {
-    const prog = this.programOf(this.getActive().id);
+  startProgram(id) {
+    const pid = id || this.getActive().id;
+    const prog = this.programOf(pid);
     const sheet = document.getElementById('program-sheet');
     if (sheet) sheet.remove();
     if (!prog || !window.App) return;
+    // 다른 상담사의 수업을 골랐으면 그 상담사로 바꿔야 코스가 진행된다
+    if (pid !== this.getActive().id) { this.setActive(pid); window.App.updatePersonaBar(); }
     window.App.switchTab('chat');
     const input = document.getElementById('chat-input');
     if (input) {

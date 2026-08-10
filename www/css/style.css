@@ -502,6 +502,11 @@ p { color: var(--text-secondary); }
   box-shadow: var(--shadow-glow);
 }
 
+/* 그림 카드 말풍선 — 안에 게이지·그래프가 들어가므로 글 말풍선보다 폭이 넓어야 한다 */
+.message.bot:has(.viz-bubble) { max-width: 92%; }
+.viz-bubble { padding: 0.7rem 0.8rem; }
+.viz-bubble svg { max-width: 100%; }
+
 .typing-indicator { display: flex; gap: 4px; padding: 0.15rem 0.1rem; }
 .typing-dot,
 .typing-indicator span {

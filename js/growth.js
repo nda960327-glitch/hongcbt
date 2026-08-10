@@ -580,10 +580,10 @@ ${entries}
         <p style="font-size: 0.8rem; color: #cfc7b4; margin: 0 0 0.6rem;">1 / 3</p>
         <h2 style="margin: 0 0 1rem; font-size: 1.2rem; color: #ffffff;">오늘 하루, 전체적으로 어땠어요?</h2>
         <div style="display: flex; justify-content: space-between; gap: 0.3rem;">
-          ${[['joy', 5, '기쁨'], ['empathy', 4, '편안'], ['blank', 3, '보통'], ['surprise', 2, '불안'], ['sad', 1.5, '우울']].map(([st, v, emo]) =>
+          ${[['joy', 5, '기쁨', '기쁨'], ['empathy', 4, '편안', '편안'], ['blank', 3, '보통', '보통'], ['surprise', 2, '불안', '불안/불편'], ['sad', 1.5, '우울', '우울/고통']].map(([st, v, emo, label]) =>
             `<button data-v="${v}" data-emo="${emo}" class="ng-mood" style="all: unset; box-sizing: border-box; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.4rem 0 0.35rem; border-radius: 14px; cursor: pointer; background: rgba(255,255,255,0.14);">
               <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg(st, 46) : ''}</span>
-              <span style="font-size: 0.66rem; font-weight: 700; color: #e9e2d2;">${emo}</span>
+              <span style="font-size: 0.62rem; font-weight: 700; color: #e9e2d2; white-space: nowrap;">${label}</span>
             </button>`).join('')}
         </div>`);
       document.querySelectorAll('.ng-mood').forEach(b => b.addEventListener('click', () => {
