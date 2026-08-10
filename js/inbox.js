@@ -175,6 +175,9 @@ window.Inbox = {
     if (!act) return;
     try {
       switch (act) {
+        case 'home':
+          if (window.App) window.App.switchTab('home');
+          break;
         case 'breath':
           if (window.Calm) window.Calm.startBreath('box');
           break;

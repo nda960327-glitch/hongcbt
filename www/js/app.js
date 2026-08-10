@@ -1756,6 +1756,18 @@ window.App = {
     const today = now.toLocaleDateString('sv-CA');
     if (window.Storage._safeGet('cbt_action_checkin_date', '') === today) return;
 
+    // 상담사 숙제가 밀려 있으면 그게 최우선이다 —
+    //  사람이 낸 과제를 앱이 잊게 두면 상담 연계 전체가 흐지부지된다.
+    try {
+      const hw = (window.Homework && window.Homework.open()) || [];
+      if (hw.length) {
+        window.Storage._safeSet('cbt_action_checkin_date', today);
+        const h = hw[0];
+        this.notify(h.counselor || '상담사', `숙제가 기다리고 있어요 — "${String(h.text).slice(0, 40)}"`, 'home');
+        return;
+      }
+    } catch (e) {}
+
     // --- 지금 상태 읽기 ---
     // 불안: GAD-7 (0~21). 21점 만점의 1/3(≈7점, '가벼운 불안'의 위쪽)부터 높다고 본다.
     let anxious = false;
@@ -3527,15 +3539,25 @@ ${body}
   },
 
   // 전화 연결음(뚜루루): 1초 울리고 2초 쉬는 표준 링백톤
+  //  모바일은 오디오 컨텍스트가 잠들어 있으면 소리가 통째로 삼켜진다 —
+  //  반드시 깨운 것을 확인한 뒤에 첫 벨을 울린다.
   ringStart() {
     this.ringStop();
-    const burst = () => { this._tone(440, 1.0, 0, 0.09); this._tone(480, 1.0, 0, 0.09); if (navigator.vibrate) { try { navigator.vibrate(180); } catch (e) {} } };
-    burst();
-    this._ringTimer = setInterval(burst, 3000);
+    const burst = () => { this._tone(440, 1.0, 0, 0.16); this._tone(480, 1.0, 0, 0.16); if (navigator.vibrate) { try { navigator.vibrate(180); } catch (e) {} } };
+    const kick = () => { if (this._ringTimer !== null) return; burst(); this._ringTimer = setInterval(burst, 3000); };
+    const ctx = this._ctx();
+    if (ctx && ctx.state === 'suspended' && ctx.resume) {
+      try { ctx.resume().then(kick, kick); } catch (e) { kick(); }
+      // resume 이 영영 안 풀리는 기기도 있다 — 0.3초 안엔 그냥 울린다 (진동이라도)
+      setTimeout(kick, 300);
+    } else {
+      kick();
+    }
   },
 
   ringStop() {
-    if (this._ringTimer) { clearInterval(this._ringTimer); this._ringTimer = null; }
+    if (this._ringTimer !== null && this._ringTimer !== undefined) { clearInterval(this._ringTimer); }
+    this._ringTimer = null;
   },
 
   // ==========================================================================
@@ -3579,6 +3601,41 @@ ${body}
       // 오프라인: 회선 관리 없이 데모 통화
       window.CallTalk.startHuman(c.id, { prepaid });
     });
+  },
+
+  // ==========================================================================
+  //  바로상담 — 통화가 아니라 채팅방으로 연결한다.
+  //  전화는 부담스럽다. 채팅으로 시작하고, 필요하면 채팅방 안의 [통화]로.
+  //  그리고 한 번에 한 분과만: 여러 상담사에게 동시에 바로상담을 걸어놓으면
+  //  상담사들이 유령 내담자를 상대하게 된다.
+  // ==========================================================================
+  INSTANT_TTL: 24 * 3600 * 1000, // 하루 지나면 자동 해제
+
+  activeInstant() {
+    const s = window.Storage._safeGet('cbt_instant_chat', null);
+    if (!s || !s.counselorId) return null;
+    if (Date.now() - (s.ts || 0) > this.INSTANT_TTL) {
+      window.Storage._safeSet('cbt_instant_chat', null);
+      return null;
+    }
+    return s;
+  },
+
+  async startInstantChat(counselorId) {
+    const c = window.Marketplace.getCounselor(counselorId);
+    if (!c) return;
+    const cur = this.activeInstant();
+    if (cur && cur.counselorId !== c.id) {
+      const curC = window.Marketplace.getCounselor(cur.counselorId);
+      const curName = curC ? curC.name + '님' : '다른 상담사님';
+      if (!await window.UI.confirm(`지금 ${curName}과 바로상담이 진행 중이에요.\n바로상담은 한 번에 한 분과만 할 수 있어요.\n\n기존 상담을 마무리하고 ${c.name}님과 새로 시작할까요?`)) {
+        // 유지 선택 → 하던 상담방으로 데려다준다
+        if (curC) this.openHumanChat(cur.counselorId);
+        return;
+      }
+    }
+    window.Storage._safeSet('cbt_instant_chat', { counselorId: c.id, ts: Date.now() });
+    this.openHumanChat(c.id);
   },
 
   openHumanChat(counselorId) {
@@ -3628,6 +3685,7 @@ ${body}
           <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</strong>
           <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${c.hospital}</span>
         </div>
+ <button id="hchat-share" title="내 기록을 상담사에게 공유" style="background: none; border: 1px solid var(--glass-border); border-radius: 999px; font-size: 0.73rem; font-weight: 700; padding: 0.4rem 0.7rem; cursor: pointer; color: var(--text-secondary); flex-shrink: 0;">기록 공유</button>
  <button id="hchat-call"class="btn-primary"style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem; flex-shrink: 0;"> 통화</button>
       </div>
       <div id="hchat-msgs" style="flex: 1; overflow-y: auto; padding: 1rem 0.9rem; display: flex; flex-direction: column; gap: 0.6rem;"></div>
@@ -3655,9 +3713,9 @@ ${body}
       sync();
     }, 8000);
 
-    const send = () => {
-      const inp = document.getElementById('hchat-input');
-      const t = inp.value.trim();
+    // 입력창 전송과 '기록 공유'가 같은 길을 탄다 — 저장·서버 발송·안내가 한 곳에
+    const sendText = (t) => {
+      t = String(t || '').trim();
       if (!t) return;
       msgs.push({ role: 'me', text: t, ts: Date.now() });
       // 첫 발송 시 한 번만: 전달 안내
@@ -3665,7 +3723,7 @@ ${body}
  msgs.push({ role:'sys', text:'메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [ 통화] 버튼을 이용해주세요.', ts: Date.now() });
       }
       window.Storage._safeSet(key, msgs.slice(-200));
-      // 서버 채팅함으로 전송 → 상담사 페이지(/counselor.html)에 도착
+      // 서버 채팅함으로 전송 → 상담사 앱(우렁의사 프로)에 도착
       try {
         window.Api.f('/api/chat-msg', {
           method: 'POST',
@@ -3673,13 +3731,89 @@ ${body}
           body: JSON.stringify({ counselorId: c.id, counselorName: c.name, clientId: this.clientId(), clientName, from: 'client', text: t })
         }).catch(() => {});
       } catch (e) {}
-      inp.value = '';
       render();
     };
+    const send = () => {
+      const inp = document.getElementById('hchat-input');
+      const t = inp.value.trim();
+      if (!t) return;
+      inp.value = '';
+      sendText(t);
+    };
+
+    // === 기록 공유 — 말로 다시 설명하지 않아도 상담사가 나를 빨리 이해하게 ===
+    //  보내기 전에 반드시 내용을 그대로 보여주고 확인받는다. 내 기록이니까.
+    const openShare = () => {
+      const old2 = document.getElementById('hchat-share-sheet');
+      if (old2) { old2.remove(); return; }
+      const tr = (window.Storage.getThoughtRecords() || [])[0] || null;
+      const sh = document.createElement('div');
+      sh.id = 'hchat-share-sheet';
+      sh.style.cssText = 'position: fixed; inset: 0; z-index: 10002; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end;';
+      sh.innerHTML = `
+        <div style="width: 100%; background: var(--bg-secondary); border-radius: 20px 20px 0 0; padding: 1rem 1.2rem calc(1.3rem + env(safe-area-inset-bottom));">
+          <strong style="font-size: 0.95rem; color: var(--text-primary);">상담사에게 내 기록 공유</strong>
+          <p style="margin: 0.3rem 0 0.8rem; font-size: 0.76rem; color: var(--text-muted); line-height: 1.55;">보내기 전에 내용을 먼저 보여드려요. 상담사님이 내 상태를 미리 알면 상담이 훨씬 빨라져요.</p>
+          <button id="hshare-tr" class="btn-secondary" style="width: 100%; margin-bottom: 0.45rem; text-align: left; padding: 0.7rem 0.9rem; ${tr ? '' : 'opacity: 0.45;'}">최근 사고 기록 1건 ${tr ? '' : '<span style="font-size:0.7rem;">(아직 없음)</span>'}</button>
+          <button id="hshare-wk" class="btn-secondary" style="width: 100%; text-align: left; padding: 0.7rem 0.9rem;">최근 7일 마음 요약</button>
+        </div>`;
+      sh.addEventListener('click', e => { if (e.target === sh) sh.remove(); });
+      document.body.appendChild(sh);
+      const confirmSend = async (text) => {
+        sh.remove();
+        if (!text) return;
+        if (await window.UI.confirm(`이 내용을 ${c.name}님께 보낼까요?\n\n${text.length > 400 ? text.slice(0, 400) + '…' : text}`)) {
+          sendText(text);
+          this.showRecordToast('상담사님께 전달했어요');
+        }
+      };
+      document.getElementById('hshare-tr').addEventListener('click', () => {
+        if (!tr) return;
+        const emo = (tr.emotions || []).map(e => `${e.name} ${e.intensity != null ? e.intensity : ''}`.trim()).join(', ');
+        confirmSend([
+          '[사고 기록 공유]',
+          tr.situation ? '상황: ' + tr.situation : '',
+          tr.thought ? '그때 든 생각: ' + tr.thought : '',
+          emo ? '감정: ' + emo : '',
+          tr.balanced || tr.reframe || tr.alternative ? '다시 본 생각: ' + (tr.balanced || tr.reframe || tr.alternative) : ''
+        ].filter(Boolean).join('\n'));
+      });
+      document.getElementById('hshare-wk').addEventListener('click', () => {
+        confirmSend(this._mindSummaryText());
+      });
+    };
+
     document.getElementById('hchat-send').addEventListener('click', send);
     document.getElementById('hchat-input').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
     document.getElementById('hchat-close').addEventListener('click', () => { clearInterval(this._hchatPoll); ov.remove(); });
     document.getElementById('hchat-call').addEventListener('click', () => this.startHumanCall(c.id));
+    document.getElementById('hchat-share').addEventListener('click', openShare);
+  },
+
+  // 최근 7일을 상담사가 30초 만에 읽을 수 있는 요약으로 만든다.
+  //  진단 언어를 쓰지 않고, 앱에 이미 있는 기록만 그대로 센다.
+  _mindSummaryText() {
+    const S = window.Storage;
+    const from = Date.now() - 7 * 86400000;
+    const moods = (S._safeGet('cbt_mood_log', []) || []).filter(m => m && m.ts >= from);
+    const avg = moods.length
+      ? (moods.reduce((s, m) => s + (typeof m.v === 'number' ? m.v : 3), 0) / moods.length).toFixed(1)
+      : null;
+    const trs = (S.getThoughtRecords() || []).filter(r => r.date && new Date(r.date).getTime() >= from);
+    const nights = (S._safeGet('cbt_night_journal', []) || []).filter(j => j && j.ts >= from);
+    const hwOpen = (window.Homework && window.Homework.open ? window.Homework.open() : []).length;
+    let scores = null;
+    try { scores = window.Assess && window.Assess.scores ? window.Assess.scores() : null; } catch (e) {}
+    return [
+      '[최근 7일 마음 요약]',
+      `기분 체크인 ${moods.length}회` + (avg ? ` · 평균 ${avg}/5` : ''),
+      `사고 기록 ${trs.length}건 · 하루 정리 ${nights.length}번`,
+      scores && (scores.phq != null || scores.gad != null)
+        ? `자가검진: PHQ-9 ${scores.phq != null ? scores.phq + '점' : '-'} · GAD-7 ${scores.gad != null ? scores.gad + '점' : '-'}`
+        : '',
+      hwOpen ? `진행 중인 상담 숙제 ${hwOpen}개` : '',
+      '(우렁의사 앱에서 자동 정리된 요약이에요)'
+    ].filter(Boolean).join('\n');
   },
 
   async resetChat() {

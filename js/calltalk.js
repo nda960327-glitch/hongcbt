@@ -54,28 +54,18 @@ window.CallTalk = {
     this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
 
-    // 1.8초 뒤 상담사가 받는다
+    // 3.4초 뒤 상담사가 받는다 — 뚜루루가 두 번은 울려야 전화 같다.
+    //  (여기 통화 종료용 코드가 잘못 섞여 들어와 ReferenceError 로
+    //   '연결 중…'에서 영원히 멈추던 버그가 있었다. 받는 일만 한다.)
     setTimeout(() => {
       if (!this._active) return;
       if (window.App && window.App.ringStop) window.App.ringStop();
-    if (window.RtcCall && window.RtcCall.callId) {
-      window.RtcCall.hangup('client').then(info => {
-        if (info && info.noAnswer && window.App && window.App.showRecordToast) {
-          window.App.showRecordToast('연결되지 않았어요. 채팅으로 남겨보세요');
-        }
-        if (wasWith && window.App && window.App.openHumanChat) {
-          setTimeout(() => window.App.openHumanChat(wasWith), 400);
-        }
-      });
-    } else if (wasWith && window.App && window.App.openHumanChat) {
-      setTimeout(() => window.App.openHumanChat(wasWith), 400);
-    }
       this._setStatus('통화 중');
       const hello = { role: 'bot', text: `여보세요? 나 ${p.name}${p.id === 'woorung' ? '예요' : '이야'}. 목소리로 들으니까 더 반갑다. 무슨 얘기부터 할까?`, timestamp: new Date().toISOString() };
       window.Storage.saveMessage(hello);
       if (window.App) window.App.displayMessage(hello);
       this._speakThen(hello.text, p.id, () => this._listen());
-    }, 1800);
+    }, 3400);
   },
 
   _bill() {
@@ -307,6 +297,19 @@ window.CallTalk = {
     this._active = false;
     this._human = false;
     this._rate = null;
+    // 인간 상담사 통화(RTC)였으면 회선을 끊고, 상대 채팅방으로 안내한다
+    if (window.RtcCall && window.RtcCall.callId) {
+      window.RtcCall.hangup('client').then(info => {
+        if (info && info.noAnswer && window.App && window.App.showRecordToast) {
+          window.App.showRecordToast('연결되지 않았어요. 채팅으로 남겨보세요');
+        }
+        if (wasWith && window.App && window.App.openHumanChat) {
+          setTimeout(() => window.App.openHumanChat(wasWith), 400);
+        }
+      });
+    } else if (wasWith && window.App && window.App.openHumanChat) {
+      setTimeout(() => window.App.openHumanChat(wasWith), 400);
+    }
     if (window.App && window.App.ringStop) window.App.ringStop();
     clearInterval(this._billTimer);
     clearInterval(this._clockTimer);

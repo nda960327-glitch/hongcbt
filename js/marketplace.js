@@ -237,7 +237,7 @@
             <b>${window.Icons ? window.Icons.svg('booking', { size: 14 }) : ''} 예약 상담</b><span>30분 ${c.price.toLocaleString()}원</span>
           </button>
           ${st === 'avail'
-            ? `<button class="cc2-live" onclick="window.App.startHumanCall('${c.id}')"><b>${window.Icons ? window.Icons.svg('bolt', { size: 14 }) : ''} 바로상담</b><span>${this.callRateFor(c).toLocaleString()}캐시/30초</span></button>`
+            ? `<button class="cc2-live" onclick="window.App.startInstantChat('${c.id}')"><b>${window.Icons ? window.Icons.svg('bolt', { size: 14 }) : ''} 바로상담</b><span>채팅방으로 바로 연결</span></button>`
             : st === 'busy'
               ? (window.App && window.App.isWaitingFor(c.id)
                 ? `<button class="cc2-live is-busy" onclick="window.App.leaveCallQueue('${c.id}')"><b>대기 중</b><span>탭하면 대기 취소</span></button>`

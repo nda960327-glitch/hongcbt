@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
   <title>우렁의사 프로 — 상담사용</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#1c3027">
@@ -15,1009 +15,373 @@
   <style>
     :root {
       --bg: #faf5ee; --card: #ffffff; --line: rgba(120, 96, 66, 0.14);
-      --text: #362f28; --sub: #7f7264; --accent: #4f8a6b;
+      --text: #362f28; --sub: #7f7264; --accent: #4f8a6b; --accent-soft: #eef6f0;
+      --danger: #cf6b60; --warn: #e8590c; --gold: #b98a1a;
+      --tabh: 58px;
     }
     /* 한국어는 음절 사이 어디서나 끊긴다 — flex 안에서 칸이 한 글자로
        찌그러지는 원인이다. 소비자 앱(css/style.css)과 같은 규칙을 쓴다.
        anywhere 가 아니라 break-word 여야 한다(anywhere 는 최소 폭을 도로 1글자로 만든다). */
-    * { box-sizing: border-box; margin: 0; word-break: keep-all; overflow-wrap: break-word; }
-    body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-    .wrap { max-width: 560px; margin: 0 auto; padding: 1.2rem 1.1rem 3rem; }
-    header { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0 1.1rem; }
-    header h1 { font-family: 'Gowun Batang', serif; font-size: 1.25rem; }
-    header .tag { font-size: 0.68rem; font-weight: 700; color: #b98a1a; background: #f5c74e33; padding: 0.2rem 0.55rem; border-radius: 999px; }
-    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(120,96,66,0.06); margin-bottom: 0.7rem; }
-    input, button { font-family: inherit; font-size: 0.92rem; }
-    input { width: 100%; padding: 0.75rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); outline: none; text-align: center; }
-    .btn { display: inline-block; width: 100%; padding: 0.75rem; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-weight: 700; cursor: pointer; margin-top: 0.7rem; }
-    .btn.ghost { background: var(--bg); color: var(--text); border: 1.5px solid var(--line); }
-    .muted { font-size: 0.78rem; color: var(--sub); line-height: 1.6; }
-    .item-head { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
-    .item-head strong { flex: 1; font-size: 0.92rem; }
-    .badge-new { font-size: 0.66rem; font-weight: 800; color: #e8590c; background: #e8590c1e; padding: 0.15rem 0.5rem; border-radius: 999px; }
-    .badge-read { font-size: 0.66rem; font-weight: 700; color: var(--sub); background: var(--bg); border: 1px solid var(--line); padding: 0.15rem 0.5rem; border-radius: 999px; }
-    .body { display: none; margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.7rem; font-size: 0.86rem; line-height: 1.7; white-space: pre-line; color: #4a4239; max-height: 420px; overflow-y: auto; }
-    .open .body { display: block; }
-    .empty { text-align: center; padding: 2.2rem 0; color: var(--sub); font-size: 0.88rem; line-height: 1.7; }
-    .toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.9rem; }
-    .toolbar .btn { width: auto; margin: 0; padding: 0.5rem 0.9rem; font-size: 0.8rem; }
-    .toolbar .count { font-size: 0.82rem; color: var(--sub); flex: 1; }
+    * { box-sizing: border-box; margin: 0; word-break: keep-all; overflow-wrap: break-word; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text);
+      font-size: 15px; line-height: 1.5; overscroll-behavior-y: none;
+    }
+    [hidden] { display: none !important; }
+    input, button, textarea, select { font-family: inherit; font-size: 0.92rem; color: inherit; }
+    .serif { font-family: 'Gowun Batang', serif; }
+
+    /* ── 로그인 ───────────────────────────────────────────────── */
+    #screen-login { max-width: 420px; margin: 0 auto; padding: 3.4rem 1.2rem 2rem; }
+    #screen-login .logo { text-align: center; margin-bottom: 1.6rem; }
+    #screen-login .logo h1 { font-family: 'Gowun Batang', serif; font-size: 1.5rem; letter-spacing: -0.01em; }
+    #screen-login .logo p { font-size: 0.78rem; color: var(--sub); margin-top: 0.3rem; }
+    #screen-login .mark {
+      width: 58px; height: 58px; border-radius: 20px; margin: 0 auto 0.8rem;
+      background: linear-gradient(140deg, #5d9a79, #3d6f58); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Gowun Batang', serif; font-size: 1.5rem;
+      box-shadow: 0 8px 20px rgba(79, 138, 107, 0.28);
+    }
+
+    /* ── 공통 조각 ────────────────────────────────────────────── */
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 1rem 1.1rem; box-shadow: 0 2px 10px rgba(120, 96, 66, 0.06); margin-bottom: 0.7rem;
+    }
+    .card.flat { box-shadow: none; }
+    .card.pad0 { padding: 0; }
+    .muted { font-size: 0.78rem; color: var(--sub); line-height: 1.65; }
+    .row { display: flex; align-items: center; gap: 0.5rem; }
+    .grow { flex: 1; min-width: 0; }
+    .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sec-title { font-size: 0.78rem; font-weight: 700; color: var(--sub); letter-spacing: 0.02em; margin: 1.3rem 0 0.5rem 0.2rem; }
+    .sec-title:first-child { margin-top: 0.2rem; }
+
+    input[type=text], input[type=password], input[type=number], input:not([type]), textarea {
+      width: 100%; padding: 0.72rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--line);
+      background: #fff; outline: none; transition: border-color 0.15s;
+    }
+    input:focus, textarea:focus { border-color: var(--accent); }
+    #code { text-align: center; letter-spacing: 0.12em; background: var(--bg); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem;
+      width: 100%; min-height: 46px; padding: 0.7rem 1rem; border: none; border-radius: 13px;
+      background: var(--accent); color: #fff; font-weight: 700; cursor: pointer;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .btn:active { transform: scale(0.985); }
+    .btn:disabled { opacity: 0.55; }
+    .btn.ghost { background: #fff; color: var(--text); border: 1.5px solid var(--line); }
+    .btn.soft { background: var(--accent-soft); color: var(--accent); }
+    .btn.danger { background: var(--danger); }
+    .btn.sm { width: auto; min-height: 36px; padding: 0.4rem 0.8rem; font-size: 0.78rem; border-radius: 10px; }
+
+    .chip {
+      display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 800;
+      padding: 0.2rem 0.55rem; border-radius: 999px; white-space: nowrap;
+    }
+    .chip.new { color: var(--warn); background: rgba(232, 89, 12, 0.12); }
+    .chip.ok { color: var(--accent); background: var(--accent-soft); }
+    .chip.off { color: var(--sub); background: var(--bg); border: 1px solid var(--line); }
+    .chip.bad { color: var(--danger); background: rgba(207, 107, 96, 0.12); }
+    .chip.gold { color: var(--gold); background: rgba(245, 199, 78, 0.2); }
+
+    .empty { text-align: center; padding: 2.4rem 1rem; color: var(--sub); font-size: 0.86rem; line-height: 1.8; }
+    .empty .ico { font-size: 1.7rem; display: block; margin-bottom: 0.5rem; opacity: 0.5; }
+
+    /* ── 앱 셸 ────────────────────────────────────────────────── */
+    #appbar {
+      position: sticky; top: 0; z-index: 40; background: rgba(250, 245, 238, 0.94);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top);
+    }
+    #appbar .inner { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1.1rem; }
+    #appbar .av {
+      width: 38px; height: 38px; border-radius: 13px; flex-shrink: 0;
+      background: linear-gradient(140deg, #5d9a79, #3d6f58); color: #fff;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.95rem;
+    }
+    #appbar .who { font-size: 0.95rem; font-weight: 700; }
+    #appbar .whosub { font-size: 0.72rem; color: var(--sub); }
+    .iconbtn {
+      all: unset; display: flex; align-items: center; justify-content: center;
+      width: 38px; height: 38px; border-radius: 12px; cursor: pointer; color: var(--sub); flex-shrink: 0;
+    }
+    .iconbtn:active { background: rgba(120, 96, 66, 0.08); }
+
+    main#views { max-width: 560px; margin: 0 auto; padding: 0.9rem 1.1rem calc(var(--tabh) + 1.6rem + env(safe-area-inset-bottom)); }
+    .view { display: none; }
+    .view.on { display: block; animation: fadeUp 0.2s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+    #tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      background: rgba(255, 255, 255, 0.97); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+    }
+    #tabbar .inner { max-width: 560px; margin: 0 auto; display: flex; }
+    .tab {
+      all: unset; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; min-height: var(--tabh); cursor: pointer; color: var(--sub); position: relative;
+      font-size: 0.66rem; font-weight: 700;
+    }
+    .tab.on { color: var(--accent); }
+    .tab svg { width: 22px; height: 22px; }
+    .tab .dot {
+      position: absolute; top: 6px; left: 50%; margin-left: 4px;
+      min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
+      background: var(--warn); color: #fff; font-size: 0.6rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ── 홈 ───────────────────────────────────────────────────── */
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.7rem; }
+    .stat {
+      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+      padding: 0.75rem 0.6rem; text-align: center; cursor: pointer;
+    }
+    .stat b { display: block; font-size: 1.15rem; line-height: 1.3; }
+    .stat span { font-size: 0.68rem; color: var(--sub); }
+
+    .switch-card { border: 1.5px solid var(--line); }
+    .switch-card.on { border-color: var(--accent); background: linear-gradient(135deg, var(--accent-soft), #fff); }
+    .sw {
+      all: unset; width: 60px; height: 34px; border-radius: 999px; background: #d8d0c4;
+      position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.2s;
+    }
+    .sw.on { background: var(--accent); }
+    .sw i {
+      position: absolute; top: 3px; left: 3px; width: 28px; height: 28px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); transition: transform 0.2s;
+    }
+    .sw.on i { transform: translateX(26px); }
+
+    .listrow { display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0; border-top: 1px solid var(--line); }
+    .listrow:first-child { border-top: none; }
+
+    /* 접이식 섹션 */
+    .fold > .head {
+      all: unset; display: flex; align-items: center; gap: 0.5rem; width: 100%;
+      box-sizing: border-box; cursor: pointer; padding: 0.85rem 1.1rem;
+    }
+    .fold > .body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--line); }
+
+    /* ── 채팅 ─────────────────────────────────────────────────── */
+    .thread { display: flex; gap: 0.75rem; align-items: center; padding: 0.85rem 1rem; cursor: pointer; border-bottom: 1px solid var(--line); }
+    .thread:last-child { border-bottom: none; }
+    .thread:active { background: var(--bg); }
+    .thread .av {
+      width: 44px; height: 44px; border-radius: 15px; flex-shrink: 0; background: var(--accent-soft);
+      color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700;
+    }
+    .thread.unread .av { background: var(--accent); color: #fff; }
+    .thread .nm { font-size: 0.92rem; font-weight: 700; }
+    .thread .pv { font-size: 0.8rem; color: var(--sub); }
+    .thread.unread .pv { color: var(--text); font-weight: 500; }
+    .thread .rt { font-size: 0.68rem; color: var(--sub); text-align: right; flex-shrink: 0; }
+    .thread .cnt {
+      display: inline-block; margin-top: 0.25rem; min-width: 19px; height: 19px; padding: 0 5px;
+      border-radius: 999px; background: var(--warn); color: #fff; font-size: 0.66rem; font-weight: 800;
+      line-height: 19px; text-align: center;
+    }
+
+    /* 대화방 — 탭바 위를 덮는 전체화면 */
+    #chatroom { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; flex-direction: column; }
+    #chatroom .rhead {
+      display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem;
+      padding-top: calc(0.6rem + env(safe-area-inset-top));
+      background: rgba(250, 245, 238, 0.96); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
+    }
+    #chatroom .msgs { flex: 1; overflow-y: auto; padding: 1rem 0.9rem 0.6rem; -webkit-overflow-scrolling: touch; }
+    #chatroom .comp {
+      display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.6rem 0.8rem;
+      padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+      background: rgba(255, 255, 255, 0.98); border-top: 1px solid var(--line);
+    }
+    #chatroom .comp textarea {
+      flex: 1; max-height: 110px; min-height: 44px; resize: none; border-radius: 22px; padding: 0.7rem 1rem; line-height: 1.4;
+    }
+    #chatroom .comp .send {
+      all: unset; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+    }
+    .daysep { text-align: center; margin: 0.9rem 0 0.7rem; }
+    .daysep span { font-size: 0.68rem; color: var(--sub); background: rgba(120, 96, 66, 0.08); padding: 0.22rem 0.7rem; border-radius: 999px; }
+    .bub { max-width: 78%; padding: 0.6rem 0.85rem; border-radius: 16px; font-size: 0.89rem; line-height: 1.55; white-space: pre-wrap; }
+    .line { display: flex; align-items: flex-end; gap: 0.35rem; margin-bottom: 0.45rem; }
+    .line.me { justify-content: flex-end; }
+    .line.me .bub { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
+    .line.you .bub { background: #fff; border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+    .line .ts { font-size: 0.62rem; color: var(--sub); flex-shrink: 0; padding-bottom: 0.15rem; }
+
+    /* ── 걸려오는 전화 ────────────────────────────────────────── */
+    #callov {
+      position: fixed; inset: 0; z-index: 200; background: linear-gradient(180deg, #2e4237, #16221c);
+      color: #f2ede4; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      padding: calc(3rem + env(safe-area-inset-top)) 1.5rem calc(2.6rem + env(safe-area-inset-bottom));
+      text-align: center;
+    }
+    #callov .pulse {
+      width: 128px; height: 128px; border-radius: 50%; background: rgba(255, 255, 255, 0.13);
+      margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 2.6rem;
+      animation: ringPulse 1.5s ease-in-out infinite;
+    }
+    @keyframes ringPulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.22); } 50% { transform: scale(1.07); box-shadow: 0 0 0 26px rgba(255,255,255,0); } }
+    #callov .cbtn {
+      all: unset; width: 74px; height: 74px; border-radius: 50%; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #fff;
+      font-size: 0.72rem; font-weight: 800;
+    }
+    #callov .cbtn.yes { background: #3fa06d; box-shadow: 0 6px 20px rgba(63, 160, 109, 0.45); }
+    #callov .cbtn.no { background: #d9534f; box-shadow: 0 6px 20px rgba(217, 83, 79, 0.4); }
+
+    /* ── 바텀시트 (숙제 내기 등) ─────────────────────────────── */
+    #sheet { position: fixed; inset: 0; z-index: 250; display: flex; flex-direction: column; justify-content: flex-end; }
+    #sheet .bd { position: absolute; inset: 0; background: rgba(30, 25, 20, 0.42); animation: fadeIn 0.18s ease; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #sheet-body {
+      position: relative; width: 100%; max-width: 560px; margin: 0 auto; background: var(--bg);
+      border-radius: 22px 22px 0 0; max-height: 90vh; overflow-y: auto;
+      padding: 0.6rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom));
+      animation: slideUp 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(30px); opacity: 0.6; } to { transform: none; opacity: 1; } }
+    #sheet-body .grab { width: 38px; height: 4px; border-radius: 999px; background: var(--line); margin: 0.3rem auto 0.9rem; }
+    #sheet-body h3 { font-size: 1.02rem; margin-bottom: 0.2rem; }
+    #sheet-body label { display: block; margin-bottom: 0.7rem; }
+    #sheet-body label > span { font-size: 0.76rem; color: var(--sub); display: block; margin-bottom: 0.25rem; }
+
+    /* 토스트 */
+    #toast {
+      position: fixed; left: 50%; bottom: calc(var(--tabh) + 1.2rem + env(safe-area-inset-bottom));
+      transform: translateX(-50%); z-index: 300; background: rgba(40, 34, 28, 0.94); color: #fff;
+      padding: 0.6rem 1.1rem; border-radius: 999px; font-size: 0.82rem; font-weight: 500;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s; max-width: 90vw; text-align: center;
+    }
+    #toast.on { opacity: 1; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <span style="font-size: 1.5rem;"></span>
-      <h1>우렁의사 프로</h1>
-      <span class="tag">데모</span>
-    </header>
 
-    <!-- 로그인 — 발급받은 코드가 기본, 잃어버렸을 때만 메일 -->
-    <div id="login" class="card" style="text-align: center;">
-      <p style="font-weight: 700; margin-bottom: 0.3rem;">상담사 로그인</p>
-      <p class="muted" style="margin-bottom: 0.8rem;">입점 승인 시 <b>이메일로 보내드린 코드</b>를 입력하세요.<br>한 번 입력하면 이 기기에서는 계속 열립니다.</p>
-      <input id="code" type="password" autocomplete="off" placeholder="열람 코드">
-      <p id="err" class="muted" style="color: #cf6b60; display: none; margin-top: 0.5rem;"></p>
-      <button class="btn" id="code-btn" onclick="loginWithCode()">수신함 열기</button>
-      <p class="muted" style="margin-top: 0.9rem; line-height: 1.7; font-size: 0.8rem;">
-        코드를 잃어버렸거나 코드가 샌 것 같으면 운영팀에 알려주세요.<br>
-        바로 새 코드를 보내드립니다 — <b>nda960327@gmail.com</b></p>
+  <!-- ── 로그인 ───────────────────────────────────────────────── -->
+  <div id="screen-login">
+    <div class="logo">
+      <div class="mark">우</div>
+      <h1>우렁의사 프로</h1>
+      <p>상담사 전용 · 예약 · 채팅 · 통화 · 정산</p>
+    </div>
+    <div class="card">
+      <p style="font-weight: 700; text-align: center;">상담사 로그인</p>
+      <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
+        입점 승인 시 <b>이메일로 보내드린 코드</b>를 입력하세요.<br>한 번 입력하면 이 기기에서는 계속 열립니다.</p>
+      <input id="code" type="password" autocomplete="off" placeholder="열람 코드" inputmode="text">
+      <p id="err" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
+      <button class="btn" id="code-btn" style="margin-top: 0.7rem;">시작하기</button>
+    </div>
+    <p class="muted" style="text-align: center; padding: 0 0.5rem;">
+      코드를 잃어버렸거나 코드가 샌 것 같으면 운영팀에 알려주세요.<br>
+      바로 새 코드를 보내드립니다 — <b>nda960327@gmail.com</b></p>
+  </div>
+
+  <!-- ── 앱 ───────────────────────────────────────────────────── -->
+  <div id="app" hidden>
+    <div id="appbar">
+      <div class="inner">
+        <div class="av" id="me-av">우</div>
+        <div class="grow">
+          <div class="who ell" id="me-name">우렁의사 프로</div>
+          <div class="whosub ell" id="me-sub">불러오는 중…</div>
+        </div>
+        <button class="iconbtn" data-act="refresh" title="새로고침" aria-label="새로고침">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <button class="iconbtn" data-act="logout" title="잠그기" aria-label="잠그기">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </button>
+      </div>
     </div>
 
-    <!-- 수신함 -->
-    <div id="inbox" style="display: none;">
-      <div class="toolbar">
-        <span class="count" id="count"></span>
-        <button class="btn ghost" onclick="load()">새로고침</button>
-        <button class="btn ghost" onclick="logout()">잠그기</button>
+    <main id="views">
+      <section class="view on" id="view-home"></section>
+      <section class="view" id="view-chat"></section>
+      <section class="view" id="view-book"></section>
+      <section class="view" id="view-money"></section>
+    </main>
+
+    <nav id="tabbar">
+      <div class="inner">
+        <button class="tab on" data-tab="home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+          <span>홈</span><span class="dot" id="dot-home" hidden></span>
+        </button>
+        <button class="tab" data-tab="chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/></svg>
+          <span>채팅</span><span class="dot" id="dot-chat" hidden></span>
+        </button>
+        <button class="tab" data-tab="book">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+          <span>예약</span><span class="dot" id="dot-book" hidden></span>
+        </button>
+        <button class="tab" data-tab="money">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M3 11h18"/><circle cx="8" cy="15" r="1.3"/></svg>
+          <span>정산</span><span class="dot" id="dot-money" hidden></span>
+        </button>
       </div>
-      <div id="presence-card"></div>
-      <div id="settlement"></div>
-      <div id="profile"></div>
-      <div id="slots"></div>
-      <div id="payout"></div>
-      <div id="homework"></div>
-      <h2 style="font-size: 0.95rem; margin: 0.4rem 0 0.6rem;">예약 일정</h2>
-      <div id="schedule"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">상담 채팅</h2>
-      <div id="chats"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">내 리뷰</h2>
-      <div id="reviews"></div>
-      <h2 style="font-size: 0.95rem; margin: 1.2rem 0 0.6rem;">받은 상담 자료</h2>
-      <div id="list"></div>
+    </nav>
+  </div>
+
+  <!-- 대화방 (전체화면) -->
+  <div id="chatroom" hidden>
+    <div class="rhead">
+      <button class="iconbtn" data-act="room-close" aria-label="뒤로">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <div class="grow">
+        <div style="font-weight: 700; font-size: 0.95rem;" id="room-name" class="ell"></div>
+        <div class="muted" id="room-sub"></div>
+      </div>
+      <!-- 숙제는 예약이 있어야만 낼 수 있던 기능이었다. 스레드에는 clientId 가 있으니
+           바로상담만 한 내담자에게도 여기서 바로 낼 수 있다. -->
+      <button class="btn soft sm" data-act="hw-open">숙제</button>
+    </div>
+    <div class="msgs" id="room-msgs"></div>
+    <div class="comp">
+      <textarea id="room-input" rows="1" placeholder="메시지를 입력하세요" enterkeyhint="send"></textarea>
+      <button class="send" data-act="room-send" aria-label="전송">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+      </button>
     </div>
   </div>
 
+  <!-- 걸려오는 전화 -->
+  <div id="callov" hidden>
+    <div>
+      <div style="font-size: 0.88rem; opacity: 0.85;" id="call-st">걸려온 상담 전화</div>
+      <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.3rem;" id="call-clock">00:00</div>
+    </div>
+    <div>
+      <div class="pulse">📞</div>
+      <h2 class="serif" id="call-who" style="margin: 1.1rem 0 0.25rem; font-size: 1.35rem;">내담자</h2>
+      <p style="font-size: 0.78rem; opacity: 0.72;">전화번호는 서로에게 보이지 않아요</p>
+    </div>
+    <div style="display: flex; gap: 2.2rem;">
+      <button class="cbtn no" data-act="call-no">거절</button>
+      <button class="cbtn yes" data-act="call-yes">받기</button>
+    </div>
+  </div>
+
+  <!-- 바텀시트 (숙제 내기·숙제 결과) -->
+  <div id="sheet" hidden>
+    <div class="bd" data-act="sheet-close"></div>
+    <div id="sheet-body"></div>
+  </div>
+
+  <div id="toast"></div>
+
   <script src="js/rtccall.js"></script>
-  <script>
-    // /api 를 어디로 보낼지 — 같은 출처에 없으면 Cloudflare Worker 로.
-    //  앱을 정적 호스팅에 올리면 이 페이지도 함께 올라가는데 거기엔 /api 가 없다.
-    const API_BASE = 'https://cbt-proxy.hongcbt.workers.dev';
-    let sameOrigin;
-    async function api(path, opts) {
-      if (sameOrigin !== false) {
-        try {
-          const r = await fetch(path, opts);
-          const ct = r.headers.get('content-type') || '';
-          if (r.status !== 404 && !ct.includes('text/html')) { sameOrigin = true; return r; }
-          sameOrigin = false;
-        } catch (e) { sameOrigin = false; }
-      }
-      return fetch(API_BASE + path, opts);
-    }
-
-    // 인증 상태. 세션(이메일 로그인)이 우선, 코드는 보조 수단.
-    //  세션은 30일이라 localStorage 에 둔다 — 매번 메일함을 열게 하면 아무도 안 쓴다.
-    let SESSION = localStorage.getItem('counselor_session') || '';
-    let CODE = sessionStorage.getItem('inbox_code') || '';
-
-    // 모든 요청에 붙일 인증 쿼리
-    function authQS() {
-      return SESSION ? 'session=' + encodeURIComponent(SESSION)
-                     : 'code=' + encodeURIComponent(CODE);
-    }
-    function authBody(extra) {
-      return Object.assign(SESSION ? { session: SESSION } : { code: CODE }, extra || {});
-    }
-
-    // 이메일 로그인은 없앴다 — 코드 하나로만 들어온다.
-    //  매직링크 서버 경로(/api/auth/verify)는 남겨 둔다: 메일의 링크로 들어오는
-    //  경우와, 나중에 운영자가 대신 링크를 보낼 때 쓴다.
-
-    // ── 링크 클릭 → 세션 교환 ──────────────────────────────────────
-    async function verifyLink(t) {
-      const r = await api('/api/auth/verify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ t })
-      }).catch(() => null);
-      const d = r ? await r.json().catch(() => null) : null;
-      // 주소창에서 토큰을 즉시 지운다 (뒤로가기·공유로 새지 않게)
-      history.replaceState(null, '', location.pathname);
-      if (!d || !d.ok) {
-        const why = d && d.error === 'expired' ? '링크가 만료됐어요 (15분).'
-                  : d && d.error === 'used' ? '이미 사용된 링크예요.'
-                  : '링크가 유효하지 않아요.';
-        const errEl = document.getElementById('err');
-        errEl.textContent = why + ' 이메일로 다시 받아주세요.';
-        errEl.style.display = 'block';
-        return false;
-      }
-      SESSION = d.session;
-      localStorage.setItem('counselor_session', SESSION);
-      CODE = '';
-      return true;
-    }
-
-    // ── 열람 코드로 들어오기 (이메일 미등록·긴급용) ────────────────
-    async function loginWithCode() {
-      const v = (document.getElementById('code').value || '').trim();
-      const errEl = document.getElementById('err');
-      const btn = document.getElementById('code-btn');
-      errEl.style.display = 'none';
-      if (btn) { btn.disabled = true; btn.textContent = '확인 중…'; }
-      const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
-      if (btn) { btn.disabled = false; btn.textContent = '수신함 열기'; }
-      if (!r || !r.ok) { errEl.textContent = '코드가 올바르지 않습니다.'; errEl.style.display = 'block'; return; }
-      CODE = v; SESSION = '';
-      sessionStorage.setItem('inbox_code', v);
-      askNotify();
-      show(await r.json());
-      loadSchedule(); loadChats(); loadPresence(); loadReviews();
-      loadMe();
-      loadHomework();
-    }
-
-    async function askNotify() {
-      if (!('Notification' in window)) return;
-      if (Notification.permission === 'default') {
-        try { await Notification.requestPermission(); } catch (e) {}
-      }
-      enablePush();
-    }
-
-    // ====================================================================
-    //  푸시 — 화면을 꺼두어도 전화를 놓치지 않게
-    //   폴링은 탭이 뒤로 가는 순간 죽는다. 그래서 푸시가 있어야 한다.
-    //   본문은 싣지 않는다(암호화가 필요해진다). 깨우기만 하고
-    //   서비스워커가 서버에 다시 물어본다. sw.js 의 push 핸들러 참고.
-    // ====================================================================
-    const VAPID_PUB = 'BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc';
-    let SWREG = null;
-
-    function b64ToU8(b64) {
-      const pad = '='.repeat((4 - b64.length % 4) % 4);
-      const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
-      const out = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-      return out;
-    }
-
-    async function initSW() {
-      if (!('serviceWorker' in navigator)) return;
-      // updateViaCache:'none' — sw.js 가 HTTP 캐시를 거치면 새 버전을 못 본다
-      try { SWREG = await navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' }); } catch (e) { return; }
-      try { SWREG.update(); } catch (e) {}
-      navigator.serviceWorker.addEventListener('message', ev => {
-        const d = ev.data || {};
-        if (d.type === 'push' && d.call) showIncoming(d.call);
-        if (d.type === 'open-call') pollIncoming();
-      });
-    }
-
-    function tellSwWhoIAm() {
-      if (!ME) return;
-      // 서비스워커도 서버에 물어보려면 자격증명이 있어야 한다.
-      //  같은 출처의 캐시에만 들어가므로 localStorage 와 노출 범위가 같다.
-      const msg = { type: 'me', id: ME.id, auth: authQS() };
-      if (navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage(msg);
-      else if (SWREG && SWREG.active) SWREG.active.postMessage(msg);
-    }
-
-    async function enablePush() {
-      if (!SWREG || !ME || !('PushManager' in window)) return;
-      if (Notification.permission !== 'granted') return;
-      try {
-        let sub = await SWREG.pushManager.getSubscription();
-        if (!sub) sub = await SWREG.pushManager.subscribe({
-          userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUB)
-        });
-        tellSwWhoIAm();
-        await api('/api/push/subscribe', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(authBody({ sub: sub.toJSON() }))
-        });
-      } catch (e) { /* 푸시가 안 되어도 앱은 그대로 돌아간다 */ }
-    }
-
-    // === 새 소식 알림음: 새 채팅·예약·자료가 오면 차임 + 브라우저 알림 ===
-    const lastCounts = {};
-    function maybeNotify(key, count, label) {
-      if (lastCounts[key] !== undefined && count > lastCounts[key]) {
-        chime();
-        try { if ('Notification' in window && Notification.permission === 'granted') new Notification('우렁의사 프로', { body: label + '도착했어요' }); } catch (e) {}
-        document.title = `${label} — 우렁의사 프로`;
-        setTimeout(() => { document.title = '우렁의사 프로 — 상담사용'; }, 6000);
-      }
-      lastCounts[key] = count;
-    }
-
-    let audioCtx = null;
-    function chime() {
-      try {
-        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-        [[659, 0], [988, 0.11], [1319, 0.22]].forEach(([f, t]) => {
-          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-          o.frequency.value = f; o.connect(g); g.connect(audioCtx.destination);
-          g.gain.setValueAtTime(0.001, audioCtx.currentTime + t);
-          g.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + t + 0.18);
-          o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.2);
-        });
-      } catch (e) {}
-    }
-
-    // === 내 리뷰 + 답글 ===
-    async function loadReviews() {
-      const el = document.getElementById('reviews');
-      if (document.activeElement && document.activeElement.closest && document.activeElement.closest('#reviews')) return;
-      const r = await api('/api/reviews?' + authQS()).catch(() => null);
-      if (!r || !r.ok) { el.innerHTML = ''; return; }
-      const items = (await r.json()).items || [];
-      maybeNotify('reviews', items.length, '새 리뷰가');
-      if (!items.length) {
-        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">아직 리뷰가 없습니다. 상담을 마친 내담자가 별점을 남기면 여기에 표시돼요.</div>';
-        return;
-      }
-      el.innerHTML = items.map(rv => `
-        <div class="card">
-          <div class="item-head" style="cursor: default;">
-            <strong>${''.repeat(rv.rating)} <span class="muted" style="font-weight: 500;">${esc(rv.clientName)} 님</span></strong>
-            <span class="muted">${new Date(rv.ts).toLocaleDateString('ko-KR')}</span>
-          </div>
-          ${rv.text ? `<p style="font-size: 0.86rem; margin-top: 0.35rem;">"${esc(rv.text)}"</p>` : ''}
-          ${rv.reply
-            ? `<p class="muted" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line);">↳ 내 답글: ${esc(rv.reply.text)}</p>`
-            : `<div style="display: flex; gap: 0.4rem; margin-top: 0.55rem;">
-                <input id="rvr-${rv.id}" placeholder="감사 인사·답글 남기기" style="text-align: left; flex: 1;" onkeydown="if(event.key==='Enter') sendReviewReply('${rv.id}')">
-                <button class="btn" style="width: auto; margin: 0; padding: 0.6rem 1rem;" onclick="sendReviewReply('${rv.id}')">등록</button>
-              </div>`}
-        </div>`).join('');
-    }
-
-    async function sendReviewReply(id) {
-      const inp = document.getElementById('rvr-' + id);
-      const t = (inp.value || '').trim();
-      if (!t) return;
-      inp.blur();
-      await api('/api/reviews/reply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ id, text: t })) }).catch(() => {});
-      loadReviews();
-    }
-
-    async function logout() {
-      if (SESSION) {
-        await api('/api/auth/logout', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session: SESSION })
-        }).catch(() => {});
-      }
-      localStorage.removeItem('counselor_session');
-      sessionStorage.removeItem('inbox_code');
-      SESSION = ''; CODE = '';
-      document.getElementById('inbox').style.display = 'none';
-      document.getElementById('login').style.display = 'block';
-    }
-
-    async function load() {
-      if (!SESSION && !CODE) return;
-      const r = await api('/api/inbox?' + authQS());
-      if (!r.ok) { logout(); return; }
-      show(await r.json());
-      loadSchedule();
-      loadChats();
-      loadPresence();
-      loadReviews();
-      loadMe();
-      loadHomework();
-    }
-
-    // 바로상담 수신 토글 — ON이어야 매칭 카드에 '지금 통화'버튼이 열린다
-    async function loadPresence() {
-      const el = document.getElementById('presence-card');
-      const r = await api('/api/presence?' + authQS()).catch(() => null);
-      if (!r || !r.ok) { el.innerHTML = ''; return; } // 운영자 마스터 코드 등은 토글 없음
-      const p = await r.json();
-      el.innerHTML = `
-        <div class="card" style="border: 1.5px solid ${p.available ? 'var(--accent)' : 'var(--line)'};">
-          <div class="item-head" style="cursor: default;">
-            <strong>바로상담 받기</strong>
-            ${p.busy ? '<span class="badge-new" style="color: #cf6b60; background: #cf6b601e;">통화 중</span>' : p.available ? '<span class="badge-read" style="color: var(--accent); border-color: var(--accent);">수신 중</span>' : '<span class="badge-read">부재중</span>'}
-          </div>
-          <p class="muted" style="margin-top: 0.3rem;">${p.available
-            ? '내담자 매칭 카드에 [ 바로상담] 버튼이 열려 있어요. 자리를 비울 땐 꼭 꺼주세요.'
-            : '지금은 부재중으로 표시돼요. 상담 받을 준비가 되면 켜주세요. (예약 상담은 꺼져 있어도 연결됩니다)'}</p>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.7rem;">
-            <button class="btn" style="flex: 1; margin: 0; ${p.available ? 'background: #cf6b60;' : ''}" onclick="togglePresence(${p.available ? 'false' : 'true'})">${p.available ? '수신 끄기 (부재중)' : '수신 켜기 (바로상담 받기)'}</button>
-            ${p.busy ? `<button class="btn ghost" style="width: auto; margin: 0;" onclick="forceEndCall('${p.id}')">회선 수동 해제</button>` : ''}
-          </div>
-        </div>`;
-    }
-
-    async function togglePresence(on) {
-      await api('/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ available: on })) }).catch(() => {});
-      loadPresence();
-    }
-
-    // 통화가 비정상 종료돼 회선이 잠긴 경우 수동 해제 (35분 후엔 자동 해제)
-    async function forceEndCall(counselorId) {
-      if (!confirm('통화 회선을 수동으로 해제할까요?\n(내담자 앱이 비정상 종료된 경우에만 사용하세요)')) return;
-      await api('/api/call/end', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ counselorId })) }).catch(() => {});
-      loadPresence();
-    }
-
-    async function loadSchedule() {
-      const r = await api('/api/bookings?' + authQS()).catch(() => null);
-      const el = document.getElementById('schedule');
-      if (!r || !r.ok) { el.innerHTML = ''; return; }
-      const data = await r.json();
-      const items = (data.items || []).sort((a, b) => a.whenTs - b.whenTs);
-      const now = Date.now();
-      window.__sched = items;
-      maybeNotify('bookings', items.filter(b => b.status === 'confirmed').length, '새 예약이');
-      if (!items.length) {
-        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">예약이 없습니다. 내담자가 앱에서 예약하면 여기에 실시간으로 표시돼요.</div>';
-        return;
-      }
-      const mini = (label, fn, color) => `<button class="btn ghost"
-        style="width:auto; margin:0.4rem 0.3rem 0 0; padding:0.38rem 0.7rem; font-size:0.76rem;${color ? 'color:' + color + ';' : ''}"
-        onclick="${fn}">${label}</button>`;
-
-      el.innerHTML = items.map(b => {
-        const dead = ['cancelled', 'declined', 'noshow', 'refunded'].includes(b.status);
-        const past = b.whenTs <= now;
-        const soon = !dead && b.status === 'confirmed' && !past && (b.whenTs - now) < 3600000;
-        const done = b.status === 'done';
-        const disputed = b.status === 'disputed';
-        const paid = b.settledAt > 0;
-
-        // 지금 누구 차례인지 한 줄로
-        const badge =
-          b.status === 'cancelled' ? '<span class="badge-read">내담자 취소</span>'
-          : b.status === 'declined' ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">거절함 (전액 환불)</span>'
-          : b.status === 'noshow'   ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">미진행</span>'
-          : b.status === 'refunded' ? '<span class="badge-read" style="color:#cf6b60; border-color:#cf6b60;">환불함</span>'
-          : disputed ? '<span class="badge-new" style="color:#cf6b60; background:#cf6b601e;">이의 접수 — 정산 보류</span>'
-          : paid ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">정산 완료</span>'
-          : done && b.confirmAt ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">확인됨 · 정산 대기</span>'
-          : done ? '<span class="badge-new">내담자 확인 대기</span>'
-          : soon ? '<span class="badge-new">곧 시작</span>'
-          : past ? '<span class="badge-new" style="color:#e8590c; background:#e8590c1e;">완료 처리 필요</span>'
-          : '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">확정</span>';
-
-        // 완료 처리 전에는 정산이 시작되지 않는다는 걸 분명히 알린다
-        const hint = (!dead && !done && !disputed && past)
-          ? `<p class="muted" style="margin:0.35rem 0 0; color:#e8590c;">상담을 마치셨다면 [상담 완료]를 눌러주세요. 눌러야 정산이 시작됩니다.</p>` : '';
-        const autoNote = (done && !b.confirmAt && b.autoAt)
-          ? `<p class="muted" style="margin:0.35rem 0 0;">내담자가 확인하지 않아도 ${new Date(b.autoAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}에 자동 확정돼요.</p>` : '';
-        const disputeNote = disputed
-          ? `<p class="muted" style="margin:0.35rem 0 0; color:#cf6b60;">사유: ${esc(b.dispute)}<br>운영자가 확인 후 연락드립니다.</p>` : '';
-        const noteBox = b.cnote
-          ? `<p class="muted" style="margin:0.4rem 0 0; padding:0.45rem 0.6rem; background:var(--bg); border-radius:9px;">메모 · ${esc(b.cnote)}</p>` : '';
-
-        const nm = esc(b.clientName);
-        let actions = '';
-        if (!dead && !paid) {
-          if (b.status === 'confirmed' && !past) {
-            actions += mini('예약 거절 (전액 환불)', `declineBooking('${b.id}','${nm}')`, '#cf6b60');
-          }
-          if (b.status === 'confirmed' && past) {
-            actions += mini('상담 완료', `doneBooking('${b.id}','${nm}')`);
-            actions += mini('미진행 처리', `refundBooking('${b.id}','${nm}')`, '#cf6b60');
-          }
-          if (done || disputed) {
-            actions += mini('숙제 내주기', `openHomework('${b.id}','${esc(b.clientId || '')}','${nm}')`);
-          }
-          actions += mini(b.cnote ? '메모 고치기' : '메모 남기기', `editNote('${b.id}')`);
-          if (!done && !disputed && b.status === 'confirmed') {
-            actions += mini('환불', `refundBooking('${b.id}','${nm}')`, '#cf6b60');
-          }
-        }
-
-        return `<div class="card" style="${dead ? 'opacity:0.55;' : ''} ${soon || (past && b.status === 'confirmed') ? 'border-color:var(--accent);' : ''}">
-          <div class="item-head" style="cursor: default;">
-            <strong style="${dead ? 'text-decoration: line-through;' : ''}">${nm} 님 ${dead ? '' : '· 30분 상담'}</strong>
-            ${badge}
-          </div>
-          <p class="muted" style="margin-top: 0.3rem;">${esc(b.time)} · ${(b.price || 0).toLocaleString()}캐시
-            ${!dead ? `· 내 몫 ${(b.payout ? b.payout.counselor : 0).toLocaleString()}캐시` : ''}</p>
-          ${hint}${autoNote}${disputeNote}${noteBox}${actions}
-        </div>`;
-      }).join('');
-      renderSettlement(items);
-    }
-
-    // 예약 거절 — 병가 등 부득이한 경우. 내담자에게 전액 환불되고 알림이 간다.
-    async function declineBooking(id, client) {
-      if (!confirm(`${client} 님의 예약을 거절할까요?\n내담자에게 전액 환불되며 취소 알림이 전달됩니다.\n(부득이한 경우에만 사용해주세요 — 잦은 거절은 노출에 불이익)`)) return;
-      await api('/api/bookings/decline', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ id })) }).catch(() => {});
-      loadSchedule();
-    }
-
-    // ── 상담 이후 처리 ──────────────────────────────────────────────
-    //  완료 처리를 눌러야 정산이 시작된다. 되돌릴 수 없으니 한 번 묻는다.
-    async function doneBooking(id, name) {
-      if (!confirm(`${name} 님과의 상담을 마치셨나요?\n\n완료로 표시하면 내담자 확인을 거쳐 정산 대상이 됩니다.\n되돌릴 수 없어요.`)) return;
-      const note = prompt('다음 회기를 위한 메모를 남기시겠어요? (내담자에게는 보이지 않아요)', '') || '';
-      const r = await api('/api/bookings/done', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ id, note }))
-      }).then(x => x.json()).catch(() => null);
-      if (!r || !r.ok) { alert(r && r.error ? r.error : '처리하지 못했어요'); return; }
-      loadSchedule();
-    }
-
-    async function refundBooking(id, name) {
-      const why = prompt(`${name} 님 상담을 환불 처리합니다.\n사유를 적어주세요 (내담자에게 전달됩니다):`, '');
-      if (why === null) return;
-      if (!confirm('전액 환불로 처리할까요? 이 상담은 정산에서 빠집니다.')) return;
-      const r = await api('/api/bookings/refund', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ id, why: (why || '').trim() }))
-      }).then(x => x.json()).catch(() => null);
-      if (!r || !r.ok) { alert(r && r.error ? r.error : '처리하지 못했어요'); return; }
-      loadSchedule();
-    }
-
-    async function editNote(id) {
-      const cur = ((window.__sched || []).find(b => b.id === id) || {}).cnote || '';
-      const v = prompt('상담 메모 (내담자에게는 보이지 않아요)', cur);
-      if (v === null) return;
-      await api('/api/bookings/note', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ id, note: v }))
-      }).catch(() => {});
-      loadSchedule();
-    }
-
-    // 숙제 — 앱의 '나를 위한 미션'에 그대로 꽂힌다
-    async function openHomework(bookingId, clientId, name) {
-      if (!clientId) { alert('이 예약에는 내담자 식별자가 없어 숙제를 보낼 수 없어요.'); return; }
-      const text = prompt(`${name} 님에게 낼 숙제를 적어주세요.\n(오늘 안에 30분 이내로 할 수 있는 '행동'으로)`, '');
-      if (text === null || !text.trim()) return;
-      const why = prompt('왜 이 숙제인지 한 줄로 알려주세요. (이유를 아는 사람이 끝까지 합니다)', '') || '';
-      const r = await api('/api/homework', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ clientId, bookingId, text: text.trim(), why: why.trim() }))
-      }).then(x => x.json()).catch(() => null);
-      if (!r || !r.ok) { alert(r && r.error ? r.error : '보내지 못했어요'); return; }
-      alert(`${name} 님에게 숙제를 보냈어요.`);
-      loadHomework();
-    }
-
-    // 내가 낸 숙제와 그 결과
-    async function loadHomework() {
-      const el = document.getElementById('homework');
-      if (!el) return;
-      const d = await api('/api/homework?' + authQS()).then(r => r.ok ? r.json() : null).catch(() => null);
-      const items = d ? (d.items || []) : [];
-      const doneN = items.filter(h => h.doneAt).length;
-      el.innerHTML = section('hw', '내가 낸 숙제',
-        items.length ? `${items.length}개 · 완료 ${doneN}` : '아직 없음',
-        items.length ? items.map(h => `
-          <div style="padding:0.6rem 0; border-top:1px solid var(--line);">
-            <div style="display:flex; align-items:center; gap:0.4rem;">
-              <strong style="font-size:0.85rem; flex:1;">${esc(h.text)}</strong>
-              ${h.doneAt ? '<span class="badge-read" style="color:var(--accent); border-color:var(--accent);">했어요</span>'
-                         : '<span class="badge-new">진행 중</span>'}
-            </div>
-            ${h.why ? `<p class="muted" style="margin:0.2rem 0 0;">이유 · ${esc(h.why)}</p>` : ''}
-            ${h.note ? `<p class="muted" style="margin:0.2rem 0 0; color:var(--accent);">내담자 · "${esc(h.note)}"</p>` : ''}
-            <p class="muted" style="margin:0.2rem 0 0; font-size:0.72rem;">${new Date(h.assignedAt).toLocaleDateString('ko-KR')}</p>
-          </div>`).join('')
-          : '<p class="muted" style="margin:0.8rem 0 0;">아직 낸 숙제가 없어요. 상담을 완료 처리한 예약에서 [숙제 내주기]를 누르면 앱으로 바로 전달됩니다.</p>');
-    }
-
-    // 정산: 완료된 상담(취소·거절·미진행 제외, 시간 경과)의 70%가 상담사 몫.
-    // 비율의 원본은 js/payout.js 의 SPLIT — 여기 숫자만 바꾸면 어긋난다.
-    function renderSettlement(items) {
-      const el = document.getElementById('settlement');
-      const now = Date.now();
-      const done = items.filter(b => b.status !== 'cancelled' && b.status !== 'declined' && b.status !== 'noshow' && b.whenTs <= now);
-      const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      const mine = Math.round(gross * 0.70);
-      el.innerHTML = `
-        <div class="card" style="background: linear-gradient(135deg, #eef6f0, #ffffff);">
-          <div class="item-head" style="cursor: default;">
-            <strong>정산 현황</strong>
-            <span class="muted">상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%</span>
-          </div>
-          <div style="display: flex; gap: 1.2rem; margin-top: 0.6rem; flex-wrap: wrap;">
-            <div><div class="muted">완료 상담</div><strong style="font-size: 1.15rem;">${done.length}건</strong></div>
-            <div><div class="muted">총 결제액</div><strong style="font-size: 1.15rem;">${gross.toLocaleString()}캐시</strong></div>
-            <div><div class="muted">내 정산금 (70%)</div><strong style="font-size: 1.15rem; color: var(--accent);">${mine.toLocaleString()}캐시</strong></div>
-          </div>
-          <button class="btn" style="margin-top: 0.8rem; ${mine ? '' : 'opacity: 0.5; pointer-events: none;'}" onclick="alert('출금 신청이 접수되었습니다. (데모)\\n실서비스에서는 등록 계좌로 정산됩니다.')">출금 신청 (데모)</button>
-        </div>`;
-    }
-
-    // 상담 채팅: 내담자별 스레드 + 답장
-    async function loadChats(force) {
-      // 답장 작성 중엔 새로고침으로 입력이 날아가지 않게 건너뛴다 (전송 직후엔 강제 갱신)
-      if (!force && document.activeElement && document.activeElement.closest && document.activeElement.closest('#chats')) return;
-      const r = await api('/api/chat-msg?' + authQS()).catch(() => null);
-      const el = document.getElementById('chats');
-      if (!r || !r.ok) { el.innerHTML = ''; return; }
-      const items = (await r.json()).items || [];
-      maybeNotify('chat', items.length, '새 채팅이');
-      if (!items.length) {
-        el.innerHTML = '<div class="card empty" style="padding: 1.2rem 0;">아직 채팅이 없습니다. 내담자가 앱에서  채팅을 보내면 여기에 표시돼요.</div>';
-        return;
-      }
-      // 내담자+상담사 조합별 스레드
-      const threads = {};
-      items.forEach(m => {
-        const k = m.clientName + '|' + m.counselorId + '|' + m.counselorName;
-        (threads[k] = threads[k] || []).push(m);
-      });
-      const openSet = window.__openThreads = window.__openThreads || new Set();
-      el.innerHTML = Object.entries(threads).map(([k, msgs]) => {
-        const [client, cid, cname] = k.split('|');
-        const last = msgs[msgs.length - 1];
-        const unreplied = last.from === 'client';
-        const open = openSet.has(k);
-        return `<div class="card ${open ? 'open' : ''}" data-thread="${esc(k)}">
-          <div class="item-head" onclick="toggleThread('${esc(k)}')">
-            <strong>${esc(client)} 님</strong>
-            <span class="muted">${new Date(last.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            ${unreplied ? '<span class="badge-new">답장 대기</span>' : '<span class="badge-read">답장함</span>'}
-          </div>
-          <div class="body" style="display: ${open ? 'block' : 'none'};">
-            ${msgs.map(m => `<p style="margin: 0.3rem 0; ${m.from === 'counselor' ? 'text-align: right; color: var(--accent); font-weight: 500;' : ''}">${m.from === 'counselor' ? '나: ' : esc(client) + ': '}${esc(m.text)}</p>`).join('')}
-            <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
-              <input id="reply-${msgs[0].id}" placeholder="답장 입력" style="text-align: left; flex: 1;" onkeydown="if(event.key==='Enter') sendReply('${esc(client)}','${esc(cid)}','${esc(cname)}','reply-${msgs[0].id}')">
-              <button class="btn" style="width: auto; margin: 0; padding: 0.6rem 1rem;" onclick="sendReply('${esc(client)}','${esc(cid)}','${esc(cname)}','reply-${msgs[0].id}')">전송</button>
-            </div>
-          </div>
-        </div>`;
-      }).join('');
-    }
-
-    function toggleThread(k) {
-      const set = window.__openThreads = window.__openThreads || new Set();
-      set.has(k) ? set.delete(k) : set.add(k);
-      loadChats();
-    }
-
-    async function sendReply(client, cid, cname, inputId) {
-      const inp = document.getElementById(inputId);
-      const t = (inp.value || '').trim();
-      if (!t) return;
-      await api('/api/chat-msg', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ counselorId: cid, counselorName: cname, clientName: client, from: 'counselor', text: t }))
-      }).catch(() => {});
-      loadChats(true); // 전송 직후엔 입력 보호 가드를 건너뛰고 바로 갱신
-    }
-
-    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-
-    // ====================================================================
-    //  걸려오는 전화
-    //   보이스톡처럼 벨이 울리고, 받으면 앱 안에서 바로 연결된다.
-    //   전화번호는 오가지 않는다 — 유출할 번호 자체가 없다.
-    // ====================================================================
-    window.RTC_API_BASE = API_BASE;   // rtccall.js 가 쓸 주소
-    let RING = { ctx: null, timer: null, on: false };
-    let CUR_CALL = null, MY_ID = null;
-
-    function ringStart() {
-      if (RING.on) return;
-      RING.on = true;
-      try {
-        RING.ctx = RING.ctx || new (window.AudioContext || window.webkitAudioContext)();
-        if (RING.ctx.state === 'suspended') RING.ctx.resume();
-      } catch (e) { return; }
-      const beep = () => {
-        if (!RING.on) return;
-        const c = RING.ctx;
-        [[880, 0], [1100, 0.18]].forEach(([f, t]) => {
-          const o = c.createOscillator(), g = c.createGain();
-          o.type = 'sine'; o.frequency.value = f;
-          o.connect(g); g.connect(c.destination);
-          const at = c.currentTime + t;
-          g.gain.setValueAtTime(0.0001, at);
-          g.gain.exponentialRampToValueAtTime(0.18, at + 0.03);
-          g.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
-          o.start(at); o.stop(at + 0.18);
-        });
-        try { if (navigator.vibrate) navigator.vibrate([300, 200, 300]); } catch (e) {}
-      };
-      beep();
-      RING.timer = setInterval(beep, 2000);
-    }
-    function ringStop() {
-      RING.on = false;
-      clearInterval(RING.timer);
-      try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
-    }
-
-    async function pollIncoming() {
-      if (!ME || CUR_CALL) return;
-      MY_ID = ME.id;
-      const d = await api('/api/rtc/incoming?' + authQS())
-        .then(r => r.ok ? r.json() : null).catch(() => null);
-      if (!d || !d.call) return;
-      showIncoming(d.call);
-    }
-
-    function showIncoming(call) {
-      if (document.getElementById('call-ov')) return;
-      CUR_CALL = call;
-      ringStart();
-      const ov = document.createElement('div');
-      ov.id = 'call-ov';
-      ov.style.cssText = 'position:fixed; inset:0; z-index:10200; background:linear-gradient(180deg,#2e4237,#1d2c24);' +
-        'color:#f2ede4; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:3rem 1.5rem 2.5rem;';
-      ov.innerHTML =
-        '<div style="text-align:center;">' +
-          '<div id="call-st" style="font-size:0.9rem; opacity:0.85;">걸려온 상담 전화</div>' +
-          '<div id="call-cl" style="font-size:1.05rem; font-weight:700; margin-top:0.35rem;">00:00</div>' +
-        '</div>' +
-        '<div style="text-align:center;">' +
-          '<div style="width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.12);margin:0 auto;' +
-               'animation:ringPulse 1.6s ease-in-out infinite;"></div>' +
-          '<h2 style="margin:1rem 0 0.2rem;font-size:1.3rem;">내담자</h2>' +
-          '<p style="margin:0;font-size:0.8rem;opacity:0.75;">전화번호는 서로에게 보이지 않아요</p>' +
-        '</div>' +
-        '<div style="display:flex; gap:1.6rem;">' +
-          '<button id="call-no" style="width:66px;height:66px;border-radius:50%;border:none;background:#d9534f;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;">거절</button>' +
-          '<button id="call-yes" style="width:66px;height:66px;border-radius:50%;border:none;background:#4f8a6b;color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer;">받기</button>' +
-        '</div>' +
-        '<style>@keyframes ringPulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.08);opacity:1}}</style>';
-      document.body.appendChild(ov);
-
-      document.getElementById('call-no').onclick = async () => {
-        ringStop();
-        await api('/api/rtc/end', { method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ callId: call.id, by: 'counselor' }) }).catch(()=>{});
-        closeCall();
-      };
-      document.getElementById('call-yes').onclick = async () => {
-        ringStop();
-        document.getElementById('call-st').textContent = '연결 중…';
-        window.RtcCall.onEvent = (type, d) => {
-          const st = document.getElementById('call-st');
-          if (type === 'connected' && st) st.textContent = '통화 중';
-          if (type === 'tick') {
-            const el = document.getElementById('call-cl');
-            if (el) { const sec = Math.floor(d.ms/1000);
-              el.textContent = String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0'); }
-          }
-          if (type === 'remote-hangup') closeCall();
-          if (type === 'error' && st) st.textContent = d.message || '연결 실패';
-        };
-        await window.RtcCall.answer({ room: call.room, callId: call.id });
-      };
-    }
-
-    async function closeCall() {
-      ringStop();
-      try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
-      const ov = document.getElementById('call-ov');
-      if (ov) ov.remove();
-      CUR_CALL = null;
-      loadChats(true);   // 통화 기록이 채팅에 남았으니 갱신
-    }
-
-    // ====================================================================
-    //  내 정보 · 예약 가능 시간 · 정산 계좌
-    //   병원을 옮기고 상담료를 바꾸고 계좌가 바뀌는 건 실제로 일어나는 일이다.
-    //   그때마다 운영자에게 전화하게 만들면 아무도 최신 정보를 유지하지 않는다.
-    // ====================================================================
-    let ME = null;
-    const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
-    // 24시간. 마음이 제일 무너지는 시간은 낮이 아니라 새벽이라, 그 시간대를 막아두면 안 된다.
-    const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0') + ':00');
-    // 24칸 × 7일 = 168개를 하나씩 누르게 하면 아무도 안 쓴다. 묶어서 한 번에 켠다.
-    const BANDS = [
-      { key: 'dawn',  label: '새벽 0-6',  hrs: HOURS.slice(0, 7) },
-      { key: 'morn',  label: '오전 7-11', hrs: HOURS.slice(7, 12) },
-      { key: 'noon',  label: '오후 12-17', hrs: HOURS.slice(12, 18) },
-      { key: 'night', label: '저녁 18-23', hrs: HOURS.slice(18, 24) }
-    ];
-
-    // 자주 고칠 일 없는 것들은 접어 둔다. 대신 닫힌 상태에서도
-    //  지금 값이 뭔지는 한 줄로 보이게 한다 — 열어봐야 아는 건 접은 게 아니라 숨긴 것이다.
-    const OPEN = {};   // 열어둔 섹션 기억 (다시 그려도 닫히지 않게)
-    function toggleSection(k) { OPEN[k] = !OPEN[k]; renderProfile(); renderSlots(); renderPayout(); }
-
-    function section(key, title, summary, bodyHtml) {
-      const open = !!OPEN[key];
-      const caret = open
-        ? '<svg width="11" height="11" viewBox="0 0 10 10"><path d="M2 6.5 L5 3.5 L8 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-        : '<svg width="11" height="11" viewBox="0 0 10 10"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-      return `
-        <div class="card" style="padding:0;">
-          <button onclick="toggleSection('${key}')"
-            style="all:unset; display:flex; align-items:center; gap:0.5rem; width:100%; box-sizing:border-box;
-                   cursor:pointer; padding:0.85rem 1.1rem;">
-            <strong style="font-size:0.92rem;">${title}</strong>
-            <span class="muted" style="flex:1; font-size:0.78rem; text-align:right;">${summary}</span>
-            <span style="color:var(--sub); line-height:0;">${caret}</span>
-          </button>
-          ${open ? `<div style="padding:0 1.1rem 1.1rem; border-top:1px solid var(--line);">${bodyHtml}</div>` : ''}
-        </div>`;
-    }
-
-    async function loadMe() {
-      const d = await api('/api/me?' + authQS()).then(r => r.ok ? r.json() : null).catch(() => null);
-      if (!d || !d.ok) return;
-      ME = d.me;
-      renderProfile(); renderSlots(); renderPayout();
-      tellSwWhoIAm(); enablePush();
-    }
-
-    function renderProfile() {
-      const el = document.getElementById('profile');
-      if (!ME) { el.innerHTML = ''; return; }
-      const f = (id, label, val, ph, type) => `
-        <label style="display:block; margin-bottom:0.5rem;">
-          <span class="muted" style="font-size:0.76rem;">${label}</span>
-          <input id="${id}" type="${type || 'text'}" value="${esc(String(val == null ? '' : val))}"
-                 placeholder="${ph || ''}" style="text-align:left; margin-top:0.2rem;">
-        </label>`;
-      const sum = [ME.hospital || '소속 미입력',
-                   (ME.price || 0).toLocaleString() + '원'].join(' · ');
-      el.innerHTML = section('profile', '내 정보', sum, `
-          <p class="muted" style="margin:0.8rem 0 0.7rem;">이름과 자격은 검수를 거친 값이라 운영자만 바꿀 수 있어요.
-            바뀐 게 있으면 알려주세요.</p>
-          <p style="font-weight:700; margin:0 0 0.6rem;">${esc(ME.name)}
-            <span class="muted" style="font-weight:500;">${esc(ME.email || '이메일 미등록')}</span></p>
-          ${f('pf-hospital', '소속 기관', ME.hospital, '예: OO 정신건강의학과 (OO점)')}
-          ${f('pf-addr', '주소', ME.addr, '예: 서울 서대문구 …')}
-          ${f('pf-tel', '연락처', ME.tel, '예: 02-1234-5678 (기관 대표번호)')}
-          ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
-          ${f('pf-price', '30분 상담료 (원)', ME.price, '40000', 'number')}
-          ${f('pf-tags', '전문 분야 (쉼표로 구분, 최대 6개)', (ME.tags || []).join(', '), '우울증, 불안장애')}
-          <label style="display:block; margin-bottom:0.5rem;">
-            <span class="muted" style="font-size:0.76rem;">소개</span>
-            <textarea id="pf-intro" rows="3" placeholder="내담자에게 보일 짧은 소개"
-              style="width:100%; box-sizing:border-box; margin-top:0.2rem; padding:0.7rem 0.9rem;
-                     border:1px solid var(--line); border-radius:12px; font-family:inherit;
-                     font-size:0.9rem; resize:vertical;">${esc(ME.intro)}</textarea>
-          </label>
-          <button class="btn" id="pf-save" onclick="saveProfile()">저장</button>`);
-    }
-
-    async function saveProfile() {
-      const g = id => (document.getElementById(id) || {}).value || '';
-      const btn = document.getElementById('pf-save');
-      btn.disabled = true; btn.textContent = '저장 중…';
-      const r = await api('/api/me', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({
-          hospital: g('pf-hospital'), addr: g('pf-addr'), tel: g('pf-tel'),
-          license: g('pf-license'), intro: g('pf-intro'),
-          price: parseInt(g('pf-price'), 10) || 0,
-          tags: g('pf-tags').split(',').map(x => x.trim()).filter(Boolean)
-        }))
-      }).then(x => x.json()).catch(() => null);
-      btn.disabled = false; btn.textContent = '저장';
-      if (!r || !r.ok) { alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
-      btn.textContent = '저장됨';
-      setTimeout(() => { if (btn.isConnected) btn.textContent = '저장'; }, 1500);
-      loadMe();
-      loadHomework();
-    }
-
-    function renderSlots() {
-      const el = document.getElementById('slots');
-      if (!ME) { el.innerHTML = ''; return; }
-      const sel = ME.slots || {};
-      const chip = (label, fn, on) => `<button onclick="${fn}"
-        style="all:unset; cursor:pointer; font-size:0.68rem; font-weight:700; padding:0.22rem 0.5rem;
-               border-radius:999px; border:1px solid ${on ? 'var(--accent)' : 'var(--line)'};
-               background:${on ? 'var(--accent)' : 'transparent'}; color:${on ? '#fff' : 'var(--sub)'};">${label}</button>`;
-
-      const grid = DAYS.map((dn, d) => {
-        const on = sel[d] || sel[String(d)] || [];
-        const bandRows = BANDS.map(b => {
-          const allOn = b.hrs.every(h => on.includes(h));
-          return `<div style="display:flex; align-items:center; gap:0.3rem; margin-bottom:0.22rem;">
-            <button onclick="toggleBand(${d},'${b.key}')" title="${b.label} 전체"
-              style="all:unset; cursor:pointer; flex-shrink:0; width:4.6rem; font-size:0.66rem; font-weight:700;
-                     color:${allOn ? 'var(--accent)' : 'var(--sub)'};">${b.label}</button>
-            <div style="display:flex; flex-wrap:wrap; gap:0.2rem;">
-              ${b.hrs.map(h => `<button onclick="toggleSlot(${d},'${h}')"
-                style="all:unset; cursor:pointer; font-size:0.67rem; padding:0.2rem 0.34rem; border-radius:6px;
-                       border:1px solid ${on.includes(h) ? 'var(--accent)' : 'var(--line)'};
-                       background:${on.includes(h) ? 'var(--accent)' : 'transparent'};
-                       color:${on.includes(h) ? '#fff' : 'var(--muted)'};">${h.slice(0, 2)}</button>`).join('')}
-            </div>
-          </div>`;
-        }).join('');
-
-        return `<div style="padding:0.5rem 0; border-top:1px solid var(--line);">
-          <div style="display:flex; align-items:center; gap:0.35rem; margin-bottom:0.35rem; flex-wrap:wrap;">
-            <strong style="font-size:0.84rem; width:1.2rem;">${dn}</strong>
-            <span class="muted" style="font-size:0.72rem; flex:1;">${on.length ? on.length + '시간 열림' : '예약 안 받음'}</span>
-            ${chip('전체', `fillDay(${d},'all')`)}
-            ${chip('업무시간', `fillDay(${d},'work')`)}
-            ${chip('비우기', `fillDay(${d},'none')`)}
-            ${chip('이 요일을 전체 요일에', `copyDay(${d})`)}
-          </div>
-          ${bandRows}
-        </div>`;
-      }).join('');
-
-      const total = Object.values(sel).reduce((s, a) => s + (a || []).length, 0);
-      const openDays = Object.keys(sel).filter(k => (sel[k] || []).length).length;
-      el.innerHTML = section('slots', '예약 가능 시간',
-        total ? `${openDays}일 · 주 ${total}시간` : '아직 안 정함',
-        `<p class="muted" style="margin:0.8rem 0 0.5rem;">켜 둔 시간에만 내담자가 예약할 수 있어요.
-            비워 두면 그 요일은 예약을 받지 않습니다. 0시부터 23시까지 고를 수 있어요.</p>
-          <p class="muted" style="margin:0 0 0.6rem;">현재 <b style="color:var(--accent);">주 ${total}시간</b> 열려 있어요.
-            시간대 이름(새벽·오전…)을 누르면 그 구간이 통째로 켜지고 꺼집니다.</p>
-          ${grid}
-          <label style="display:block; margin:0.6rem 0 0.5rem;">
-            <span class="muted" style="font-size:0.76rem;">쉬는 날 (쉼표로 구분, 예: 2026-08-15)</span>
-            <input id="sl-off" value="${esc((ME.offdays || []).join(', '))}"
-                   placeholder="2026-08-15, 2026-09-01" style="text-align:left; margin-top:0.2rem;">
-          </label>
-          <button class="btn" id="sl-save" onclick="saveSlots()">시간표 저장</button>`);
-    }
-
-    function toggleSlot(d, h) {
-      ME.slots = ME.slots || {};
-      const cur = new Set(ME.slots[d] || ME.slots[String(d)] || []);
-      cur.has(h) ? cur.delete(h) : cur.add(h);
-      delete ME.slots[String(d)];
-      ME.slots[d] = [...cur].sort();
-      renderSlots();
-    }
-
-    function _setDay(d, list) {
-      ME.slots = ME.slots || {};
-      delete ME.slots[String(d)];
-      ME.slots[d] = [...new Set(list)].sort();
-    }
-    function _getDay(d) {
-      ME.slots = ME.slots || {};
-      return ME.slots[d] || ME.slots[String(d)] || [];
-    }
-
-    // 시간대 한 구간을 통째로 켜고 끈다 (하나씩 24번 누르지 않게)
-    function toggleBand(d, key) {
-      const b = BANDS.find(x => x.key === key);
-      if (!b) return;
-      const on = _getDay(d);
-      const allOn = b.hrs.every(h => on.includes(h));
-      _setDay(d, allOn ? on.filter(h => !b.hrs.includes(h)) : on.concat(b.hrs));
-      renderSlots();
-    }
-
-    function fillDay(d, mode) {
-      if (mode === 'all') _setDay(d, HOURS.slice());
-      else if (mode === 'none') _setDay(d, []);
-      else _setDay(d, ['10:00','11:00','14:00','15:00','16:00','17:00','18:00']);
-      renderSlots();
-    }
-
-    // 한 요일을 다 짜고 나면 나머지 요일에 그대로 복사 — 이게 없으면 7번 반복해야 한다
-    function copyDay(d) {
-      const src = _getDay(d).slice();
-      if (!confirm(`${DAYS[d]}요일 시간표를 나머지 요일에도 똑같이 적용할까요?`)) return;
-      for (let i = 0; i <= 6; i++) _setDay(i, src);
-      renderSlots();
-    }
-
-    async function saveSlots() {
-      const btn = document.getElementById('sl-save');
-      btn.disabled = true; btn.textContent = '저장 중…';
-      const off = (document.getElementById('sl-off').value || '')
-        .split(',').map(x => x.trim()).filter(Boolean);
-      const r = await api('/api/me/slots', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ slots: ME.slots || {}, offdays: off }))
-      }).then(x => x.json()).catch(() => null);
-      btn.disabled = false; btn.textContent = '시간표 저장';
-      if (!r || !r.ok) { alert('저장하지 못했어요'); return; }
-      ME.slots = r.slots; ME.offdays = r.offdays;
-      renderSlots();
-    }
-
-    function renderPayout() {
-      const el = document.getElementById('payout');
-      if (!ME) { el.innerHTML = ''; return; }
-      const p = ME.payout || { set: false };
-      el.innerHTML = section('payout', '정산 계좌',
-        p.set ? `${esc(p.bank)} ${esc(p.masked)}`
-              : '<b style="color:#cf6b60;">미등록 — 정산 보류</b>',
-        `<div style="margin-top:0.8rem;"></div>
-          ${p.set
-            ? `<p style="margin:0 0 0.6rem;"><b>${esc(p.bank)}</b> ${esc(p.masked)}
-                 <span class="muted">· 예금주 ${esc(p.holder)}</span></p>
-               <p class="muted" style="margin:0 0 0.7rem;">보안을 위해 전체 번호는 다시 보여드리지 않아요.
-                 바꾸시려면 새로 입력해 주세요.</p>`
-            : `<p class="muted" style="margin:0 0 0.7rem;">정산받을 계좌를 등록해 주세요.
-                 등록 전에는 정산이 보류됩니다.</p>`}
-          <input id="po-bank" placeholder="은행 (예: 국민은행)" value="${esc(p.bank || '')}" style="text-align:left; margin-bottom:0.4rem;">
-          <input id="po-no" placeholder="계좌번호" inputmode="numeric" autocomplete="off" style="text-align:left; margin-bottom:0.4rem;">
-          <input id="po-holder" placeholder="예금주" value="${esc(p.holder || '')}" style="text-align:left;">
-          <button class="btn" id="po-save" onclick="savePayout()" style="margin-top:0.5rem;">계좌 저장</button>
-          <p class="muted" style="margin:0.6rem 0 0; font-size:0.76rem; line-height:1.7;">
-            정산 비율 — 상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%<br>
-            계좌 정보는 정산 목적으로만 쓰이며 내담자에게는 절대 보이지 않습니다.</p>`);
-    }
-
-    async function savePayout() {
-      const g = id => (document.getElementById(id) || {}).value || '';
-      const btn = document.getElementById('po-save');
-      btn.disabled = true; btn.textContent = '저장 중…';
-      const r = await api('/api/me/payout', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(authBody({ bank: g('po-bank'), bankNo: g('po-no'), bankHolder: g('po-holder') }))
-      }).then(x => x.json()).catch(() => null);
-      btn.disabled = false; btn.textContent = '계좌 저장';
-      if (!r || !r.ok) { alert(r && r.error ? r.error : '저장하지 못했어요'); return; }
-      alert('계좌를 저장했어요.');
-      loadMe();
-      loadHomework();
-    }
-
-    function show(data) {
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('inbox').style.display = 'block';
-      const items = data.items || [];
-      const unread = items.filter(x => !x.read).length;
-      const who = data.scope === 'counselor' ? `${data.counselorName} 님 · ` : '전체(운영자) · ';
-      document.getElementById('count').textContent = `${who}받은 자료 ${items.length}건 · 안 읽음 ${unread}건`;
-      maybeNotify('inbox', items.length, '새 상담 자료가');
-      const list = document.getElementById('list');
-      if (!items.length) {
-        list.innerHTML = '<div class="card empty">아직 도착한 자료가 없습니다.<br>내담자가 앱에서 [상담 자료 보내기]로 동의·전달하면 여기에 쌓여요.</div>';
-        return;
-      }
-      list.innerHTML = items.map(it => `
-        <div class="card" id="c-${it.id}">
-          <div class="item-head" onclick="toggle('${it.id}')">
-            <strong>${esc(it.clientName)} → ${esc(it.counselorName)}</strong>
-            <span class="muted">${new Date(it.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            ${it.read ? '<span class="badge-read">읽음</span>' : '<span class="badge-new">NEW</span>'}
-          </div>
-          <div class="body">${esc(it.text)}</div>
-        </div>`).join('');
-    }
-
-    async function toggle(id) {
-      const el = document.getElementById('c-' + id);
-      el.classList.toggle('open');
-      if (el.classList.contains('open')) {
-        await api('/api/inbox/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(authBody({ id })) }).catch(() => {});
-        const badge = el.querySelector('.badge-new');
-        if (badge) { badge.className = 'badge-read'; badge.textContent = '읽음'; }
-      }
-    }
-
-    document.getElementById('code').addEventListener('keydown', e => { if (e.key === 'Enter') loginWithCode(); });
-
-    // 메일의 링크로 들어온 경우: ?t=... 를 세션으로 바꾸고 바로 연다
-    (async () => {
-      const t = new URLSearchParams(location.search).get('t');
-      if (t) { if (await verifyLink(t)) askNotify(); }
-      if (SESSION || CODE) load();
-    })();
-
-    initSW();
-
-    setInterval(() => {
-      if ((SESSION || CODE) && document.getElementById('inbox').style.display !== 'none') load();
-    }, 30000);
-
-    // 걸려오는 전화는 자주 확인해야 한다 — 늦게 뜨면 이미 끊긴 뒤다
-    setInterval(() => {
-      if ((SESSION || CODE) && document.getElementById('inbox').style.display !== 'none') pollIncoming();
-    }, 3000);
-  </script>
+  <script src="js/app.js"></script>
 </body>
 </html>
