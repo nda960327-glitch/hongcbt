@@ -196,6 +196,8 @@ window.App = {
 
     // 4.45 먼저 말 걸기(체크인) 설정 + 스케줄러
     this.initCheckins();
+    // 4.46 알림을 눌러서 들어왔을 때 그 기능으로 데려다준다
+    this._initNotifRouting();
 
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
@@ -1198,9 +1200,13 @@ window.App = {
   },
 
   // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
-  notify(title, body) {
+  //  act: 알림을 눌렀을 때 갈 곳('breath'|'night'|'calm'|'chat'|'mypage'|'dashboard')
+  notify(title, body, act) {
+    // 알림함에는 무조건 쌓는다. 권한을 안 줬거나 알림을 쓸어 넘겨도
+    //  우렁이가 한 말이 사라지면 안 되기 때문에, 권한 검사보다 앞에 둔다.
+    if (window.Inbox) window.Inbox.add(title, body, act);
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true };
+    const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true, data: { act: act || '' } };
     try {
       if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
         navigator.serviceWorker.getRegistration().then(reg => {
@@ -1343,6 +1349,7 @@ window.App = {
         this._homeworkTick();      // 상담사가 낸 숙제 수신 → 퀘스트로
       }
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
+      this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
       const fired = window.Storage._safeGet('cbt_checkin_fired', []);
@@ -1359,6 +1366,83 @@ window.App = {
       window.Storage._safeSet('cbt_checkin_fired', fired);
       await this._sendCheckin();
     } catch (e) {}
+  },
+
+  // ==========================================================================
+  //  알림 탭 → 기능 이동
+  //   앱이 이미 떠 있으면 서비스워커가 postMessage 로 알려주고,
+  //   꺼져 있었으면 새 창이 '#act=breath' 를 달고 열린다. 두 길 모두 받는다.
+  // ==========================================================================
+  _initNotifRouting() {
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.addEventListener) {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+          const d = e && e.data;
+          if (d && d.type === 'notif-act' && d.act && window.Inbox) window.Inbox.runAct(d.act);
+        });
+      }
+    } catch (e) {}
+
+    // 새로 열린 창: 해시로 받은 목적지를 실행하고 주소는 깨끗이 지운다
+    try {
+      const m = /(?:^|[#&])act=([a-z]+)/.exec(location.hash || '');
+      if (m) {
+        const act = m[1];
+        history.replaceState(null, '', location.pathname + location.search);
+        setTimeout(() => { if (window.Inbox) window.Inbox.runAct(act); }, 400);
+      }
+    } catch (e) {}
+  },
+
+  // ==========================================================================
+  //  맞춤 행동 알림 — "말"이 아니라 "지금 할 것"을 하나만 권한다
+  //   말 걸기 체크인은 대화를 열지만, 밤에 필요한 건 대화보다 행동일 때가 많다.
+  //   불안이 높으면 호흡을, 하루가 정리되지 않았으면 하루 정리를 권한다.
+  //   하루 한 번 · 21시~자정 · 앱이 열려 있을 때만. 자기 전이므로 조용히 보낸다
+  //   (playWoorung 호출 안 함 — 진동·소리는 notify 안의 것으로 충분하다).
+  // ==========================================================================
+  _actionCheckinTick() {
+    if (!window.Storage) return;
+    const now = new Date();
+    const h = now.getHours();
+    if (h < 21) return; // 21:00~23:59 만
+    const today = now.toLocaleDateString('sv-CA');
+    if (window.Storage._safeGet('cbt_action_checkin_date', '') === today) return;
+
+    // --- 지금 상태 읽기 ---
+    // 불안: GAD-7 (0~21). 21점 만점의 1/3(≈7점, '가벼운 불안'의 위쪽)부터 높다고 본다.
+    let anxious = false;
+    try {
+      const sc = window.Assess && window.Assess.scores ? window.Assess.scores() : null;
+      if (sc && sc.gad != null && sc.gad / 21 >= 0.33) anxious = true;
+    } catch (e) {}
+
+    // 보조 신호: 최근 3일 기분 체크인 평균이 낮으면 마음이 가라앉아 있는 것으로 본다
+    let low = false;
+    try {
+      const from = Date.now() - 3 * 24 * 3600 * 1000;
+      const recent = (window.Storage._safeGet('cbt_mood_log', []) || [])
+        .filter(m => m && m.ts >= from && typeof m.v === 'number');
+      if (recent.length) {
+        low = recent.reduce((s, m) => s + m.v, 0) / recent.length < 2.6;
+      }
+    } catch (e) {}
+
+    if (anxious) {
+      window.Storage._safeSet('cbt_action_checkin_date', today);
+      this.notify('우렁이', '자기 전에 3분 호흡 어때요? 몸이 먼저 편해져요', 'breath');
+      return;
+    }
+
+    // 오늘 하루 정리를 이미 했으면 굳이 부르지 않는다
+    const doneToday = (window.Storage._safeGet('cbt_night_journal', []) || [])
+      .some(j => j && j.ts && new Date(j.ts).toLocaleDateString('sv-CA') === today);
+    if (doneToday) return;
+
+    window.Storage._safeSet('cbt_action_checkin_date', today);
+    this.notify('우렁이', low
+      ? '오늘 좀 무거웠죠? 자기 전 3분만 같이 정리해요'
+      : '오늘 하루는 어땠어요? 자기 전 3분만 같이 정리해요', 'night');
   },
 
   async _sendCheckin() {
@@ -1407,7 +1491,7 @@ ${memory || '(없음)'}`;
       window.Storage.saveMessage(msg);
       this.playWoorung(); // "우렁!" + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
-      this.notify(persona.name, text); // 시스템 알림 (백그라운드에서도 도착)
+      this.notify(persona.name, text, 'chat'); // 시스템 알림 (백그라운드에서도 도착) — 누르면 채팅방으로
       if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
     } catch (e) {}
   },

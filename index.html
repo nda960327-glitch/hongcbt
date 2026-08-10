@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 121;</script>
+  <script>window.APP_BUILD = 122;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -119,7 +119,8 @@
       <header class="home-top">
         <span class="home-logo__mark" data-sticker="joy" data-sticker-size="32"></span>
         <span class="home-logo__t">우렁의사</span>
-        <span id="streak-chip" class="home-streak" onclick="window.App.switchTab('dashboard')"></span>
+        <!-- 스트릭 칩 자리를 알림함이 물려받았다. 연속 일수는 대시보드에서 계속 보인다. -->
+        <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
 
       <!-- ========== 오늘 ========== -->
@@ -1411,6 +1412,7 @@
   <!-- JavaScript -->
   <script defer src="js/icons.js"></script>
   <script defer src="js/storage.js"></script>
+  <script defer src="js/inbox.js"></script>
   <script defer src="js/memory-vault.js"></script>
   <script defer src="js/personas.js"></script>
   <script defer src="js/stickers.js"></script>

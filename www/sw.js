@@ -1,10 +1,11 @@
-﻿const CACHE_NAME = 'cbt-app-v121';
+﻿const CACHE_NAME = 'cbt-app-v122';
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
   './js/icons.js',
   './js/storage.js',
+  './js/inbox.js',
   './js/memory-vault.js',
   './js/personas.js',
   './js/stickers.js',
@@ -63,13 +64,21 @@ const ASSETS = [
   './icon-48.png'
 ];
 
-// 알림 탭 → 앱(챗봇 화면) 열기
+// 알림 탭 → 앱 열기 + 그 알림이 가리키는 기능으로 이동
+//  data.act 에 'breath' 같은 목적지가 실려 온다. 앱이 떠 있으면 postMessage 로,
+//  꺼져 있으면 새 창 주소의 해시(#act=...)로 알려준다 — 두 경우 모두 app.js 가 받는다.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const act = (event.notification.data && event.notification.data.act) || '';
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const c of list) { if ('focus' in c) return c.focus(); }
-      if (self.clients.openWindow) return self.clients.openWindow('./');
+      for (const c of list) {
+        if ('focus' in c) {
+          if (act && c.postMessage) { try { c.postMessage({ type: 'notif-act', act }); } catch (e) {} }
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(act ? './#act=' + act : './');
     })
   );
 });

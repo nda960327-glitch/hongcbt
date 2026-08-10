@@ -302,6 +302,59 @@ ${recent}` }],
     this.renderCard();
   },
 
+  // --------------------------------------------------------------------------
+  //  미션 → 앱 기능 연결
+  //  "3분 호흡하기" 같은 미션에 체크박스만 있으면, 정작 무엇을 해야 하는지는
+  //  사용자가 알아서 찾아야 한다. 문구를 읽고 앱 안에 도구가 있으면 바로 열어준다.
+  //  순서 = 우선순위. 좁은 규칙(4·7·8)이 넓은 규칙(호흡)보다 위에 있어야 한다.
+  // --------------------------------------------------------------------------
+  ROUTES: [
+    { rx: /4\s*[·.\-]?\s*7\s*[·.\-]?\s*8/, label: '4·7·8 호흡 시작',
+      act: () => window.Calm && window.Calm.startBreath('478') },
+    { rx: /그라운딩|5\s*[·.\-]?\s*4\s*[·.\-]?\s*3|들리는 소리/, label: '그라운딩 시작',
+      act: () => window.Calm && window.Calm.startGrounding() },
+    { rx: /호흡/, label: '호흡 가이드 열기',
+      act: () => window.Calm && window.Calm.startBreath('box') },
+    { rx: /체크인/, label: '체크인 하러 가기',
+      act: () => { if (window.App) window.App.switchTab('home'); setTimeout(() => window.Missions._pulseMoodRow(), 240); } },
+    { rx: /사고 ?기록|기록지|근거를 한 줄/, label: '사고 기록 열기',
+      act: () => window.App && window.App.switchTab('record') },
+    { rx: /있었던 일|해낸 일|하루.*정리|한 줄 (쓰|적)/, label: '하루 정리 열기',
+      act: () => window.Growth && window.Growth.startNight() },
+    { rx: /인지왜곡|생각의 함정/, label: '학습 열기',
+      act: () => window.App && window.App.switchTab('learn') },
+    { rx: /수면 사운드|빗소리|백색소음/, label: '수면 사운드 열기',
+      act: () => window.SleepSounds && window.SleepSounds.open() },
+    { rx: /마음 안정|안정 도구/, label: '안정 도구 열기',
+      act: () => window.Calm && window.Calm.openMenu() }
+  ],
+
+  // 기분 행은 홈에 그냥 놓여 있어서, 탭만 바꾸면 어디를 눌러야 할지 모른다 — 잠깐 짚어준다
+  _pulseMoodRow() {
+    const row = document.getElementById('quick-mood-row');
+    if (!row) return;
+    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    const prev = row.getAttribute('style') || '';
+    row.style.transition = 'box-shadow 0.35s ease';
+    row.style.borderRadius = '16px';
+    row.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent-primary) 55%, transparent)';
+    setTimeout(() => { row.style.boxShadow = '0 0 0 0 transparent'; }, 1200);
+    setTimeout(() => { row.setAttribute('style', prev); }, 1700);
+  },
+
+  routeFor(text) {
+    const t = String(text == null ? '' : text);
+    if (!t) return null;
+    return this.ROUTES.find(r => r.rx.test(t)) || null;
+  },
+
+  go(text) {
+    const r = this.routeFor(text);
+    if (!r) return;
+    if (window.Sfx) window.Sfx.play('pop');
+    try { r.act(); } catch (e) {}
+  },
+
   // 카테고리별 손그림 아이콘 (이모지 대신 톤 통일)
   CAT_ICO: { '움직임': 'move', '마음': 'mind', '돌봄': 'care', '연결': 'link', '즐거움': 'joy', '우렁이 맞춤': 'sprout' },
 
@@ -389,27 +442,39 @@ ${recent}` }],
         </div>
         ${rows.map(r => {
           const done = this.rxDone(r.text);
+          const arg = String(r.text).replace(/'/g, "\\'");
+          const route = this.routeFor(r.text);
+          // 행 전체가 체크 토글 버튼이라 그 안에 버튼을 또 둘 수 없다 —
+          //  겉을 div 로 바꾸고 토글과 '하러 가기'를 형제로 놓는다.
           return `
-          <button onclick="window.Missions.rxToggle('${String(r.text).replace(/'/g, "\\'")}', '${r.src}')"
-            style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;
-                   padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
-                   background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
-                   border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
-            <span style="flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
-                         background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
-              ${done ? '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : ''}
-            </span>
-            <span style="flex: 1 1 0%; min-width: 0;">
-              <span style="display: block; font-size: 0.82rem; line-height: 1.5; font-weight: 700;
-                           color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(r.text)}</span>
-              ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '리포트 근거'} · ${esc(r.why)}</span>` : ''}
-            </span>
-            <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
-                         display: inline-flex; align-items: center; gap: 0.1rem;
-                         color: ${done ? 'var(--text-muted)' : '#6f97ab'};">
-              ${done ? '✓' : '+2' + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '')}
-            </span>
-          </button>`;
+          <div style="box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
+                      background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
+                      border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
+            <button onclick="window.Missions.rxToggle('${arg}', '${r.src}')"
+              style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;">
+              <span style="flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
+                           background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
+                ${done ? '<svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : ''}
+              </span>
+              <span style="flex: 1 1 0%; min-width: 0;">
+                <span style="display: block; font-size: 0.82rem; line-height: 1.5; font-weight: 700;
+                             color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(r.text)}</span>
+                ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '리포트 근거'} · ${esc(r.why)}</span>` : ''}
+              </span>
+              <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+                           display: inline-flex; align-items: center; gap: 0.1rem;
+                           color: ${done ? 'var(--text-muted)' : '#6f97ab'};">
+                ${done ? '✓' : '+2' + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '')}
+              </span>
+            </button>
+            ${route ? `
+            <button onclick="window.Missions.go('${arg}')" title="${esc(route.label)}"
+              style="all: unset; box-sizing: border-box; display: inline-flex; align-items: center; cursor: pointer;
+                     margin: 0.4rem 0 0 1.65rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+                     font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);
+                     background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+                     border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">하러 가기 ›</button>` : ''}
+          </div>`;
         }).join('')}
       </div>`;
   },
@@ -440,6 +505,7 @@ ${recent}` }],
           <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">맞춤 숙제 받기</button>
         </div>${this.rxHtml()}`;
     } else {
+      const route = this.routeFor(m.text);
       el.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.75rem;">
           <span style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary)); border: 1px solid var(--glass-border); line-height: 0;">${this.catIcon(m.cat, 22)}</span>
@@ -448,6 +514,13 @@ ${recent}` }],
             <p style="margin: 0.3rem 0 0; font-size: 0.92rem; font-weight: 600; color: var(--text-primary); line-height: 1.5;">${m.text}</p>
           </div>
         </div>
+        ${route ? `
+        <button onclick="window.Missions.go('${String(m.text).replace(/'/g, "\\'")}')"
+          style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; cursor: pointer;
+                 margin-bottom: 0.5rem; padding: 0.42rem; border-radius: 10px;
+                 font-size: 0.78rem; font-weight: 800; color: var(--accent-primary);
+                 background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+                 border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, transparent);">${route.label} ›</button>` : ''}
         <div style="display: flex; gap: 0.5rem;">
           <button class="btn-primary" style="flex: 1; font-size: 0.85rem; padding: 0.6rem;" onclick="window.Missions.complete()">했어요!</button>
           <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.6rem 0.8rem;" onclick="window.Missions.reroll()" title="마음에 드는 미션이 나올 때까지 바꿔보세요">다른 거</button>

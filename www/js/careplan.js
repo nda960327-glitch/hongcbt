@@ -460,21 +460,32 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
     const actList = this.weekActions(w);
     const actions = actList.map((a, i) => {
       const done = this.isDone(wi, i);
+      // 할 일에 연결할 앱 기능이 있으면 바로 여는 길을 낸다 (미션 카드와 같은 규칙을 쓴다).
+      //  체크 토글이 행 전체를 덮는 버튼이라, 겉을 div 로 바꿔 버튼 중첩을 피한다.
+      const route = window.Missions && window.Missions.routeFor ? window.Missions.routeFor(a) : null;
       return `
-        <button onclick="window.CarePlan.toggle(${wi}, ${i})"
-          style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;
-                 padding: 0.55rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
-                 background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
-                 border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
-          <span style="flex-shrink: 0; width: 17px; height: 17px; margin-top: 1px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
-                       background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
-            ${done ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : ''}
-          </span>
-          <span style="flex: 1 1 0%; min-width: 0; font-size: 0.82rem; line-height: 1.55; font-weight: ${done ? '600' : '700'};
-                       color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(a)}</span>
-          <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
+        <div style="box-sizing: border-box; padding: 0.55rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
+                    background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
+                    border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
+          <button onclick="window.CarePlan.toggle(${wi}, ${i})"
+            style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;">
+            <span style="flex-shrink: 0; width: 17px; height: 17px; margin-top: 1px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
+                         background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
+              ${done ? '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>' : ''}
+            </span>
+            <span style="flex: 1 1 0%; min-width: 0; font-size: 0.82rem; line-height: 1.55; font-weight: ${done ? '600' : '700'};
+                         color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(a)}</span>
+            <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
  color: ${done ?'var(--text-muted)':'#6f97ab'};">${done ?'':'+2'+ (window.Icons ? window.Icons.svg('water', { size: 12 }) :'')}</span>
-        </button>`;
+          </button>
+          ${route ? `
+          <button onclick="window.Missions.go('${String(a).replace(/'/g, "\\'")}')" title="${esc(route.label)}"
+            style="all: unset; box-sizing: border-box; display: inline-flex; align-items: center; cursor: pointer;
+                   margin: 0.4rem 0 0 1.7rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+                   font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);
+                   background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+                   border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);">하러 가기 ›</button>` : ''}
+        </div>`;
     }).join('');
 
     const ifThen = p.ifThen.length ? `
