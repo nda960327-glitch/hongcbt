@@ -3,7 +3,7 @@
 //  존재 이유의 절반은 오프라인 캐시가 아니라 '푸시'다.
 //  상담사가 화면을 끄고 있어도 전화가 왔다는 걸 알려야 한다.
 
-const CACHE = 'uroong-pro-v3';
+const CACHE = 'uroong-pro-v4';
 const API_BASE = 'https://cbt-proxy.hongcbt.workers.dev';
 const SHELL = [
   './',

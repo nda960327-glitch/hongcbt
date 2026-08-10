@@ -12,6 +12,12 @@ compatibility_date = "2024-11-01"
 # VAPID 공개키는 말 그대로 공개값입니다. 상담사 앱(pro/index.html)에도
 #  똑같은 값이 박혀 있어야 하며, 두 값이 다르면 푸시 구독이 조용히 실패합니다.
 [vars]
+# TURN 릴레이 — STUN 만으로는 LTE↔LTE·회사망에서 P2P 가 안 붙는다.
+#  openrelay 는 공개 무료 릴레이(자격증명도 공개값)라 임시로 충분하고,
+#  트래픽이 늘면 Cloudflare Calls TURN 으로 교체할 것 (대시보드에서 발급).
+TURN_URL = "turn:openrelay.metered.ca:80,turn:openrelay.metered.ca:443,turns:openrelay.metered.ca:443?transport=tcp"
+TURN_USER = "openrelayproject"
+TURN_CRED = "openrelayproject"
 VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc"
 VAPID_SUBJECT = "mailto:help@neurumind.com"
 
@@ -26,3 +32,12 @@ PRO_URL = "https://pro.neurumind.com"
 binding = "DB"
 database_name = "hongcbt"
 database_id = "5dcfef89-b75e-4867-a2f5-59b28ab4fa3d"
+
+# 실시간 허브 — 채팅을 폴링(8~15초) 대신 웹소켓으로 즉시 밀어준다
+[[durable_objects.bindings]]
+name = "HUB"
+class_name = "ChatHub"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatHub"]

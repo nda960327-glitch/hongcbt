@@ -198,6 +198,18 @@ window.CallTalk = {
     if (!ok) this._setStatus('연결하지 못했어요 — 채팅으로 남겨보세요');
   },
 
+  // 통화 결과를 내 채팅방에 칩으로 남긴다 — '통화 12:34' / '부재중 전화'.
+  //  상담사 쪽 기록은 서버(rtc/end)가 이미 남기므로 여기서 또 보내면 이중이 된다.
+  _logCall(c, connected, secs) {
+    try {
+      const dur = `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+      const key = 'cbt_hchat_' + c.id;
+      const msgs = window.Storage._safeGet(key, []) || [];
+      msgs.push({ role: 'call', ok: connected, text: connected ? `통화 ${dur}` : '부재중 전화', ts: Date.now() });
+      window.Storage._safeSet(key, msgs.slice(-200));
+    } catch (e) {}
+  },
+
   _renderHumanOverlay(c, prepaid) {
     const old = document.getElementById('call-overlay');
     if (old) old.remove();
@@ -296,6 +308,11 @@ window.CallTalk = {
   end(reason) {
     if (window.Sfx) window.Sfx.play('close');
     if (!this._active) return;
+    // 흔적용 스냅샷 — 아래에서 상태를 지우기 전에 떠 둔다
+    const humanCall = this._human;
+    const connected = this._billStarted;
+    const callSecs = connected ? Math.floor((Date.now() - this._startTs) / 1000) : 0;
+    const callee = this._pendingCounselor;
     // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
     if (this._human && this._counselorId) {
       try {
@@ -317,6 +334,22 @@ window.CallTalk = {
     this._billStarted = false;
     this._prepaid = false;
     this._pendingCounselor = null;
+    // 통화는 채팅방에 흔적을 남긴다 — 카톡처럼 '통화 12:34' / '부재중 전화'.
+    //  기록이 없으면 부재중인 줄도 모르고, 상담사는 회신할 이유를 못 본다.
+    if (humanCall && callee) this._logCall(callee, connected, callSecs);
+    // 상담 내역(마이)에도 '몇 분 상담했는지'가 남아야 한다 — 최근 로그에 결과를 채운다
+    if (humanCall && callee) {
+      try {
+        const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
+        const recent = logs.find(l => l.counselorId === callee.id && !l.result);
+        if (recent) {
+          recent.result = connected ? 'done' : 'missed';
+          recent.secs = callSecs;
+          recent.spent = this._spent;
+          window.Storage._safeSet('cbt_call_logs', logs);
+        }
+      } catch (e) {}
+    }
     // 인간 상담사 통화(RTC)였으면 회선을 끊고, 상대 채팅방으로 안내한다
     if (window.RtcCall && window.RtcCall.callId) {
       window.RtcCall.hangup('client').then(info => {

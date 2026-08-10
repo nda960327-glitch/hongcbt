@@ -53,6 +53,28 @@ let SEEN = {};                      // 스레드별 '여기까지 읽음' ts
 try { SEEN = JSON.parse(localStorage.getItem('pro_seen') || '{}'); } catch (e) { SEEN = {}; }
 const saveSeen = () => { try { localStorage.setItem('pro_seen', JSON.stringify(SEEN)); } catch (e) {} };
 
+// ── 이 기기에만 남는 것들 ────────────────────────────────────────────
+//  빠른 답장·내담자 메모·소리 설정은 전부 localStorage 다.
+//  특히 메모는 서버로 절대 보내지 않는다 — 상담사의 사적인 기록이고,
+//  서버에 올라가는 순간 '언젠가 누군가 볼 수 있는 것'이 되어 아무도 솔직하게 못 적는다.
+const lsGet = (k, dflt) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? dflt : v; } catch (e) { return dflt; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+const QR_DEFAULT = [
+  '네, 확인했습니다. 곧 답드릴게요',
+  '이번 주 예약 가능한 시간 보내드릴게요',
+  '숙제 잘 보셨어요? 어려운 점 있었나요?'
+];
+let QR = lsGet('pro_quickreply', null);
+if (!Array.isArray(QR) || !QR.length) { QR = QR_DEFAULT.slice(); lsSet('pro_quickreply', QR); }
+
+let NOTES = lsGet('pro_notes', {}) || {};              // 내담자별 개인 메모
+let SOUND = lsGet('pro_sound', true) !== false;        // 알림음 on/off
+
+let CHATQ = '';                                        // 채팅 검색어
+let BOOKVIEW = lsGet('pro_bookview', 'list');          // 예약 탭: list | cal
+const CAL = { y: new Date().getFullYear(), m: new Date().getMonth(), sel: '' };
+
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -100,7 +122,9 @@ function tone(seq, vol) {
     o.start(at); o.stop(at + d + 0.02);
   });
 }
-const chime = () => tone([[659, 0], [988, 0.11], [1319, 0.22]], 0.12);
+// 새 메시지 알림음만 끌 수 있다. 걸려오는 전화 벨은 설정과 무관하게 울린다 —
+//  놓치면 되돌릴 수 없는 건 전화뿐이라, 그것까지 끄게 두면 안 된다.
+const chime = () => { if (SOUND) tone([[659, 0], [988, 0.11], [1319, 0.22]], 0.12); };
 
 // 벨 — 통화는 놓치면 끝이라 소리와 진동을 함께, 끊길 때까지 반복한다
 const RING = { timer: null, on: false };
@@ -143,6 +167,105 @@ function weekStart() {   // 월요일 0시
   return d.getTime();
 }
 const monthStart = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
+const ymd = ts => { const d = new Date(ts); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+const hhmm = ts => new Date(ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+const todayFull = () => {
+  const d = new Date();
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${DAYNM[d.getDay()]}요일`;
+};
+
+// ── 꾸미기 조각들 ─────────────────────────────────────────────────────
+// 이름 → 파스텔 6색. 같은 사람은 늘 같은 색이어야 '색으로 기억'이 된다.
+function avColor(name) {
+  const s = String(name || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % 6;
+}
+const avatar = (name, cls) =>
+  `<div class="pav c${avColor(name)}${cls ? ' ' + cls : ''}">${esc(String(name || '내').slice(0, 1))}</div>`;
+
+// 시간대별 인사 — 새벽에 "좋은 아침"이라고 하면 앱이 나를 안 보고 있다는 뜻이다
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 6) return { t: '늦은 밤까지 고생 많으세요', ic: '🌙' };
+  if (h < 11) return { t: '좋은 아침이에요', ic: '☀' };
+  if (h < 17) return { t: '좋은 오후예요', ic: '🌿' };
+  if (h < 21) return { t: '좋은 저녁이에요', ic: '🌆' };
+  return { t: '오늘도 수고하셨어요', ic: '🌙' };
+}
+
+// 빈 화면 일러스트 — 손그림 느낌의 선화. 글자만 있는 빈 화면은 '고장'으로 읽힌다.
+const ART = {
+  chat: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 22c0-5 4-9 9-9h48c5 0 9 4 9 9v25c0 5-4 9-9 9H40l-13 11 1-11h-5c-5 0-9-4-9-9z"/>
+      <path d="M31 30h32M31 40h22"/>
+      <path d="M77 44h22c4 0 7 3 7 7v16c0 4-3 7-7 7h-3l1 8-9-8H77c-4 0-7-3-7-7"/>
+      <path d="M83 56h13" opacity="0.6"/></svg>`,
+  cal: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="21" y="18" width="78" height="60" rx="8"/><path d="M21 34h78M40 12v12M80 12v12"/>
+      <circle cx="43" cy="49" r="3.2"/><circle cx="60" cy="49" r="3.2" opacity="0.5"/><circle cx="77" cy="49" r="3.2" opacity="0.3"/>
+      <path d="M38 64h24" opacity="0.5"/></svg>`,
+  money: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="18" y="27" width="84" height="46" rx="9"/><path d="M18 41h84"/>
+      <circle cx="34" cy="58" r="4"/><path d="M52 58h32" opacity="0.55"/>
+      <path d="M32 27l22-14 20 14" opacity="0.7"/></svg>`,
+  inbox: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 46l10-27h56l10 27v20c0 4-3 7-7 7H29c-4 0-7-3-7-7z"/>
+      <path d="M22 46h20l4 9h28l4-9h20"/></svg>`,
+  star: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M60 20l9.5 19.5 21.5 3-15.5 15 3.6 21.4L60 68.8 40.9 78.9 44.5 57.5 29 42.5l21.5-3z"/>
+      <path d="M96 26l2 6 6 2-6 2-2 6-2-6-6-2 6-2z" opacity="0.55"/></svg>`,
+  hw: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="27" y="14" width="60" height="64" rx="8"/><path d="M40 32h34M40 45h34M40 58h20" opacity="0.6"/>
+      <path d="M76 62l7 7 15-17" stroke-width="2.6"/></svg>`,
+  search: `<svg viewBox="0 0 120 90" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="54" cy="40" r="21"/><path d="M69 55l17 17"/><path d="M45 40h18" opacity="0.5"/></svg>`
+};
+const empty = (kind, title, body) =>
+  `<div class="empty">${ART[kind] || ''}<b>${title}</b>${body || ''}</div>`;
+
+// 미니 라인 차트 — 라이브러리 없이 SVG 문자열로 그린다 (7점이면 이게 제일 가볍다)
+function sparkline(vals) {
+  const W = 280, H = 62, P = 6;
+  const max = Math.max(1, ...vals);
+  const step = (W - P * 2) / Math.max(1, vals.length - 1);
+  const pt = i => [P + i * step, H - P - (vals[i] / max) * (H - P * 2)];
+  const pts = vals.map((_, i) => pt(i));
+  const line = pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const area = `${P},${H - P} ${line} ${W - P},${H - P}`;
+  const last = pts[pts.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="최근 7일 상담 건수">
+      <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4f8a6b" stop-opacity="0.26"/><stop offset="100%" stop-color="#4f8a6b" stop-opacity="0"/>
+      </linearGradient></defs>
+      <polygon points="${area}" fill="url(#spk)"/>
+      <polyline points="${line}" fill="none" stroke="#4f8a6b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i === pts.length - 1 ? 4 : 2.4}"
+        fill="${i === pts.length - 1 ? '#4f8a6b' : '#ffffff'}" stroke="#4f8a6b" stroke-width="1.8"/>`).join('')}
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="7.5" fill="#4f8a6b" opacity="0.16"/>
+    </svg>`;
+}
+
+// 월별 막대 — 값 라벨을 막대 위에 얹는다. 축만 있는 차트는 읽는 데 시간이 더 걸린다.
+function barchart(items) {
+  const W = 300, H = 108, P = 10;
+  const max = Math.max(1, ...items.map(x => x.v));
+  const bw = (W - P * 2) / items.length;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="최근 6개월 수입">
+      ${items.map((x, i) => {
+        const h = Math.max(2, (x.v / max) * (H - 34));
+        const cx = P + bw * i + bw / 2;
+        const cur = i === items.length - 1;
+        return `<rect x="${(cx - bw * 0.29).toFixed(1)}" y="${(H - 16 - h).toFixed(1)}" width="${(bw * 0.58).toFixed(1)}" height="${h.toFixed(1)}"
+            rx="5" fill="${cur ? '#4f8a6b' : 'rgba(79,138,107,0.28)'}"/>
+          <text x="${cx.toFixed(1)}" y="${(H - 22 - h).toFixed(1)}" text-anchor="middle" font-size="8.5"
+            font-weight="700" fill="${cur ? '#4f8a6b' : '#7f7264'}">${x.v ? won(Math.round(x.v / 1000)) + 'k' : '·'}</text>
+          <text x="${cx.toFixed(1)}" y="${H - 4}" text-anchor="middle" font-size="9" fill="${cur ? '#4f8a6b' : '#7f7264'}"
+            font-weight="${cur ? 800 : 500}">${esc(x.label)}</text>`;
+      }).join('')}
+    </svg>`;
+}
 
 // ============================================================================
 //  로그인
@@ -164,7 +287,7 @@ async function loginWithCode() {
   localStorage.setItem('inbox_code', v);
   enterApp();
   askNotify();
-  loadAll();
+  loadAll().then(() => connectHub()); // 로그인 직후에도 실시간 소켓을 붙인다
 }
 
 // 메일의 링크로 들어온 경우: ?t=... 를 세션으로 바꾼다
@@ -350,6 +473,46 @@ function fold(key, title, summary, bodyHtml) {
     </div>`;
 }
 
+// 최근 7일 상담 건수 = 지나간 예약(취소·환불 제외) + 연결된 음성 상담 기록.
+//  통화 기록은 내담자 앱이 채팅에 '📞 음성 상담 mm:ss' 로 남겨 둔다(js/calltalk.js).
+function last7Days() {
+  const base = new Date(); base.setHours(0, 0, 0, 0);
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(base); d.setDate(d.getDate() - i);
+    days.push({ d, n: 0 });
+  }
+  const slot = ts => {
+    const d = new Date(ts); d.setHours(0, 0, 0, 0);
+    return 6 + Math.round((d.getTime() - base.getTime()) / 86400000);
+  };
+  D.bookings.forEach(b => {
+    if (DEAD.includes(b.status) || b.whenTs > Date.now()) return;
+    const i = slot(b.whenTs); if (i >= 0 && i < 7) days[i].n++;
+  });
+  D.chats.forEach(m => {
+    if (!/^📞 음성 상담/.test(m.text || '')) return;
+    const i = slot(m.ts); if (i >= 0 && i < 7) days[i].n++;
+  });
+  return days;
+}
+
+function weekChartCard() {
+  const days = last7Days();
+  const total = days.reduce((s, x) => s + x.n, 0);
+  return `<div class="card">
+      <div class="row" style="margin-bottom:0.5rem;">
+        <strong class="grow" style="font-size:0.9rem;">최근 7일 상담</strong>
+        <span class="muted"><b style="color:var(--accent); font-size:0.95rem;">${total}</b>건</span>
+      </div>
+      <div class="chartwrap">${sparkline(days.map(x => x.n))}</div>
+      <div class="chartlabels">
+        ${days.map((x, i) => `<span class="${i === 6 ? 'on' : ''}">${DAYNM[x.d.getDay()]}</span>`).join('')}
+      </div>
+      ${total ? '' : '<p class="muted" style="margin-top:0.4rem;">이번 주는 아직 조용해요. 예약 가능 시간을 넓혀 보는 것도 방법이에요.</p>'}
+    </div>`;
+}
+
 function renderHome() {
   const el = $('view-home');
   if (busy(el)) return;
@@ -389,41 +552,83 @@ function renderHome() {
 
   const todayList = todays.length ? todays.map(b => {
     const soon = b.status === 'confirmed' && Math.abs(b.whenTs - now) < 3600000;
+    const past = b.whenTs <= now;
     return `<div class="listrow">
+        <div class="bktime ${soon ? 'hot' : ''}"><b>${hhmm(b.whenTs)}</b><span>30분</span></div>
         <div class="grow">
           <div class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(b.clientName)} 님</strong>
-            ${soon ? '<span class="chip new">곧 시작</span>' : ''}</div>
-          <div class="muted">${esc(b.time)}</div>
+            ${soon ? '<span class="chip new">곧 시작</span>'
+              : b.status === 'done' ? '<span class="chip ok">완료</span>'
+              : past ? '<span class="chip gold">완료 처리 필요</span>' : '<span class="chip ok">확정</span>'}</div>
+          <div class="muted">${won(b.price)}캐시 · 내 몫 ${won(b.payout ? b.payout.counselor : 0)}캐시</div>
         </div>
-        <span class="muted">${won(b.price)}캐시</span>
       </div>`;
-  }).join('') : '<p class="muted" style="padding:0.9rem 0;">오늘 예약은 없어요. 편히 쉬셔도 됩니다.</p>';
+  }).join('') : empty('cal', '오늘 예약은 없어요', '편히 쉬셔도 됩니다.<br>비어 있는 하루도 상담사에게는 일입니다.');
 
   const hwDone = D.homework.filter(h => h.doneAt).length;
   const inboxUnread = D.inbox.filter(x => !x.read).length;
+  const g = greeting();
+  const myName = (ME && ME.name) ? ME.name + ' 선생님' : (D.scope === 'admin' ? '운영자님' : '선생님');
+  const heroSub = todays.length
+    ? `오늘 예약 <b>${todays.length}건</b>${unreadMsgs ? ` · 안 읽은 메시지 <b>${unreadMsgs}개</b>` : ''}`
+    : (unreadMsgs ? `오늘 예약은 없고, 안 읽은 메시지가 <b>${unreadMsgs}개</b> 있어요` : '오늘 예약은 없어요. 잠깐 숨 돌리셔도 됩니다.');
+
+  const ico = {
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/></svg>',
+    cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>',
+    won: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l3.5 10L12 9l4.5 8L20 7"/><path d="M3 12h18"/></svg>'
+  };
 
   el.innerHTML = `
+    <div class="hero">
+      <div class="date">${todayFull()}</div>
+      <div class="hi">${g.t},<br>${esc(myName)} ${g.ic}</div>
+      <div class="sub">${heroSub}</div>
+    </div>
     ${notiCard}
     <div class="stats">
-      <div class="stat" data-act="tab" data-tab="chat"><b style="color:${unreadMsgs ? 'var(--warn)' : 'var(--text)'}">${unreadMsgs}</b><span>안 읽은 메시지</span></div>
-      <div class="stat" data-act="tab" data-tab="book"><b>${todays.length}</b><span>오늘 예약</span></div>
-      <div class="stat" data-act="tab" data-tab="money"><b style="color:var(--accent)">${won(weekSum)}</b><span>이번 주 수입</span></div>
+      <div class="stat c-warn" data-act="tab" data-tab="chat">
+        <div class="ic">${ico.chat}</div>
+        <b style="color:${unreadMsgs ? 'var(--warn)' : 'var(--text)'}">${unreadMsgs}</b><span>안 읽은 메시지</span>
+      </div>
+      <div class="stat c-blue" data-act="tab" data-tab="book">
+        <div class="ic">${ico.cal}</div>
+        <b>${todays.length}</b><span>오늘 예약</span>
+      </div>
+      <div class="stat c-green" data-act="tab" data-tab="money">
+        <div class="ic">${ico.won}</div>
+        <b style="color:var(--accent)">${won(weekSum)}<span class="u">캐시</span></b><span>이번 주 수입</span>
+      </div>
     </div>
     ${presenceCard}
-    <div class="sec-title">오늘 일정</div>
+    <div class="sec-title">오늘 일정<span class="right muted">${todays.length ? todays.length + '건' : ''}</span></div>
     <div class="card">${todayList}</div>
+    <div class="sec-title">한눈에 보기</div>
+    ${weekChartCard()}
     <div class="sec-title">관리</div>
     ${foldProfile()}
     ${foldSlots()}
+    ${foldPrefs()}
     ${fold('hw', '내가 낸 숙제', D.homework.length ? `${D.homework.length}개 · 완료 ${hwDone}` : '아직 없음', hwListHtml(D.homework, true))}
     ${fold('inbox', '받은 상담 자료', D.inbox.length ? `${D.inbox.length}건 · 안 읽음 ${inboxUnread}` : '아직 없음', inboxHtml())}
     ${fold('rv', '내 리뷰', D.reviews.length ? `${D.reviews.length}개` : '아직 없음', reviewsHtml())}
+    ${isStandalone() ? '' : `
+    <div class="card" style="display:flex; align-items:center; gap:0.7rem;">
+      <span style="flex-shrink:0; width:38px; height:38px; border-radius:11px; background:rgba(79,138,107,0.13); display:inline-flex; align-items:center; justify-content:center;">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/></svg></span>
+      <div style="flex:1; min-width:0;">
+        <b style="font-size:0.88rem;">앱으로 설치하기</b>
+        <p class="muted" style="margin:0.1rem 0 0;">폰·PC 어디서든 홈 화면에서 바로 열려요. 전화도 놓치지 않아요.</p>
+      </div>
+      <button class="btn sm" style="width:auto; margin:0; flex-shrink:0;" data-act="install">설치</button>
+    </div>`}
     <p class="muted" style="text-align:center; margin-top:1.2rem;">
       코드를 잃어버렸거나 코드가 샌 것 같으면 <b>nda960327@gmail.com</b> 으로 알려주세요.</p>`;
 }
 
 function inboxHtml() {
-  if (!D.inbox.length) return '<p class="muted" style="margin-top:0.8rem;">아직 도착한 자료가 없습니다. 내담자가 앱에서 [상담 자료 보내기]로 동의·전달하면 여기에 쌓여요.</p>';
+  if (!D.inbox.length) return empty('inbox', '아직 도착한 자료가 없어요',
+    '내담자가 앱에서 [상담 자료 보내기]로<br>동의하고 보내면 여기에 쌓입니다.');
   return '<div style="margin-top:0.4rem;">' + D.inbox.map(it => `
       <div class="listrow" style="display:block;">
         <button class="head" data-act="inbox-open" data-id="${esc(it.id)}"
@@ -437,7 +642,8 @@ function inboxHtml() {
 }
 
 function reviewsHtml() {
-  if (!D.reviews.length) return '<p class="muted" style="margin-top:0.8rem;">아직 리뷰가 없습니다. 상담을 마친 내담자가 별점을 남기면 여기에 표시돼요.</p>';
+  if (!D.reviews.length) return empty('star', '아직 리뷰가 없어요',
+    '상담을 마친 내담자가 별점을 남기면<br>여기에서 답글까지 달 수 있어요.');
   return '<div style="margin-top:0.4rem;">' + D.reviews.map(rv => `
       <div class="listrow" style="display:block;">
         <div class="row">
@@ -477,37 +683,79 @@ function threads() {
   return arr;
 }
 
-function renderChatList() {
-  const el = $('view-chat');
-  const list = threads();
-  const total = list.reduce((s, t) => s + t.unread, 0);
+// 검색어를 미리보기 안에서 <mark> 로 칠한다 — 어느 대화의 어디가 걸렸는지 보여야 검색이다
+function hlight(text, q) {
+  const s = String(text == null ? '' : text);
+  if (!q) return esc(s);
+  const i = s.toLowerCase().indexOf(q);
+  if (i < 0) return esc(s);
+  return esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length));
+}
+
+function chatListHtml(list, q) {
   if (!list.length) {
-    el.innerHTML = `<div class="card"><div class="empty"><span class="ico">💬</span>
-      아직 대화가 없습니다.<br>내담자가 앱에서 채팅을 보내면<br>여기에 바로 뜨고 소리로 알려드려요.</div></div>`;
-    return;
+    return q
+      // 조사('와/과')는 검색어 끝소리에 따라 달라진다 — 검색어가 뭐가 될지 모르니 아예 쓰지 않는다
+      ? `<div class="card">${empty('search', `'${esc(q)}' 검색 결과가 없어요`, '이름이나 대화 내용의 일부로 찾을 수 있어요.')}</div>`
+      : `<div class="card">${empty('chat', '아직 대화가 없어요',
+          '내담자가 앱에서 채팅을 보내면<br>여기에 바로 뜨고 소리로 알려드려요.')}</div>`;
   }
-  el.innerHTML = `
-    <div class="row" style="margin:0.1rem 0.2rem 0.6rem;">
-      <span class="muted grow">대화 ${list.length}개${total ? ` · <b style="color:var(--warn)">안 읽음 ${total}</b>` : ''}</span>
-      <button class="btn ghost sm" data-act="refresh">새로고침</button>
-    </div>
-    <div class="card pad0">
-      ${list.map(t => `
-        <div class="thread ${t.unread ? 'unread' : ''}" data-act="room-open" data-key="${esc(t.key)}">
-          <div class="av">${esc((t.clientName || '내').slice(0, 1))}</div>
+  return `<div class="card pad0">
+      ${list.map(t => {
+        // 검색 중이라면 마지막 메시지 대신 '검색어가 걸린 메시지'를 보여줘야 쓸모가 있다
+        const hit = q ? [...t.msgs].reverse().find(m => (m.text || '').toLowerCase().includes(q)) : null;
+        const show = hit || t.last;
+        return `<div class="thread ${t.unread ? 'unread' : ''}" data-act="room-open" data-key="${esc(t.key)}">
+          ${avatar(t.clientName)}
           <div class="grow">
-            <div class="row"><span class="nm grow ell">${esc(t.clientName)} 님</span></div>
-            <div class="pv ell">${t.last.from === 'counselor' ? '<span style="color:var(--accent)">나: </span>' : ''}${esc(t.last.text)}</div>
+            <div class="row"><span class="nm grow ell">${hlight(t.clientName, q)} 님</span></div>
+            <div class="pv ell">${show.from === 'counselor' ? '<span style="color:var(--accent)">나: </span>' : ''}${hlight(show.text, q)}</div>
           </div>
-          <div class="rt">${relTime(t.last.ts)}${t.unread ? `<div class="cnt">${t.unread}</div>` : ''}</div>
-        </div>`).join('')}
+          <div class="rt">${relTime(show.ts)}${t.unread ? `<div class="cnt">${t.unread}</div>` : ''}</div>
+        </div>`;
+      }).join('')}
     </div>`;
 }
+
+function renderChatList() {
+  const el = $('view-chat');
+  const all = threads();
+  const q = CHATQ.trim().toLowerCase();
+  const list = q
+    ? all.filter(t => (t.clientName || '').toLowerCase().includes(q) ||
+        t.msgs.some(m => (m.text || '').toLowerCase().includes(q)))
+    : all;
+  const total = list.reduce((s, t) => s + t.unread, 0);
+
+  // 30초 폴링이 검색어를 지우면 아무도 검색을 못 쓴다 — 입력 중이면 목록만 갈아 끼운다
+  if ($('chat-list') && busy(el)) {
+    $('chat-list').innerHTML = chatListHtml(list, q);
+    if ($('chat-count')) $('chat-count').innerHTML = countLine(list.length, total, q, all.length);
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="searchbar">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      <input id="chat-search" class="grow" type="text" value="${esc(CHATQ)}" placeholder="이름·대화 내용 검색" autocomplete="off">
+      <button class="x" id="chat-x" data-act="chat-clear" aria-label="검색어 지우기" ${CHATQ ? '' : 'hidden'}>×</button>
+    </div>
+    <div class="row" style="margin:0.1rem 0.2rem 0.6rem;">
+      <span class="muted grow" id="chat-count">${countLine(list.length, total, q, all.length)}</span>
+      <button class="btn ghost sm" data-act="refresh">새로고침</button>
+    </div>
+    <div id="chat-list">${chatListHtml(list, q)}</div>`;
+}
+
+const countLine = (n, unread, q, all) =>
+  q ? `'${esc(q)}' 검색 결과 ${n}개 <span style="opacity:0.6">/ 전체 ${all}개</span>`
+    : `대화 ${n}개${unread ? ` · <b style="color:var(--warn)">안 읽음 ${unread}</b>` : ''}`;
 
 function openRoom(key) {
   ROOM = key;
   $('chatroom').hidden = false;
   document.body.style.overflow = 'hidden';
+  renderQuickBar();
   renderRoom(true);
 }
 function closeRoom() {
@@ -523,7 +771,10 @@ function renderRoom(scroll) {
   if (!t) return;
   $('room-name').textContent = t.clientName + ' 님';
   const hw = D.homework.filter(h => h.clientId && h.clientId === t.clientId);
-  $('room-sub').textContent = hw.length ? `숙제 ${hw.length}개 · 완료 ${hw.filter(h => h.doneAt).length}` : '상담 채팅';
+  const bits = [];
+  if (hw.length) bits.push(`숙제 ${hw.length}개 · 완료 ${hw.filter(h => h.doneAt).length}`);
+  if (noteOf(t)) bits.push('📝 메모 있음');
+  $('room-sub').textContent = bits.length ? bits.join(' · ') : '상담 채팅';
 
   const box = $('room-msgs');
   const stick = scroll || (box.scrollHeight - box.scrollTop - box.clientHeight < 120);
@@ -533,6 +784,21 @@ function renderRoom(scroll) {
     if (dayKey(m.ts) !== last) { last = dayKey(m.ts); sep = `<div class="daysep"><span>${dayLabel(m.ts)}</span></div>`; }
     const time = new Date(m.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
     const me = m.from === 'counselor';
+    // 통화·숙제는 말풍선이 아니라 전용 칩으로 — 대화 흐름 속에 기록처럼 남는다
+    if (/^\[통화\]/.test(m.text || '')) {
+      const missed = /부재중/.test(m.text);
+      return sep + `<div style="align-self: center; display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.2rem auto;
+        padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700;
+        background: ${missed ? 'rgba(217,83,79,0.09)' : 'var(--bg)'}; border: 1px solid ${missed ? 'rgba(217,83,79,0.35)' : 'var(--line)'};
+        color: ${missed ? '#c0564f' : 'var(--sub)'};">📞 ${esc(m.text.replace(/^\[통화\]\s*/, ''))} <span style="font-weight:500; font-size:0.66rem;">${time}</span></div>`;
+    }
+    if (/^\[숙제:/.test(m.text || '')) {
+      const hm = m.text.match(/^\[숙제:[^\]]*\]\s*([\s\S]*)$/) || [];
+      return sep + `<div class="line me">
+        <span class="ts">${time}</span>
+        <div class="bub" style="background: var(--accent); border: none;">📝 숙제를 냈어요<br><b>${esc(hm[1] || '')}</b></div>
+      </div>`;
+    }
     return sep + `<div class="line ${me ? 'me' : 'you'}">
         ${me ? `<span class="ts">${time}</span>` : ''}
         <div class="bub">${esc(m.text)}</div>
@@ -565,6 +831,108 @@ async function sendReply() {
   renderRoom(true); renderChatList(); renderDots();
 }
 
+// ── 빠른 답장 템플릿 ──────────────────────────────────────────────────
+//  상담사는 진료 사이 3분에 답장한다. 그 3분 안에 문장을 새로 짓게 하면
+//  '나중에 답해야지'가 되고, 나중은 오지 않는다. 칩 하나로 문장을 꺼내 쓴다.
+function renderQuickBar() {
+  const bar = $('qrbar');
+  if (!bar) return;
+  bar.innerHTML = QR.map((t, i) =>
+      `<button data-act="qr-use" data-arg="${i}" title="길게 누르면 편집">${esc(t)}</button>`).join('') +
+    '<button class="edit" data-act="qr-edit">＋ 편집</button>';
+}
+
+function useQuickReply(i) {
+  const t = QR[i];
+  const inp = $('room-input');
+  if (t == null || !inp) return;
+  // 쓰던 글이 있으면 지우지 않고 뒤에 붙인다 — 지워버리면 다시는 안 누른다
+  const cur = inp.value || '';
+  inp.value = cur ? (cur.replace(/\s+$/, '') + ' ' + t) : t;
+  inp.focus();
+  try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {}
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 110) + 'px';
+}
+
+function openQuickSheet() {
+  sheet(`
+    <h3 class="serif">빠른 답장 관리</h3>
+    <p class="muted" style="margin-bottom:0.9rem;">자주 쓰는 문장을 저장해 두면 대화방 입력창 위에 칩으로 뜹니다.
+      <b>이 기기에만 저장</b>되고 서버로 보내지 않아요.</p>
+    <div class="card pad0" style="margin-bottom:0.8rem;">
+      ${QR.length ? QR.map((t, i) => `
+        <div class="listrow" style="padding:0.7rem 0.9rem;">
+          <span class="grow" style="font-size:0.86rem;">${esc(t)}</span>
+          <button class="iconbtn" data-act="qr-del" data-arg="${i}" aria-label="삭제" style="width:32px;height:32px;color:var(--danger);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
+          </button>
+        </div>`).join('')
+      : '<p class="muted" style="padding:1rem;">저장된 문장이 없어요. 아래에서 추가해 주세요.</p>'}
+    </div>
+    <label><span>새 문장 (100자까지)</span>
+      <textarea id="qr-new" rows="2" maxlength="100" placeholder="예: 오늘 상담 어떠셨는지 한 줄만 남겨주세요"></textarea></label>
+    <button class="btn" data-act="qr-add">추가하기</button>
+    <button class="btn ghost" style="margin-top:0.5rem;" data-act="qr-reset">기본 문구로 되돌리기</button>`);
+}
+
+// ── 내담자 메모 (이 기기에만) ─────────────────────────────────────────
+//  회기 사이에 기억해야 할 것들 — 서버로 보내지 않는다. 여기 적힌 건 상담사만 본다.
+const noteKey = t => 'k:' + (t.clientId || ('n:' + t.clientName));
+const noteOf = t => (NOTES[noteKey(t)] || {}).text || '';
+
+function openNoteSheet() {
+  const t = curThread();
+  if (!t) return;
+  const cur = NOTES[noteKey(t)] || {};
+  sheet(`
+    <h3 class="serif">${esc(t.clientName)} 님 메모</h3>
+    <p class="muted" style="margin-bottom:0.8rem;">회기 사이에 기억해 둘 것들을 적어두세요.
+      호소 문제, 지난 회기 요약, 다음에 물어볼 것.</p>
+    <label><span>메모 (2000자까지)</span>
+      <textarea id="note-text" rows="9" maxlength="2000" placeholder="예: 3회기 — 직장 상사와의 갈등이 핵심.&#10;다음 회기에 '거절하는 연습' 이어가기.">${esc(cur.text || '')}</textarea></label>
+    <p class="muted" style="margin-bottom:0.8rem; padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
+      🔒 이 메모는 <b>내 기기에만 저장됩니다</b>. 서버로 전송되지 않고 내담자에게도 보이지 않아요.
+      다만 기기를 바꾸거나 브라우저 데이터를 지우면 함께 사라집니다.</p>
+    ${cur.ts ? `<p class="muted" style="margin-bottom:0.6rem;">마지막 수정 ${new Date(cur.ts).toLocaleString('ko-KR')}</p>` : ''}
+    <button class="btn" data-act="note-save">메모 저장</button>
+    ${cur.text ? '<button class="btn ghost" style="margin-top:0.5rem;" data-act="note-del">메모 지우기</button>' : ''}`);
+}
+
+// ── 대화방 메뉴 ───────────────────────────────────────────────────────
+function openRoomMenu() {
+  const t = curThread();
+  if (!t) return;
+  const note = noteOf(t);
+  const hw = D.homework.filter(h => h.clientId && h.clientId === t.clientId);
+  const mi = svg => `<span class="mi">${svg}</span>`;
+  sheet(`
+    <div class="row" style="gap:0.7rem; margin-bottom:0.9rem;">
+      ${avatar(t.clientName)}
+      <div class="grow">
+        <h3 style="font-size:1rem;">${esc(t.clientName)} 님</h3>
+        <p class="muted">메시지 ${t.msgs.length}개 · 숙제 ${hw.length}개</p>
+      </div>
+    </div>
+    <button class="menurow" data-act="note-open">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H15l5 5v9.5A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M14 4v6h6"/></svg>')}
+      <span class="grow">메모<br><span class="ms">${note ? esc(note.slice(0, 26)) + (note.length > 26 ? '…' : '') : '이 기기에만 저장되는 내 기록'}</span></span>
+      ${note ? '<span class="chip ok">있음</span>' : ''}
+    </button>
+    <button class="menurow" data-act="hw-open">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2.5 2.5L16 8"/><rect x="4" y="4" width="16" height="16" rx="4"/></svg>')}
+      <span class="grow">숙제 내기<br><span class="ms">${hw.length ? `완료 ${hw.filter(h => h.doneAt).length}/${hw.length}` : '아직 낸 숙제가 없어요'}</span></span>
+    </button>
+    <button class="menurow" data-act="qr-edit">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/></svg>')}
+      <span class="grow">빠른 답장 관리<br><span class="ms">저장된 문장 ${QR.length}개</span></span>
+    </button>
+    <button class="menurow" data-act="room-refresh">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>')}
+      <span class="grow">대화 새로고침<br><span class="ms">지금 바로 서버에서 다시 받아오기</span></span>
+    </button>`);
+}
+
 // ── 숙제 ──────────────────────────────────────────────────────────────
 //  전에는 '완료 처리된 예약'에서만 낼 수 있었다. 바로상담만 한 내담자는
 //  예약 행이 없어서 영영 숙제를 못 받았다. 채팅 스레드에는 clientId 가 있으므로
@@ -591,7 +959,8 @@ function openHomeworkSheet() {
 }
 
 function hwListHtml(items, withClient) {
-  if (!items.length) return '<p class="muted" style="margin-top:0.8rem;">아직 낸 숙제가 없어요. 대화방에서 [숙제] 버튼을 누르면 예약이 없는 내담자에게도 바로 낼 수 있어요.</p>';
+  if (!items.length) return empty('hw', '아직 낸 숙제가 없어요',
+    '대화방에서 [숙제] 버튼을 누르면<br>예약이 없는 내담자에게도 바로 낼 수 있어요.');
   return items.map(h => `
     <div class="listrow" style="display:block;">
       <div class="row">
@@ -671,14 +1040,88 @@ function bookingCard(b) {
     if (!done && !disputed && b.status === 'confirmed') actions += mini('환불', 'bk-refund');
   }
 
+  const wd = new Date(b.whenTs);
   return `<div class="card" style="${dead ? 'opacity:0.55;' : ''}${soon || (past && b.status === 'confirmed') ? 'border-color:var(--accent);' : ''}">
-      <div class="row">
-        <strong class="grow" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}">${esc(b.clientName)} 님${dead ? '' : ' · 30분 상담'}</strong>
-        ${badge}
+      <div class="bkitem">
+        <div class="bktime ${soon ? 'hot' : ''}">
+          <b>${hhmm(b.whenTs)}</b><span>${wd.getMonth() + 1}/${wd.getDate()} (${DAYNM[wd.getDay()]})</span>
+        </div>
+        <div class="grow">
+          <div class="row" style="gap:0.4rem;">
+            <strong class="grow" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}">${esc(b.clientName)} 님${dead ? '' : ' · 30분'}</strong>
+            ${badge}
+          </div>
+          <p class="muted" style="margin-top:0.3rem;">${esc(b.time)}<br>${won(b.price)}캐시${dead ? '' : ` · 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>`}</p>
+          ${hint}${autoNote}${disputeNote}${noteBox}${actions}
+        </div>
       </div>
-      <p class="muted" style="margin-top:0.3rem;">${esc(b.time)} · ${won(b.price)}캐시${dead ? '' : ` · 내 몫 ${won(b.payout ? b.payout.counselor : 0)}캐시`}</p>
-      ${hint}${autoNote}${disputeNote}${noteBox}${actions}
     </div>`;
+}
+
+// ── 달력 뷰 ───────────────────────────────────────────────────────────
+//  목록은 '다음에 뭐가 있나'에 강하고, 달력은 '이번 달이 얼마나 찼나'에 강하다.
+//  둘 다 필요해서 토글로 둔다.
+function calHtml() {
+  const y = CAL.y, m = CAL.m;
+  const first = new Date(y, m, 1);
+  const lead = first.getDay();                       // 1일 앞에 비는 칸 수
+  const days = new Date(y, m + 1, 0).getDate();
+  const cells = Math.ceil((lead + days) / 7) * 7;
+  const todayKey = ymd(Date.now());
+
+  // 날짜별로 묶어 둔다 — 셀마다 필터를 돌리면 42번 훑게 된다
+  const byDay = {};
+  D.bookings.forEach(b => {
+    const k = ymd(b.whenTs);
+    (byDay[k] = byDay[k] || []).push(b);
+  });
+
+  let grid = DAYNM.map((d, i) => `<div class="dh ${i === 0 ? 'sun' : ''}">${d}</div>`).join('');
+  for (let i = 0; i < cells; i++) {
+    const dnum = i - lead + 1;
+    const inMonth = dnum >= 1 && dnum <= days;
+    const dt = new Date(y, m, dnum);
+    const key = ymd(dt.getTime());
+    const list = inMonth ? (byDay[key] || []).filter(b => !DEAD.includes(b.status)) : [];
+    const needsDone = list.some(b => b.status === 'confirmed' && b.whenTs <= Date.now());
+    const dots = list.slice(0, 3).map(() => `<i class="${needsDone ? 'warn' : ''}"></i>`).join('');
+    grid += `<button class="cell ${inMonth ? '' : 'off'} ${key === todayKey ? 'today' : ''} ${key === CAL.sel ? 'sel' : ''}"
+        ${inMonth ? `data-act="cal-day" data-arg="${key}"` : 'disabled'}>
+        <span>${dnum >= 1 && dnum <= days ? dnum : ''}</span>
+        <span class="row" style="gap:2px; height:5px;">${dots}</span>
+      </button>`;
+  }
+
+  const selList = CAL.sel
+    ? D.bookings.filter(b => ymd(b.whenTs) === CAL.sel).sort((a, b) => a.whenTs - b.whenTs)
+    : [];
+  const selDate = CAL.sel ? CAL.sel.split('-') : null;
+  const monthCount = D.bookings.filter(b => {
+    const d = new Date(b.whenTs);
+    return d.getFullYear() === y && d.getMonth() === m && !DEAD.includes(b.status);
+  }).length;
+
+  return `<div class="card">
+      <div class="row" style="margin-bottom:0.6rem;">
+        <button class="iconbtn" data-act="cal-move" data-arg="-1" aria-label="이전 달">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <div class="grow" style="text-align:center;">
+          <strong class="serif" style="font-size:1.05rem;">${y}년 ${m + 1}월</strong>
+          <div class="muted">예약 ${monthCount}건</div>
+        </div>
+        <button class="iconbtn" data-act="cal-move" data-arg="1" aria-label="다음 달">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div class="cal">${grid}</div>
+      <p class="muted" style="margin-top:0.6rem; text-align:center;">점이 있는 날에 예약이 있어요 ·
+        <span style="color:var(--warn); font-weight:700;">주황 점</span>은 완료 처리가 밀린 날이에요</p>
+    </div>
+    ${CAL.sel ? `<div class="sec-title">${selDate[1]}월 ${selDate[2]}일<span class="right muted">${selList.length}건</span></div>` +
+        (selList.length ? selList.map(bookingCard).join('')
+          : `<div class="card">${empty('cal', '이 날은 예약이 없어요', '비어 있는 시간도 회복에 필요합니다.')}</div>`)
+      : '<p class="muted" style="text-align:center; margin-top:0.9rem;">날짜를 누르면 그 날의 예약을 볼 수 있어요.</p>'}`;
 }
 
 function renderBookings() {
@@ -690,16 +1133,28 @@ function renderBookings() {
   const todo = pastAll.filter(b => b.status === 'confirmed');
   const rest = pastAll.filter(b => b.status !== 'confirmed');
 
+  const toggle = `
+    <div class="row" style="margin:0.1rem 0.1rem 0.7rem;">
+      <div class="seg grow" style="flex:0 0 auto;">
+        <button class="${BOOKVIEW === 'list' ? 'on' : ''}" data-act="bookview" data-arg="list">목록</button>
+        <button class="${BOOKVIEW === 'cal' ? 'on' : ''}" data-act="bookview" data-arg="cal">달력</button>
+      </div>
+      <span class="grow"></span>
+      <button class="btn ghost sm" data-act="refresh">새로고침</button>
+    </div>`;
+
   if (!D.bookings.length) {
-    el.innerHTML = `<div class="card"><div class="empty"><span class="ico">📅</span>
-      예약이 없습니다.<br>내담자가 앱에서 예약하면 여기에 실시간으로 표시돼요.</div></div>`;
+    el.innerHTML = toggle + `<div class="card">${empty('cal', '아직 예약이 없어요',
+      '내담자가 앱에서 예약하면 여기에 실시간으로 떠요.<br>[내 정보 → 예약 가능 시간]을 열어두면 더 빨리 찹니다.')}</div>`;
     return;
   }
-  el.innerHTML =
-    (todo.length ? `<div class="sec-title" style="color:var(--warn);">완료 처리가 필요해요 ${todo.length}건</div>${todo.map(bookingCard).join('')}` : '') +
-    `<div class="sec-title">다가오는 예약 ${up.length}건</div>` +
-    (up.length ? up.map(bookingCard).join('') : '<div class="card"><p class="muted">앞으로 잡힌 예약이 없어요.</p></div>') +
-    (rest.length ? `<div class="sec-title">지난 예약</div>${rest.slice(0, 40).map(bookingCard).join('')}` : '');
+  if (BOOKVIEW === 'cal') { el.innerHTML = toggle + calHtml(); return; }
+
+  el.innerHTML = toggle +
+    (todo.length ? `<div class="sec-title" style="color:var(--warn);">완료 처리가 필요해요<span class="right">${todo.length}건</span></div>${todo.map(bookingCard).join('')}` : '') +
+    `<div class="sec-title">다가오는 예약<span class="right muted">${up.length}건</span></div>` +
+    (up.length ? up.map(bookingCard).join('') : `<div class="card">${empty('cal', '앞으로 잡힌 예약이 없어요', '예약 가능 시간을 넓혀두면 매칭이 늘어요.')}</div>`) +
+    (rest.length ? `<div class="sec-title">지난 예약<span class="right muted">${rest.length}건</span></div>${rest.slice(0, 40).map(bookingCard).join('')}` : '');
 }
 
 // ============================================================================
@@ -716,8 +1171,35 @@ function renderMoney() {
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
   const waiting = total - paid;
 
+  // 최근 6개월 — '이번 달이 지난달보다 나은가'는 숫자 하나로는 절대 안 보인다
+  const months = [];
+  const mref = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(mref.getFullYear(), mref.getMonth() - i, 1);
+    const from = d.getTime(), to = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    const v = earned.filter(b => b.whenTs >= from && b.whenTs < to)
+      .reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
+    months.push({ label: (d.getMonth() + 1) + '월', v, n: earned.filter(b => b.whenTs >= from && b.whenTs < to).length });
+  }
+  const prev = months[4] ? months[4].v : 0;
+  const diff = monthSum - prev;
+  const trend = !prev && !monthSum ? '아직 기록이 쌓이는 중이에요'
+    : diff > 0 ? `지난달보다 <b style="color:var(--accent)">+${won(diff)}캐시</b>`
+    : diff < 0 ? `지난달보다 <b style="color:var(--warn)">${won(diff)}캐시</b>`
+    : '지난달과 같아요';
+
+  const chartCard = `<div class="card">
+      <div class="row" style="margin-bottom:0.5rem;">
+        <strong class="grow" style="font-size:0.9rem;">최근 6개월 수입</strong>
+        <span class="muted">${trend}</span>
+      </div>
+      <div class="chartwrap">${barchart(months)}</div>
+      <p class="muted" style="margin-top:0.3rem;">막대 위 숫자는 천 캐시 단위예요 (예: 120k = 120,000캐시)</p>
+    </div>`;
+
   const rows = earned.slice().sort((a, b) => b.whenTs - a.whenTs).slice(0, 60).map(b => `
     <div class="listrow">
+      ${avatar(b.clientName, 'sm')}
       <div class="grow">
         <strong style="font-size:0.86rem;">${esc(b.clientName)} 님</strong>
         <div class="muted">${esc(b.time)}</div>
@@ -742,9 +1224,13 @@ function renderMoney() {
       <p class="muted" style="margin-top:0.6rem;">상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%</p>
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
+    <div class="sec-title">수입 흐름</div>
+    ${chartCard}
+    <div class="sec-title">계좌</div>
     ${foldPayout()}
-    <div class="sec-title">정산 내역</div>
-    <div class="card">${rows || '<p class="muted">완료된 상담이 아직 없어요.</p>'}</div>`;
+    <div class="sec-title">정산 내역<span class="right muted">${earned.length ? earned.length + '건' : ''}</span></div>
+    <div class="card ${rows ? 'pad0' : ''}" ${rows ? 'style="padding:0 1.1rem;"' : ''}>${rows ||
+      empty('money', '완료된 상담이 아직 없어요', '상담을 마치고 [상담 완료]를 누르면<br>여기에 정산이 쌓이기 시작해요.')}</div>`;
 }
 
 // ── 내 정보 · 시간표 · 계좌 (기존 기능 전부 유지) ──────────────────────
@@ -848,6 +1334,32 @@ function foldSlots() {
     <label style="margin-top:0.6rem;"><span>쉬는 날 (쉼표로 구분, 예: 2026-08-15)</span>
       <input id="sl-off" value="${esc((ME.offdays || []).join(', '))}" placeholder="2026-08-15, 2026-09-01"></label>
     <button class="btn" id="sl-save" data-act="save-slots">시간표 저장</button>`);
+}
+
+// 알림·소리 — 진료실에서 앱을 여는 상담사가 제일 먼저 찾는 스위치다.
+//  '내 정보' 옆에 두되, 전화 벨은 여기서 끌 수 없다는 걸 분명히 적어 둔다.
+function foldPrefs() {
+  const notiOk = ('Notification' in window) && Notification.permission === 'granted';
+  const notiDenied = ('Notification' in window) && Notification.permission === 'denied';
+  return fold('pref', '알림 · 소리', SOUND ? '알림음 켜짐' : '알림음 꺼짐', `
+    <div class="row" style="margin-top:0.9rem;">
+      <div class="grow">
+        <strong style="font-size:0.9rem;">새 메시지 알림음</strong>
+        <p class="muted" style="margin-top:0.2rem;">내담자 메시지가 도착하면 짧은 소리로 알려드려요.
+          회기 중에는 꺼두셔도 됩니다.</p>
+      </div>
+      <button class="sw ${SOUND ? 'on' : ''}" data-act="sound" aria-label="알림음 토글"><i></i></button>
+    </div>
+    <p class="muted" style="margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg); border-radius:10px;">
+      걸려오는 <b>전화 벨은 이 설정과 상관없이 울립니다</b>. 놓치면 되돌릴 수 없는 건 통화뿐이라 일부러 남겨뒀어요.</p>
+    <div class="row" style="margin-top:0.8rem;">
+      <div class="grow"><strong style="font-size:0.9rem;">기기 알림</strong>
+        <p class="muted" style="margin-top:0.2rem;">${notiOk ? '켜져 있어요. 화면을 꺼둬도 전화와 메시지를 받습니다.'
+          : notiDenied ? '브라우저에서 차단돼 있어요. 주소창 자물쇠 → 알림 허용으로 바꿔주세요.'
+          : '아직 허용하지 않았어요.'}</p></div>
+      ${notiOk ? '<span class="chip ok">허용됨</span>' : notiDenied ? '<span class="chip bad">차단됨</span>'
+        : '<button class="btn sm" data-act="ask-noti">켜기</button>'}
+    </div>`);
 }
 
 function foldPayout() {
@@ -1037,9 +1549,87 @@ const ACT = {
   'room-open': (el) => openRoom(el.dataset.key),
   'room-close': closeRoom,
   'room-send': sendReply,
-  'hw-open': openHomeworkSheet,
+  'room-menu': openRoomMenu,
+  'room-refresh': async () => { closeSheet(); await loadChats(); renderRoom(true); renderChatList(); renderDots(); toast('대화를 새로 받아왔어요'); },
+  'hw-open': () => { closeSheet(); openHomeworkSheet(); },
   'hw-send': sendHomework,
   'sheet-close': closeSheet,
+
+  // ── 빠른 답장 ──
+  'qr-use': (el) => useQuickReply(+el.dataset.arg),
+  'qr-edit': () => openQuickSheet(),
+  'qr-add': () => {
+    const v = (($('qr-new') || {}).value || '').trim();
+    if (!v) { toast('문장을 적어주세요'); return; }
+    if (QR.length >= 12) { toast('빠른 답장은 12개까지 저장할 수 있어요'); return; }
+    QR.push(v); lsSet('pro_quickreply', QR);
+    renderQuickBar(); openQuickSheet();
+    toast('빠른 답장을 추가했어요');
+  },
+  'qr-del': (el) => {
+    QR.splice(+el.dataset.arg, 1); lsSet('pro_quickreply', QR);
+    renderQuickBar(); openQuickSheet();
+  },
+  'qr-reset': () => {
+    if (!confirm('저장한 문장을 지우고 기본 3개로 되돌릴까요?')) return;
+    QR = QR_DEFAULT.slice(); lsSet('pro_quickreply', QR);
+    renderQuickBar(); openQuickSheet();
+    toast('기본 문구로 되돌렸어요');
+  },
+
+  // ── 내담자 메모 (이 기기에만) ──
+  'note-open': openNoteSheet,
+  'note-save': () => {
+    const t = curThread();
+    if (!t) return;
+    const v = (($('note-text') || {}).value || '').trim();
+    if (v) NOTES[noteKey(t)] = { text: v, ts: Date.now() };
+    else delete NOTES[noteKey(t)];
+    lsSet('pro_notes', NOTES);
+    closeSheet(); renderRoom();
+    toast(v ? '메모를 저장했어요 (이 기기에만)' : '메모를 비웠어요');
+  },
+  'note-del': () => {
+    const t = curThread();
+    if (!t || !confirm('이 내담자의 메모를 지울까요? 되돌릴 수 없어요.')) return;
+    delete NOTES[noteKey(t)];
+    lsSet('pro_notes', NOTES);
+    closeSheet(); renderRoom();
+    toast('메모를 지웠어요');
+  },
+
+  // ── 채팅 검색 ──
+  'chat-clear': () => { CHATQ = ''; renderChatList(); },
+
+  // ── 예약 목록 · 달력 ──
+  bookview: (el) => {
+    BOOKVIEW = el.dataset.arg;
+    lsSet('pro_bookview', BOOKVIEW);
+    // 달력을 처음 열면 오늘이 선택돼 있어야 한 번 더 누르지 않는다
+    if (BOOKVIEW === 'cal' && !CAL.sel) {
+      const n = new Date();
+      CAL.y = n.getFullYear(); CAL.m = n.getMonth(); CAL.sel = ymd(Date.now());
+    }
+    renderBookings();
+  },
+  'cal-move': (el) => {
+    const d = new Date(CAL.y, CAL.m + (+el.dataset.arg), 1);
+    CAL.y = d.getFullYear(); CAL.m = d.getMonth();
+    renderBookings();
+  },
+  'cal-day': (el) => {
+    CAL.sel = CAL.sel === el.dataset.arg ? '' : el.dataset.arg;
+    renderBookings();
+  },
+
+  // ── 소리 ──
+  sound: () => {
+    SOUND = !SOUND;
+    lsSet('pro_sound', SOUND);
+    renderHome();
+    if (SOUND) { unlockAudio(); chime(); toast('알림음을 켰어요'); }
+    else toast('알림음을 껐어요 (전화 벨은 그대로 울려요)');
+  },
 
   // ── 예약 ──
   'bk-decline': async (el) => {
@@ -1183,10 +1773,100 @@ inp.addEventListener('keydown', e => {
   }
 });
 
+// 채팅 검색 — 한 글자마다 목록만 갈아 끼운다(입력창은 그대로 두어야 커서가 안 튄다)
+document.addEventListener('input', e => {
+  if (!e.target || e.target.id !== 'chat-search') return;
+  CHATQ = e.target.value || '';
+  const x = $('chat-x');
+  if (x) x.hidden = !CHATQ;
+  renderChatList();
+});
+
+// 빠른 답장 칩 길게 누르기 → 관리 시트. 편집 버튼을 못 찾는 사람이 반드시 있다.
+(function bindQuickLongPress() {
+  const bar = $('qrbar');
+  if (!bar) return;
+  let timer = null;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  bar.addEventListener('pointerdown', e => {
+    const chip = e.target.closest('button[data-act="qr-use"]');
+    if (!chip) return;
+    timer = setTimeout(() => {
+      timer = null;
+      try { if (navigator.vibrate) navigator.vibrate(18); } catch (err) {}
+      openQuickSheet();
+      // 길게 눌러 시트를 연 뒤 손을 떼면 클릭이 또 들어온다 — 한 번만 막는다
+      bar.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); }, { capture: true, once: true });
+    }, 550);
+  }, { passive: true });
+  ['pointerup', 'pointercancel', 'pointerleave', 'scroll'].forEach(ev =>
+    bar.addEventListener(ev, cancel, { passive: true }));
+})();
+
+renderQuickBar();
+
+// ============================================================================
+//  PWA 설치 — 폰이든 PC든 앱처럼. 설치돼 있으면 카드 자체가 안 보인다.
+// ============================================================================
+let installEv = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEv = e;
+  try { if (!$('screen-login').hidden === false && !$('app').hidden) renderHome(); } catch (err) {}
+});
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+ACT['install'] = async () => {
+  if (installEv) {
+    installEv.prompt();
+    const r = await installEv.userChoice.catch(() => null);
+    installEv = null;
+    if (r && r.outcome === 'accepted') toast('설치 완료! 홈 화면·바탕화면에서 열 수 있어요');
+    renderHome();
+  } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    toast('사파리 공유 버튼 → "홈 화면에 추가"를 눌러주세요');
+  } else {
+    toast('브라우저 메뉴(⋮) → "앱 설치"를 눌러주세요');
+  }
+};
+
+// ============================================================================
+//  실시간 수신 (웹소켓) — 내담자 메시지가 저장되는 순간 바로 도착한다.
+//  끊기면 지수 백오프로 다시 붙고, 그동안은 15초 폴링이 받친다.
+// ============================================================================
+let hubWs = null, hubRetry = 0;
+function connectHub() {
+  if (!(SESSION || CODE) || !ME || !ME.id || hubWs) return;
+  try {
+    const ws = new WebSocket(API_BASE.replace(/^http/, 'ws') + '/ws?ch=' + encodeURIComponent('c:' + ME.id) + '&' + authQS());
+    hubWs = ws;
+    ws.onopen = () => { hubRetry = 0; };
+    ws.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.type === 'chat') {
+          loadChats().then(() => {
+            renderChatList(); renderDots();
+            if (ROOM) renderRoom();
+            if (d.msg && d.msg.from === 'client') chime();
+          });
+        }
+      } catch (err) {}
+    };
+    ws.onclose = () => {
+      hubWs = null;
+      hubRetry = Math.min(hubRetry + 1, 6);
+      setTimeout(connectHub, 1000 * Math.pow(2, hubRetry));
+    };
+    ws.onerror = () => { try { ws.close(); } catch (err) {} };
+  } catch (e) { hubWs = null; }
+}
+
 (async () => {
   const t = new URLSearchParams(location.search).get('t');
   if (t) { if (await verifyLink(t)) askNotify(); }
-  if (SESSION || CODE) { enterApp(); await loadAll(); }
+  if (SESSION || CODE) { enterApp(); await loadAll(); connectHub(); }
 })();
 
 initSW();

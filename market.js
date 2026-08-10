@@ -388,11 +388,34 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const text = s(body.text, 200);
     if (!clientId || !text) return json({ error: '내담자와 내용을 확인해주세요' }, 400, cors);
     const id = rid('hw');
+    const hwTs = nowMs();
     await db.prepare(
       `INSERT INTO homework (id, counselor_id, counselor, client_id, booking_id, text, why, due_at, assigned_at)
        VALUES (?,?,?,?,?,?,?,?,?)`
     ).bind(id, me.id, me.name, clientId, s(body.bookingId, MAX.id),
-      text, s(body.why, 200), num(body.dueAt), nowMs()).run();
+      text, s(body.why, 200), num(body.dueAt), hwTs).run();
+    // 채팅에도 흔적을 남긴다 — "숙제를 냈어요" 말풍선이 있어야 내담자가
+    //  대화 흐름 속에서 발견하고, 눌러서 무슨 숙제인지 볼 수 있다.
+    //  [숙제:id] 마커는 앱이 카드로 그린다 (글자로 노출되지 않는다).
+    try {
+      const cmId = rid('cm');
+      await db.prepare(
+        `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
+         VALUES (?,?,?,?,?,?,?,?)`
+      ).bind(cmId, me.id, me.name, clientId, s(body.clientName) || '', 'counselor',
+        `[숙제:${id}] ${text}`, hwTs).run();
+      if (env.HUB && ctx && ctx.waitUntil) {
+        const evt = JSON.stringify({
+          type: 'chat',
+          msg: { id: cmId, counselorId: me.id, counselorName: me.name, clientId,
+                 clientName: s(body.clientName) || '', from: 'counselor',
+                 text: `[숙제:${id}] ${text}`, ts: hwTs }
+        });
+        const pub = (ch) => env.HUB.get(env.HUB.idFromName(ch))
+          .fetch('https://hub/publish', { method: 'POST', body: evt }).catch(() => {});
+        ctx.waitUntil(Promise.all([pub('c:' + me.id), pub('cl:' + clientId)]));
+      }
+    } catch (e) {}
     return json({ ok: true, id }, 200, cors);
   }
 
@@ -552,13 +575,26 @@ export async function handleMarket(request, env, cors, path, ctx) {
         wakeCounselor = !recent;
       } catch (e) { wakeCounselor = true; }
     }
+    const msgTs = nowMs();
     await db.prepare(
       `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
        VALUES (?,?,?,?,?,?,?,?)`
     ).bind(id, counselorId, s(body.counselorName), clientId,
-      s(body.clientName) || '익명', from, clean.text, nowMs()).run();
+      s(body.clientName) || '익명', from, clean.text, msgTs).run();
     if (wakeCounselor && ctx && ctx.waitUntil) {
       ctx.waitUntil(notifyCounselor(env, counselorId).catch(() => {}));
+    }
+    // 실시간: 양쪽 채널의 열린 앱에 즉시 밀어준다 — 이게 없으면 받는 쪽은
+    //  다음 폴링(8~15초)까지 감감무소식이라 '카톡보다 느린' 채팅이 된다.
+    if (env.HUB && ctx && ctx.waitUntil) {
+      const evt = JSON.stringify({
+        type: 'chat',
+        msg: { id, counselorId, counselorName: s(body.counselorName), clientId,
+               clientName: s(body.clientName) || '익명', from, text: clean.text, ts: msgTs }
+      });
+      const pub = (ch) => env.HUB.get(env.HUB.idFromName(ch))
+        .fetch('https://hub/publish', { method: 'POST', body: evt }).catch(() => {});
+      ctx.waitUntil(Promise.all([pub('c:' + counselorId), pub('cl:' + clientId)]));
     }
     // 시도는 기록해 둔다 — 반복되면 운영자가 보고 조치할 수 있어야 한다
     if (clean.hits) {

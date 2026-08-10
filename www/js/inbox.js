@@ -70,6 +70,12 @@ window.Inbox = {
     const el = document.getElementById('notif-chip');
     if (!el) return;
     const n = this.unread();
+    // 설치된 앱이면 아이콘 자체에도 숫자를 단다 (안 열어봐도 보이게)
+    try {
+      if ('setAppBadge' in navigator) {
+        if (n) navigator.setAppBadge(n); else navigator.clearAppBadge();
+      }
+    } catch (e) {}
     el.style.display = 'inline-flex';
     el.style.alignItems = 'center';
     el.style.position = 'relative';
@@ -174,6 +180,15 @@ window.Inbox = {
   runAct(act) {
     if (!act) return;
     try {
+      // 파라미터형: 'hchat:상담사id' → 그 상담사 채팅방을 바로 연다
+      if (act.indexOf('hchat:') === 0) {
+        const cid = act.slice(6).replace(/[^\w-]/g, '');
+        if (cid && window.App && window.App.openHumanChat) {
+          window.App.switchTab('counselors');
+          window.App.openHumanChat(cid);
+        }
+        return;
+      }
       switch (act) {
         case 'home':
           if (window.App) window.App.switchTab('home');

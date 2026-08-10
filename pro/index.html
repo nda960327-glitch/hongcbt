@@ -18,6 +18,10 @@
       --text: #362f28; --sub: #7f7264; --accent: #4f8a6b; --accent-soft: #eef6f0;
       --danger: #cf6b60; --warn: #e8590c; --gold: #b98a1a;
       --tabh: 58px;
+      /* 그림자를 값이 아니라 이름으로 쓴다 — 카드마다 제각각이면 '앱'이 아니라 '문서'로 보인다 */
+      --sh1: 0 2px 10px rgba(120, 96, 66, 0.06);
+      --sh2: 0 6px 18px rgba(120, 96, 66, 0.10);
+      --sh3: 0 14px 34px rgba(120, 96, 66, 0.14);
     }
     /* 한국어는 음절 사이 어디서나 끊긴다 — flex 안에서 칸이 한 글자로
        찌그러지는 원인이다. 소비자 앱(css/style.css)과 같은 규칙을 쓴다.
@@ -56,14 +60,24 @@
     .row { display: flex; align-items: center; gap: 0.5rem; }
     .grow { flex: 1; min-width: 0; }
     .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sec-title { font-size: 0.78rem; font-weight: 700; color: var(--sub); letter-spacing: 0.02em; margin: 1.3rem 0 0.5rem 0.2rem; }
+    /* 섹션 제목 앞 작은 막대 — 스크롤 중에도 '여기서 새 덩어리가 시작한다'가 보인다 */
+    .sec-title {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.78rem; font-weight: 700; color: var(--sub); letter-spacing: 0.02em; margin: 1.3rem 0 0.5rem 0.2rem;
+    }
+    .sec-title::before { content: ''; width: 3px; height: 12px; border-radius: 2px; background: var(--accent); opacity: 0.5; flex-shrink: 0; }
     .sec-title:first-child { margin-top: 0.2rem; }
+    .sec-title .right { margin-left: auto; font-weight: 600; }
 
     input[type=text], input[type=password], input[type=number], input:not([type]), textarea {
       width: 100%; padding: 0.72rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--line);
       background: #fff; outline: none; transition: border-color 0.15s;
     }
-    input:focus, textarea:focus { border-color: var(--accent); }
+    /* 포커스는 테두리 색만 바꾸면 실내 조명에서 거의 안 보인다 — 옅은 링을 같이 준다 */
+    input:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px rgba(79, 138, 107, 0.13); }
+    .btn:focus-visible, .iconbtn:focus-visible, .tab:focus-visible, .sw:focus-visible {
+      outline: 2px solid var(--accent); outline-offset: 2px;
+    }
     #code { text-align: center; letter-spacing: 0.12em; background: var(--bg); }
 
     .btn {
@@ -89,8 +103,68 @@
     .chip.bad { color: var(--danger); background: rgba(207, 107, 96, 0.12); }
     .chip.gold { color: var(--gold); background: rgba(245, 199, 78, 0.2); }
 
-    .empty { text-align: center; padding: 2.4rem 1rem; color: var(--sub); font-size: 0.86rem; line-height: 1.8; }
-    .empty .ico { font-size: 1.7rem; display: block; margin-bottom: 0.5rem; opacity: 0.5; }
+    .empty { text-align: center; padding: 2.2rem 1rem; color: var(--sub); font-size: 0.86rem; line-height: 1.8; }
+    /* 빈 화면에 글자만 있으면 '고장'처럼 보인다. 손그림 선화를 하나씩 둔다 */
+    .empty svg { display: block; margin: 0 auto 0.7rem; width: 104px; height: 78px; color: #cbbda7; }
+    .empty b { display: block; color: var(--text); font-size: 0.9rem; margin-bottom: 0.15rem; }
+
+    /* ── 검색창 ───────────────────────────────────────────────── */
+    .searchbar {
+      display: flex; align-items: center; gap: 0.5rem; background: #fff;
+      border: 1.5px solid var(--line); border-radius: 999px; padding: 0.2rem 0.85rem;
+      margin-bottom: 0.65rem; box-shadow: var(--sh1); transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .searchbar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3.5px rgba(79, 138, 107, 0.13); }
+    .searchbar svg { color: var(--sub); flex-shrink: 0; }
+    .searchbar input { border: none !important; background: transparent; padding: 0.5rem 0; border-radius: 0; }
+    .searchbar input:focus { box-shadow: none; }
+    .searchbar .x { all: unset; cursor: pointer; color: var(--sub); font-weight: 800; padding: 0 0.2rem; }
+
+    /* ── 세그먼트 토글 (목록 | 달력) ──────────────────────────── */
+    .seg { display: inline-flex; background: rgba(120, 96, 66, 0.08); border-radius: 999px; padding: 3px; gap: 2px; }
+    .seg button {
+      all: unset; padding: 0.34rem 0.95rem; border-radius: 999px; cursor: pointer;
+      font-size: 0.76rem; font-weight: 700; color: var(--sub); transition: background 0.16s, color 0.16s;
+    }
+    .seg button.on { background: #fff; color: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.09); }
+
+    /* ── 달력 ─────────────────────────────────────────────────── */
+    .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal .dh { font-size: 0.66rem; font-weight: 700; color: var(--sub); text-align: center; padding: 0.25rem 0 0.35rem; }
+    .cal .dh.sun { color: var(--danger); }
+    .cal .cell {
+      all: unset; aspect-ratio: 1 / 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 3px; font-size: 0.82rem; border-radius: 11px; cursor: pointer; border: 1.5px solid transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+    .cal .cell.off { color: var(--sub); opacity: 0.35; }
+    .cal .cell.today { border-color: var(--accent); font-weight: 800; color: var(--accent); }
+    .cal .cell.sel { background: var(--accent); color: #fff; font-weight: 800; border-color: var(--accent); }
+    .cal .cell i { display: block; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+    .cal .cell i.warn { background: var(--warn); }
+    .cal .cell.sel i { background: #fff; }
+    .cal .cell .pad { height: 5px; }
+
+    /* ── 홈 인사 히어로 ───────────────────────────────────────── */
+    .hero {
+      position: relative; overflow: hidden; margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #eff7f1 0%, #fffdf8 62%);
+      border: 1px solid var(--line); border-radius: 20px; padding: 1.05rem 1.15rem; box-shadow: var(--sh2);
+    }
+    .hero::after {
+      content: ''; position: absolute; right: -34px; top: -46px; width: 128px; height: 128px;
+      border-radius: 50%; background: rgba(79, 138, 107, 0.09);
+    }
+    .hero .date { font-size: 0.72rem; color: var(--sub); letter-spacing: 0.02em; }
+    .hero .hi { font-family: 'Gowun Batang', serif; font-size: 1.22rem; line-height: 1.45; margin-top: 0.15rem; position: relative; }
+    .hero .sub { font-size: 0.8rem; color: var(--sub); margin-top: 0.3rem; position: relative; }
+    .hero .sub b { color: var(--accent); }
+
+    /* ── 미니 차트 ────────────────────────────────────────────── */
+    .chartwrap svg { display: block; width: 100%; height: auto; }
+    .chartlabels { display: flex; margin-top: 0.25rem; }
+    .chartlabels span { flex: 1; text-align: center; font-size: 0.64rem; color: var(--sub); }
+    .chartlabels span.on { color: var(--accent); font-weight: 800; }
 
     /* ── 앱 셸 ────────────────────────────────────────────────── */
     #appbar {
@@ -129,7 +203,12 @@
       font-size: 0.66rem; font-weight: 700;
     }
     .tab.on { color: var(--accent); }
-    .tab svg { width: 22px; height: 22px; }
+    .tab.on::before {
+      content: ''; position: absolute; top: 0; width: 24px; height: 3px;
+      border-radius: 0 0 3px 3px; background: var(--accent);
+    }
+    .tab svg { width: 22px; height: 22px; transition: transform 0.18s; }
+    .tab.on svg { transform: translateY(-1px); }
     .tab .dot {
       position: absolute; top: 6px; left: 50%; margin-left: 4px;
       min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px;
@@ -138,13 +217,26 @@
     }
 
     /* ── 홈 ───────────────────────────────────────────────────── */
+    /* 요약 3칸 — 숫자를 크게, 라벨은 muted, 아이콘은 색 배경 위에.
+       세 칸이 같은 회색이면 눈이 어디에 먼저 갈지 못 정한다. */
     .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-bottom: 0.7rem; }
     .stat {
-      background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-      padding: 0.75rem 0.6rem; text-align: center; cursor: pointer;
+      background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+      padding: 0.8rem 0.6rem 0.7rem; cursor: pointer; box-shadow: var(--sh1);
+      transition: transform 0.12s, box-shadow 0.16s; text-align: left;
     }
-    .stat b { display: block; font-size: 1.15rem; line-height: 1.3; }
-    .stat span { font-size: 0.68rem; color: var(--sub); }
+    .stat:active { transform: scale(0.97); box-shadow: var(--sh1); }
+    .stat .ic {
+      width: 30px; height: 30px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      margin-bottom: 0.45rem;
+    }
+    .stat .ic svg { width: 16px; height: 16px; }
+    .stat.c-warn .ic { background: rgba(232, 89, 12, 0.13); color: var(--warn); }
+    .stat.c-blue .ic { background: rgba(107, 143, 191, 0.15); color: #5b7fb0; }
+    .stat.c-green .ic { background: var(--accent-soft); color: var(--accent); }
+    .stat b { display: block; font-size: 1.32rem; line-height: 1.2; letter-spacing: -0.02em; }
+    .stat b .u { font-size: 0.68rem; font-weight: 700; margin-left: 1px; }
+    .stat span { font-size: 0.68rem; color: var(--sub); display: block; margin-top: 0.15rem; }
 
     .switch-card { border: 1.5px solid var(--line); }
     .switch-card.on { border-color: var(--accent); background: linear-gradient(135deg, var(--accent-soft), #fff); }
@@ -173,19 +265,33 @@
     .thread { display: flex; gap: 0.75rem; align-items: center; padding: 0.85rem 1rem; cursor: pointer; border-bottom: 1px solid var(--line); }
     .thread:last-child { border-bottom: none; }
     .thread:active { background: var(--bg); }
-    .thread .av {
-      width: 44px; height: 44px; border-radius: 15px; flex-shrink: 0; background: var(--accent-soft);
-      color: var(--accent); display: flex; align-items: center; justify-content: center; font-weight: 700;
+    /* 아바타는 이름 해시로 파스텔 6색 — 이름을 다 읽기 전에 '누구'인지 색으로 먼저 안다 */
+    .pav {
+      width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; position: relative;
+      display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem;
+      font-family: 'Gowun Batang', serif;
     }
-    .thread.unread .av { background: var(--accent); color: #fff; }
+    .pav.c0 { background: #fbe4d6; color: #b5643a; }
+    .pav.c1 { background: #dcefe2; color: #3f7d5c; }
+    .pav.c2 { background: #e5e2f6; color: #6058a3; }
+    .pav.c3 { background: #d9ecf4; color: #37718c; }
+    .pav.c4 { background: #f8eccd; color: #9c7620; }
+    .pav.c5 { background: #f8dfe3; color: #a9556a; }
+    .pav.sm { width: 30px; height: 30px; font-size: 0.8rem; }
+    .thread.unread .pav::after {
+      content: ''; position: absolute; right: -1px; bottom: -1px; width: 11px; height: 11px;
+      border-radius: 50%; background: var(--warn); border: 2px solid var(--card);
+    }
     .thread .nm { font-size: 0.92rem; font-weight: 700; }
     .thread .pv { font-size: 0.8rem; color: var(--sub); }
     .thread.unread .pv { color: var(--text); font-weight: 500; }
+    .thread .pv mark { background: rgba(232, 89, 12, 0.18); color: inherit; border-radius: 3px; padding: 0 1px; }
     .thread .rt { font-size: 0.68rem; color: var(--sub); text-align: right; flex-shrink: 0; }
     .thread .cnt {
-      display: inline-block; margin-top: 0.25rem; min-width: 19px; height: 19px; padding: 0 5px;
-      border-radius: 999px; background: var(--warn); color: #fff; font-size: 0.66rem; font-weight: 800;
-      line-height: 19px; text-align: center;
+      display: inline-block; margin-top: 0.3rem; min-width: 20px; height: 20px; padding: 0 6px;
+      border-radius: 999px; background: linear-gradient(140deg, #f07327, #e04e0c); color: #fff;
+      font-size: 0.66rem; font-weight: 800; line-height: 20px; text-align: center;
+      box-shadow: 0 2px 6px rgba(224, 78, 12, 0.32);
     }
 
     /* 대화방 — 탭바 위를 덮는 전체화면 */
@@ -196,11 +302,24 @@
       background: rgba(250, 245, 238, 0.96); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line);
     }
     #chatroom .msgs { flex: 1; overflow-y: auto; padding: 1rem 0.9rem 0.6rem; -webkit-overflow-scrolling: touch; }
+    /* 입력부는 [빠른 답장 칩 줄 + 입력창]이 한 덩어리다 — 테두리는 덩어리에 준다 */
+    #chatroom .compwrap { background: rgba(255, 255, 255, 0.98); border-top: 1px solid var(--line); }
     #chatroom .comp {
-      display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.6rem 0.8rem;
+      display: flex; gap: 0.5rem; align-items: flex-end; padding: 0.5rem 0.8rem;
       padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
-      background: rgba(255, 255, 255, 0.98); border-top: 1px solid var(--line);
     }
+    #qrbar {
+      display: flex; gap: 0.35rem; overflow-x: auto; padding: 0.5rem 0.8rem 0.1rem;
+      scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    #qrbar::-webkit-scrollbar { display: none; }
+    #qrbar button {
+      all: unset; flex-shrink: 0; cursor: pointer; font-size: 0.75rem; font-weight: 600;
+      padding: 0.33rem 0.75rem; border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+      max-width: 62vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #qrbar button:active { transform: scale(0.96); }
+    #qrbar button.edit { background: var(--bg); color: var(--sub); border: 1px solid var(--line); }
     #chatroom .comp textarea {
       flex: 1; max-height: 110px; min-height: 44px; resize: none; border-radius: 22px; padding: 0.7rem 1rem; line-height: 1.4;
     }
@@ -254,14 +373,40 @@
     #sheet-body label { display: block; margin-bottom: 0.7rem; }
     #sheet-body label > span { font-size: 0.76rem; color: var(--sub); display: block; margin-bottom: 0.25rem; }
 
+    /* 시트 안 메뉴 줄 */
+    .menurow {
+      all: unset; display: flex; align-items: center; gap: 0.7rem; width: 100%; box-sizing: border-box;
+      cursor: pointer; padding: 0.85rem 0.9rem; border-radius: 14px; background: var(--card);
+      border: 1px solid var(--line); margin-bottom: 0.45rem; font-size: 0.9rem; font-weight: 600;
+    }
+    .menurow:active { background: var(--accent-soft); }
+    .menurow .mi {
+      width: 34px; height: 34px; border-radius: 11px; background: var(--accent-soft); color: var(--accent);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .menurow .ms { font-size: 0.72rem; color: var(--sub); font-weight: 500; }
+
+    /* 예약 한 줄 — 시간을 왼쪽에 크게 세워 두면 훑기만 해도 하루가 읽힌다 */
+    .bkitem { display: flex; gap: 0.85rem; align-items: flex-start; }
+    .bktime {
+      width: 62px; flex-shrink: 0; text-align: center; padding: 0.35rem 0; border-radius: 12px;
+      background: var(--bg); border: 1px solid var(--line);
+    }
+    .bktime b { display: block; font-size: 1.02rem; line-height: 1.25; letter-spacing: -0.02em; }
+    .bktime span { display: block; font-size: 0.63rem; color: var(--sub); }
+    .bktime.hot { background: var(--accent-soft); border-color: rgba(79, 138, 107, 0.35); }
+    .bktime.hot b { color: var(--accent); }
+
     /* 토스트 */
     #toast {
       position: fixed; left: 50%; bottom: calc(var(--tabh) + 1.2rem + env(safe-area-inset-bottom));
-      transform: translateX(-50%); z-index: 300; background: rgba(40, 34, 28, 0.94); color: #fff;
-      padding: 0.6rem 1.1rem; border-radius: 999px; font-size: 0.82rem; font-weight: 500;
-      opacity: 0; pointer-events: none; transition: opacity 0.25s; max-width: 90vw; text-align: center;
+      z-index: 300; background: rgba(40, 34, 28, 0.95); color: #fff;
+      padding: 0.62rem 1.15rem; border-radius: 999px; font-size: 0.82rem; font-weight: 500;
+      opacity: 0; pointer-events: none; max-width: 90vw; text-align: center;
+      transform: translateX(-50%) translateY(10px); transition: opacity 0.24s, transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+      box-shadow: 0 10px 28px rgba(30, 25, 20, 0.3); backdrop-filter: blur(6px);
     }
-    #toast.on { opacity: 1; }
+    #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
@@ -349,13 +494,20 @@
       <!-- 숙제는 예약이 있어야만 낼 수 있던 기능이었다. 스레드에는 clientId 가 있으니
            바로상담만 한 내담자에게도 여기서 바로 낼 수 있다. -->
       <button class="btn soft sm" data-act="hw-open">숙제</button>
+      <button class="iconbtn" data-act="room-menu" aria-label="대화 메뉴">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+      </button>
     </div>
     <div class="msgs" id="room-msgs"></div>
-    <div class="comp">
-      <textarea id="room-input" rows="1" placeholder="메시지를 입력하세요" enterkeyhint="send"></textarea>
-      <button class="send" data-act="room-send" aria-label="전송">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-      </button>
+    <div class="compwrap">
+      <!-- 빠른 답장 칩 — 진료 사이 3분에 답장을 쓰게 하려면 '고르기'가 '타이핑'보다 빨라야 한다 -->
+      <div id="qrbar"></div>
+      <div class="comp">
+        <textarea id="room-input" rows="1" placeholder="메시지를 입력하세요" enterkeyhint="send"></textarea>
+        <button class="send" data-act="room-send" aria-label="전송">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 

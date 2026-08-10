@@ -29,6 +29,8 @@ const MAX_MESSAGES = 40;
 const MAX_TTS_CHARS = 2000;
 
 import { handleMarket } from "./market.js";
+import { resolveCounselor } from "./auth.js";
+export { ChatHub } from "./hub.js";
 
 // ── 남용 방어 ───────────────────────────────────────────────────────────
 //  이 Worker 는 인증이 없다. 주소가 앱 JS 안에 그대로 있으니 누구나 긁어서
@@ -100,6 +102,27 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
     const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
+
+    // ── 실시간 웹소켓 (/ws?ch=cl:<clientId> | c:<counselorId>) ──────────
+    //  받는 쪽이 8~15초 폴링을 기다리던 것을, 저장 즉시 밀어주는 것으로 바꾼다.
+    //  상담사 채널은 자격증명으로 본인 확인 — 채널 이름만 알면 남의 대화를
+    //  엿들을 수 있으면 안 된다. 내담자 채널은 기기 고유 clientId 가 곧 열쇠다
+    //  (메시지 조회 GET 과 같은 신뢰 모델).
+    if (path === "/ws") {
+      const u = new URL(request.url);
+      const ch = (u.searchParams.get("ch") || "").slice(0, 120);
+      if (!/^(c|cl):[\w-]{1,80}$/.test(ch)) return json({ error: "bad-channel" }, 400, cors);
+      if (ch.startsWith("c:") && env.DB) {
+        const me = await resolveCounselor(env.DB, {
+          session: (u.searchParams.get("session") || "").slice(0, 128),
+          code: (u.searchParams.get("code") || "").slice(0, 64)
+        }).catch(() => null);
+        if (!me || "c:" + me.id !== ch) return json({ error: "forbidden" }, 403, cors);
+      }
+      if (!env.HUB) return json({ error: "no-hub" }, 503, cors);
+      const stub = env.HUB.get(env.HUB.idFromName(ch));
+      return stub.fetch("https://hub/connect", request);
+    }
 
     // 상담사 마켓(D1)은 GET 도 받는다. 여기서 처리되지 않으면 null 이 와서
     //  아래 AI 경로로 흘러간다 — 두 기능이 한 Worker 를 쓰되 서로 모르게.

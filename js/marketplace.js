@@ -108,6 +108,9 @@
     const sortLabel = (this.SORTS.find(s => s[0] === this._sort) || this.SORTS[0])[1];
     const caret = '<svg width="10" height="10" viewBox="0 0 10 10" style="flex-shrink: 0;"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     row.innerHTML = `
+      <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" title="최신 정보로 새로고침" onclick="window.Marketplace.refresh(this)">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+      </button>
       <button class="cc-chip" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.3rem;" onclick="window.Marketplace.openSortSheet()">${sortLabel} ${caret}</button>
       <button class="cc-chip ${this._availOnly ? 'on' : ''}" style="flex-shrink: 0;" onclick="window.Marketplace.toggleAvail()">바로상담 가능만</button>
  <button class="cc-chip"style="flex-shrink: 0;"onclick="window.Marketplace.requestUserLocation()">${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) :''}<span id="gps-status-text">${this.hasGps ?'내 위치':'내 위치'}</span></button>`;
@@ -424,6 +427,20 @@
             : `<p style="text-align: center; font-size: 0.82rem; color: var(--text-muted); padding: 2rem 0;">아직 등록된 후기가 없어요.</p>`}
         </div>
       </div>`;
+  },
+
+  // 새로고침 — 목록·바로상담 가능 여부를 지금 시점으로 다시 받아온다
+  async refresh(btn) {
+    if (window.Sfx) window.Sfx.play('nav');
+    if (btn) { btn.style.opacity = '0.35'; btn.disabled = true; }
+    try {
+      await Promise.resolve(this.loadServer());
+      await Promise.resolve(this.fetchPresence(true));
+      this.renderCounselors();
+      if (window.App) window.App.showRecordToast('최신 정보로 새로고침했어요');
+    } catch (e) {} finally {
+      if (btn) { btn.style.opacity = ''; btn.disabled = false; }
+    }
   },
 
   // === 바로상담 실시간 상태 (서버 presence) ===
