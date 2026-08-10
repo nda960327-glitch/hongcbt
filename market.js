@@ -14,7 +14,7 @@
 
 import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt } from './auth.js';
 import { handleRtc } from './rtc.js';
-import { handlePush } from './push.js';
+import { handlePush, notifyCounselor } from './push.js';
 import { handleOauth } from './oauth.js';
 import { handleSync } from './sync.js';
 
@@ -540,11 +540,26 @@ export async function handleMarket(request, env, cors, path, ctx) {
     // 연락처는 저장 전에 가린다. 원문을 남겨두면 언젠가 새어 나간다.
     const clean = maskContacts(text);
     const id = rid('cm');
+    // 내담자 메시지면 상담사 기기를 깨운다 (통화는 이미 깨우는데 채팅만 조용했다).
+    //  연타로 보낼 때 폰이 도배되지 않게, 최근 2분 안에 이미 보낸 적 있으면 쉰다.
+    //  판정은 INSERT 전에 — 방금 넣은 내 메시지가 스로틀에 걸리면 안 되니까.
+    let wakeCounselor = false;
+    if (from === 'client') {
+      try {
+        const recent = await db.prepare(
+          "SELECT id FROM chat_msgs WHERE counselor_id = ? AND client_id = ? AND sender = 'client' AND ts > ? LIMIT 1"
+        ).bind(counselorId, clientId, nowMs() - 120000).first();
+        wakeCounselor = !recent;
+      } catch (e) { wakeCounselor = true; }
+    }
     await db.prepare(
       `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
        VALUES (?,?,?,?,?,?,?,?)`
     ).bind(id, counselorId, s(body.counselorName), clientId,
       s(body.clientName) || '익명', from, clean.text, nowMs()).run();
+    if (wakeCounselor && ctx && ctx.waitUntil) {
+      ctx.waitUntil(notifyCounselor(env, counselorId).catch(() => {}));
+    }
     // 시도는 기록해 둔다 — 반복되면 운영자가 보고 조치할 수 있어야 한다
     if (clean.hits) {
       try {
