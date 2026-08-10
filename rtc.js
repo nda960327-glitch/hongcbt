@@ -82,17 +82,46 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   const s = (v, n) => String(v == null ? '' : v).slice(0, n || 64);
 
   // ── 연결에 쓸 서버 목록 ──────────────────────────────────────────────
-  //  STUN 만으로도 대부분 붙지만, 회사망·일부 LTE 는 TURN 이 있어야 한다.
-  //  TURN 자격증명은 시크릿으로만 넣는다.
+  //  STUN 만으로는 한국 LTE(대칭 NAT)끼리 절대 못 붙는다 — TURN 이 필수다.
+  //  공개 무료 릴레이(openrelay)는 죽은 것으로 실측 확인돼 걷어냈다.
+  //  Cloudflare Calls TURN: 시크릿 두 개(CF_TURN_KEY_ID·CF_TURN_KEY_TOKEN)가
+  //  들어오면 짧은 TTL 자격증명을 자동 발급한다 (30분 캐시 — 매 통화마다
+  //  발급 API 를 때리면 느려지고 한도도 먹는다).
   if (path === '/rtc/ice' && method === 'GET') {
     const servers = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
-    if (env.TURN_URL && env.TURN_USER && env.TURN_CRED) {
+    let turn = false;
+
+    if (env.CF_TURN_KEY_ID && env.CF_TURN_KEY_TOKEN) {
+      try {
+        const now = Date.now();
+        if (!globalThis.__turnCache || globalThis.__turnCache.exp < now) {
+          const r = await fetch(
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${env.CF_TURN_KEY_ID}/credentials/generate-ice-servers`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${env.CF_TURN_KEY_TOKEN}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ttl: 3600 }) // 1시간짜리 임시 자격증명 (하드코딩 금지 원칙)
+            }
+          );
+          if (r.ok) {
+            const d = await r.json();
+            globalThis.__turnCache = { servers: d.iceServers || [], exp: now + 30 * 60000 };
+          }
+        }
+        if (globalThis.__turnCache && globalThis.__turnCache.servers.length) {
+          for (const s of globalThis.__turnCache.servers) servers.push(s);
+          turn = true;
+        }
+      } catch (e) {}
+    } else if (env.TURN_URL && env.TURN_USER && env.TURN_CRED) {
+      // 자체 coturn 등을 쓸 때의 예비 경로
       servers.push({
         urls: String(env.TURN_URL).split(',').map(x => x.trim()).filter(Boolean),
         username: env.TURN_USER, credential: env.TURN_CRED
       });
+      turn = true;
     }
-    return json({ iceServers: servers, turn: !!env.TURN_URL }, 200, cors);
+    return json({ iceServers: servers, turn }, 200, cors);
   }
 
   // ── 통화 걸기 (내담자) ───────────────────────────────────────────────

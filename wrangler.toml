@@ -13,11 +13,11 @@ compatibility_date = "2024-11-01"
 #  똑같은 값이 박혀 있어야 하며, 두 값이 다르면 푸시 구독이 조용히 실패합니다.
 [vars]
 # TURN 릴레이 — STUN 만으로는 LTE↔LTE·회사망에서 P2P 가 안 붙는다.
-#  openrelay 는 공개 무료 릴레이(자격증명도 공개값)라 임시로 충분하고,
-#  트래픽이 늘면 Cloudflare Calls TURN 으로 교체할 것 (대시보드에서 발급).
-TURN_URL = "turn:openrelay.metered.ca:80,turn:openrelay.metered.ca:443,turns:openrelay.metered.ca:443?transport=tcp"
-TURN_USER = "openrelayproject"
-TURN_CRED = "openrelayproject"
+#  openrelay(공개 무료)는 2026-08 실측 결과 죽어 있어 제거했다.
+#  Cloudflare Calls TURN 을 쓴다 — 대시보드에서 TURN 앱을 만들고 두 시크릿을 넣으면 켜진다:
+#    npx wrangler secret put CF_TURN_KEY_ID
+#    npx wrangler secret put CF_TURN_KEY_TOKEN
+#  (rtc.js /rtc/ice 가 짧은 TTL 자격증명을 자동 발급·캐시한다)
 VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc"
 VAPID_SUBJECT = "mailto:help@neurumind.com"
 
