@@ -59,6 +59,9 @@
       pc.onconnectionstatechange = async () => {
         const st = pc.connectionState;
         if (st === 'connected') {
+          // 재연결 성공 포함 — 불안정 배너를 걷고 유예 타이머를 푼다
+          clearTimeout(this.graceTimer); this.graceTimer = null;
+          if (this.connectAt) { this._emit('stable', {}); return; }
           // 여기서부터 요금이 붙는다. 시각은 서버가 찍는다 —
           //  기기 시계를 믿으면 조작도 되고 시차도 생긴다.
           const r = await API().json('/api/rtc/connected', {
@@ -72,11 +75,32 @@
         } else if (st === 'failed') {
           this._emit('error', { message: '연결에 실패했어요. 네트워크를 확인하고 다시 걸어주세요.' });
           this.hangup('failed');
-        } else if (st === 'disconnected' || st === 'closed') {
+        } else if (st === 'disconnected') {
+          // LTE↔WiFi 전환 등 — 바로 끊지 않는다. ICE 재협상을 걸고 12초 기다린다.
+          this._emit('unstable', {});
+          this._tryIceRestart();
+          clearTimeout(this.graceTimer);
+          this.graceTimer = setTimeout(() => {
+            if (this.pc && this.pc.connectionState !== 'connected') {
+              this._emit('error', { message: '연결이 끊어졌어요.' });
+              this.hangup('failed');
+            }
+          }, 12000);
+        } else if (st === 'closed') {
           this._emit('state', { state: st });
         }
       };
       return pc;
+    },
+
+    // 네트워크가 바뀌면(LTE↔WiFi) 경로를 다시 뚫는다. 발신자가 새 offer 를 만든다.
+    async _tryIceRestart() {
+      try {
+        if (!this.pc || this.role !== 'client') { this.pc && this.pc.restartIce && this.pc.restartIce(); return; }
+        const offer = await this.pc.createOffer({ iceRestart: true });
+        await this.pc.setLocalDescription(offer);
+        await this._send('offer', offer.sdp);
+      } catch (e) {}
     },
 
     _send(kind, payload) {
@@ -100,11 +124,15 @@
               await this.pc.setLocalDescription(ans);
               this._send('answer', ans.sdp);
             } else if (m.kind === 'answer') {
-              if (!this.pc.currentRemoteDescription) {
+              // 재협상(ICE restart) offer 에 대한 answer 도 받아야 한다 —
+              //  '첫 answer 만'으로 막으면 네트워크 전환 복구가 안 된다
+              if (!this.pc.currentRemoteDescription || this.pc.signalingState === 'have-local-offer') {
                 await this.pc.setRemoteDescription({ type: 'answer', sdp: m.payload });
               }
             } else if (m.kind === 'ice') {
               await this.pc.addIceCandidate(JSON.parse(m.payload));
+            } else if (m.kind === 'ring') {
+              this._emit('peer-ringing', {}); // 상대 기기에서 벨이 울리기 시작했다
             } else if (m.kind === 'bye') {
               this._emit('remote-hangup', {});
               this.hangup('remote', true);
@@ -117,6 +145,7 @@
     // 화면의 시간·요금 표시. 서버 시각 기준이라 양쪽이 같은 숫자를 본다.
     _startTick() {
       clearInterval(this.tickTimer);
+      let n = 0;
       this.tickTimer = setInterval(() => {
         if (!this.connectAt) return;
         const ms = Date.now() - this.connectAt;
@@ -124,6 +153,15 @@
           ms,
           spent: this.rate ? Math.ceil(ms / 30000) * this.rate : 0
         });
+        // 상대가 앱을 강제 종료하면 bye 가 안 온다 — 6초마다 서버에 생사를 묻는다
+        if (++n % 6 === 0 && this.callId) {
+          API().json(`/api/rtc/state?callId=${encodeURIComponent(this.callId)}`).then(d => {
+            if (d && d.ended && this.callId) {
+              this._emit('remote-hangup', {});
+              this.hangup('remote', true);
+            }
+          }).catch(() => {});
+        }
       }, 1000);
     },
 

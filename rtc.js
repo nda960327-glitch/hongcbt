@@ -259,7 +259,9 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   if (path === '/rtc/signal' && method === 'POST') {
     const room = s(body.room, 160), sender = body.sender === 'counselor' ? 'counselor' : 'client';
     const kind = s(body.kind, 12);
-    if (!room || !['offer', 'answer', 'ice', 'bye'].includes(kind)) {
+    // 'ring' = 수신 기기가 "벨 울리는 중"이라고 발신자에게 알리는 신호 —
+    //  이게 있어야 발신 화면이 '전화 거는 중…'에서 '통화 대기 중…'으로 바뀐다.
+    if (!room || !['offer', 'answer', 'ice', 'bye', 'ring'].includes(kind)) {
       return json({ error: 'bad-signal' }, 400, cors);
     }
     await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')

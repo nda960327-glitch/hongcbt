@@ -203,6 +203,9 @@ window.App = {
     this._initNotifRouting();
     // 4.47 오늘의 마음가짐 카드
     this.renderIntentCard();
+    // 4.48 내담자도 카톡처럼: 앱이 꺼져 있어도 답장·숙제가 닿는 웹푸시 + 상시 실시간
+    this._initClientPush();
+    this._initRealtime();
 
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
@@ -1663,7 +1666,13 @@ window.App = {
 
     // 알림 권한 요청 (기능이 켜져 있을 때만, 조용히)
     if (cnt > 0 && 'Notification' in window && Notification.permission === 'default') {
-      setTimeout(() => { try { Notification.requestPermission(); } catch (e) {} }, 3000);
+      setTimeout(() => {
+        try {
+          Notification.requestPermission().then(p => {
+            if (p === 'granted') this._initClientPush(); // 허락한 순간 푸시 구독까지
+          });
+        } catch (e) {}
+      }, 3000);
     }
 
     this._checkinTick();
@@ -2576,6 +2585,90 @@ ${memory || '(없음)'}`;
   },
 
   // 채팅창이 닫혀 있어도 상담사 답장을 받아온다 (1분 틱)
+  // ==========================================================================
+  //  내담자 웹푸시 — 앱을 꺼놔도 상담사 답장·숙제가 폰 알림으로 닿는다.
+  //  푸시에 내용은 싣지 않는다(암호화 비용) — '깨우기'만 오고,
+  //  서비스워커가 알림을 띄우면 눌렀을 때 채팅함으로 데려간다.
+  // ==========================================================================
+  VAPID_PUBLIC: 'BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc',
+
+  async _initClientPush() {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const reg = await navigator.serviceWorker.ready;
+      const toKey = (s) => {
+        const pad = '='.repeat((4 - s.length % 4) % 4);
+        const raw = atob((s + pad).replace(/-/g, '+').replace(/_/g, '/'));
+        const out = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+        return out;
+      };
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: toKey(this.VAPID_PUBLIC)
+      });
+      await window.Api.f('/api/push/client-subscribe', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: this.clientId(), sub: sub.toJSON() })
+      });
+    } catch (e) {} // 권한 거부·미지원은 조용히 — 폴링·웹소켓이 여전히 있다
+  },
+
+  // ==========================================================================
+  //  상시 실시간 — 채팅방을 열어두지 않아도, 앱이 떠 있는 동안은
+  //  상담사 답장·숙제가 도착하는 '순간' 알림함·채팅함에 꽂힌다.
+  // ==========================================================================
+  _initRealtime() {
+    try {
+      const base = (window.LLM && window.LLM.BACKEND_URL || '').replace(/^http/, 'ws').replace(/\/+$/, '');
+      if (!base || this._globalWs) return;
+      const connect = () => {
+        if (this._globalWs) return;
+        let ws;
+        try { ws = new WebSocket(`${base}/ws?ch=cl:${encodeURIComponent(this.clientId())}`); } catch (e) { return; }
+        this._globalWs = ws;
+        ws.onmessage = (e) => {
+          try {
+            const d = JSON.parse(e.data);
+            if (d.type !== 'chat' || !d.msg || d.msg.from !== 'counselor') return;
+            const m = d.msg;
+            if (/^\[통화\]/.test(m.text || '')) return; // 통화 흔적은 통화 흐름이 처리
+            // 그 방이 열려 있으면 방의 웹소켓이 처리한다 — 이중 알림 금지
+            if (document.getElementById('hchat-overlay') && this._hchatWs) return;
+            const key = 'cbt_hchat_' + m.counselorId;
+            const cur = window.Storage._safeGet(key, []) || [];
+            if (cur.some(x => x.sid === m.id)) return;
+            cur.push({ role: 'them', text: m.text, ts: m.ts, sid: m.id });
+            cur.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+            window.Storage._safeSet(key, cur.slice(-200));
+            if (/^\[숙제:/.test(m.text || '')) this._homeworkTick();
+            const c = window.Marketplace ? window.Marketplace.getCounselor(m.counselorId) : null;
+            const name = (c && c.name) || m.counselorName || '상담사';
+            const preview = String(m.text || '').replace(/^\[숙제:[^\]]*\]\s*/, '숙제: ');
+            if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, preview, 'hchat:' + m.counselorId); this.playWoorung(); }
+            this._setNavBadge('counselors', true);
+            this.renderChatInbox();
+          } catch (err) {}
+        };
+        ws.onclose = () => {
+          this._globalWs = null;
+          this._wsRetry = Math.min((this._wsRetry || 0) + 1, 6);
+          setTimeout(connect, 1000 * Math.pow(2, this._wsRetry));
+        };
+        ws.onopen = () => { this._wsRetry = 0; };
+        ws.onerror = () => { try { ws.close(); } catch (err) {} };
+      };
+      connect();
+      // 서비스워커가 '깨우기' 푸시를 받아 앱이 보이는 중이면 → 즉시 동기화
+      if ('serviceWorker' in navigator && navigator.serviceWorker.addEventListener) {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+          if (e && e.data && e.data.type === 'wake') { this._hchatBgTick(); this._homeworkTick(); }
+        });
+      }
+    } catch (e) {}
+  },
+
   // ==========================================================================
   //  내 상담 채팅함 — "그 채팅방을 다시 어디서 보지?"에 대한 답.
   //  대화한 상담사가 상담사 매칭 탭 맨 위에 카톡 목록처럼 쌓인다.

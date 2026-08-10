@@ -119,6 +119,14 @@ export async function notifyCounselor(env, counselorId) {
   return { sent: out.filter(x => x === 'ok').length, total: rows.length, results: out };
 }
 
+// 내담자 한 명의 기기들을 깨운다 — 상담사 답장·숙제가 앱이 꺼져 있어도 닿게.
+//  별도 테이블을 만들지 않고 push_subs 의 counselor_id 칸에 'cl:'+clientId 로
+//  구분해 담는다 (스키마 변경 없이, 같은 정리·실패 처리 로직을 그대로 탄다).
+export async function notifyClient(env, clientId) {
+  if (!clientId) return { sent: 0 };
+  return notifyCounselor(env, 'cl:' + String(clientId).slice(0, 64));
+}
+
 // ── 엔드포인트 ───────────────────────────────────────────────────────
 export async function handlePush(request, env, cors, path, body, url) {
   const db = env.DB;
@@ -143,6 +151,24 @@ export async function handlePush(request, env, cors, path, body, url) {
        VALUES (?,?,?,?,?,0)
        ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, fail_count = 0`
     ).bind(endpoint, counselorId, String(keys.p256dh || '').slice(0, 200),
+           String(keys.auth || '').slice(0, 100), Date.now()).run();
+    return json({ ok: true }, 200, cors);
+  }
+
+  // 내담자 구독 — 내담자에겐 코드가 없다. 기기 고유 clientId 가 곧 본인이다
+  //  (메시지 조회 GET 과 같은 신뢰 모델. 남의 clientId 를 알아내면 그 사람의
+  //   '깨우기 신호'만 받을 뿐, 내용은 어차피 푸시에 실리지 않는다).
+  if (path === '/push/client-subscribe' && method === 'POST') {
+    const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
+    const sub = body.sub || {};
+    const endpoint = String(sub.endpoint || '').slice(0, 900);
+    if (!clientId || !/^https:\/\//.test(endpoint)) return json({ error: 'missing' }, 400, cors);
+    const keys = sub.keys || {};
+    await db.prepare(
+      `INSERT INTO push_subs (endpoint, counselor_id, p256dh, auth, created_at, fail_count)
+       VALUES (?,?,?,?,?,0)
+       ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, fail_count = 0`
+    ).bind(endpoint, 'cl:' + clientId, String(keys.p256dh || '').slice(0, 200),
            String(keys.auth || '').slice(0, 100), Date.now()).run();
     return json({ ok: true }, 200, cors);
   }

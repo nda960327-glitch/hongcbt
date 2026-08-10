@@ -14,7 +14,7 @@
 
 import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt } from './auth.js';
 import { handleRtc } from './rtc.js';
-import { handlePush, notifyCounselor } from './push.js';
+import { handlePush, notifyCounselor, notifyClient } from './push.js';
 import { handleOauth } from './oauth.js';
 import { handleSync } from './sync.js';
 
@@ -415,6 +415,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
           .fetch('https://hub/publish', { method: 'POST', body: evt }).catch(() => {});
         ctx.waitUntil(Promise.all([pub('c:' + me.id), pub('cl:' + clientId)]));
       }
+      // 앱이 꺼져 있어도 숙제는 닿아야 한다
+      if (ctx && ctx.waitUntil) ctx.waitUntil(notifyClient(env, clientId).catch(() => {}));
     } catch (e) {}
     return json({ ok: true, id }, 200, cors);
   }
@@ -567,6 +569,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  연타로 보낼 때 폰이 도배되지 않게, 최근 2분 안에 이미 보낸 적 있으면 쉰다.
     //  판정은 INSERT 전에 — 방금 넣은 내 메시지가 스로틀에 걸리면 안 되니까.
     let wakeCounselor = false;
+    let wakeClient = false;
     if (from === 'client') {
       try {
         const recent = await db.prepare(
@@ -574,6 +577,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
         ).bind(counselorId, clientId, nowMs() - 120000).first();
         wakeCounselor = !recent;
       } catch (e) { wakeCounselor = true; }
+    } else {
+      // 상담사 답장 → 내담자 기기도 깨운다 (같은 2분 스로틀)
+      try {
+        const recent = await db.prepare(
+          "SELECT id FROM chat_msgs WHERE counselor_id = ? AND client_id = ? AND sender = 'counselor' AND ts > ? LIMIT 1"
+        ).bind(counselorId, clientId, nowMs() - 120000).first();
+        wakeClient = !recent;
+      } catch (e) { wakeClient = true; }
     }
     const msgTs = nowMs();
     await db.prepare(
@@ -583,6 +594,9 @@ export async function handleMarket(request, env, cors, path, ctx) {
       s(body.clientName) || '익명', from, clean.text, msgTs).run();
     if (wakeCounselor && ctx && ctx.waitUntil) {
       ctx.waitUntil(notifyCounselor(env, counselorId).catch(() => {}));
+    }
+    if (wakeClient && ctx && ctx.waitUntil) {
+      ctx.waitUntil(notifyClient(env, clientId).catch(() => {}));
     }
     // 실시간: 양쪽 채널의 열린 앱에 즉시 밀어준다 — 이게 없으면 받는 쪽은
     //  다음 폴링(8~15초)까지 감감무소식이라 '카톡보다 느린' 채팅이 된다.

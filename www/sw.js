@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v134';
+﻿const CACHE_NAME = 'cbt-app-v135';
 const ASSETS = [
   './',
   './index.html',
@@ -64,6 +64,24 @@ const ASSETS = [
   './icon-96.png',
   './icon-48.png'
 ];
+
+// 웹푸시 수신 — 본문 없는 '깨우기'만 온다 (내용은 푸시에 싣지 않는다).
+//  앱이 보이는 중이면 앱더러 새로고침하라고만 하고, 아니면 알림을 띄운다.
+self.addEventListener('push', (event) => {
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visible = wins.some(w => w.visibilityState === 'visible');
+    if (visible) {
+      wins.forEach(w => { try { w.postMessage({ type: 'wake' }); } catch (e) {} });
+      return;
+    }
+    await self.registration.showNotification('우렁의사', {
+      body: '새 소식이 도착했어요 — 상담사님의 답장이나 숙제일 수 있어요',
+      icon: 'icon.png', badge: 'icon.png', tag: 'woorung-wake', renotify: true,
+      vibrate: [120, 60, 120], data: { act: 'counselors' }
+    });
+  })());
+});
 
 // 알림 탭 → 앱 열기 + 그 알림이 가리키는 기능으로 이동
 //  data.act 에 'breath' 같은 목적지가 실려 온다. 앱이 떠 있으면 postMessage 로,
