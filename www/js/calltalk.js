@@ -177,7 +177,19 @@ window.CallTalk = {
     if (!window.RtcCall) { this._setStatus('통화 모듈을 불러오지 못했어요'); return; }
     this._humanCounselorId = counselorId;
     window.RtcCall.onEvent = (type, d) => {
-      if (type === 'ringing')  this._setStatus('상담사를 부르는 중…');
+      if (type === 'ringing')  this._setStatus('전화 거는 중…');
+      if (type === 'peer-ringing') this._setStatus('통화 대기 중…'); // 상대 기기에서 벨이 울리기 시작
+      if (type === 'unstable') {
+        // 네트워크가 흔들린다 — 타이머는 유지하되 회색으로, 배너로 알린다
+        this._setStatus('연결이 불안정합니다… 다시 잇는 중');
+        const ck = document.getElementById('call-clock');
+        if (ck) ck.style.color = 'rgba(255,255,255,0.45)';
+      }
+      if (type === 'stable') {
+        this._setStatus('통화 중');
+        const ck = document.getElementById('call-clock');
+        if (ck) ck.style.color = '';
+      }
       if (type === 'connected') {
         this._setStatus('통화 중');
         if (window.App && window.App.ringStop) window.App.ringStop();
@@ -219,25 +231,108 @@ window.CallTalk = {
   _renderHumanOverlay(c, prepaid) {
     const old = document.getElementById('call-overlay');
     if (old) old.remove();
+    const speakerable = 'setSinkId' in HTMLMediaElement.prototype; // 모바일 웹은 대부분 미지원 — 그러면 안 그린다
+    const btn = (id, label, svg) => `
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+        <button id="${id}" style="width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
+          background: rgba(255,255,255,0.2); color: #fff; display: inline-flex; align-items: center; justify-content: center;">${svg}</button>
+        <span id="${id}-lb" style="font-size: 0.72rem; color: rgba(255,255,255,0.75);">${label}</span>
+      </div>`;
     const ov = document.createElement('div');
     ov.id = 'call-overlay';
-    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: linear-gradient(180deg, #2e4237 0%, #1d2c24 100%); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 3rem 1.5rem 2.5rem; color: #f2ede4;';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: linear-gradient(160deg, #37554六 0%, #2e4237 45%, #1d2c24 100%); display: flex; flex-direction: column; align-items: center; padding: calc(1rem + env(safe-area-inset-top)) 1.5rem calc(2.2rem + env(safe-area-inset-bottom)); color: #f7f3ea;'.replace('37554六', '37554a');
     ov.innerHTML = `
-      <div style="text-align: center;">
-        <div id="call-status" style="font-size: 0.85rem; opacity: 0.8;">연결 중…</div>
-        <div id="call-clock" style="font-size: 1.1rem; font-weight: 700; margin-top: 0.3rem;">00:00</div>
+      <button id="call-min" title="최소화" style="all: unset; align-self: flex-start; cursor: pointer; padding: 0.5rem; line-height: 0; color: rgba(255,255,255,0.85);">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div style="flex: 0 0 auto; margin-top: 6vh; text-align: center; width: 100%;">
+        <div style="width: 120px; height: 120px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;
+                    background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.45); font-size: 2.6rem; font-weight: 800; color: #fff;
+                    animation: callPulse 2.2s ease-in-out infinite;">${String(c.name || '상').charAt(0)}</div>
+        <h2 style="margin: 1rem 0 0.15rem; font-size: 1.5rem; font-weight: 600;">${String(c.name || '상담사').replace(/</g, '&lt;')}</h2>
+        <p style="margin: 0 0 0.6rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">${String(c.hospital || '').replace(/</g, '&lt;')}</p>
+        <div id="call-status" style="font-size: 0.94rem; color: rgba(255,255,255,0.7);">전화 거는 중…</div>
+        <div id="call-clock" style="font-size: 1.35rem; font-weight: 700; margin-top: 0.35rem; font-variant-numeric: tabular-nums;">00:00</div>
+        <p id="call-spent" style="margin: 0.7rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `연결 전 무료 · 연결 후 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시`}</p>
       </div>
-      <div style="text-align: center; width: 100%;">
- <div style="width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; margin: 0 auto; font-size: 3rem; animation: callPulse 2.2s ease-in-out infinite;"></div>
-        <h2 style="margin: 1rem 0 0.2rem; font-size: 1.35rem;">${c.name}</h2>
-        <p style="margin: 0; font-size: 0.8rem; opacity: 0.75;">${c.hospital}</p>
-        <p id="call-spent" style="margin: 0.9rem 0 0; font-size: 0.82rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `0캐시 사용 중 · 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}`}</p>
- 
-        <p style="margin: 0.7rem auto 0; font-size: 0.72rem; opacity: 0.65; max-width: 280px; line-height: 1.5;">앱 안에서 바로 연결돼요. <b>전화번호는 서로에게 보이지 않습니다.</b><br>요금은 실제로 연결된 뒤부터 30초 단위로 계산돼요.</p>
+      <div style="flex: 1 1 auto;"></div>
+      <div style="display: flex; align-items: flex-start; justify-content: center; gap: 2rem; margin-bottom: 1.4rem;">
+        ${btn('call-mute', '음소거', '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></svg>')}
+        ${speakerable ? btn('call-spk', '스피커', '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.4 5.6a9 9 0 0 1 0 12.8"/></svg>') : ''}
       </div>
- <button onclick="window.CallTalk.end()"style="width: 68px; height: 68px; border-radius: 50%; border: none; background: #d9534f; color: #fff; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 20px rgba(0,0,0,0.35);"></button>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
+        <button onclick="window.CallTalk.end()" title="통화 종료"
+          style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #ea3323; color: #fff; cursor: pointer;
+                 display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(0,0,0,0.4);">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style="transform: rotate(135deg);"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+        </button>
+        <span style="font-size: 0.72rem; color: rgba(255,255,255,0.7);">종료</span>
+      </div>
       <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
     document.body.appendChild(ov);
+    document.getElementById('call-min').addEventListener('click', () => this.minimize());
+    document.getElementById('call-mute').addEventListener('click', () => this.toggleMute());
+    const spk = document.getElementById('call-spk');
+    if (spk) spk.addEventListener('click', () => this.toggleSpeaker());
+  },
+
+  // === 음소거 — 내 마이크 트랙만 잠근다 (연결은 그대로) ===
+  _muted: false,
+  toggleMute() {
+    try {
+      this._muted = !this._muted;
+      if (window.RtcCall && window.RtcCall.stream) {
+        window.RtcCall.stream.getAudioTracks().forEach(t => { t.enabled = !this._muted; });
+      }
+      const b = document.getElementById('call-mute'), lb = document.getElementById('call-mute-lb');
+      if (b) { b.style.background = this._muted ? '#ffffff' : 'rgba(255,255,255,0.2)'; b.style.color = this._muted ? '#1d2c24' : '#fff'; }
+      if (lb) lb.textContent = this._muted ? '음소거 중' : '음소거';
+    } catch (e) {}
+  },
+
+  _spk: false,
+  async toggleSpeaker() {
+    try {
+      const el = window.RtcCall && window.RtcCall.remote;
+      if (!el || !el.setSinkId) return;
+      this._spk = !this._spk;
+      await el.setSinkId(this._spk ? 'default' : '').catch(() => {});
+      const b = document.getElementById('call-spk');
+      if (b) { b.style.background = this._spk ? '#ffffff' : 'rgba(255,255,255,0.2)'; b.style.color = this._spk ? '#1d2c24' : '#fff'; }
+    } catch (e) {}
+  },
+
+  // === 최소화 — 통화는 이어진 채, 화면 위 32px 바로 줄어든다 ===
+  minimize() {
+    const ov = document.getElementById('call-overlay');
+    if (!ov) return;
+    ov.style.display = 'none';
+    let bar = document.getElementById('call-minibar');
+    if (!bar) {
+      bar = document.createElement('button');
+      bar.id = 'call-minibar';
+      bar.style.cssText = 'all: unset; box-sizing: border-box; position: fixed; top: 0; left: 0; right: 0; z-index: 10000;'
+        + 'height: calc(32px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);'
+        + 'background: #2e4237; color: #fff; font-size: 0.8rem; font-weight: 700; text-align: center; cursor: pointer;'
+        + 'display: flex; align-items: center; justify-content: center; gap: 0.4rem;';
+      bar.addEventListener('click', () => this.restore());
+      document.body.appendChild(bar);
+    }
+    this._updateMiniBar();
+  },
+
+  restore() {
+    const ov = document.getElementById('call-overlay');
+    if (ov) ov.style.display = 'flex';
+    const bar = document.getElementById('call-minibar');
+    if (bar) bar.remove();
+  },
+
+  _updateMiniBar() {
+    const bar = document.getElementById('call-minibar');
+    if (!bar) return;
+    const clock = (document.getElementById('call-clock') || {}).textContent || '00:00';
+    bar.textContent = this._connected ? `📞 통화 중 ${clock} — 탭하면 돌아가요` : '📞 연결 중… — 탭하면 돌아가요';
   },
 
   _updateClock() {
@@ -245,9 +340,14 @@ window.CallTalk = {
     if (!el) return;
     // 벨이 울리는 동안은 00:00 — 통화 시간은 연결된 순간부터만 센다.
     //  (연결 전에 숫자가 올라가면 요금이 나가는 줄 알고 놀란다. 실제로도 안 나간다)
-    if (!this._connected) { el.textContent = '00:00'; return; }
+    if (!this._connected) { el.textContent = '00:00'; this._updateMiniBar(); return; }
     const s = Math.max(0, Math.floor((Date.now() - this._startTs) / 1000));
-    el.textContent = `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    // 1시간을 넘으면 1:02:33 처럼 시(時)를 붙인다
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    el.textContent = h > 0
+      ? `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
+      : `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    this._updateMiniBar();
   },
 
   _setStatus(t) {
@@ -384,12 +484,25 @@ window.CallTalk = {
     }
     const ov = document.getElementById('call-overlay');
     if (ov) ov.remove();
-    // 요약은 정직하게: 연결 안 된 전화는 통화 시간 0초·0캐시다.
-    //  벨 울린 52초를 '통화 시간'이라고 쓰면 돈 나간 줄 알고 놀란다.
+    const mb = document.getElementById('call-minibar');
+    if (mb) mb.remove();
     this._connected = false;
-    window.UI.alert(connected
-      ? `${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(callSecs / 60)}분 ${callSecs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`
-      : `${reason ? reason + '\n\n' : ''}통화가 연결되지 않았어요\n· 통화 시간: 0초\n· 사용 캐시: 0캐시`);
+    this._muted = false;
+    // 종료 UX — 카톡처럼: "통화 종료"를 1.2초 보여주고 채팅방으로 조용히 복귀.
+    //  (요약 숫자는 채팅의 '통화 N분 N초' 칩이 이미 말해준다. 팝업으로 또 막지 않는다)
+    if (humanCall) {
+      const fin = document.createElement('div');
+      fin.style.cssText = 'position: fixed; inset: 0; z-index: 10002; background: rgba(20,28,26,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; color: #f7f3ea;';
+      fin.innerHTML = `<div style="font-size: 1.15rem; font-weight: 700;">${connected ? '통화 종료' : '연결되지 않았어요'}</div>
+        <div style="font-size: 0.82rem; color: rgba(255,255,255,0.65);">${connected ? `${Math.floor(callSecs / 60)}분 ${callSecs % 60}초 · ${this._spent.toLocaleString()}캐시` : '부재중으로 남겨뒀어요 — 채팅으로 이어보세요'}</div>`;
+      document.body.appendChild(fin);
+      setTimeout(() => fin.remove(), 1200);
+    } else {
+      // AI 보이스톡은 기존 요약 유지 (정직한 숫자)
+      window.UI.alert(connected
+        ? `${reason ? reason + '\n\n' : ''}통화 종료\n· 통화 시간: ${Math.floor(callSecs / 60)}분 ${callSecs % 60}초\n· 사용 캐시: ${this._spent.toLocaleString()}캐시`
+        : `${reason ? reason + '\n\n' : ''}통화가 연결되지 않았어요\n· 통화 시간: 0초\n· 사용 캐시: 0캐시`);
+    }
   },
 
   _renderOverlay(p) {

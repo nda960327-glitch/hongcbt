@@ -4090,10 +4090,12 @@ ${body}
             </div>
           </div>`;
         }
-        // 통화 기록 칩 — 메신저처럼 '통화 12:34' / '부재중 전화'가 대화 흐름에 남는다
+        // 통화 기록 칩 — 메신저처럼 '통화 12:34' / '부재중 전화'가 대화 흐름에 남는다.
+        //  부재중 칩은 누르면 바로 다시 건다 (카톡의 부재중 탭 = 재발신)
         if (m.role === 'call') {
           const bad = !m.ok;
-          return `<div style="align-self: center; display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.15rem 0;
+          return `<div ${bad ? `onclick="window.App.startHumanCall('${c.id}')" title="다시 걸기"` : ''}
+            style="align-self: center; ${bad ? 'cursor: pointer;' : ''} display: inline-flex; align-items: center; gap: 0.4rem; margin: 0.15rem 0;
             background: ${bad ? 'color-mix(in srgb, #d9534f 9%, var(--bg-tertiary))' : 'var(--bg-tertiary)'};
             border: 1px solid ${bad ? 'color-mix(in srgb, #d9534f 35%, transparent)' : 'var(--glass-border)'};
             border-radius: 999px; padding: 0.4rem 0.95rem; font-size: 0.78rem; font-weight: 700;

@@ -1404,6 +1404,13 @@ function nameOfClient(clientId) {
 function showIncoming(call) {
   if (CUR_CALL) return;
   CUR_CALL = call;
+  // 발신자에게 "지금 벨 울리는 중"을 알린다 → 저쪽 화면이 '통화 대기 중…'으로 바뀐다
+  try {
+    fetch(API_BASE + '/api/rtc/signal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ room: call.room, sender: 'counselor', kind: 'ring', payload: '1' })
+    }).catch(() => {});
+  } catch (e) {}
   $('call-who').textContent = nameOfClient(call.clientId) + ' 님';
   $('call-st').textContent = '걸려온 상담 전화';
   $('call-clock').textContent = '00:00';
