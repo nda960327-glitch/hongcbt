@@ -1010,6 +1010,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       if (botText.includes("위험감지")) {
         crisis = true;
         botText = botText.replace(/위험감지/g, "").trim();
+        // 다음 날 먼저 안부를 물을 수 있게 시각만 남긴다 (내용은 저장하지 않는다)
+        try {
+          if (window.Storage) window.Storage._safeSet('cbt_crisis_followup', { at: Date.now(), done: false });
+        } catch (e) {}
       }
 
       // 세션 마무리 마커 (사용자가 인사하고 떠나는 흐름)

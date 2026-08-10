@@ -1700,6 +1700,7 @@ window.App = {
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다
       this._morningTick();         // 아침에 딱 한 번, 오늘의 마음가짐을 묻는다
+      this._crisisFollowupTick();  // 힘든 밤 다음 날, 우렁이가 먼저 안부를 묻는다
       this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
@@ -1792,6 +1793,30 @@ window.App = {
          <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--accent-primary);">“${this._escHtml(cur.text)}”</p>`
       : `<p class="home-card__t" style="margin: 0 0 0.15rem;">오늘 하루, 어떤 마음으로 보내고 싶어요?</p>
          <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">한 줄 남기면 우렁이가 하루 끝에 같이 돌아봐줘요 › <b style="color: #6f97ab;">물 +2</b></p>`;
+  },
+
+  // ==========================================================================
+  //  위기 다음 날 안부 — 정말 힘들었던 대화가 있었다면, 다음 날 우렁이가 먼저 찾는다.
+  //  자살 위기 후 24~72시간이 가장 위험하다는 건 임상에서 반복 확인된 사실이고,
+  //  "다음 날 누가 안부를 물어봐 주는 것" 하나가 재접촉률을 크게 올린다.
+  //  위기의 '내용'은 언급하지 않는다 — 그냥 안부만. 12~48시간 사이 딱 한 번.
+  // ==========================================================================
+  _crisisFollowupTick() {
+    try {
+      const f = window.Storage._safeGet('cbt_crisis_followup', null);
+      if (!f || f.done || !f.at) return;
+      const elapsed = Date.now() - f.at;
+      if (elapsed < 12 * 3600000) return;            // 아직 그날이다 — 재촉하지 않는다
+      if (elapsed > 72 * 3600000) {                  // 너무 지났으면 조용히 접는다
+        window.Storage._safeSet('cbt_crisis_followup', { ...f, done: true });
+        return;
+      }
+      const h = new Date().getHours();
+      if (h < 10 || h >= 21) return;                 // 낮 시간에만
+      window.Storage._safeSet('cbt_crisis_followup', { ...f, done: true });
+      const p = window.Personas ? window.Personas.getActive() : { name: '우렁이' };
+      this.notify(p.name, '어제 마음이 많이 무거워 보였어요. 오늘은 조금 어때요? 잠깐이라도 좋으니 이야기해요.', 'chat');
+    } catch (e) {}
   },
 
   // 아침 7~11시, 하루 한 번: 아직 마음가짐이 없으면 우렁이가 먼저 묻는다
