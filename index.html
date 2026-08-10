@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 124;</script>
+  <script>window.APP_BUILD = 125;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -287,7 +287,7 @@
         </div>
         <div style="display: flex; align-items: center; gap: 0.45rem; margin-top: 0.45rem; position: relative;">
           <span id="sub-badge" style="flex: 0 0 auto; font-size: 0.64rem; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 999px; white-space: nowrap;"></span>
-          <!-- 전문 기법 수업 — 메인 CTA (햇님/달님/소나무일 때만) -->
+          <!-- 전문 기법 상담 코스 — 메인 CTA (햇님/달님/소나무일 때만) -->
           <button id="btn-program" style="all: unset; display: none; box-sizing: border-box; flex: 1 1 auto; align-items: center; justify-content: center; text-align: center; font-size: 0.84rem; font-weight: 800; color: #fff; background: var(--gradient-primary); padding: 0.52rem 0.9rem; border-radius: 999px; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-sm);" onclick="window.Personas.openProgram()"></button>
           <span id="chat-tools-spacer" style="flex: 1 1 auto;"></span>
           <!-- 더보기 (검색·상담사 바꾸기·초기화) -->
@@ -309,10 +309,10 @@
       </div>
       <div id="chat-input-area" class="chat-input-area">
         <div class="input-wrapper glass-input">
-          <button id="btn-mic" class="mic-btn" title="음성으로 말하기" style="background: none; border: none; padding: 0.5rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);"><span class="h-ico" data-icon="mic" data-icon-size="20"></span></button>
+          <button id="btn-mic" class="mic-btn" title="음성으로 말하기" aria-label="음성으로 말하기" style="background: none; border: none; padding: 0.5rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);"><span class="h-ico" data-icon="mic" data-icon-size="20"></span></button>
           <textarea id="chat-input" placeholder="마음속 이야기를 적어주세요" rows="1"></textarea>
           <!-- 이모티콘 (카카오톡처럼 전송 버튼 옆) -->
-          <button id="btn-sticker" title="이모티콘 보내기" onclick="window.StickerShop && window.StickerShop.toggleDrawer()" style="background: none; border: none; padding: 0.5rem 0.3rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);">
+          <button id="btn-sticker" title="이모티콘 보내기" aria-label="이모티콘 보내기" onclick="window.StickerShop && window.StickerShop.toggleDrawer()" style="background: none; border: none; padding: 0.5rem 0.3rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: var(--transition-fast);">
             <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
               <circle cx="12" cy="12" r="9"/>
               <path d="M8.3 14.2 q3.7 3.2 7.4 0"/>
@@ -320,7 +320,7 @@
               <circle cx="15" cy="9.8" r="1.15" fill="currentColor" stroke="none"/>
             </svg>
           </button>
-          <button id="chat-send" class="send-btn" disabled>
+          <button id="chat-send" class="send-btn" title="보내기" aria-label="메시지 보내기" disabled>
             <svg viewBox="0 0 24 24" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/></svg>
           </button>
         </div>

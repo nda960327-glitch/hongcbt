@@ -78,8 +78,8 @@ window.ChatViz = {
     window.App.sendMessage();
   },
 
-  // --- 수업카드: 6단계 구조화 수업을 채팅 속 전용 카드로 ----------------------
-  //  args[0] = 페르소나 id (마커를 만든 시점의 상담사). 누르면 수업 소개 시트가 열린다.
+  // --- 수업카드(마커명은 유지): 6단계 구조화 상담을 채팅 속 전용 카드로 --------
+  //  args[0] = 페르소나 id (마커를 만든 시점의 상담사). 누르면 상담 소개 시트가 열린다.
   lesson(args) {
     if (!window.Personas) return '';
     const p = window.Personas.get(args && args[0] ? args[0] : window.Personas.getActive().id);
@@ -104,7 +104,7 @@ window.ChatViz = {
             <button onclick="if (window.Sfx) window.Sfx.play('pop'); window.Personas.openProgram('${p.id}')"
               style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; cursor: pointer;
                      margin-top: 0.5rem; padding: 0.55rem; border-radius: 10px; font-size: 0.84rem; font-weight: 800;
-                     color: #fff; background: ${p.color};">수업 시작하기 ›</button>
+                     color: #fff; background: ${p.color};">상담 시작하기 ›</button>
           </div>
         </div>
       </div>`;
@@ -215,7 +215,7 @@ window.ChatViz = {
       </div>`;
   },
 
-  // --- 수업진행: [그림:수업진행|3|6|고통감내] --------------------------------
+  // --- 수업진행(마커명은 유지): [그림:수업진행|3|6|고통감내] — 상담 코스 단계 표시 ---
   steps(args) {
     const total = this._num(args[1], 1, 8, 6);
     const cur = this._num(args[0], 1, total, 1);
@@ -232,7 +232,7 @@ window.ChatViz = {
     return `
       <div style="min-width: 200px; padding: 0.15rem 0;">
         <div style="display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.4rem;">
-          <strong style="font-size: 0.84rem; color: var(--text-primary);">${label || '수업 진행'}</strong>
+          <strong style="font-size: 0.84rem; color: var(--text-primary);">${label || '상담 진행'}</strong>
           <span style="margin-left: auto; font-size: 0.78rem; font-weight: 800; color: var(--accent-primary);">${cur}<span style="color: var(--text-muted); font-weight: 700;">/${total}</span></span>
         </div>
         <div style="display: flex; gap: 4px;">${dots.join('')}</div>

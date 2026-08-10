@@ -523,7 +523,9 @@ p { color: var(--text-secondary); }
 /* ========== QUICK REPLIES ========== */
 .quick-replies {
   position: absolute;
-  bottom: 84px;
+  /* 입력창 실제 높이 위에 붙인다 — 84px 고정이면 두 줄로 늘어난 입력창에 가려진다
+     (변수는 syncChatInputHeight 가 매번 재서 넣어준다) */
+  bottom: calc(var(--chat-input-h, 74px) + 10px);
   left: 0;
   width: 100%;
   padding: 0.5rem 1.25rem;
@@ -582,7 +584,8 @@ p { color: var(--text-secondary); }
   border: none;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 0.95rem;
+  /* 1rem 미만이면 iOS 사파리가 포커스할 때 화면을 확대해버린다 (그리고 안 돌아온다) */
+  font-size: 1rem;
   padding: 0.5rem;
   resize: none;
   max-height: 120px;

@@ -54,7 +54,10 @@ window.App = {
       chatInput.addEventListener('input', () => {
         this.autoResizeTextarea();
         chatSend.disabled = !chatInput.value.trim();
+        this._saveDraft(chatInput.value);
       });
+      // 쓰다 만 이야기는 앱을 껐다 켜도 남아 있어야 한다 (전화가 오거나 앱이 죽어도)
+      this._restoreDraft();
       chatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
@@ -409,6 +412,7 @@ window.App = {
     if (tabName === 'chat') {
       this.updateSessionUI();
       this._setNavBadge('chat', false); // 확인했으니 미확인 표시 제거
+      this._restoreDraft();             // 쓰다 만 이야기가 있으면 되살린다
       setTimeout(() => this.syncChatInputHeight(), 60);
     }
     if (tabName === 'dashboard') {
@@ -447,6 +451,40 @@ window.App = {
   _replySeq: 0,      // 연속 채팅 배치: 최신 요청만 유효
   _replyTimer: null,
 
+  // === 입력 초안 보존 ===
+  //  마음먹고 쓴 긴 이야기가 앱 전환 한 번에 사라지면, 다시 쓸 마음까지 사라진다.
+  _draftTimer: null,
+  DRAFT_KEY: 'cbt_chat_draft',
+
+  _saveDraft(value) {
+    clearTimeout(this._draftTimer); // 타이핑마다 쓰면 느려진다 — 0.3초 쉬면 저장
+    this._draftTimer = setTimeout(() => {
+      try {
+        const v = (value || '').trim();
+        if (v) localStorage.setItem(this.DRAFT_KEY, value);
+        else localStorage.removeItem(this.DRAFT_KEY);
+      } catch (e) {}
+    }, 300);
+  },
+
+  _clearDraft() {
+    clearTimeout(this._draftTimer);
+    try { localStorage.removeItem(this.DRAFT_KEY); } catch (e) {}
+  },
+
+  // 입력창이 비어 있을 때만 복원한다 (지금 쓰고 있는 글을 덮어쓰면 안 된다)
+  _restoreDraft() {
+    const el = document.getElementById('chat-input');
+    if (!el || el.value.trim()) return;
+    let draft = '';
+    try { draft = localStorage.getItem(this.DRAFT_KEY) || ''; } catch (e) {}
+    if (!draft) return;
+    el.value = draft;
+    this.autoResizeTextarea();
+    const sendBtn = document.getElementById('chat-send');
+    if (sendBtn) sendBtn.disabled = !draft.trim();
+  },
+
   async sendMessage() {
     // 구독 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
     if (window.Subscription && !window.Subscription.guardChat()) return;
@@ -459,6 +497,8 @@ window.App = {
     inputEl.value = '';
     this.autoResizeTextarea();
     this.clearQuickReplies();
+    this._clearDraft();      // 보냈으니 초안은 지운다
+    this._removeRetryPill(); // 새로 말을 걸었으면 지난 실패의 '다시 시도'는 의미가 없다
 
     if (window.Storage) {
       window.Storage.incrementSessions();
@@ -471,9 +511,11 @@ window.App = {
     }
 
     // Display user message
+    // 저장을 먼저 하고 '저장된 객체'를 그린다 — 말풍선이 자기 id 를 알아야
+    //  길게 눌러 삭제할 때 어느 메시지인지 정확히 짚을 수 있다.
     if (window.Sfx) window.Sfx.play('send');
-    this.displayMessage({ role: 'user', text: text });
-    window.Storage.saveMessage({ role: 'user', text: text, timestamp: new Date().toISOString() });
+    const savedUserMsg = window.Storage.saveMessage({ role: 'user', text: text, timestamp: new Date().toISOString() });
+    this.displayMessage(savedUserMsg || { role: 'user', text: text });
 
     // 영속 통계: 총 대화 카운터 + 감정 로그 (대화를 초기화해도 남는다)
     window.Storage._safeSet('cbt_total_chats', ((window.Storage._safeGet('cbt_total_chats', 0)) || 0) + 1);
@@ -483,6 +525,12 @@ window.App = {
     // Show typing indicator
     this.showTypingIndicator();
 
+    this._requestBotReply(text);
+  },
+
+  // 봇 응답 요청만 떼어낸 부분 — 전송과 '다시 시도'가 같은 길을 타게 하려고 분리했다.
+  //  (다시 시도는 사용자 메시지를 새로 저장·표시하지 않고 이 함수만 다시 부른다)
+  _requestBotReply(text, waitMs = 1100) {
     // 연속 채팅 배치: 사람은 메시지를 쪼개 보내니까, 마지막 메시지 후 잠깐
     // 기다렸다가 '한 번만' 답한다. 새 메시지가 오면 이전 예약·응답은 폐기.
     const seq = ++this._replySeq;
@@ -499,7 +547,45 @@ window.App = {
       if (seq !== this._replySeq) return;
       this.removeTypingIndicator();
       await this.displayBotResponses(responses);
-    }, 1100);
+    }, waitMs);
+  },
+
+  // 연결이 끊겨 답을 못 받았을 때, 마지막에 한 말을 그대로 다시 보낸다.
+  //  사용자가 긴 이야기를 처음부터 다시 타이핑하게 두는 건 잔인하다.
+  retryLast() {
+    const msgs = (window.Storage && window.Storage.getMessages()) || [];
+    let last = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user' && msgs[i].text && msgs[i].text.trim()) { last = msgs[i].text; break; }
+    }
+    if (!last) return;
+    this._removeRetryPill();
+    // 실패 안내 말풍선도 함께 걷어낸다 (저장 안 된 화면 전용 말풍선)
+    document.querySelectorAll('#chat-messages .message.transient-msg').forEach(el => el.remove());
+    this.showTypingIndicator();
+    this._requestBotReply(last, 200);
+  },
+
+  _showRetryPill() {
+    this._removeRetryPill();
+    const container = document.getElementById('chat-messages');
+    if (!container) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'chat-retry-pill';
+    wrap.style.cssText = 'align-self: center; margin: 0.1rem auto 0.5rem; width: fit-content;';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '다시 시도';
+    btn.style.cssText = 'border: 1px solid var(--chat-accent, var(--accent-primary)); border-radius: 999px; background: var(--bg-secondary); color: var(--chat-accent, var(--accent-primary)); font-size: 0.78rem; font-weight: 800; padding: 0.36rem 1rem; cursor: pointer;';
+    btn.addEventListener('click', () => { if (window.Sfx) window.Sfx.play('pop'); this.retryLast(); });
+    wrap.appendChild(btn);
+    container.appendChild(wrap);
+    if (this._isNearBottom(container)) this.scrollToBottom();
+  },
+
+  _removeRetryPill() {
+    const p = document.getElementById('chat-retry-pill');
+    if (p) p.remove();
   },
   
   async displayBotResponses(responses) {
@@ -518,15 +604,20 @@ window.App = {
       const pid = window.Personas ? window.Personas.getActive().id : 'woorung';
       if (response.viz) {
         // 시각 카드 말풍선 (음성 없음 — 그림은 읽어줄 것이 없다)
-        this.displayMessage({ role: 'bot', viz: response.viz, persona: pid });
-        window.Storage.saveMessage({ role: 'bot', viz: response.viz, persona: pid, text: '', timestamp: new Date().toISOString() });
+        const saved = window.Storage.saveMessage({ role: 'bot', viz: response.viz, persona: pid, text: '', timestamp: new Date().toISOString() });
+        this.displayMessage(saved || { role: 'bot', viz: response.viz, persona: pid });
       } else if (response.sticker) {
         // 우렁이 스티커 말풍선 (음성 없음)
-        this.displayMessage({ role: 'bot', sticker: response.sticker, persona: pid });
-        window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, persona: pid, text: '', timestamp: new Date().toISOString() });
+        const saved = window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, persona: pid, text: '', timestamp: new Date().toISOString() });
+        this.displayMessage(saved || { role: 'bot', sticker: response.sticker, persona: pid });
+      } else if (response.transient) {
+        // 연결 실패 안내 — 화면에만 띄운다. 저장하면 대화 기록에 남아 다음 프롬프트까지
+        //  오염시키고, 알림으로 밀어내면 사용자는 상담사가 말을 건 줄 안다.
+        this.displayMessage({ role: 'bot', text: response.text, persona: pid, transient: true });
+        this._showRetryPill();
       } else {
-        this.displayMessage({ role: 'bot', text: response.text, persona: pid });
-        window.Storage.saveMessage({ role: 'bot', text: response.text, persona: pid, timestamp: new Date().toISOString() });
+        const saved = window.Storage.saveMessage({ role: 'bot', text: response.text, persona: pid, timestamp: new Date().toISOString() });
+        this.displayMessage(saved || { role: 'bot', text: response.text, persona: pid });
         if (window.Voice) {
           const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
           window.Voice.speak(response.text, personaId);
@@ -565,6 +656,8 @@ window.App = {
 
     const wrapper = document.createElement('div');
     wrapper.className = `message ${msg.role}`;
+    // 저장하지 않는 안내 말풍선 — '다시 시도'로 지울 수 있게 표시해둔다
+    if (msg.transient) wrapper.classList.add('transient-msg');
 
     // 스티커 메시지: 말풍선 없이 캐릭터만 폴짝 (사용자가 보낸 이모티콘은 오른쪽)
     if (msg.sticker && window.Stickers) {
@@ -588,6 +681,7 @@ window.App = {
         `;
       }
       container.appendChild(wrapper);
+      this._bindMsgActions(wrapper, msg);
       this._smartScroll(msg);
       return;
     }
@@ -604,24 +698,29 @@ window.App = {
           </div>`;
         this._tintBubble(wrapper, msg);
         container.appendChild(wrapper);
+        this._bindMsgActions(wrapper, msg);
         this._smartScroll(msg);
         return;
       }
     }
 
+    // 말풍선 본문은 반드시 이스케이프한 뒤 줄바꿈만 <br> 로 되살린다.
+    //  사용자가 <img onerror=...> 를 쳐 넣거나, AI 답변에 태그가 섞여 들어오면
+    //  그대로 innerHTML 에 꽂혀 스크립트가 되기 때문이다.
+    const body = this._escHtml(msg.text || '').replace(/\n/g, '<br>');
     let html = '';
     if (msg.role === 'bot') {
       html = `
         <div class="message-avatar">${this._msgAvatar(msg)}</div>
         <div class="message-bubble">
-          <p>${(msg.text || '').replace(/\n/g, '<br>')}</p>
+          <p>${body}</p>
           <span class="message-time">${time}</span>
         </div>
       `;
     } else {
       html = `
         <div class="message-bubble">
-          <p>${(msg.text || '').replace(/\n/g, '<br>')}</p>
+          <p>${body}</p>
           <span class="message-time">${time}</span>
         </div>
       `;
@@ -630,7 +729,147 @@ window.App = {
     wrapper.innerHTML = html;
     this._tintBubble(wrapper, msg);
     container.appendChild(wrapper);
+    this._bindMsgActions(wrapper, msg);
     this._smartScroll(msg);
+  },
+
+  // 화면에 넣기 전에 태그가 될 수 있는 글자를 무해한 글자로 바꾼다
+  _escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  },
+
+  // === 말풍선 길게 누르기 → 액션 시트 ===
+  //  카톡처럼 '꾹 눌러 복사/삭제'가 되기를 기대하는데, 지금은 아무 일도 없다.
+  //  주의할 점: 말풍선 안에는 이미 버튼이 산다([그림:버튼] 칩, 수업 카드).
+  //  그래서 ①짧은 탭(=click)이 나면 길게 누르기 판정을 취소하고
+  //         ②길게 눌러 시트를 연 뒤 손을 떼며 생기는 click 은 캡처 단계에서 삼킨다.
+  //  캡처 단계는 안쪽 버튼의 핸들러보다 먼저 도니까 오작동을 막을 수 있다.
+  _bindMsgActions(wrapper, msg) {
+    if (!wrapper || !msg) return;
+    const LONG_MS = 500, MOVE_TOL = 10;
+    let timer = null, sx = 0, sy = 0, opened = false;
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+
+    wrapper.style.webkitTouchCallout = 'none'; // iOS 기본 '이미지 저장' 팝업과 겹치지 않게
+
+    wrapper.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) return;   // 오른쪽 클릭은 contextmenu 가 맡는다
+      opened = false;
+      sx = e.clientX; sy = e.clientY;
+      cancel();
+      timer = setTimeout(() => {
+        timer = null;
+        opened = true;
+        this._openMsgSheet(msg, wrapper);
+      }, LONG_MS);
+    });
+
+    // 손가락이 움직이면 '스크롤하려는 것' — 길게 누르기로 보지 않는다
+    wrapper.addEventListener('pointermove', (e) => {
+      if (!timer) return;
+      if (Math.abs(e.clientX - sx) > MOVE_TOL || Math.abs(e.clientY - sy) > MOVE_TOL) cancel();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => wrapper.addEventListener(ev, cancel));
+
+    wrapper.addEventListener('click', (e) => {
+      if (opened) {           // 시트를 여느라 눌렀던 손가락 → 안쪽 버튼이 눌리면 안 된다
+        e.preventDefault();
+        e.stopPropagation();
+        opened = false;
+        return;
+      }
+      cancel();               // 짧은 탭(말풍선 속 버튼 클릭 포함) → 시트를 열지 않는다
+    }, true);
+
+    wrapper.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      cancel();
+      this._openMsgSheet(msg, wrapper);
+    });
+  },
+
+  _openMsgSheet(msg, wrapper) {
+    if (document.getElementById('msg-action-sheet')) return;
+    const isBot = msg.role === 'bot';
+    const hasText = !!(msg.text && String(msg.text).trim());
+
+    const wrap = document.createElement('div');
+    wrap.id = 'msg-action-sheet';
+    wrap.style.cssText = 'position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,0.38); display: flex; align-items: flex-end;';
+    const preview = hasText ? (msg.text.length > 60 ? msg.text.slice(0, 60) + '…' : msg.text) : (msg.sticker ? '이모티콘' : '카드');
+    wrap.innerHTML = `
+      <div style="width: 100%; background: var(--bg-secondary); border-radius: 20px 20px 0 0; padding: 0.8rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom)); animation: slideUp 0.22s ease;">
+        <div style="width: 38px; height: 4px; border-radius: 2px; background: var(--glass-border); margin: 0 auto 0.8rem;"></div>
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.7rem; line-height: 1.4; word-break: break-all;">${this._escHtml(preview)}</p>
+        <div id="mas-items" style="display: flex; flex-direction: column; gap: 0.4rem;"></div>
+      </div>`;
+    wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+    document.body.appendChild(wrap);
+    if (window.Sfx) window.Sfx.play('pop');
+
+    const list = wrap.querySelector('#mas-items');
+    const addItem = (label, danger, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.style.cssText = `all: unset; box-sizing: border-box; display: block; width: 100%; text-align: left; padding: 0.8rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); font-size: 0.9rem; font-weight: 700; cursor: pointer; color: ${danger ? 'var(--danger)' : 'var(--text-primary)'};`;
+      b.addEventListener('click', () => { wrap.remove(); fn(); });
+      list.appendChild(b);
+    };
+
+    // 스티커·시각 카드는 옮겨 담을 글이 없다 — 삭제만 남긴다
+    if (hasText) {
+      addItem('복사', false, () => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(msg.text)
+            .then(() => this.showRecordToast('복사했어요'))
+            .catch(() => this.showRecordToast('복사하지 못했어요'));
+        } else {
+          this.showRecordToast('이 기기에서는 복사를 지원하지 않아요');
+        }
+      });
+      if (isBot) {
+        addItem('다시 듣기', false, () => {
+          if (!window.Voice || !window.Voice.speak) return;
+          const pid = msg.persona || (window.Personas ? window.Personas.getActive().id : 'woorung');
+          window.Voice.speak(msg.text, pid);
+        });
+      } else {
+        addItem('사고 기록으로', false, () => {
+          if (window.ThoughtRecord && window.ThoughtRecord.showForm) window.ThoughtRecord.showForm({ thought: msg.text });
+        });
+      }
+    }
+    addItem('삭제', true, () => this._deleteMsg(msg, wrapper));
+  },
+
+  // 저장된 메시지에서 이 말풍선 하나를 지운다.
+  //  id 가 있으면 그것으로, 없으면(옛 기록·화면 전용 말풍선) 시각·역할·내용으로 찾는다.
+  async _deleteMsg(msg, wrapper) {
+    if (!(await window.UI.confirm('이 메시지를 대화에서 지울까요?'))) return;
+
+    // 저장되지 않은 안내 말풍선은 화면에서만 걷어내면 끝
+    if (msg.transient) { if (wrapper) wrapper.remove(); this._removeRetryPill(); return; }
+
+    const msgs = (window.Storage && window.Storage.getMessages()) || [];
+    let i = -1;
+    if (msg.id) i = msgs.findIndex(m => m.id === msg.id);
+    if (i < 0) i = msgs.findIndex(m => m.role === msg.role && String(m.timestamp) === String(msg.timestamp) && (m.text || '') === (msg.text || ''));
+    if (i < 0) { // 마지막 방어: 같은 역할·같은 내용 중 가장 나중 것
+      for (let k = msgs.length - 1; k >= 0; k--) {
+        if (msgs[k].role === msg.role && (msgs[k].text || '') === (msg.text || '')) { i = k; break; }
+      }
+    }
+    if (i < 0) { if (wrapper) wrapper.remove(); return; }
+
+    msgs.splice(i, 1);
+    window.Storage._safeSet('cbt_messages', msgs);
+    this.loadExistingMessages();
+    this.showRecordToast('메시지를 지웠어요');
   },
 
   // 상담사마다 말풍선 색을 달리한다.
@@ -694,7 +933,7 @@ window.App = {
     const chip = document.createElement('button');
     chip.id = 'new-msg-chip';
     chip.innerHTML = '<span style="display:inline-flex;align-items:center;gap:0.28rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6 13l6 6 6-6"/></svg>새 메시지</span>';
-    chip.style.cssText = 'position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 5; border: none; border-radius: 999px; background: var(--chat-accent, var(--accent-primary)); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.35rem 0.9rem; cursor: pointer; box-shadow: var(--shadow-sm);';
+    chip.style.cssText = 'position: absolute; top: -34px; left: 50%; transform: translateX(-50%); z-index: 5; border: none; border-radius: 999px; background: var(--chat-accent, var(--accent-primary)); color: #fff; font-size: 0.76rem; font-weight: 800; padding: 0.55rem 0.95rem; cursor: pointer; box-shadow: var(--shadow-sm);';
     chip.addEventListener('click', () => { this.scrollToBottom(); this._hideNewMsgChip(); });
     area.style.position = area.style.position || 'absolute';
     area.appendChild(chip);
@@ -713,7 +952,8 @@ window.App = {
     const existing = document.getElementById('typing-indicator');
     if (existing) {
       this.typingIndicatorElement = existing;
-      this.scrollToBottom();
+      // 옛 대화를 읽는 중이면 끌어내리지 않는다 — 읽던 자리를 잃는 게 더 답답하다
+      if (this._isNearBottom(container)) this.scrollToBottom();
       return existing;
     }
 
@@ -734,9 +974,11 @@ window.App = {
         </div>
       </div>
     `;
+    // 새로 띄울 때도 마찬가지 — 바닥 근처에서 기다리는 중일 때만 따라 내려간다
+    const wasNearBottom = this._isNearBottom(container);
     container.appendChild(wrapper);
     this.typingIndicatorElement = wrapper;
-    this.scrollToBottom();
+    if (wasNearBottom) this.scrollToBottom();
     return wrapper;
   },
   
@@ -829,7 +1071,7 @@ window.App = {
       bar.style.background = `linear-gradient(180deg, color-mix(in srgb, ${p.color} 13%, var(--bg-secondary)), var(--bg-secondary))`;
       bar.style.borderBottomColor = `color-mix(in srgb, ${p.color} 30%, transparent)`;
     }
-    // 전문 기법 수업 버튼 (햇님 CBT · 달님 DBT · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
+    // 전문 기법 상담 버튼 (햇님 CBT · 달님 DBT · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
     const progBtn = document.getElementById('btn-program');
     const spacer = document.getElementById('chat-tools-spacer');
     if (progBtn) {
@@ -1003,8 +1245,8 @@ window.App = {
   personaGreetings: {
     woorung: '안녕하세요, 우렁의사예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
     haru: '안녕! 나는 생각 교정 전문(CBT) 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
-    dalnim: '…안녕하세요, 달님이에요. 저는 변증법적 행동치료(DBT) 상담사예요 — 다 받아주는 것에서 시작해서, 치솟는 감정 파도를 넘기는 기술까지 함께 찾아요. ||| 어디에도 못 꺼낸 말, 미움도 욕도 다듬지 말고 그냥 쏟아내세요. 판단하지 않아요. 그리고 파도가 좀 가라앉으면, 다음에 쓸 기술을 하나 쥐여드릴게요. ||| 감정 다루는 법을 차근차근 배우고 싶다면, 이 코스로 시작하셔도 좋아요. [그림:수업카드]',
-    sonamu: '반갑습니다, 소나무입니다. 저는 수용전념치료(ACT) 상담사예요 — 괴로운 생각과 싸우는 대신, 생각에서 한 발 떨어져 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이나 감정이 있다면 말해보세요. 없애려는 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
+    dalnim: '…안녕하세요, 달님이에요. 여기는 어디에도 못 버린 마음을 쏟아내는 곳이에요. ||| 미움도, 욕도, 찌질한 생각도 다듬지 말고 그냥 쏟아내세요. 놀라지 않아요. 판단하지 않아요. 고치려 들지도 않아요. 그냥 끝까지 듣고, 당신 편에 있을게요. ||| 오늘 쌓인 걸 바닥까지 비우고 싶은 날엔, 이걸로 시작하셔도 좋아요. [그림:수업카드]',
+    sonamu: '반갑습니다, 소나무입니다. 저는 수용전념(ACT)과 마음챙김(MBCT)을 함께 쓰는 상담사예요 — 괴로운 생각과 싸우는 대신 한 발 떨어져 바라보고, 호흡으로 지금 이 순간에 닻을 내리고, 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이 있거나 머리가 시끄럽다면 말해보세요. 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
   },
 
   // 영어/일본어 모드용 첫 인사
@@ -1029,7 +1271,7 @@ window.App = {
       || this.personaGreetings[id] || this.personaGreetings.woorung;
     // '|||' 는 말풍선을 나누라는 내부 기호다. 통째로 뿌리면 화면에 그대로 노출된다.
     const parts = String(text).split('|||').map(t => t.trim()).filter(Boolean);
-    // 인사말에 [그림:수업카드] 가 있으면 그 자리에서 수업 카드 말풍선으로 갈라놓는다
+    // 인사말에 [그림:수업카드] 가 있으면 그 자리에서 상담 카드 말풍선으로 갈라놓는다
     const msgs = [];
     parts.forEach(t => {
       const viz = [];
@@ -2328,16 +2570,22 @@ ${memory || '(없음)'}`;
       const msgs = (window.Storage.getMessages() || []);
       const hits = [];
       msgs.forEach((m, idx) => { if (m.text && m.text.includes(q)) hits.push({ m, idx }); });
+      const esc = (s) => this._escHtml(s);
       if (hits.length === 0) {
-        box.innerHTML = `<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">'${q}'에 대한 대화를 찾지 못했어요.</p>`;
+        box.innerHTML = `<p style="font-size: 0.82rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">'${esc(q)}'에 대한 대화를 찾지 못했어요.</p>`;
         return;
       }
-      box.innerHTML = hits.slice(-60).reverse().map(h => {
+      // 몇 건인지 먼저 알려준다 — 스크롤을 다 내려봐야 감이 오는 건 불친절하다
+      const shown = Math.min(hits.length, 60);
+      const head = `<div style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700; padding: 0 0.2rem 0.1rem;">${hits.length.toLocaleString()}건${hits.length > shown ? ' · 최근 60건만 표시' : ''}</div>`;
+      box.innerHTML = head + hits.slice(-60).reverse().map(h => {
         const t = h.m.timestamp ? new Date(h.m.timestamp).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
         const preview = h.m.text.length > 70 ? h.m.text.slice(0, 70) + '…' : h.m.text;
-        const marked = preview.split(q).join(`<b style="color: var(--accent-primary);">${q}</b>`);
+        // 먼저 이스케이프하고, 그 다음 이스케이프된 검색어를 <mark> 로 감싼다
+        //  (순서를 바꾸면 <mark> 자체가 이스케이프돼 글자로 보인다)
+        const marked = esc(preview).split(esc(q)).join(`<mark style="background: none; color: var(--accent-primary); font-weight: 800;">${esc(q)}</mark>`);
         return `<button data-idx="${h.idx}" class="cs-hit" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: left; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.85rem; cursor: pointer;">
-          <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 0.2rem;">${h.m.role === 'user' ? '나' : '상담사'} · ${t}</div>
+          <div style="font-size: 0.68rem; color: var(--text-muted); margin-bottom: 0.2rem;">${h.m.role === 'user' ? '나' : '상담사'} · ${esc(t)}</div>
           <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.45;">${marked}</div>
         </button>`;
       }).join('');
@@ -2345,19 +2593,39 @@ ${memory || '(없음)'}`;
         const idx = parseInt(btn.dataset.idx, 10);
         ov.remove();
         this.switchTab('chat', true);
-        // 해당 메시지로 스크롤 + 하이라이트 (메시지 DOM 순서 = 저장 순서)
-        const nodes = document.querySelectorAll('#chat-messages .message');
-        const target = nodes[idx];
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          const bubble = target.querySelector('.message-bubble') || target;
-          const orig = bubble.style.boxShadow;
-          bubble.style.boxShadow = '0 0 0 3px var(--accent-primary)';
-          setTimeout(() => { bubble.style.boxShadow = orig; }, 2200);
-        }
+        this._jumpToMessage(idx);
       }));
     };
     input.addEventListener('input', doSearch);
+  },
+
+  // 저장 배열의 idx 번째 메시지로 점프한다.
+  //  화면엔 최근 _chatWindow 개만 그려져 있어서, 저장 인덱스를 그대로 DOM 인덱스로
+  //  쓰면 엉뚱한 말풍선이 잡힌다. 먼저 창을 그 메시지가 들어올 만큼 넓혀 다시 그린 뒤
+  //  (저장 인덱스 - 창 시작 오프셋)으로 보정해서 진짜 그 노드를 찾는다.
+  _jumpToMessage(idx) {
+    const messages = (window.Storage && window.Storage.getMessages()) || [];
+    if (idx < 0 || idx >= messages.length) return;
+
+    const needed = messages.length - idx + 5;
+    if (this._chatWindow < needed) {
+      this._chatWindow = Math.max(this._chatWindow, needed);
+      this.loadExistingMessages();
+    }
+
+    const start = Math.max(0, messages.length - this._chatWindow); // 창 시작 = 첫 렌더 메시지의 저장 인덱스
+    const domIdx = idx - start;                                    // '더 보기' 버튼·날짜 구분선은 .message 가 아니라 셈에서 빠진다
+    const nodes = document.querySelectorAll('#chat-messages .message');
+    const target = nodes[domIdx];
+    if (!target) return;
+    // 탭 전환 직후엔 레이아웃이 아직 안 잡혀 스크롤이 튄다 — 한 프레임 뒤에
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const bubble = target.querySelector('.message-bubble') || target;
+      const orig = bubble.style.boxShadow;
+      bubble.style.boxShadow = '0 0 0 3px var(--accent-primary)';
+      setTimeout(() => { bubble.style.boxShadow = orig; }, 2200);
+    }, 60);
   },
 
   // AI 요약 리포트를 상담사에게 전달

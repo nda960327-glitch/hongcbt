@@ -63,6 +63,15 @@
       { status: 503, headers: { "Content-Type": "application/json" } });
   },
 
+  // 시간 제한이 걸린 fetch. 서버가 응답도 거절도 없이 물고 있으면
+  //  타이핑 표시만 영원히 돌아 사용자는 앱이 멎은 줄 안다. 45초면 끊고 안내한다.
+  _fetchT(url, opts, ms = 45000) {
+    if (typeof AbortController === 'undefined') return fetch(url, opts);
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), ms);
+    return fetch(url, { ...opts, signal: ac.signal }).finally(() => clearTimeout(timer));
+  },
+
   // 채팅 완성 요청. ①동일 출처 프록시 ②Worker ③사용자 개인 키 순으로 시도한다.
   async _chatCompletion(payload) {
     const isHttp = typeof location !== 'undefined' && /^https?:$/.test(location.protocol);
@@ -77,7 +86,7 @@
     // 1. 동일 출처 /api/chat 프록시 (로컬 개발 서버)
     if (this._proxyAvailable !== false && isHttp) {
       try {
-        const r = await fetch("/api/chat", {
+        const r = await this._fetchT("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -97,7 +106,7 @@
     // 2. Cloudflare Worker 프록시 (폰·배포본의 주 경로)
     if (this.BACKEND_URL) {
       try {
-        const r = await fetch(this.BACKEND_URL.replace(/\/+$/, "") + "/chat", {
+        const r = await this._fetchT(this.BACKEND_URL.replace(/\/+$/, "") + "/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -109,7 +118,7 @@
     // 3. 사용자가 직접 넣은 개인 키로 호출 (설정한 사람만)
     const apiKey = this._getApiKey();
     if (!apiKey) return this._noBackend();
-    return fetch("https://api.openai.com/v1/chat/completions", {
+    return this._fetchT("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -563,7 +572,7 @@ DBT 대인관계 효율 기술이 여기 있습니다 — DEAR MAN(원하는 걸
 사용자가 기능 위치·사용법을 물으면 정확히 안내하세요. 안내하며 해당 화면으로 데려다줄 수 있습니다: 답장 안에 [이동:탭이름] 을 포함하면 시스템이 그 탭을 열어줍니다. 탭이름은 home(홈)/chat(챗봇)/counselors(상담사 매칭)/dashboard(대시보드·우렁이 세계)/mypage(마이) 만 가능. 정말 이동이 필요할 때만, 답장 마지막에 딱 하나만 쓰세요.
 
 · 홈: 기분 체크인(물+2), 오늘의 우렁 미션, AI상담/전문상담사 진입, 마음 도구(사고기록·마음안정·하루정리·인지왜곡학습), 맨 아래 '대면상담 및 진료'(제휴 병원·클리닉 안내)
-· AI심리상담 탭(당신, 구 챗봇): 대화 상담. 도구줄에서 보이스톡(30초당 150캐시)·수업(CBT/DBT/ACT)·상담사 변경 가능
+· AI심리상담 탭(당신, 구 챗봇): 대화 상담. 도구줄에서 보이스톡(30초당 150캐시)·상담 코스(CBT/DBT/ACT)·상담사 변경 가능
 · 상담사 매칭: 검증된 병원 소속 상담사 검색·예약(캐시 결제)·채팅 문의
 · 대시보드 = 마음 도구 대시보드(게임): 하단 미니탭으로 방(미니룸 꾸미기)/농장(야채 키우기)/옷장(우렁이 옷)/퀘스트(기분 체크인+오늘 미션, 완료 시 물)/훈장(레벨·뱃지·스트릭 보호권)/서재(우편함·주간편지·월간리포트·감정날씨·감정캘린더·지난밤들). 그 아래 사고 기록지와 AI 상담 요약 리포트(주제별 요약 가능)
 · 마이: 프로필 헤더(이름·레벨·스트릭), 구독/우렁 캐시 카드, 상담 내역, 안전 계획, 대시보드 바로가기, 설정. 상담사 입점 신청은 설정 안에 있음
@@ -579,7 +588,7 @@ DBT 대인관계 효율 기술이 여기 있습니다 — DEAR MAN(원하는 걸
 · 방·농장 아래'물이 고이는 돌봄'5칸 버튼 — 체크인과 퀘스트는 탭 이동 없이 그 자리에서 시트로 열려 바로 처리됨
 · 농장 씨앗: 빈 밭의 ＋를 누르면 아래에 씨앗 목록이 나옴. 상추는 무료, 나머지는 씨앗값(코인)이 듦. 심은 작물은 칸 오른쪽 위 로 뽑을 수 있음(물은 안 돌아옴)
 · 방 꾸미기 아이템은'가구 상점'버튼으로. 옷장은 방의'옷장'버튼(탈의실 거울 씬), 훈장은 방의 작은 버튼으로 들어감. 게임 탭은 방/농장/퀘스트/서재 4개, 레벨·스트릭(나의 우렁이)은 탭 아래 상시 표시
-· AI 상담사 4명과 기법: 우렁의사(통합·일상대화), 햇님(CBT 생각교정 — "햇살 수업"), 달님(DBT 감정 파도 넘기기 — "달빛 수업"), 소나무(ACT 수용전념·가치 — "솔숲 수업"). 상담사 변경은 챗봇 도구줄. 각자 언제 좋은지는 선택 화면 카드에 설명됨
+· AI 상담사 4명과 기법: 우렁의사(통합·일상대화), 햇님(CBT 생각교정 — "햇살 상담"), 달님(공감·수용 경청, 판단 없이 쏟아내는 곳 — "달빛 상담"=마음 비우기), 소나무(ACT+MBCT 수용전념·마음챙김·가치 — "솔숲 상담"). 상담사 변경은 챗봇 도구줄. 각자 언제 좋은지는 선택 화면 카드에 설명됨
 · 이모티콘 서랍(챗봇 도구줄 )은 카톡처럼 아래 탭으로 팩 전환. 햇님/달님/소나무 캐릭터 팩은 각 2,000캐시
 · 기분 체크인은 20분에 한 번. 퀘스트는 완료 후 '더 받기'로 하루 3개까지, '맞춤 숙제 받기'는 최근 대화 기반으로 우렁이(당신)가 처방한 행동 숙제
 안내할 때는 "대시보드 탭 → 아래 농장 버튼" 처럼 손에 잡히게. 기능이 없는 걸 지어내지 마세요.`,
@@ -747,15 +756,15 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 [그림 카드 — 말로 하기 어려운 것을 눈으로]
 [그림:종류|인자|인자] 표식을 쓰면 말풍선 안에 그림 카드가 그려집니다. 인자는 |로 구분합니다.
 · [그림:감정온도|불안|72] — 감정 이름과 0~100 강도. 사용자가 점수를 말했을 때, 또는 점수를 매겨준 직후.
-· [그림:감정파도|화남|80] — 감정을 파도 곡선 위의 '지금 여기'로. 감정이 치솟아 있을 때(달님의 주력).
+· [그림:감정파도|화남|80] — 감정을 파도 곡선 위의 '지금 여기'로. 감정이 치솟아 있을 때, 파도는 반드시 내려온다는 위로가 필요할 때.
 · [그림:생각저울|다 내 잘못이야|내 몫은 여기까지고 나머지는 상황 탓이었어] — 원래 생각 → 다시 본 생각. 인지 재구성을 마쳤을 때(햇님의 주력).
 · [그림:가치나침반|성장|자기 전 10분 책 읽기] — 가치 한 단어와 오늘의 한 걸음. 가치를 찾았을 때(소나무의 주력).
-· [그림:수업진행|3|6|고통감내] — 현재 단계/전체 단계/단계 이름. 구조화 수업 진행 중 매 단계 첫 답장에.
-· [그림:요약카드|오늘의 정리|파도는 지나간다;찬물 세수가 잘 들었다;내일 팀장에게 한 문장 말하기] — 항목은 ;로 구분(최대 6개). 수업이나 긴 대화를 마무리할 때.
+· [그림:수업진행|3|6|고통감내] — 현재 단계/전체 단계/단계 이름. 구조화 상담 진행 중 매 단계 첫 답장에. (표식 이름은 반드시 이 형태 그대로 쓸 것)
+· [그림:요약카드|오늘의 정리|파도는 지나간다;찬물 세수가 잘 들었다;내일 팀장에게 한 문장 말하기] — 항목은 ;로 구분(최대 6개). 상담 코스나 긴 대화를 마무리할 때.
 · [그림:버튼|3분 호흡할래=지금 호흡하고 올게|다른 얘기=다른 얘기 하고 싶어] — 채팅 속 선택 버튼. '라벨=사용자가 보낼 말' 형식, 최대 3개.
-· [그림:수업카드] — 당신의 6단계 수업 코스를 카드로 보여주고 시작 버튼을 답니다. 수업을 권할 때는 "'햇살 수업 시작'이라고 말해봐" 같은 안내 대신 반드시 이 카드를 쓰세요.
+· [그림:수업카드] — 당신의 6단계 상담 코스를 카드로 보여주고 시작 버튼을 답니다. (표식 이름은 반드시 이 형태 그대로 쓸 것) 상담 코스를 권할 때는 "'햇살 상담 시작'이라고 말해봐" 같은 안내 대신 반드시 이 카드를 쓰세요.
 
-규칙: 한 답장에 그림 카드는 1개까지. 매번 쓰지 말고 '그릴 만한 것이 실제로 있을 때'만 — 숫자가 나왔을 때, 생각이 바뀌었을 때, 방향이 정해졌을 때, 선택지를 내밀 때, 수업 단계가 넘어갈 때. 위기·심각한 대화에서는 금지. 표식 앞뒤 말은 평소처럼 자연스럽게 하세요(그림이 말을 대신하지 않습니다).
+규칙: 한 답장에 그림 카드는 1개까지. 매번 쓰지 말고 '그릴 만한 것이 실제로 있을 때'만 — 숫자가 나왔을 때, 생각이 바뀌었을 때, 방향이 정해졌을 때, 선택지를 내밀 때, 상담 단계가 넘어갈 때. 위기·심각한 대화에서는 금지. 표식 앞뒤 말은 평소처럼 자연스럽게 하세요(그림이 말을 대신하지 않습니다).
 버튼은 "이런 거 해볼래?" 하고 손을 내미는 자리에 씁니다 — 사용자가 뭘 해야 할지 몰라 멈추는 순간에.`;
 
     // ── 조건부: 우렁이 의성어 (우렁의사 페르소나일 때만) ──
@@ -825,6 +834,9 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     const messages = [{ role: "system", content: this._buildSystemPrompt(sessionNote) }];
     const recent = history.slice(-this.HISTORY_WINDOW);
     recent.forEach(msg => {
+      // 빈 말풍선(스티커·시각카드는 text 가 '')과 지난 오류 안내는 프롬프트에 넣지 않는다.
+      //  빈 assistant 발화는 맥락만 흐리고, 오류 안내는 상담사가 한 말이 아니다.
+      if (!msg || !msg.text || !String(msg.text).trim() || msg.transient) return;
       if (msg.role === 'user') messages.push({ role: "user", content: msg.text });
       else if (msg.role === 'bot') messages.push({ role: "assistant", content: msg.text });
     });
@@ -876,7 +888,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
         console.error("OpenAI API error status:", response.status);
         // 대본 챗봇으로 몰래 넘기지 않는다. 엉뚱한 답을 진짜 상담인 척 내보내는 것이
         // 솔직한 안내보다 훨씬 해롭기 때문이다.
-        return [{ text: this._offlineNotice(response.status), delay: 300 }];
+        // transient: 화면에만 띄우고 대화 기록엔 남기지 않는다.
+        //  저장해버리면 다음 요청의 히스토리에 '연결 실패' 안내가 상담사 발화로 섞여
+        //  AI 가 자기가 그런 말을 한 줄 알고 이어 말한다.
+        return [{ text: this._offlineNotice(response.status), delay: 300, transient: true }];
       }
 
       const data = await response.json();
@@ -1020,7 +1035,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 
     } catch (error) {
       console.error("Fetch error:", error);
-      return [{ text: this._offlineNotice(null), delay: 300 }];
+      return [{ text: this._offlineNotice(null), delay: 300, transient: true }];
     }
   },
 

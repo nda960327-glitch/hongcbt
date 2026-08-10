@@ -7,6 +7,7 @@
 window.Voice = {
   isListening: false,
   isTtsEnabled: false,
+  _prefix: '',        // 마이크를 켠 순간 입력창에 있던 글 (인식 결과를 뒤에 이어 붙인다)
   recognition: null,
   synth: window.speechSynthesis,
   selectedVoice: null,
@@ -35,9 +36,12 @@ window.Voice = {
         }
         const input = document.getElementById('chat-input');
         if (input) {
-          input.value = transcript;
+          // 이미 타이핑해둔 글 뒤에 이어 붙인다.
+          //  통째로 덮어쓰면 "…까지 썼는데 마이크 눌렀더니 다 날아갔다"가 된다.
+          input.value = (this._prefix || '') + transcript;
           const sendBtn = document.getElementById('chat-send');
-          if (sendBtn) sendBtn.disabled = !transcript.trim();
+          if (sendBtn) sendBtn.disabled = !input.value.trim();
+          if (window.App && window.App.autoResizeTextarea) window.App.autoResizeTextarea();
         }
       };
 
@@ -53,6 +57,7 @@ window.Voice = {
         if (input && input.value.trim() && window.App) {
           window.App.sendMessage();
         }
+        this._prefix = ''; // 다음 마이크는 그때의 입력창을 기준으로 다시 잡는다
       };
     } else {
       console.log('이 브라우저는 Web Speech API 음성 인식을 지원하지 않습니다.');
@@ -106,6 +111,11 @@ window.Voice = {
       this.recognition.stop();
     } else {
       this.stopSpeaking();
+      // 마이크를 누른 순간 입력창에 있던 글을 기억해뒀다가 인식 결과를 그 뒤에 붙인다
+      const input = document.getElementById('chat-input');
+      let prefix = input ? input.value : '';
+      if (prefix && !/\s$/.test(prefix)) prefix += ' ';
+      this._prefix = prefix;
       try {
         this.recognition.start();
       } catch (e) {
