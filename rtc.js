@@ -364,12 +364,17 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  못 받은 쪽이 나중에라도 알고 다시 연락할 수 있다.
     //  안 남기면 상담사는 걸었다는 걸, 내담자는 왔다는 걸 서로 모른다.
     const mm = Math.floor(ms / 60000), ss = Math.round((ms % 60000) / 1000);
-    // 부재중 문구는 '누가 걸었고 누가 못 받았나'를 방향(dir)으로 가른다
+    // 연결 전 종료의 세 얼굴: 건 사람이 끊음=취소 · 받는 사람이 끊음=거절 · 아무도 안 끊음=부재중
     const toClient = r.dir === 'to-client';
+    const caller = toClient ? 'counselor' : 'client';
     const line = !r.connect_at
-      ? (toClient
-        ? (by === 'client' ? '부재중 전화 — 지금 받기 어려워요' : '부재중 전화 — 내담자가 받지 않았어요')
-        : (by === 'counselor' ? '부재중 전화 — 상담사가 지금 받기 어려워요' : '부재중 전화 (받지 않았어요)'))
+      ? (by === 'timeout'
+        ? (toClient ? '부재중 전화 — 내담자가 받지 않았어요' : '부재중 전화 (받지 않았어요)')
+        : by === 'failed'
+          ? '통화 연결 실패'
+          : (by === caller
+            ? '통화 취소'
+            : (toClient ? '부재중 전화 — 지금 받기 어려워요' : '부재중 전화 — 상담사가 지금 받기 어려워요')))
       : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
     await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
     pushCallState(env, ctx, r.counselor_id, r.client_id, 'ended', { callId: id });
