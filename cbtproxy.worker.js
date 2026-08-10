@@ -89,6 +89,25 @@ async function abuseCheck(request, env, body) {
 }
 
 export default {
+  // 야간 청소 (매일 KST 03:00) — 손으로 SQL 을 치던 정리를 자동으로.
+  //  통화 신호·진단·사용량 카운터는 유통기한이 짧다. 안 치우면 D1 만 무거워진다.
+  async scheduled(event, env, ctx) {
+    const db = env.DB;
+    if (!db) return;
+    const t = Date.now();
+    const jobs = [
+      db.prepare('DELETE FROM rtc_signals WHERE ts < ?').bind(t - 30 * 60000),          // 신호 30분
+      db.prepare('DELETE FROM diag WHERE ts < ?').bind(t - 7 * 86400000),               // 진단 7일
+      db.prepare("DELETE FROM usage WHERE day < date('now', '-30 days')"),              // 카운터 30일
+      db.prepare("DELETE FROM blocks WHERE day < date('now', '-30 days')"),
+      // 죽은 통화 전역 수거 — 통화 중 양쪽이 다 사라진 뒤 아무 요청도 없으면
+      //  요청-시점 리퍼가 영영 안 돌 수 있다. 하루 한 번은 반드시 청소한다.
+      db.prepare("UPDATE calls SET end_at = ?, end_by = 'dead', billed = 0 WHERE end_at = 0 AND ring_at < ?").bind(t, t - 2 * 3600000),
+      db.prepare('UPDATE counselors SET busy_until = 0 WHERE busy_until > 0 AND busy_until < ?').bind(t)
+    ];
+    try { await db.batch(jobs); } catch (e) {}
+  },
+
   async fetch(request, env, ctx) {
     const origin = env.ALLOWED_ORIGIN || "*";
     const cors = {

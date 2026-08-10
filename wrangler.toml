@@ -41,3 +41,7 @@ class_name = "ChatHub"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["ChatHub"]
+
+# 야간 청소 — 한국시간 새벽 3시(UTC 18시)에 오래된 기록을 정리한다
+[triggers]
+crons = ["0 18 * * *"]

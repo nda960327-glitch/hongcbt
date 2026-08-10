@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 141;</script>
+  <script>window.APP_BUILD = 142;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -155,6 +155,9 @@
 
       <!-- 오늘의 마음가짐 — 아침에 정한 한 줄이 하루를 붙든다 (렌더는 App.renderIntentCard) -->
       <div id="intent-card" class="glass-card home-card hidden" style="cursor: pointer; padding: 0.8rem 1.05rem;" onclick="window.App.openIntent()"></div>
+
+      <!-- 오늘의 우렁 카드 — 하루 한 장 (렌더는 Cards.render) -->
+      <div id="daily-card" class="glass-card home-card hidden" style="padding: 0.85rem 1.05rem;"></div>
 
       <!-- 오늘의 우렁 미션 (행동활성화) -->
       <div class="glass-card home-card">
@@ -1425,6 +1428,7 @@
   <script defer src="js/icons.js"></script>
   <script defer src="js/storage.js"></script>
   <script defer src="js/inbox.js"></script>
+  <script defer src="js/cards.js"></script>
   <script defer src="js/chatviz.js"></script>
   <script defer src="js/memory-vault.js"></script>
   <script defer src="js/personas.js"></script>

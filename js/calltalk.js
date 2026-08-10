@@ -576,12 +576,25 @@ window.CallTalk = {
     if (humanCall && callee) {
       try {
         const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
-        const recent = logs.find(l => l.counselorId === callee.id && !l.result);
+        let recent = logs.find(l => l.counselorId === callee.id && !l.result);
+        // 상담사가 걸어온 통화는 startHuman 을 안 거쳐 로그가 없다 — 여기서 만든다
+        if (!recent && connected) {
+          recent = { ts: Date.now() - callSecs * 1000, counselorId: callee.id, name: callee.name, mode: '상담사 발신' };
+          logs.unshift(recent);
+        }
         if (recent) {
           recent.result = connected ? 'done' : 'missed';
           recent.secs = callSecs;
           recent.spent = this._spent;
-          window.Storage._safeSet('cbt_call_logs', logs);
+          window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
+        }
+        // 1분 넘게 실제 상담했다면 — 기억이 생생할 때 딱 한 번 리뷰를 청한다
+        if (connected && callSecs >= 60 && recent && window.App && window.App.writeCallReview) {
+          const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
+          if (!reviews['call_' + recent.ts]) {
+            const ts = recent.ts;
+            setTimeout(() => { try { window.App.writeCallReview(ts); } catch (e) {} }, 1600);
+          }
         }
       } catch (e) {}
     }

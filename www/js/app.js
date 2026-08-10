@@ -201,8 +201,9 @@ window.App = {
     this.initCheckins();
     // 4.46 알림을 눌러서 들어왔을 때 그 기능으로 데려다준다
     this._initNotifRouting();
-    // 4.47 오늘의 마음가짐 카드
+    // 4.47 오늘의 마음가짐 카드 + 오늘의 우렁 카드
     this.renderIntentCard();
+    if (window.Cards) window.Cards.render();
     // 4.48 내담자도 카톡처럼: 앱이 꺼져 있어도 답장·숙제가 닿는 웹푸시 + 상시 실시간
     this._initClientPush();
     this._initRealtime();
@@ -1754,6 +1755,7 @@ window.App = {
       this._morningTick();         // 아침에 딱 한 번, 오늘의 마음가짐을 묻는다
       this._crisisFollowupTick();  // 힘든 밤 다음 날, 우렁이가 먼저 안부를 묻는다
       this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
+      if (window.Cards) window.Cards.render();
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
       const fired = window.Storage._safeGet('cbt_checkin_fired', []);
