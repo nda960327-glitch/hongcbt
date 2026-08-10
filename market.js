@@ -134,6 +134,20 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (r) return r;
   }
 
+  // 원격 진단 — 실기기의 통화가 어느 단계에서 죽는지 서버가 알아야 고친다
+  if (path === '/diag' && method === 'POST') {
+    try {
+      await db.prepare('INSERT INTO diag (id, ts, app, who, build, stage, msg) VALUES (?,?,?,?,?,?,?)')
+        .bind(rid('dg'), nowMs(), s(body.app, 20), s(body.who, 16), s(body.build, 12),
+              s(body.stage, 40), s(body.msg, 200)).run();
+      // 쌓이기만 하면 안 되니 가끔 一주일 지난 것을 지운다
+      if (Math.random() < 0.02) {
+        await db.prepare('DELETE FROM diag WHERE ts < ?').bind(nowMs() - 7 * 86400000).run();
+      }
+    } catch (e) {}
+    return json({ ok: true }, 200, cors);
+  }
+
   // 앱 내 음성통화 — 시그널링·과금
   if (path.startsWith('/rtc/')) {
     const r = await handleRtc(request, env, cors, path, body, url, ctx);

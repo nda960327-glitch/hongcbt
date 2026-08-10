@@ -3926,28 +3926,11 @@ ${body}
         : '';
       if (!await window.UI.confirm(`${c.name}님과 바로상담(보이스톡)\n30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시가 실시간 차감됩니다.\n(예약 상담료 기준 자동 책정 · 쓴 만큼만 결제)${bkWarn}\n\n연결할까요?`)) return;
     }
-    // 서버 회선 점유: 다른 내담자가 이미 통화 중이면 연결하지 않는다
-    window.Api.f('/api/call/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ counselorId: c.id, clientId: this.clientId(), prepaid })
-    }).then(async res => {
-      if (res.status === 409) {
-        const d = await res.json().catch(() => ({}));
-        if (window.Marketplace) window.Marketplace.fetchPresence(true);
-        if (d.reason === 'busy') {
- if (await window.UI.confirm(`${c.name}님이 지금 다른 내담자와 통화 중이에요. \n\n 다음 순서로 대기를 걸어둘까요?\n회선이 비면 바로 알려드려요. (확인=대기 / 취소=그냥 닫기)`)) this.joinCallQueue(c.id);
-        } else {
-          window.UI.alert(`${c.name}님이 방금 부재중으로 전환했어요.\n예약을 잡아두시면 그 시간엔 확실히 연결됩니다.`);
-        }
-        return;
-      }
-      // 200 성공 또는 서버 미연결(404 등) — 데모 폴백으로 통화 진행
-      window.CallTalk.startHuman(c.id, { prepaid });
-    }).catch(() => {
-      // 오프라인: 회선 관리 없이 데모 통화
-      window.CallTalk.startHuman(c.id, { prepaid });
-    });
+    // 회선 점유는 /rtc/start 가 원자적으로 한다.
+    //  예전엔 여기서 /api/call/start 로 미리 잠갔는데, 그 잠금이 몇 초 뒤
+    //  자기 자신의 /rtc/start 를 '통화 중'으로 튕겨내는 자충수였다 —
+    //  상담사에게 전화가 '단 한 번도' 안 간 진짜 원인.
+    window.CallTalk.startHuman(c.id, { prepaid });
   },
 
   // ==========================================================================

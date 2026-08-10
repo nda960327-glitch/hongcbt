@@ -61,6 +61,8 @@ window.CallTalk = {
       // 과금은 받는 순간부터다. 벨이 울리는 동안 돈이 나가면 사기다 —
       //  시계도 여기서 0부터 다시 센다 (연결음은 통화 시간이 아니다).
       this._connected = true;
+      clearTimeout(this._noAnswerTimer);
+      clearTimeout(this._connTimer);
       this._startTs = Date.now();
       this._lastTalk = Date.now();
       this._bill();
@@ -131,8 +133,24 @@ window.CallTalk = {
     //  멈추는 곳은 셋뿐: 받았을 때(connected) · 실패했을 때(error) · 끊었을 때(end)
     if (window.App && window.App.ringStart) window.App.ringStart();
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
+    this._wakeLock(); // 통화 중 화면이 잠들면 브라우저가 페이지를 얼린다
+    // 60초 무응답이면 접는다 — '연결 중'을 영원히 보게 두지 않는다
+    clearTimeout(this._noAnswerTimer);
+    this._noAnswerTimer = setTimeout(() => {
+      if (this._active && !this._connected) this.end('받지 않아요 — 부재중으로 남겼어요');
+    }, 60000);
     // 과금과 회기권 30분 계산은 여기서 시작하지 않는다 —
     //  상담사가 실제로 받은 순간(connected 이벤트)부터다. 벨 울리는 동안은 무료.
+  },
+
+  // 화면 꺼짐 방지 — 꺼지는 순간 모바일 브라우저가 통화(페이지)를 얼려버린다
+  async _wakeLock() {
+    try {
+      if ('wakeLock' in navigator) this._wl = await navigator.wakeLock.request('screen');
+    } catch (e) {}
+  },
+  _wakeUnlock() {
+    try { if (this._wl) { this._wl.release(); this._wl = null; } } catch (e) {}
   },
 
   // 과금 시작 — 반드시 상담사가 받은 뒤에만 부른다.
@@ -141,6 +159,8 @@ window.CallTalk = {
     if (this._billStarted || !this._active) return;
     this._billStarted = true;
     this._connected = true;
+    clearTimeout(this._noAnswerTimer);
+    clearTimeout(this._connTimer);
     const c = this._pendingCounselor;
     this._startTs = Date.now(); // 통화 시간도 연결부터 센다 — 연결음은 통화가 아니다
     if (!this._prepaid) {
@@ -213,7 +233,12 @@ window.CallTalk = {
     const ok = await window.RtcCall.call({
       counselorId, clientId: window.App.clientId(), rate: rate || 0
     });
-    if (!ok) this._setStatus('연결하지 못했어요 — 채팅으로 남겨보세요');
+    if (!ok) {
+      // 구체적 이유(권한·거절 메시지)가 이미 화면에 있으면 덮지 않는다
+      const cur = (document.getElementById('call-status') || {}).textContent || '';
+      if (!cur || /전화 거는 중|연결 중/.test(cur)) this._setStatus('연결하지 못했어요 — 채팅으로 남겨보세요');
+      if (window.App && window.App.ringStop) window.App.ringStop();
+    }
   },
 
   // 통화 결과를 내 채팅방에 칩으로 남긴다 — '통화 12:34' / '부재중 전화'.
@@ -352,8 +377,14 @@ window.CallTalk = {
       if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
       if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
     };
+    this._wakeLock();
     const ok = await window.RtcCall.answer({ room: call.room, callId: call.id, as: 'client' });
-    if (!ok) this._setStatus('마이크를 확인해주세요');
+    if (!ok) { this._setStatus('마이크를 확인해주세요'); return; }
+    // 받았는데 상대(발신자)가 얼어붙어 있으면 '연결 중'이 영원히 남는다 — 20초면 접는다
+    clearTimeout(this._connTimer);
+    this._connTimer = setTimeout(() => {
+      if (this._active && !this._connected) this.end('상담사와 연결이 이어지지 않았어요.\n상담사님께 부재중으로 전달됐어요 — 곧 다시 걸려올 거예요.');
+    }, 20000);
   },
 
   // === 음소거 — 내 마이크 트랙만 잠근다 (연결은 그대로) ===
@@ -557,6 +588,9 @@ window.CallTalk = {
     clearInterval(this._clockTimer);
     clearTimeout(this._prepaidTimer);
     clearTimeout(this._warnTimer);
+    clearTimeout(this._noAnswerTimer);
+    clearTimeout(this._connTimer);
+    this._wakeUnlock();
     try { if (this._rec) this._rec.abort(); } catch (e) {}
     if (window.Voice) {
       window.Voice.stopSpeaking();

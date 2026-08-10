@@ -259,6 +259,26 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     return json({ call: { id: r.id, room: r.room, counselorId: r.counselor_id, counselorName: r.cname || '상담사', ringAt: r.ring_at } }, 200, cors);
   }
 
+  // ── 내가 걸던·하던 통화가 남아 있나 (상담사 복귀용) ──────────────────
+  //  모바일 브라우저는 앱을 나가는 순간 페이지를 얼리거나 죽인다.
+  //  돌아왔을 때 '아까 그 통화'를 이어붙일 근거가 서버에 있어야 한다.
+  if (path === '/rtc/my-active' && method === 'GET') {
+    const me = await resolveCounselor(db, {
+      session: s(q('session'), 128), code: s(q('code'), 64)
+    });
+    if (!me) return json({ call: null }, 403, cors);
+    const r = await db.prepare(
+      'SELECT * FROM calls WHERE counselor_id = ? AND end_at = 0 ORDER BY ring_at DESC LIMIT 1'
+    ).bind(me.id).first();
+    if (!r) return json({ call: null }, 200, cors);
+    return json({
+      call: {
+        id: r.id, room: r.room, clientId: r.client_id, dir: r.dir || '',
+        phase: r.connect_at ? 'connected' : 'ringing', ringAt: r.ring_at
+      }
+    }, 200, cors);
+  }
+
   // ── 상담사에게 걸려온 전화가 있나 ────────────────────────────────────
   //  상담사 아이디만으로 열어두면 안 된다. 아이디는 상담사 목록에
   //  그대로 실려 나가는 공개값이라, 남의 전화를 훔쳐볼 수 있고

@@ -1401,9 +1401,19 @@ function nameOfClient(clientId) {
   return m ? m.clientName : '내담자';
 }
 
+// 한 화면을 발신·수신이 같이 쓴다 — 버튼만 상황에 맞게 갈아끼운다.
+//  발신 중에 거절/받기가 보이면 자기 전화를 자기가 받는 촌극이 벌어진다.
+function callBtns(mode) {
+  const no = $('call-btn-no'), yes = $('call-btn-yes'), end = $('call-btn-end');
+  if (no) no.hidden = mode !== 'incoming';
+  if (yes) yes.hidden = mode !== 'incoming';
+  if (end) end.hidden = mode === 'incoming';
+}
+
 function showIncoming(call) {
   if (CUR_CALL) return;
   CUR_CALL = call;
+  callBtns('incoming');
   // 발신자에게 "지금 벨 울리는 중"을 알린다 → 저쪽 화면이 '통화 대기 중…'으로 바뀐다
   try {
     fetch(API_BASE + '/api/rtc/signal', {
@@ -1421,6 +1431,7 @@ function showIncoming(call) {
 async function answerCall() {
   ringStop();
   if (!CUR_CALL) return;
+  callBtns('active'); // 받았다 — 이제 남은 버튼은 종료뿐
   $('call-st').textContent = '연결 중…';
   window.RtcCall.onEvent = (type, d) => {
     if (type === 'connected') $('call-st').textContent = '통화 중';
@@ -1447,6 +1458,7 @@ async function rejectCall() {
 async function callClient(clientId, clientName) {
   if (CUR_CALL) { toast('이미 통화 중이에요'); return; }
   CUR_CALL = { out: true, clientId };
+  callBtns('outgoing'); // 발신 화면엔 [종료]만
   $('call-who').textContent = (clientName || nameOfClient(clientId)) + ' 님';
   $('call-st').textContent = '전화 거는 중…';
   $('call-clock').textContent = '00:00';
@@ -1869,6 +1881,22 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
+ACT['call-cancel'] = () => closeCall();
+
+// 앱을 나갔다 돌아왔을 때 — 걸다 만·하다 만 통화가 서버에 남아 있으면 이어붙인다
+async function checkMyActive() {
+  if (CUR_CALL || (!SESSION && !CODE)) return;
+  const d = await getJson('/api/rtc/my-active?' + authQS());
+  if (!d || !d.call || d.call.dir !== 'to-client') return;
+  const c = d.call;
+  // 얼어붙은 세션의 통화는 살릴 수 없다(옛 연결 정보가 죽었다) — 정리하고 다시 건다
+  await postJson('/api/rtc/end', { callId: c.id, by: 'counselor' }).catch(() => {});
+  const nm = nameOfClient(c.clientId);
+  if (confirm(`걸던 전화가 끊겼어요 (${nm} 님).\n다시 걸까요?`)) callClient(c.clientId, nm);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkMyActive(); });
+setTimeout(checkMyActive, 2500); // 앱 시작 직후 한 번
+
 ACT['call-client'] = () => {
   const t = curThread();
   if (!t) return;

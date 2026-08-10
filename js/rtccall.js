@@ -22,8 +22,25 @@
 
     _emit(type, data) { try { this.onEvent && this.onEvent(type, data || {}); } catch (e) {} },
 
+    // 원격 진단 — 폰에서 어디까지 갔는지 서버가 알아야 고칠 수 있다.
+    //  실패의 순간에만 찍는 게 아니라 갈림길마다 찍는다. (본문 최소·개인정보 없음)
+    _diag(stage, msg) {
+      try {
+        API().f('/api/diag', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            app: this.role || 'rtc', stage: String(stage).slice(0, 40),
+            msg: String(msg == null ? '' : msg).slice(0, 180),
+            build: String(window.APP_BUILD || ''),
+            who: String((window.App && window.App.clientId && window.App.clientId()) || '').slice(0, 12)
+          })
+        }).catch(() => {});
+      } catch (e) {}
+    },
+
     async _ice() {
       const d = await API().json('/api/rtc/ice');
+      this._diag('ice-list', d ? (d.iceServers.length + ' servers turn=' + d.turn) : 'null');
       return (d && d.iceServers) || [{ urls: 'stun:stun.l.google.com:19302' }];
     },
 
@@ -72,7 +89,18 @@
           this.rate = (r && r.rate) || 0;
           this._emit('connected', { rate: this.rate });
           this._startTick();
+          // 어떤 길로 붙었는지 남긴다 — relay 면 TURN 경유, srflx/host 면 직결
+          try {
+            const stats = await pc.getStats();
+            stats.forEach(s => {
+              if (s.type === 'candidate-pair' && (s.selected || s.nominated) && s.state === 'succeeded') {
+                const l = stats.get(s.localCandidateId);
+                if (l) this._diag('pc-connected', 'via=' + l.candidateType);
+              }
+            });
+          } catch (e) { this._diag('pc-connected', ''); }
         } else if (st === 'failed') {
+          this._diag('pc-failed', 'ice=' + pc.iceConnectionState);
           this._emit('error', { message: '연결에 실패했어요. 네트워크를 확인하고 다시 걸어주세요.' });
           this.hangup('failed');
         } else if (st === 'disconnected') {
@@ -167,17 +195,28 @@
 
     // ── 건다 (기본: 내담자 → 상담사. 상담사 발신은 as/startPath/auth 로 뒤집는다) ──
     async call({ counselorId, clientId, bookingId, rate, as, startPath, auth }) {
-      const started = await API().json(startPath || '/api/rtc/start', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counselorId, clientId, bookingId, rate: rate || 0, ...(auth || {}) })
-      });
+      this.role = as || 'client';
+      this._diag('call-try', (startPath || '/api/rtc/start') + ' c=' + counselorId);
+      let started = null, netErr = '';
+      try {
+        const r = await API().f(startPath || '/api/rtc/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ counselorId, clientId, bookingId, rate: rate || 0, ...(auth || {}) })
+        });
+        netErr = 'http-' + r.status;
+        try { started = await r.json(); } catch (e) { netErr += ' bad-json'; }
+      } catch (e) { netErr = 'fetch-fail ' + String(e && e.message).slice(0, 60); }
       if (!started || !started.ok) {
-        this._emit('error', { message: (started && started.message) || '지금은 연결할 수 없어요' });
+        const why = (started && (started.message || started.error)) || netErr || '지금은 연결할 수 없어요';
+        this._diag('call-start-fail', why);
+        this._emit('error', { message: (started && started.message) || `연결 요청이 거절됐어요 (${why})` });
         return false;
       }
-      this.room = started.room; this.callId = started.callId; this.role = as || 'client'; this.seq = 0;
+      this._diag('call-start-ok', started.callId + (started.resumed ? ' resumed' : ''));
+      this.room = started.room; this.callId = started.callId; this.seq = 0;
       this.stream = await this._mic();
-      if (!this.stream) return false;
+      if (!this.stream) { this._diag('mic-fail', ''); return false; }
+      this._diag('mic-ok', '');
 
       await this._setup(await this._ice());
       const offer = await this.pc.createOffer({ offerToReceiveAudio: true });
@@ -191,8 +230,10 @@
     // ── 받는다 (기본: 상담사. 내담자가 받을 땐 as: 'client') ──────────────
     async answer({ room, callId, as }) {
       this.room = room; this.callId = callId; this.role = as || 'counselor'; this.seq = 0;
+      this._diag('answer-try', callId);
       this.stream = await this._mic();
-      if (!this.stream) return false;
+      if (!this.stream) { this._diag('answer-mic-fail', ''); return false; }
+      this._diag('answer-mic-ok', '');
       await this._setup(await this._ice());
       this._startPoll();   // offer 가 폴링으로 들어와 answer 를 만든다
       this._emit('answering', {});
