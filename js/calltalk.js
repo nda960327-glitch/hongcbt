@@ -276,6 +276,86 @@ window.CallTalk = {
     if (spk) spk.addEventListener('click', () => this.toggleSpeaker());
   },
 
+  // ==========================================================================
+  //  상담사가 건 전화를 받는다 — 수신 화면(수락 펄스·거절/수락 64dp) → 통화
+  //  요금 0 (상담사 발신은 내담자에게 과금하지 않는다)
+  // ==========================================================================
+  showIncoming(call) {
+    if (this._active || document.getElementById('call-incoming')) return;
+    const name = String(call.counselorName || '상담사').replace(/</g, '&lt;');
+    const ov = document.createElement('div');
+    ov.id = 'call-incoming';
+    ov.style.cssText = 'position: fixed; inset: 0; z-index: 10006; background: linear-gradient(160deg, #37554a 0%, #2e4237 45%, #1d2c24 100%); display: flex; flex-direction: column; align-items: center; padding: calc(3rem + env(safe-area-inset-top)) 1.5rem calc(2.6rem + env(safe-area-inset-bottom)); color: #f7f3ea;';
+    ov.innerHTML = `
+      <div style="margin-top: 6vh; text-align: center;">
+        <div style="width: 120px; height: 120px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;
+                    background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.45); font-size: 2.6rem; font-weight: 800;
+                    animation: callPulse 2.2s ease-in-out infinite;">${name.charAt(0)}</div>
+        <h2 style="margin: 1rem 0 0.15rem; font-size: 1.5rem; font-weight: 600;">${name}</h2>
+        <p style="margin: 0; font-size: 0.94rem; color: rgba(255,255,255,0.7);">음성통화 수신 중…</p>
+      </div>
+      <div style="flex: 1;"></div>
+      <div style="display: flex; gap: 4.5rem;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+          <button id="inc-reject" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #ea3323; color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(0,0,0,0.4);">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" style="transform: rotate(135deg);"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+          </button><span style="font-size: 0.8rem; color: rgba(255,255,255,0.75);">거절</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.4rem;">
+          <button id="inc-accept" style="width: 64px; height: 64px; border-radius: 50%; border: none; background: #4f8a6b; color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 8px 22px rgba(0,0,0,0.4); animation: incPulse 1.2s ease-in-out infinite;">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+          </button><span style="font-size: 0.8rem; color: rgba(255,255,255,0.75);">수락</span>
+        </div>
+      </div>
+      <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+      @keyframes incPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }</style>`;
+    document.body.appendChild(ov);
+    if (window.App && window.App.ringStart) window.App.ringStart();
+    const stopRing = () => { if (window.App && window.App.ringStop) window.App.ringStop(); };
+    document.getElementById('inc-reject').addEventListener('click', () => {
+      stopRing(); ov.remove();
+      try {
+        window.Api.f('/api/rtc/end', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callId: call.id, by: 'client' }) }).catch(() => {});
+      } catch (e) {}
+    });
+    document.getElementById('inc-accept').addEventListener('click', () => {
+      stopRing(); ov.remove();
+      this.receiveHuman(call);
+    });
+  },
+
+  async receiveHuman(call) {
+    if (this._active) return;
+    if (window.SleepSounds) window.SleepSounds.stop(true);
+    this._active = true;
+    this._human = true;
+    this._connected = false;
+    this._rate = 0;                 // 상담사 발신 = 내담자 무료
+    this._prepaid = false;
+    this._billStarted = false;
+    this._startTs = Date.now();
+    this._spent = 0;
+    this._counselorId = null;       // 회선 점유는 발신 쪽이 했다 — 해제도 그쪽 몫
+    this._humanCounselorId = call.counselorId;
+    this._pendingCounselor = { id: call.counselorId, name: call.counselorName || '상담사', hospital: '' };
+    this._renderHumanOverlay(this._pendingCounselor, true);
+    this._setStatus('연결 중…');
+    const sp = document.getElementById('call-spent');
+    if (sp) sp.textContent = '상담사님이 건 전화 · 무료';
+    this._clockTimer = setInterval(() => this._updateClock(), 1000);
+    if (!window.RtcCall) { this._setStatus('통화 모듈을 불러오지 못했어요'); return; }
+    window.RtcCall.onEvent = (type, d) => {
+      if (type === 'connected') { this._setStatus('통화 중'); this._startHumanBilling(); }
+      if (type === 'unstable') this._setStatus('연결이 불안정합니다… 다시 잇는 중');
+      if (type === 'stable') this._setStatus('통화 중');
+      if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
+      if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
+    };
+    const ok = await window.RtcCall.answer({ room: call.room, callId: call.id, as: 'client' });
+    if (!ok) this._setStatus('마이크를 확인해주세요');
+  },
+
   // === 음소거 — 내 마이크 트랙만 잠근다 (연결은 그대로) ===
   _muted: false,
   toggleMute() {

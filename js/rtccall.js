@@ -165,17 +165,17 @@
       }, 1000);
     },
 
-    // ── 내담자: 건다 ──────────────────────────────────────────────────
-    async call({ counselorId, clientId, bookingId, rate }) {
-      const started = await API().json('/api/rtc/start', {
+    // ── 건다 (기본: 내담자 → 상담사. 상담사 발신은 as/startPath/auth 로 뒤집는다) ──
+    async call({ counselorId, clientId, bookingId, rate, as, startPath, auth }) {
+      const started = await API().json(startPath || '/api/rtc/start', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ counselorId, clientId, bookingId, rate: rate || 0 })
+        body: JSON.stringify({ counselorId, clientId, bookingId, rate: rate || 0, ...(auth || {}) })
       });
       if (!started || !started.ok) {
         this._emit('error', { message: (started && started.message) || '지금은 연결할 수 없어요' });
         return false;
       }
-      this.room = started.room; this.callId = started.callId; this.role = 'client'; this.seq = 0;
+      this.room = started.room; this.callId = started.callId; this.role = as || 'client'; this.seq = 0;
       this.stream = await this._mic();
       if (!this.stream) return false;
 
@@ -188,9 +188,9 @@
       return true;
     },
 
-    // ── 상담사: 받는다 ────────────────────────────────────────────────
-    async answer({ room, callId }) {
-      this.room = room; this.callId = callId; this.role = 'counselor'; this.seq = 0;
+    // ── 받는다 (기본: 상담사. 내담자가 받을 땐 as: 'client') ──────────────
+    async answer({ room, callId, as }) {
+      this.room = room; this.callId = callId; this.role = as || 'counselor'; this.seq = 0;
       this.stream = await this._mic();
       if (!this.stream) return false;
       await this._setup(await this._ice());

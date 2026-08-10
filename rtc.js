@@ -13,7 +13,7 @@
 //   이제 connect_at 은 서버가 찍고, 그 시각부터만 계산한다.
 // ============================================================================
 
-import { notifyCounselor } from './push.js';
+import { notifyCounselor, notifyClient } from './push.js';
 import { resolveCounselor } from './auth.js';
 
 const SIGNAL_TTL = 10 * 60 * 1000;     // 신호는 10분이면 버린다
@@ -138,7 +138,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
     const id = rid('call');
     await db.prepare(
-      'INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at) VALUES (?,?,?,?,?,?,?)'
+      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,?,?,'to-counselor')"
     ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t).run();
 
     // 상담사 기기를 깨운다. 앱이 닫혀 있어도 알림이 뜬다.
@@ -149,6 +149,64 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     pushCallState(env, ctx, counselorId, clientId, 'ringing', { callId: id, room });
 
     return json({ ok: true, room, callId: id }, 200, cors);
+  }
+
+  // ── 상담사가 내담자에게 건다 ─────────────────────────────────────────
+  //  숙제 안 한 내담자에게, 부재중을 남긴 내담자에게 — 상담사도 걸 수 있어야 한다.
+  //  아무에게나는 아니다: 대화·예약이 있던 '내 내담자'에게만.
+  if (path === '/rtc/start-c2c' && method === 'POST') {
+    const me = await resolveCounselor(db, {
+      session: s(body.session, 128), code: s(body.code, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const clientId = s(body.clientId);
+    if (!clientId) return json({ error: 'missing' }, 400, cors);
+    const knows = await db.prepare(
+      'SELECT id FROM chat_msgs WHERE counselor_id = ? AND client_id = ? LIMIT 1'
+    ).bind(me.id, clientId).first()
+      || await db.prepare('SELECT id FROM bookings WHERE counselor_id = ? AND client_id = ? LIMIT 1')
+        .bind(me.id, clientId).first().catch(() => null);
+    if (!knows) return json({ error: '대화한 적 있는 내담자에게만 걸 수 있어요' }, 403, cors);
+
+    const room = roomOf(me.id, clientId);
+    const mine = await db.prepare(
+      'SELECT * FROM calls WHERE room = ? AND end_at = 0 ORDER BY ring_at DESC LIMIT 1'
+    ).bind(room).first();
+    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
+
+    const t = nowMs();
+    const id = rid('call');
+    // 상담사 발신은 요금 0 — 내담자에게 과금할 수 없다
+    await db.prepare(
+      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,0,?,'to-client')"
+    ).bind(id, room, me.id, clientId, '', t).run();
+    const wake = notifyClient(env, clientId).catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
+    pushCallState(env, ctx, me.id, clientId, 'ringing', { callId: id, room, from: 'counselor', counselorName: me.name });
+    return json({ ok: true, room, callId: id }, 200, cors);
+  }
+
+  // ── 내담자에게 걸려온 전화가 있나 (앱을 켰을 때·푸시로 깨어났을 때 확인) ──
+  if (path === '/rtc/incoming-client' && method === 'GET') {
+    const cid = s(q('clientId'));
+    if (!cid) return json({ call: null }, 200, cors);
+    const t = nowMs();
+    // 흘러간 발신을 부재중으로 정리 (상담사 폴링과 대칭)
+    try {
+      const stale = await db.prepare(
+        "SELECT id, room, counselor_id, client_id FROM calls WHERE client_id = ? AND dir = 'to-client' AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
+      ).bind(cid, t - RING_TIMEOUT).all();
+      for (const x of (stale.results || [])) {
+        await db.prepare("UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE id = ?").bind(t, x.id).run();
+        await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(x.room).run();
+        await logCallToChat(db, env, ctx, x, '부재중 전화 — 상담사님이 전화했었어요', 'counselor');
+      }
+    } catch (e) {}
+    const r = await db.prepare(
+      "SELECT c.*, k.name AS cname FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id WHERE c.client_id = ? AND c.dir = 'to-client' AND c.end_at = 0 AND c.connect_at = 0 AND c.ring_at > ? ORDER BY c.ring_at DESC LIMIT 1"
+    ).bind(cid, t - RING_TIMEOUT).first();
+    if (!r) return json({ call: null }, 200, cors);
+    return json({ call: { id: r.id, room: r.room, counselorId: r.counselor_id, counselorName: r.cname || '상담사', ringAt: r.ring_at } }, 200, cors);
   }
 
   // ── 상담사에게 걸려온 전화가 있나 ────────────────────────────────────
@@ -168,7 +226,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  '통화 중'을 보게 된다 (실제로는 아무도 통화하지 않는데).
     try {
       const stale = await db.prepare(
-        'SELECT id, room, counselor_id, client_id FROM calls WHERE counselor_id = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?'
+        "SELECT id, room, counselor_id, client_id FROM calls WHERE counselor_id = ? AND dir != 'to-client' AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
       ).bind(counselorId, t - RING_TIMEOUT).all();
       for (const x of (stale.results || [])) {
         await db.prepare("UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE id = ?")
@@ -183,7 +241,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       }
     } catch (e) {}
     const r = await db.prepare(
-      'SELECT * FROM calls WHERE counselor_id = ? AND end_at = 0 AND connect_at = 0 AND ring_at > ? ORDER BY ring_at DESC LIMIT 1'
+      "SELECT * FROM calls WHERE counselor_id = ? AND dir != 'to-client' AND end_at = 0 AND connect_at = 0 AND ring_at > ? ORDER BY ring_at DESC LIMIT 1"
     ).bind(counselorId, t - RING_TIMEOUT).first();
     if (!r) return json({ call: null }, 200, cors);
     return json({

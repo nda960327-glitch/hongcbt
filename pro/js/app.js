@@ -1440,6 +1440,39 @@ async function rejectCall() {
   closeCall();
 }
 
+// ============================================================================
+//  상담사 → 내담자 발신 — 숙제를 안 하거나 부재중을 남긴 내담자에게 먼저 건다.
+//  내담자에게는 요금이 붙지 않는다 (rate 0).
+// ============================================================================
+async function callClient(clientId, clientName) {
+  if (CUR_CALL) { toast('이미 통화 중이에요'); return; }
+  CUR_CALL = { out: true, clientId };
+  $('call-who').textContent = (clientName || nameOfClient(clientId)) + ' 님';
+  $('call-st').textContent = '전화 거는 중…';
+  $('call-clock').textContent = '00:00';
+  $('callov').hidden = false;
+  window.RtcCall.onEvent = (type, d) => {
+    if (type === 'peer-ringing') $('call-st').textContent = '통화 대기 중…';
+    if (type === 'connected') $('call-st').textContent = '통화 중';
+    if (type === 'unstable') $('call-st').textContent = '연결이 불안정합니다…';
+    if (type === 'stable') $('call-st').textContent = '통화 중';
+    if (type === 'tick') {
+      const sec = Math.floor(d.ms / 1000);
+      $('call-clock').textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
+    }
+    if (type === 'remote-hangup') closeCall();
+    if (type === 'error') { $('call-st').textContent = d.message || '연결 실패'; }
+  };
+  const auth = {};
+  if (SESSION) auth.session = SESSION; else if (CODE) auth.code = CODE;
+  const ok = await window.RtcCall.call({
+    counselorId: ME ? ME.id : '', clientId, rate: 0,
+    as: 'counselor', startPath: '/api/rtc/start-c2c', auth
+  });
+  if (ok) { CUR_CALL.id = window.RtcCall.callId; CUR_CALL.room = window.RtcCall.room; }
+  else { $('call-st').textContent = '연결하지 못했어요'; setTimeout(closeCall, 1500); }
+}
+
 async function closeCall() {
   ringStop();
   try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
@@ -1824,6 +1857,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
 function isStandalone() {
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
+ACT['call-client'] = () => {
+  const t = curThread();
+  if (!t) return;
+  callClient(t.clientId, t.clientName);
+};
+
 ACT['install'] = async () => {
   if (installEv) {
     installEv.prompt();

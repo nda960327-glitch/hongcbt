@@ -2631,6 +2631,11 @@ ${memory || '(없음)'}`;
         ws.onmessage = (e) => {
           try {
             const d = JSON.parse(e.data);
+            // 상담사가 나에게 전화를 걸었다 — 수신 화면을 즉시 띄운다
+            if (d.type === 'call-state' && d.state === 'ringing' && d.from === 'counselor' && window.CallTalk) {
+              window.CallTalk.showIncoming({ id: d.callId, room: d.room, counselorId: d.counselorId, counselorName: d.counselorName });
+              return;
+            }
             if (d.type !== 'chat' || !d.msg || d.msg.from !== 'counselor') return;
             const m = d.msg;
             if (/^\[통화\]/.test(m.text || '')) return; // 통화 흔적은 통화 흐름이 처리
@@ -2663,9 +2668,18 @@ ${memory || '(없음)'}`;
       // 서비스워커가 '깨우기' 푸시를 받아 앱이 보이는 중이면 → 즉시 동기화
       if ('serviceWorker' in navigator && navigator.serviceWorker.addEventListener) {
         navigator.serviceWorker.addEventListener('message', (e) => {
-          if (e && e.data && e.data.type === 'wake') { this._hchatBgTick(); this._homeworkTick(); }
+          if (e && e.data && e.data.type === 'wake') { this._hchatBgTick(); this._homeworkTick(); this._checkIncomingCall(); }
         });
       }
+      this._checkIncomingCall(); // 앱을 여는 순간에도 — 벨이 울리는 중일 수 있다
+    } catch (e) {}
+  },
+
+  // 상담사가 건 전화가 대기 중인지 서버에 물어본다 (푸시로 깨어났을 때·앱 켰을 때)
+  async _checkIncomingCall() {
+    try {
+      const d = await window.Api.json('/api/rtc/incoming-client?clientId=' + encodeURIComponent(this.clientId()));
+      if (d && d.call && window.CallTalk) window.CallTalk.showIncoming(d.call);
     } catch (e) {}
   },
 
