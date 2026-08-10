@@ -236,8 +236,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  못 받은 쪽이 나중에라도 알고 다시 연락할 수 있다.
     //  안 남기면 상담사는 걸었다는 걸, 내담자는 왔다는 걸 서로 모른다.
     const mm = Math.floor(ms / 60000), ss = Math.round((ms % 60000) / 1000);
+    // 통화는 늘 내담자가 건다. 연결 전에 by=counselor 로 끝났다면
+    //  상담사가 '지금은 못 받아요'를 누른 것이지, 상담사가 건 게 아니다.
     const line = !r.connect_at
-      ? (by === 'counselor' ? '부재중 전화 (상담사가 걸었어요)' : '부재중 전화 (받지 않았어요)')
+      ? (by === 'counselor' ? '부재중 전화 — 상담사가 지금 받기 어려워요' : '부재중 전화 (받지 않았어요)')
       : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
     await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
     pushCallState(env, ctx, r.counselor_id, r.client_id, 'ended', { callId: id });
