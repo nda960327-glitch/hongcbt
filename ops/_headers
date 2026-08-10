@@ -1,0 +1,22 @@
+# Cloudflare Pages 캐시·색인 지시 (pro/_headers 와 같은 이유)
+#
+#  Pages 기본값은 js·sw.js 에 max-age=14400 (4시간) 을 붙인다.
+#  그러면 콘솔을 고쳐 배포해도 최대 4시간 동안 옛 화면으로 정산을 처리하게 된다.
+#  no-cache 는 '저장은 하되 쓸 때마다 서버에 물어보라'는 뜻이라
+#  ETag 로 304 가 돌아오므로 비용은 거의 없다. no-store 로 두지 말 것.
+
+/ops/*
+  X-Robots-Tag: noindex, nofollow
+  Referrer-Policy: no-referrer
+
+/ops/sw.js
+  Cache-Control: no-cache
+
+/ops/index.html
+  Cache-Control: no-cache
+
+/ops/js/*
+  Cache-Control: no-cache
+
+/ops/manifest.json
+  Cache-Control: no-cache

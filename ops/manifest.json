@@ -1,0 +1,20 @@
+{
+  "name": "우렁의사 운영자 콘솔",
+  "short_name": "우렁의사 운영",
+  "description": "운영자 전용. 입점 심사·상담사 관리·정산·진단 로그를 한 곳에서 봅니다.",
+  "id": "/ops/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#faf5ee",
+  "theme_color": "#2b3b33",
+  "lang": "ko",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "../pro/icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "../pro/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "../pro/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "../pro/icon.png",     "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

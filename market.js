@@ -1035,6 +1035,34 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
   }
 
+  // 진단 로그 열람 (운영자만).
+  //  /diag 는 쓰기만 있었다. 그래서 통화가 실기기에서 어느 단계에 죽는지
+  //  알려면 wrangler d1 을 띄워 SQL 을 쳐야 했고, 결국 아무도 안 봤다.
+  //  운영자 콘솔이 30초마다 이 목록을 새로 받아 표로 보여준다.
+  //  본문에는 개인정보가 없다 (who 는 clientId 앞 12자, msg 는 200자 제한).
+  if (path === '/admin/diag' && method === 'GET') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const limit = Math.min(500, Math.max(1, num(q('limit')) || 200));
+    const stage = s(q('stage'), 40);
+    try {
+      const r = stage
+        ? await db.prepare(
+            'SELECT id, ts, app, who, build, stage, msg FROM diag WHERE stage LIKE ? ORDER BY ts DESC LIMIT ?'
+          ).bind('%' + stage + '%', limit).all()
+        : await db.prepare(
+            'SELECT id, ts, app, who, build, stage, msg FROM diag ORDER BY ts DESC LIMIT ?'
+          ).bind(limit).all();
+      const items = (r.results || []).map(x => ({
+        id: x.id, ts: x.ts, app: x.app || '', who: x.who || '',
+        build: x.build || '', stage: x.stage || '', msg: x.msg || ''
+      }));
+      return json({ items, fails: items.filter(x => /fail/.test(x.stage)).length }, 200, cors);
+    } catch (e) {
+      // diag 테이블이 아직 없는 배포도 있다 — 콘솔이 빈 표를 그리게 두고 사유만 알린다
+      return json({ items: [], error: 'no-table' }, 200, cors);
+    }
+  }
+
   // 메일 발송 기록 (운영자만).
   //  매직링크가 조용히 실패하면 상담사는 로그인을 못 하는데 아무도 모른다.
   //  대부분 도메인 미인증(403)이나 키 오류(401)이고, 사유를 봐야 고칠 수 있다.

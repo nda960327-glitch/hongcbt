@@ -12,6 +12,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["http-server", "-p", "8319", "-c-1", "pro"],
       "port": 8319
+    },
+    {
+      "name": "ops",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", "-p", "8323", "-c-1", "ops"],
+      "port": 8323
     }
   ]
 }

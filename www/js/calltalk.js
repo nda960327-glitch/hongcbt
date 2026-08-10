@@ -224,7 +224,7 @@ window.CallTalk = {
         const sp = document.getElementById('call-spent');
         if (sp && d.spent) sp.textContent = d.spent.toLocaleString() + '캐시 사용 중';
       }
-      if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
+      if (type === 'remote-hangup') this.end(this._connected ? '상담사가 통화를 종료했어요' : '상담사가 지금 받기 어려워요.\n채팅으로 남겨보시면 확인 후 연락드려요.');
       if (type === 'error') {
         this._setStatus(d.message || '연결하지 못했어요');
         if (window.App && window.App.ringStop) window.App.ringStop(); // 실패했는데 벨만 울리면 잔인하다

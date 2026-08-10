@@ -109,7 +109,9 @@
           this._tryIceRestart();
           clearTimeout(this.graceTimer);
           this.graceTimer = setTimeout(() => {
-            if (this.pc && this.pc.connectionState !== 'connected') {
+            // 반드시 '그때 그 통화'인지 확인한다 — 이전 통화의 유예가
+            //  살아남아 방금 새로 건 전화를 오살하면 안 된다
+            if (this.pc === pc && pc.connectionState !== 'connected') {
               this._emit('error', { message: '연결이 끊어졌어요.' });
               this.hangup('failed');
             }
@@ -195,6 +197,8 @@
 
     // ── 건다 (기본: 내담자 → 상담사. 상담사 발신은 as/startPath/auth 로 뒤집는다) ──
     async call({ counselorId, clientId, bookingId, rate, as, startPath, auth }) {
+      // 직전 통화의 잔재(pc·타이머)가 남아 있으면 새 통화에 간섭한다 — 깨끗이 밀고 시작
+      if (this.pc || this.callId) { try { await this.hangup(this.role, true); } catch (e) {} }
       this.role = as || 'client';
       this._diag('call-try', (startPath || '/api/rtc/start') + ' c=' + counselorId);
       let started = null, netErr = '';
@@ -242,6 +246,7 @@
 
     async hangup(by, skipSignal) {
       clearInterval(this.pollTimer); clearInterval(this.tickTimer);
+      clearTimeout(this.graceTimer); this.graceTimer = null;
       if (!skipSignal) { try { await this._send('bye', '1'); } catch (e) {} }
       try { this.pc && this.pc.close(); } catch (e) {}
       try { this.stream && this.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
@@ -261,4 +266,18 @@
       return info;
     }
   };
+
+  // 앱이 닫히는 마지막 순간 — 서버에 '나 끊겨요'를 한 숨에 알린다.
+  //  이게 있으면 상대는 30초 리퍼를 기다릴 필요 없이 2~3초 안에 정리된다.
+  window.addEventListener('pagehide', () => {
+    try {
+      const rc = window.RtcCall;
+      if (!rc || !rc.callId || !navigator.sendBeacon) return;
+      const base = (window.Api && window.Api.base && window.Api.base()) || window.RTC_API_BASE || '';
+      navigator.sendBeacon(
+        base + '/api/rtc/end',
+        new Blob([JSON.stringify({ callId: rc.callId, by: rc.role || 'client' })], { type: 'application/json' })
+      );
+    } catch (e) {}
+  });
 })();

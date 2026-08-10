@@ -398,6 +398,14 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       .bind(t, by, billed, id).run();
     await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(r.counselor_id).run();
     await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(r.room).run();
+    // 상대 피어에게 '끝났다'를 시그널로도 심는다 — 거절·취소를 상대가
+    //  1초 안에 안다 (폴링이 bye 를 집어간다). 이게 없으면 발신자는
+    //  거절당한 줄도 모르고 '통화 대기 중…'을 계속 본다.
+    try {
+      const byeSender = (by === 'counselor') ? 'counselor' : 'client';
+      await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
+        .bind(r.room, byeSender, 'bye', '1', t).run();
+    } catch (e) {}
 
     // 채팅에 통화 기록을 남긴다. 카톡처럼 '부재중 전화' 가 대화에 보여야
     //  못 받은 쪽이 나중에라도 알고 다시 연락할 수 있다.
