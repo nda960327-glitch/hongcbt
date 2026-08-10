@@ -40,6 +40,30 @@ function billFor(rate, ms) {
   return Math.ceil(ms / 30000) * rate;
 }
 
+// 통화 기록 한 줄을 채팅 스레드에 남기고, 열린 앱들에는 실시간으로 민다.
+//  부재중 전화가 여기서 나온다 — 카톡처럼 양쪽 대화에 남아야
+//  상담사가 "전화 왔었네" 하고 회신할 수 있다.
+async function logCallToChat(db, env, ctx, call, line, sender) {
+  const t = nowMs();
+  const cmId = rid('cm');
+  try {
+    await db.prepare(
+      `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
+       VALUES (?,?,?,?,?,?,?,?)`
+    ).bind(cmId, call.counselor_id, '', call.client_id, '', sender, '[통화] ' + line, t).run();
+  } catch (e) { return; }
+  if (env.HUB && ctx && ctx.waitUntil) {
+    const evt = JSON.stringify({
+      type: 'chat',
+      msg: { id: cmId, counselorId: call.counselor_id, counselorName: '', clientId: call.client_id,
+             clientName: '', from: sender, text: '[통화] ' + line, ts: t }
+    });
+    const pub = (ch) => env.HUB.get(env.HUB.idFromName(ch))
+      .fetch('https://hub/publish', { method: 'POST', body: evt }).catch(() => {});
+    ctx.waitUntil(Promise.all([pub('c:' + call.counselor_id), pub('cl:' + call.client_id)]));
+  }
+}
+
 export async function handleRtc(request, env, cors, path, body, url, ctx) {
   const db = env.DB;
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
@@ -132,12 +156,15 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  '통화 중'을 보게 된다 (실제로는 아무도 통화하지 않는데).
     try {
       const stale = await db.prepare(
-        'SELECT id, room, counselor_id FROM calls WHERE counselor_id = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?'
+        'SELECT id, room, counselor_id, client_id FROM calls WHERE counselor_id = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?'
       ).bind(counselorId, t - RING_TIMEOUT).all();
       for (const x of (stale.results || [])) {
         await db.prepare("UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE id = ?")
           .bind(t, x.id).run();
         await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(x.room).run();
+        // 벨만 울리다 흘러간 전화도 '부재중'으로 남긴다 — 기록이 없으면
+        //  내담자가 앱을 그냥 꺼버린 통화는 상담사가 영영 모른다
+        await logCallToChat(db, env, ctx, x, '부재중 전화 (받지 않았어요)', 'client');
       }
       if ((stale.results || []).length) {
         await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
@@ -195,17 +222,16 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     // 채팅에 통화 기록을 남긴다. 카톡처럼 '부재중 전화' 가 대화에 보여야
     //  못 받은 쪽이 나중에라도 알고 다시 연락할 수 있다.
     //  안 남기면 상담사는 걸었다는 걸, 내담자는 왔다는 걸 서로 모른다.
-    try {
-      const mm = Math.floor(ms / 60000), ss = Math.round((ms % 60000) / 1000);
-      const line = !r.connect_at
-        ? (by === 'counselor' ? '부재중 전화 (상담사가 걸었어요)' : '부재중 전화 (받지 않았어요)')
-        : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
-      await db.prepare(
-        `INSERT INTO chat_msgs (id, counselor_id, counselor_name, client_id, client_name, sender, body, ts)
-         VALUES (?,?,?,?,?,?,?,?)`
-      ).bind(rid('cm'), r.counselor_id, '', r.client_id, '',
-        by === 'counselor' ? 'counselor' : 'client', '[통화] ' + line, t).run();
-    } catch (e) {}
+    const mm = Math.floor(ms / 60000), ss = Math.round((ms % 60000) / 1000);
+    const line = !r.connect_at
+      ? (by === 'counselor' ? '부재중 전화 (상담사가 걸었어요)' : '부재중 전화 (받지 않았어요)')
+      : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
+    await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
+    // 내담자가 걸었는데 못 받고 끝났다 — 상담사 폰이 이걸 알아야 회신한다
+    if (!r.connect_at && by !== 'counselor') {
+      const wake = notifyCounselor(env, r.counselor_id).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(wake);
+    }
     return json({
       ok: true, billed, connected: !!r.connect_at,
       seconds: Math.round(ms / 1000),
