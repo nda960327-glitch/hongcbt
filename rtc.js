@@ -40,6 +40,33 @@ function billFor(rate, ms) {
   return Math.ceil(ms / 30000) * rate;
 }
 
+// 죽은 통화 수거 — 양쪽이 모두 이탈하면(둘 다 앱 종료·크래시) 아무도 끊지
+//  않아 통화가 영원히 '진행 중'으로 남고 회선이 잠긴다. 양쪽 클라이언트는
+//  통화 중 6초마다 /rtc/state 를 찍으므로(심박), 30초 넘게 심박이 없으면
+//  죽은 통화다. 요금은 마지막 심박까지만 — 죽은 시간에 돈을 받지 않는다.
+async function reapDeadCalls(db, env, ctx, counselorId) {
+  const t = nowMs();
+  try {
+    const rows = await db.prepare(
+      `SELECT * FROM calls WHERE end_at = 0 AND connect_at > 0 AND connect_at < ?
+        AND (CASE WHEN last_seen > 0 THEN last_seen ELSE connect_at END) < ?
+        ${counselorId ? 'AND counselor_id = ?' : ''} LIMIT 5`
+    ).bind(...(counselorId ? [t - 20000, t - 30000, counselorId] : [t - 20000, t - 30000])).all();
+    for (const r of (rows.results || [])) {
+      const upto = r.last_seen > r.connect_at ? r.last_seen : r.connect_at;
+      const ms = Math.max(0, upto - r.connect_at);
+      const billed = billFor(r.rate, ms);
+      await db.prepare("UPDATE calls SET end_at = ?, end_by = 'dead', billed = ? WHERE id = ? AND end_at = 0")
+        .bind(t, billed, r.id).run();
+      await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(r.counselor_id).run();
+      await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(r.room).run();
+      const ss = Math.round(ms / 1000);
+      await logCallToChat(db, env, ctx, r, `음성 상담 ${ss >= 60 ? Math.floor(ss / 60) + '분 ' : ''}${ss % 60}초 (연결 끊김)`,
+        r.dir === 'to-client' ? 'counselor' : 'client');
+    }
+  } catch (e) {}
+}
+
 // 통화 상태(거는 중·통화 중·끝)를 양쪽 앱에 실시간으로 민다 — 저장하지 않는 순간 신호.
 //  카톡처럼 채팅방에 '전화 거는 중…'이 떠 있으려면 이게 있어야 한다.
 function pushCallState(env, ctx, counselorId, clientId, state, extra) {
@@ -149,13 +176,20 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     if (!c) return json({ error: '지금은 연결할 수 없어요' }, 404, cors);
 
     const room = roomOf(counselorId, clientId);
+    const t = nowMs();
+    // 죽은 통화·흘러간 벨을 먼저 걷어낸다 — 안 걷으면 회선이 잠긴 채 남아
+    //  모든 새 전화가 '통화 중'으로 튕긴다
+    await reapDeadCalls(db, env, ctx, counselorId);
+    try {
+      await db.prepare(
+        "UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE room = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
+      ).bind(t, room, t - RING_TIMEOUT).run();
+    } catch (e) {}
     // 내가 이미 걸어둔 통화면 그걸 이어 쓴다 (중복 생성 방지)
     const mine = await db.prepare(
       'SELECT * FROM calls WHERE room = ? AND end_at = 0 ORDER BY ring_at DESC LIMIT 1'
     ).bind(room).first();
     if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
-
-    const t = nowMs();
     // 회선 잠금은 '조건부 UPDATE 한 방'으로 잡는다.
     //  전에는 busy_until 을 읽고 → 판단하고 → 쓰는 3단계였는데,
     //  두 사람이 동시에 걸면 둘 다 '비어 있다'를 읽고 둘 다 통과한다.
@@ -213,6 +247,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
     const room = roomOf(me.id, clientId);
     const t = nowMs();
+    await reapDeadCalls(db, env, ctx, me.id);
     // 좀비 정리: 예전에 걸다 만 통화(벨 시간 초과)가 남아 있으면 부재중으로 닫는다.
     //  안 닫으면 resumed 로 죽은 방을 계속 돌려줘서 새 전화가 영영 안 걸린다.
     try {
@@ -330,11 +365,15 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     return json({ ok: true, connectAt: r ? r.connect_at : 0, rate: r ? r.rate : 0 }, 200, cors);
   }
 
-  // ── 상태 조회 (과금·화면 동기화) ─────────────────────────────────────
+  // ── 상태 조회 (과금·화면 동기화 + 심박) ──────────────────────────────
   if (path === '/rtc/state' && method === 'GET') {
     const id = s(q('callId'), 80);
     const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
+    // 살아 있다는 도장 — 리퍼가 이걸 보고 죽은 통화만 걷어간다
+    if (!r.end_at) {
+      try { await db.prepare('UPDATE calls SET last_seen = ? WHERE id = ?').bind(nowMs(), id).run(); } catch (e) {}
+    }
     const live = r.end_at ? 0 : (r.connect_at ? nowMs() - r.connect_at : 0);
     return json({
       id: r.id, connected: !!r.connect_at, ended: !!r.end_at, endBy: r.end_by || '',
