@@ -1080,8 +1080,20 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       parts.forEach(pt => {
         let stickerName = null;
         const vizes = [];
+        // "[2/6] 바닥까지 — ..." 상담 단계 표시가 날텍스트로 노출되면 볼품없다.
+        //  여기서 떼어내 말풍선 위에 얹을 진행 헤더(step)로 바꾼다.
+        let step = null;
+        let raw = pt;
+        const sm = raw.match(/^\s*\[(\d{1,2})\s*\/\s*(\d{1,2})\]\s*/);
+        if (sm) {
+          step = { cur: +sm[1], total: +sm[2], label: '' };
+          raw = raw.slice(sm[0].length);
+          // 곧바로 이어지는 짧은 제목(—·:·줄바꿈 앞, 14자 이내)은 단계 이름으로
+          const dm = raw.match(/^([^\n—:·]{1,14}?)\s*(?:—|:|·|\n)\s*/);
+          if (dm) { step.label = dm[1].trim(); raw = raw.slice(dm[0].length); }
+        }
         // [그림:종류|...] 마커 → 시각 카드 말풍선으로 분리 (문법이 틀리면 조용히 삭제)
-        const cleaned = this._stripEmoji(pt.replace(/\[그림:\s*([^\]]+)\]/g, (m, body) => {
+        const cleaned = this._stripEmoji(raw.replace(/\[그림:\s*([^\]]+)\]/g, (m, body) => {
           const v = window.ChatViz ? window.ChatViz.parse(body) : null;
           if (v && window.ChatViz.render(v)) vizes.push(v);
           return '';
@@ -1089,8 +1101,11 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
           stickerName = STICKER_KO[ko.trim()] || stickerName;
           return '';
         })).replace(/\s{2,}/g, ' ').trim();
-        if (cleaned) items.push({ text: cleaned });
-        if (!crisis) vizes.forEach(v => items.push({ viz: v })); // 위기 시 그림 금지
+        // 진행 헤더가 있으면 같은 턴의 [그림:수업진행] 카드는 중복이라 버린다
+        const vizKeep = step ? vizes.filter(v => v.type !== '수업진행') : vizes;
+        if (cleaned) items.push({ text: cleaned, step });
+        else if (step) items.push({ viz: { type: '수업진행', args: [step.cur, step.total, step.label] } }); // 제목만 온 경우 카드로
+        if (!crisis) vizKeep.forEach(v => items.push({ viz: v })); // 위기 시 그림 금지
         if (stickerName && !crisis) items.push({ sticker: stickerName }); // 위기 시 스티커 금지
       });
       if (items.length === 0) items.push({ text: botText.replace(/\[스티커:[^\]]*\]/g, '').replace(/\[그림:[^\]]*\]/g, '').trim() || '응, 듣고 있어.' });
@@ -1106,6 +1121,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
         ? { sticker: it.sticker, delay: 350 }
         : {
             text: it.text,
+            step: it.step || null,
             crisis: crisis && i === lastTextIdx,
             // 말풍선마다 타이핑하는 시간처럼: 글자 수에 비례한 자연스러운 간격
             delay: i === 0 ? (crisis ? 400 : 700) : Math.min(500 + it.text.length * 35, 2200)

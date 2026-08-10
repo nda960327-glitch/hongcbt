@@ -655,8 +655,8 @@ window.App = {
         this.displayMessage({ role: 'bot', text: response.text, persona: pid, transient: true });
         this._showRetryPill();
       } else {
-        const saved = window.Storage.saveMessage({ role: 'bot', text: response.text, persona: pid, timestamp: new Date().toISOString() });
-        this.displayMessage(saved || { role: 'bot', text: response.text, persona: pid });
+        const saved = window.Storage.saveMessage({ role: 'bot', text: response.text, persona: pid, ...(response.step ? { step: response.step } : {}), timestamp: new Date().toISOString() });
+        this.displayMessage(saved || { role: 'bot', text: response.text, persona: pid, step: response.step });
         if (window.Voice) {
           const personaId = window.Personas ? window.Personas.getActive().id : 'woorung';
           window.Voice.speak(response.text, personaId);
@@ -749,10 +749,27 @@ window.App = {
     const body = this._escHtml(msg.text || '').replace(/\n/g, '<br>');
     let html = '';
     if (msg.role === 'bot') {
+      // 상담 코스 진행 헤더 — "[2/6] 바닥까지" 날텍스트 대신 점 진행바 + 단계 이름
+      let stepHtml = '';
+      if (msg.step && msg.step.total) {
+        const spid = msg.persona || (window.Personas ? window.Personas.getActive().id : null);
+        const pcol = (window.Personas && spid) ? window.Personas.get(spid).color : 'var(--accent-primary)';
+        const total = Math.max(1, Math.min(8, +msg.step.total || 6));
+        const cur = Math.max(1, Math.min(total, +msg.step.cur || 1));
+        let dots = '';
+        for (let i = 1; i <= total; i++) {
+          dots += `<span style="display: inline-block; width: ${i === cur ? '15px' : '5px'}; height: 5px; border-radius: 999px; background: ${i <= cur ? pcol : `color-mix(in srgb, ${pcol} 22%, transparent)`};"></span>`;
+        }
+        stepHtml = `
+          <span style="display: flex; align-items: center; gap: 3px; margin-bottom: 0.45rem; padding-bottom: 0.45rem; border-bottom: 1px dashed color-mix(in srgb, ${pcol} 35%, transparent);">
+            ${dots}
+            <span style="margin-left: 0.3rem; font-size: 0.68rem; font-weight: 800; color: ${pcol}; white-space: nowrap;">${cur}/${total}${msg.step.label ? ' · ' + this._escHtml(msg.step.label) : ''}</span>
+          </span>`;
+      }
       html = `
         <div class="message-avatar">${this._msgAvatar(msg)}</div>
         <div class="message-bubble">
-          <p>${body}</p>
+          ${stepHtml}<p>${body}</p>
           <span class="message-time">${time}</span>
         </div>
       `;
