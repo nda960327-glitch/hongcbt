@@ -3,12 +3,16 @@
 //  여기엔 푸시가 없다. 운영자는 알림을 받을 이유가 없고,
 //  이 앱의 존재 이유는 'PC에서 빨리 열리는 것' 하나다.
 
-const CACHE = 'uroong-ops-v2';
+const CACHE = 'uroong-ops-v3';
 const SHELL = [
   './',
   './index.html',
   './manifest.json',
-  './js/app.js'
+  './js/app.js',
+  './icon-96.png',
+  './icon-144.png',
+  './icon-192.png',
+  './icon.png'
 ];
 
 self.addEventListener('install', e => {

@@ -1312,6 +1312,30 @@ function viewContact() {
     </div>`;
 }
 
+// ── PWA 설치 — PC 바탕화면·폰 홈 화면에서 콘솔이 앱처럼 열리게 ────────
+let installEv = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  installEv = e;
+  try { if (TAB === 'settings') render(); } catch (err) {}
+});
+function isStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+async function doInstall() {
+  if (installEv) {
+    installEv.prompt();
+    const r = await installEv.userChoice.catch(() => null);
+    installEv = null;
+    if (r && r.outcome === 'accepted') toast('설치 완료! 바탕화면·홈 화면에서 열 수 있어요');
+    try { render(); } catch (e) {}
+  } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    toast('사파리 공유 버튼 → "홈 화면에 추가"를 눌러주세요');
+  } else {
+    toast('브라우저 주소창 오른쪽 설치 아이콘 또는 메뉴(⋮) → "앱 설치"를 눌러주세요');
+  }
+}
+
 // ── ⑪ 설정 ───────────────────────────────────────────────────────────
 function viewSettings() {
   const masked = CODE ? CODE.slice(0, 2) + '•'.repeat(Math.max(4, CODE.length - 4)) + CODE.slice(-2) : '';
@@ -1319,6 +1343,16 @@ function viewSettings() {
   const fails = (ml || []).filter(x => !x.ok).length;
 
   return `
+    ${isStandalone() ? '' : `
+    <div class="card" style="display: flex; align-items: center; gap: 0.7rem; border: 1.5px solid rgba(79,138,107,0.4);">
+      <span style="flex-shrink: 0; width: 38px; height: 38px; border-radius: 11px; background: rgba(79,138,107,0.13); display: inline-flex; align-items: center; justify-content: center;">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/></svg></span>
+      <div class="grow" style="min-width: 0;">
+        <b style="font-size: 0.88rem;">앱으로 설치하기</b>
+        <p class="muted" style="margin: 0.1rem 0 0;">PC 바탕화면·폰 홈 화면에서 콘솔이 바로 열려요.</p>
+      </div>
+      <button class="btn sm" style="width: auto; flex-shrink: 0;" data-act="install">설치</button>
+    </div>`}
     <div class="sec-title">접속</div>
     <div class="card">
       <div class="row wrap">
@@ -1674,6 +1708,7 @@ document.addEventListener('click', e => {
   const id = el.dataset.id || '';
 
   if (act === 'goto') { go(el.dataset.tab); return; }
+  if (act === 'install') { doInstall(); return; }
   if (act === 'refresh') {
     // 지금 보고 있는 화면부터 새로 받는다. 통화 관제에서 새로고침을 눌렀는데
     //  대시보드 숫자만 갱신되면 아무 일도 안 일어난 것처럼 보인다.
