@@ -48,10 +48,6 @@ window.CallTalk = {
     this._renderOverlay(p);
     // 연결음(뚜루루) — 상담사가 받으면 멈춘다
     if (window.App && window.App.ringStart) window.App.ringStart();
-
-    // 첫 과금 + 30초마다 차감
-    this._bill();
-    this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
 
     // 3.4초 뒤 상담사가 받는다 — 뚜루루가 두 번은 울려야 전화 같다.
@@ -61,6 +57,12 @@ window.CallTalk = {
       if (!this._active) return;
       if (window.App && window.App.ringStop) window.App.ringStop();
       this._setStatus('통화 중');
+      // 과금은 받는 순간부터다. 벨이 울리는 동안 돈이 나가면 사기다 —
+      //  시계도 여기서 0부터 다시 센다 (연결음은 통화 시간이 아니다).
+      this._startTs = Date.now();
+      this._lastTalk = Date.now();
+      this._bill();
+      this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
       const hello = { role: 'bot', text: `여보세요? 나 ${p.name}${p.id === 'woorung' ? '예요' : '이야'}. 목소리로 들으니까 더 반갑다. 무슨 얘기부터 할까?`, timestamp: new Date().toISOString() };
       window.Storage.saveMessage(hello);
       if (window.App) window.App.displayMessage(hello);
@@ -117,6 +119,9 @@ window.CallTalk = {
     logs.unshift({ ts: Date.now(), counselorId: c.id, name: c.name, safeTel: c.safeTel, mode: prepaid ? '회기권' : '초당결제' });
     window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
 
+    this._prepaid = prepaid;
+    this._pendingCounselor = c;
+    this._billStarted = false;
     this._renderHumanOverlay(c, prepaid);
     this._voice(c.id, prepaid ? 0 : this._rate);   // 앱 안에서 음성 연결 (번호 없음)
     if (window.App && window.App.ringStart) {
@@ -124,7 +129,18 @@ window.CallTalk = {
       setTimeout(() => { if (window.App.ringStop) window.App.ringStop(); this._setStatus('전화 연결 버튼을 눌러주세요'); }, 2400);
     }
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
-    if (!prepaid) {
+    // 과금과 회기권 30분 계산은 여기서 시작하지 않는다 —
+    //  상담사가 실제로 받은 순간(connected 이벤트)부터다. 벨 울리는 동안은 무료.
+  },
+
+  // 과금 시작 — 반드시 상담사가 받은 뒤에만 부른다.
+  //  (서버 rtc/connected 가 찍는 시각과 같은 순간이라 표시 요금과 실제 차감이 일치한다)
+  _startHumanBilling() {
+    if (this._billStarted || !this._active) return;
+    this._billStarted = true;
+    const c = this._pendingCounselor;
+    this._startTs = Date.now(); // 통화 시간도 연결부터 센다 — 연결음은 통화가 아니다
+    if (!this._prepaid) {
       this._bill();
       this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
     } else {
@@ -162,6 +178,7 @@ window.CallTalk = {
       if (type === 'connected') {
         this._setStatus('통화 중');
         if (window.App && window.App.ringStop) window.App.ringStop();
+        this._startHumanBilling(); // 받았다 — 이제부터가 통화고, 이제부터가 과금이다
       }
       if (type === 'tick') {
         const el = document.getElementById('call-clock');
@@ -297,6 +314,9 @@ window.CallTalk = {
     this._active = false;
     this._human = false;
     this._rate = null;
+    this._billStarted = false;
+    this._prepaid = false;
+    this._pendingCounselor = null;
     // 인간 상담사 통화(RTC)였으면 회선을 끊고, 상대 채팅방으로 안내한다
     if (window.RtcCall && window.RtcCall.callId) {
       window.RtcCall.hangup('client').then(info => {
