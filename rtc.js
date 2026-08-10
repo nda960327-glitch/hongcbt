@@ -91,29 +91,42 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const servers = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
     let turn = false;
 
+    let dbg = '';
     if (env.CF_TURN_KEY_ID && env.CF_TURN_KEY_TOKEN) {
       try {
         const now = Date.now();
         if (!globalThis.__turnCache || globalThis.__turnCache.exp < now) {
-          const r = await fetch(
-            `https://rtc.live.cloudflare.com/v1/turn/keys/${env.CF_TURN_KEY_ID}/credentials/generate-ice-servers`,
+          // 발급 API 가 신·구 두 형태다 — 새 것(generate-ice-servers, 배열)을 먼저,
+          //  안 되면 옛 것(generate, 단일 객체)을 시도한다.
+          // 붙여넣기 과정에서 끝에 공백·줄바꿈이 섞여도 살아남게 반드시 다듬는다
+          const keyId = String(env.CF_TURN_KEY_ID).trim();
+          const keyTok = String(env.CF_TURN_KEY_TOKEN).trim();
+          const call = (ep) => fetch(
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${encodeURIComponent(keyId)}/credentials/${ep}`,
             {
               method: 'POST',
-              headers: { 'Authorization': `Bearer ${env.CF_TURN_KEY_TOKEN}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ttl: 3600 }) // 1시간짜리 임시 자격증명 (하드코딩 금지 원칙)
+              headers: { 'Authorization': `Bearer ${keyTok}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ttl: 3600 })
             }
           );
+          let r = await call('generate-ice-servers');
+          dbg = 'new:' + r.status;
+          if (!r.ok) { r = await call('generate'); dbg += ' old:' + r.status; }
           if (r.ok) {
             const d = await r.json();
-            globalThis.__turnCache = { servers: d.iceServers || [], exp: now + 30 * 60000 };
+            const list = Array.isArray(d.iceServers) ? d.iceServers : (d.iceServers ? [d.iceServers] : []);
+            globalThis.__turnCache = { servers: list, exp: now + 30 * 60000 };
           }
         }
         if (globalThis.__turnCache && globalThis.__turnCache.servers.length) {
           for (const s of globalThis.__turnCache.servers) servers.push(s);
           turn = true;
         }
-      } catch (e) {}
-    } else if (env.TURN_URL && env.TURN_USER && env.TURN_CRED) {
+      } catch (e) { dbg += ' err:' + String(e && e.message).slice(0, 60); }
+    } else {
+      dbg = 'no-secrets';
+    }
+    if (!turn && env.TURN_URL && env.TURN_USER && env.TURN_CRED) {
       // 자체 coturn 등을 쓸 때의 예비 경로
       servers.push({
         urls: String(env.TURN_URL).split(',').map(x => x.trim()).filter(Boolean),
@@ -121,7 +134,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       });
       turn = true;
     }
-    return json({ iceServers: servers, turn }, 200, cors);
+    // 디버그 플래그가 있을 때만 발급 상태를 보여준다 (평소엔 감춘다)
+    return json(q('debug') ? { iceServers: servers, turn, dbg } : { iceServers: servers, turn }, 200, cors);
   }
 
   // ── 통화 걸기 (내담자) ───────────────────────────────────────────────
