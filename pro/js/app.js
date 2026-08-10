@@ -1426,11 +1426,26 @@ function showIncoming(call) {
   $('call-clock').textContent = '00:00';
   $('callov').hidden = false;
   ringStart();
+  // 발신자가 끊었는데 벨이 계속 울리면 고문이다 — 2.5초마다 생사를 확인한다
+  clearInterval(call.watch);
+  call.watch = setInterval(async () => {
+    if (!CUR_CALL || CUR_CALL.id !== call.id) { clearInterval(call.watch); return; }
+    const st = await getJson('/api/rtc/state?callId=' + encodeURIComponent(call.id));
+    if (st && st.ended) {
+      clearInterval(call.watch);
+      ringStop();
+      $('callov').hidden = true;
+      CUR_CALL = null;
+      toast('상대방이 통화를 취소했어요');
+      loadChats().then(() => { renderChatList(); renderDots(); });
+    }
+  }, 2500);
 }
 
 async function answerCall() {
   ringStop();
   if (!CUR_CALL) return;
+  clearInterval(CUR_CALL.watch);
   callBtns('active'); // 받았다 — 이제 남은 버튼은 종료뿐
   $('call-st').textContent = '연결 중…';
   window.RtcCall.onEvent = (type, d) => {
@@ -1499,6 +1514,7 @@ async function callClient(clientId, clientName) {
 
 async function closeCall() {
   ringStop();
+  if (CUR_CALL) clearInterval(CUR_CALL.watch);
   try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
   $('callov').hidden = true;
   CUR_CALL = null;
@@ -1940,6 +1956,14 @@ function connectHub() {
         }
         // 전화가 오는 순간 — 3초 폴링을 기다리지 않고 즉시 벨 화면을 띄운다
         if (d.type === 'call-state' && d.state === 'ringing') pollIncoming();
+        // 상대가 취소한 순간 — 벨을 즉시 멈춘다
+        if (d.type === 'call-state' && d.state === 'ended' && CUR_CALL && CUR_CALL.id === d.callId && !window.RtcCall.callId) {
+          clearInterval(CUR_CALL.watch);
+          ringStop();
+          $('callov').hidden = true;
+          CUR_CALL = null;
+          toast('상대방이 통화를 취소했어요');
+        }
       } catch (err) {}
     };
     ws.onclose = () => {

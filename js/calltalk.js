@@ -337,7 +337,21 @@ window.CallTalk = {
     document.body.appendChild(ov);
     if (window.App && window.App.ringStart) window.App.ringStart();
     const stopRing = () => { if (window.App && window.App.ringStop) window.App.ringStop(); };
+    // 상담사가 취소했는데 벨이 계속 울리면 안 된다 — 2.5초마다 생사 확인
+    const watch = setInterval(async () => {
+      if (!document.getElementById('call-incoming')) { clearInterval(watch); return; }
+      try {
+        const st = await window.Api.json('/api/rtc/state?callId=' + encodeURIComponent(call.id));
+        if (st && st.ended) {
+          clearInterval(watch);
+          stopRing();
+          ov.remove();
+          if (window.App) window.App.showRecordToast('상담사님이 통화를 취소했어요');
+        }
+      } catch (e) {}
+    }, 2500);
     document.getElementById('inc-reject').addEventListener('click', () => {
+      clearInterval(watch);
       stopRing(); ov.remove();
       try {
         window.Api.f('/api/rtc/end', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -345,6 +359,7 @@ window.CallTalk = {
       } catch (e) {}
     });
     document.getElementById('inc-accept').addEventListener('click', () => {
+      clearInterval(watch);
       stopRing(); ov.remove();
       this.receiveHuman(call);
     });
