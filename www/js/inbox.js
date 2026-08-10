@@ -178,6 +178,9 @@ window.Inbox = {
         case 'home':
           if (window.App) window.App.switchTab('home');
           break;
+        case 'intent':
+          if (window.App && window.App.openIntent) { window.App.switchTab('home'); window.App.openIntent(); }
+          break;
         case 'breath':
           if (window.Calm) window.Calm.startBreath('box');
           break;

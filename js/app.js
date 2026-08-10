@@ -201,6 +201,8 @@ window.App = {
     this.initCheckins();
     // 4.46 알림을 눌러서 들어왔을 때 그 기능으로 데려다준다
     this._initNotifRouting();
+    // 4.47 오늘의 마음가짐 카드
+    this.renderIntentCard();
 
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
@@ -1697,6 +1699,8 @@ window.App = {
       }
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다
+      this._morningTick();         // 아침에 딱 한 번, 오늘의 마음가짐을 묻는다
+      this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
       const fired = window.Storage._safeGet('cbt_checkin_fired', []);
@@ -1748,6 +1752,60 @@ window.App = {
   //   하루 한 번 · 21시~자정 · 앱이 열려 있을 때만. 자기 전이므로 조용히 보낸다
   //   (playWoorung 호출 안 함 — 진동·소리는 notify 안의 것으로 충분하다).
   // ==========================================================================
+  // ==========================================================================
+  //  오늘의 마음가짐 — 아침에 정한 한 줄이 하루의 방향타가 된다.
+  //  거창한 목표가 아니라 "서두르지 않기" 같은 방향 한 줄 (ACT 가치의 축소판).
+  //  아침에 묻고 → 홈에 하루 종일 보이고 → 밤 하루 정리에서 같이 돌아본다.
+  // ==========================================================================
+  todayIntent() {
+    const s = window.Storage._safeGet('cbt_day_intent', null);
+    if (!s || !s.text) return null;
+    return s.date === new Date().toLocaleDateString('sv-CA') ? s : null;
+  },
+
+  async openIntent() {
+    const cur = this.todayIntent();
+    const t = await window.UI.prompt(cur
+      ? `오늘의 마음가짐을 고칠까요?\n지금: "${cur.text}"`
+      : '오늘 하루, 어떤 마음으로 보내고 싶어요?\n(예: 서두르지 않기 · 나한테 너그럽게 · 한 번은 웃기)');
+    if (t === null) return;
+    const text = String(t).trim().slice(0, 60);
+    if (!text) return;
+    const first = !cur;
+    window.Storage._safeSet('cbt_day_intent', { date: new Date().toLocaleDateString('sv-CA'), text });
+    this.renderIntentCard();
+    if (first && window.Farm && window.Farm.addWater) window.Farm.addWater(2, '오늘의 마음가짐');
+    if (window.Sfx) window.Sfx.play('pop');
+    this.showRecordToast('오늘의 마음가짐을 세웠어요');
+  },
+
+  renderIntentCard() {
+    const el = document.getElementById('intent-card');
+    if (!el) return;
+    const cur = this.todayIntent();
+    const h = new Date().getHours();
+    // 의도가 없는데 이미 저녁이면 권하지 않는다 — 밤에 세우는 다짐은 무겁기만 하다
+    if (!cur && h >= 18) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    el.innerHTML = cur
+      ? `<p class="home-card__t" style="margin: 0 0 0.15rem;">오늘의 마음가짐</p>
+         <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--accent-primary);">“${this._escHtml(cur.text)}”</p>`
+      : `<p class="home-card__t" style="margin: 0 0 0.15rem;">오늘 하루, 어떤 마음으로 보내고 싶어요?</p>
+         <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">한 줄 남기면 우렁이가 하루 끝에 같이 돌아봐줘요 › <b style="color: #6f97ab;">물 +2</b></p>`;
+  },
+
+  // 아침 7~11시, 하루 한 번: 아직 마음가짐이 없으면 우렁이가 먼저 묻는다
+  _morningTick() {
+    if (!window.Storage) return;
+    const h = new Date().getHours();
+    if (h < 7 || h >= 11) return;
+    const today = new Date().toLocaleDateString('sv-CA');
+    if (window.Storage._safeGet('cbt_morning_notif_date', '') === today) return;
+    if (this.todayIntent()) return;
+    window.Storage._safeSet('cbt_morning_notif_date', today);
+    this.notify('우렁이', '좋은 아침이에요. 오늘 하루, 어떤 마음으로 보내고 싶어요?', 'intent');
+  },
+
   _actionCheckinTick() {
     if (!window.Storage) return;
     const now = new Date();

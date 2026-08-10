@@ -569,10 +569,16 @@ ${entries}
     const nextBtn = (label, fn) => `<button id="ng-next" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.1rem;">${label}</button>`;
 
     if (n === 1) {
+      // 아침에 세운 마음가짐이 있으면 하루의 끝에서 비춰준다 — 다짐과 회고가 이어진다
+      const intent = (window.App && window.App.todayIntent) ? window.App.todayIntent() : null;
+      const intentHtml = intent
+        ? `<p style="margin: 0.75rem 0 0; padding: 0.6rem 0.85rem; border-radius: 12px; background: rgba(255,255,255,0.12); font-size: 0.85rem; color: #f0ead9; line-height: 1.6;">아침의 다짐 — “${String(intent.text).replace(/&/g, '&amp;').replace(/</g, '&lt;')}”<br><span style="font-size: 0.76rem; color: #cfc7b4;">오늘, 그 마음과 얼마나 가까웠나요?</span></p>`
+        : '';
       wrap(`
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 110) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem; color: #ffffff;">오늘 하루도 살아냈네요</h2>
         <p style="font-size: 0.92rem; color: #e9e2d2; line-height: 1.65;">자기 전에 딱 3분,<br>우렁이랑 오늘을 같이 정리하고 자요.</p>
+        ${intentHtml}
         ${nextBtn('좋아, 시작할게')}`);
       document.getElementById('ng-next').addEventListener('click', () => this._nightStep(2));
     } else if (n === 2) {

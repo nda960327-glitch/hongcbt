@@ -24,13 +24,25 @@
       "name": "우렁이와 대화하기",
       "short_name": "대화",
       "description": "지금 마음을 이야기해요",
-      "url": "./index.html?tab=chat"
+      "url": "./index.html#act=chat"
     },
     {
-      "name": "마음 안정",
+      "name": "3분 호흡",
+      "short_name": "호흡",
+      "description": "숨으로 마음 가라앉히기",
+      "url": "./index.html#act=breath"
+    },
+    {
+      "name": "마음 안정 도구",
       "short_name": "안정",
       "description": "호흡·그라운딩으로 진정하기",
-      "url": "./index.html?calm=1"
+      "url": "./index.html#act=calm"
+    },
+    {
+      "name": "하루 정리",
+      "short_name": "하루 정리",
+      "description": "자기 전 3분, 오늘을 정리해요",
+      "url": "./index.html#act=night"
     }
   ]
 }

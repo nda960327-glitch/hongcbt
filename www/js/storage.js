@@ -85,19 +85,42 @@
   },
 
   // === Chat Messages ===
+  // 대화는 무한히 쌓이는데 localStorage 는 5MB 다. 한도를 넘기면 브라우저가
+  //  조용히 저장을 거부해서, 사용자는 앱 전체가 기록을 잃는 걸 모른 채 쓴다.
+  //  그래서 ①오래된 말풍선부터 정리하고(장기기억은 별도 보관이라 잃는 건 없다)
+  //  ②그래도 저장이 실패하면 숨기지 않고 알린다.
+  MAX_MESSAGES: 1500,
+
   saveMessage(message) {
     // 누가 한 말인지 새겨둔다 — 나중에 상담사를 바꿔도 지난 말풍선의 얼굴이 안 바뀐다
     if (message && message.role === 'bot' && !message.persona && window.Personas) {
       try { message.persona = window.Personas.getActive().id; } catch (e) {}
     }
-    const messages = this.getMessages();
+    let messages = this.getMessages();
     const messageWithId = {
       id: this._generateId(),
       timestamp: Date.now(),
       ...message
     };
     messages.push(messageWithId);
-    this._safeSet('cbt_messages', messages);
+    if (messages.length > this.MAX_MESSAGES) {
+      messages = messages.slice(messages.length - this.MAX_MESSAGES);
+    }
+    let ok = this._safeSet('cbt_messages', messages);
+    if (!ok) {
+      // 꽉 찼다 — 최근 것만이라도 살린다 (오늘의 대화가 어제의 대화보다 소중하다)
+      ok = this._safeSet('cbt_messages', messages.slice(-400));
+      if (!this._quotaWarned) {
+        this._quotaWarned = true;
+        try {
+          if (window.App && window.App.showRecordToast) {
+            window.App.showRecordToast(ok
+              ? '저장 공간이 부족해 오래된 대화를 정리했어요'
+              : '저장 공간이 가득 차 대화를 저장하지 못했어요');
+          }
+        } catch (e) {}
+      }
+    }
 
     // 챗봇 대화가 시작되면 샘플 사고기록지와 가짜 통계를 자동으로 깔끔히 정리함!
     const records = this._safeGet('cbt_thought_records', []);
