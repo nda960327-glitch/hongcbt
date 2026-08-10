@@ -2672,6 +2672,12 @@ ${memory || '(없음)'}`;
         });
       }
       this._checkIncomingCall(); // 앱을 여는 순간에도 — 벨이 울리는 중일 수 있다
+      // 웹소켓이 끊겨 있어도 벨은 떠야 한다 — 화면이 보이는 동안 4초마다 확인
+      setInterval(() => {
+        if (document.hidden) return;
+        if (window.CallTalk && window.CallTalk._active) return;
+        this._checkIncomingCall();
+      }, 4000);
     } catch (e) {}
   },
 

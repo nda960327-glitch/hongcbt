@@ -1469,8 +1469,20 @@ async function callClient(clientId, clientName) {
     counselorId: ME ? ME.id : '', clientId, rate: 0,
     as: 'counselor', startPath: '/api/rtc/start-c2c', auth
   });
-  if (ok) { CUR_CALL.id = window.RtcCall.callId; CUR_CALL.room = window.RtcCall.room; }
-  else { $('call-st').textContent = '연결하지 못했어요'; setTimeout(closeCall, 1500); }
+  if (ok) {
+    CUR_CALL.id = window.RtcCall.callId; CUR_CALL.room = window.RtcCall.room;
+    // 60초 무응답이면 자동으로 접는다 — 부재중 기록은 서버가 남긴다
+    clearTimeout(CUR_CALL.missTimer);
+    CUR_CALL.missTimer = setTimeout(() => {
+      if (CUR_CALL && CUR_CALL.out && window.RtcCall.callId && !window.RtcCall.connectAt) {
+        $('call-st').textContent = '받지 않아요 — 부재중으로 남겼어요';
+        setTimeout(closeCall, 1500);
+      }
+    }, 60000);
+  } else {
+    $('call-st').textContent = '연결하지 못했어요 (내담자 앱이 꺼져 있으면 알림으로 전달돼요)';
+    setTimeout(closeCall, 2200);
+  }
 }
 
 async function closeCall() {
