@@ -209,6 +209,9 @@ window.App = {
     this._initRealtime();
     // 4.49 앱: 잠긴 화면을 뚫고 울린 전화 알림에서 '받기·거절'을 눌러 들어온 길
     this._initCallActions();
+    // 4.50 놓친 상담비 복구 — 상담 중에 앱이 죽거나 폰이 꺼지면 차감이 통째로 빠진다.
+    //  서버는 요금을 정확히 알고 있으므로, 앱을 켤 때 조용히 맞춘다.
+    this._recoverCallCharges();
 
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
@@ -2113,17 +2116,22 @@ ${memory || '(없음)'}`;
         const key = 'call_' + l.ts;
         const rv = reviews[key];
         const mm = Math.floor((l.secs || 0) / 60), ss = (l.secs || 0) % 60;
+        // 상담 세션이 있었던 통화만 '음성 상담'이다. 안부 전화·잘못 걸린 전화는
+        //  그냥 '통화'로 남고 요금도 리뷰 요청도 붙지 않는다.
+        const paid = (l.spent > 0) || (l.consultSecs > 0);
         return `
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
-              <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">바로상담 통화</span>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}${l.count > 1 ? ' · 통화 ' + l.count + '회' : ''} · ${mm ? mm + '분 ' : ''}${ss}초${l.spent ? ' · ' + Number(l.spent).toLocaleString() + '캐시' : ''}</span>
+              <span style="background: ${paid ? 'var(--accent-primary)' : 'var(--text-muted)'}; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">${paid ? '음성 상담' : '통화'}</span>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}${l.count > 1 ? ' · 통화 ' + l.count + '회' : ''} · ${mm ? mm + '분 ' : ''}${ss}초${l.spent ? ' · ' + Number(l.spent).toLocaleString() + '캐시' : paid ? '' : ' · 무료'}</span>
             </div>
             <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${String(l.name || '상담사').replace(/</g, '&lt;')}</h4>
             <div style="margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
               ${rv
                 ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">${rv.rating}.0 리뷰 작성 완료</span>`
-                : `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeCallReview(${l.ts})">리뷰 남기기</button>`}
+                : paid
+                  ? `<button class="btn-primary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.writeCallReview(${l.ts})">리뷰 남기기</button>`
+                  : ''}
               <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.openHumanChat('${String(l.counselorId).replace(/[^\w-]/g, '')}')">채팅</button>
             </div>
           </div>`;
@@ -2916,6 +2924,27 @@ ${memory || '(없음)'}`;
         if (window.CallTalk && window.CallTalk._active) return;
         this._checkIncomingCall();
       }, this.isNativeApp() ? 15000 : 4000);
+    } catch (e) {}
+  },
+
+  // ── 놓친 상담비 복구 ─────────────────────────────────────────────────
+  //  캐시는 이 기기에 있다. 그래서 차감도 기기가 해야 하는데, 상담 도중
+  //  앱이 죽거나 배터리가 나가면 그 차감이 통째로 사라진다 —
+  //  상담사에게는 정산될 요금이 내담자 지갑에서는 안 빠진 상태가 된다.
+  //  서버는 얼마인지 정확히 알고 있으므로, 앱을 켤 때 조용히 맞춘다.
+  //  (CallTalk._settleConsult 가 callId 로 멱등을 잡는다 — 두 번 빠지지 않는다)
+  async _recoverCallCharges() {
+    try {
+      if (!window.CallTalk || !window.Wallet) return;
+      const d = await window.Api.json('/api/rtc/my-charges?clientId=' + encodeURIComponent(this.clientId()));
+      if (!d || !Array.isArray(d.items) || !d.items.length) return;
+      let n = 0;
+      // 오래된 것부터 훑어야 내역이 시간 순서대로 남는다
+      d.items.slice().reverse().forEach(x => {
+        if (window.CallTalk._settleConsult(x.callId, x.seconds || 0, x.charge || 0, x.counselorName || '')) n++;
+      });
+      // 시끄럽게 알리지 않는다. 지갑 내역에 줄이 남았으면 그걸로 충분하다.
+      if (n && window.Wallet.renderCard) window.Wallet.renderCard();
     } catch (e) {}
   },
 

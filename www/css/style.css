@@ -1388,10 +1388,12 @@ textarea:focus { border-color: var(--accent-primary); }
 }
 .home-start__card--human .home-start__go { background: #3b82f6; box-shadow: 0 2px 7px rgba(59, 130, 246, 0.35); }
 
-/* 라이트 테마에서는 진한 파랑이 대비가 좋다 */
+/* 라이트 테마에서는 진한 파랑이 대비가 좋다.
+   단 '둘러보기' 알약은 파란 채움이라 글자는 테마 불문 흰색이어야 한다 —
+   여기서 파란 글자를 얹었더니 파란 알약 위에서 글자가 사라졌다. */
 [data-theme="light"] .home-start__card--human { border-color: rgba(37, 99, 235, 0.28); }
 [data-theme="light"] .home-start__card--human .home-start__ico { background: rgba(37, 99, 235, 0.13); color: #2563eb; }
-[data-theme="light"] .home-start__card--human .home-start__go { color: #2563eb; }
+[data-theme="light"] .home-start__card--human .home-start__go { color: #fff; background: #2563eb; }
 
 /* 내 마음 도구 — 2열 가로형 */
 .home-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.7rem; margin: 0 1.25rem 0.4rem; }

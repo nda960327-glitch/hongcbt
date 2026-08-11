@@ -378,6 +378,21 @@
       background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3);
     }
     #callov .chatbtn:active { transform: scale(0.97); }
+    /* ── 상담 시작 ─────────────────────────────────────────────
+       통화는 무료다. 여기서부터가 유료 구간이고, 시간은 서버가 잰다.
+       눈에 안 띄면 아무도 안 누르고, 안 누르면 상담사는 한 푼도 못 받는다. */
+    #callov .consultbtn {
+      all: unset; display: inline-flex; align-items: center; justify-content: center;
+      margin-top: 0.9rem; cursor: pointer; min-width: 200px; text-align: center;
+      padding: 0.72rem 1.5rem; border-radius: 999px; font-size: 0.94rem; font-weight: 800;
+      background: #3fa06d; color: #fff; box-shadow: 0 6px 20px rgba(63, 160, 109, 0.45);
+    }
+    /* 기다리는 중 — 누를 것이 없다는 걸 색으로 먼저 알린다 */
+    #callov .consultbtn.wait { background: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.8); box-shadow: none; }
+    /* 상담 중 — 초록(시작)과 같은 색이면 이미 시작한 줄 모른다 */
+    #callov .consultbtn.on { background: #b98a1a; box-shadow: 0 6px 20px rgba(185, 138, 26, 0.4); }
+    #callov .consultbtn:active { transform: scale(0.97); }
+    #call-consult-info { margin-top: 0.8rem; font-size: 0.9rem; font-weight: 800; color: #f5c74e; }
     /* 통화 중에 도착한 메시지 한 줄 — 소리는 내지 않는다(통화 목소리를 덮으면 안 된다) */
     #call-peek {
       all: unset; box-sizing: border-box; position: absolute; left: 0.9rem; right: 0.9rem;
@@ -582,6 +597,8 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-4.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8Z"/></svg>
         채팅 보며 통화
       </button>
+      <div id="call-consult-info" hidden></div>
+      <button class="consultbtn" id="call-consult" data-act="consult" hidden>상담 시작</button>
     </div>
     <div style="display: flex; gap: 2.2rem;">
       <button class="cbtn no" id="call-btn-no" data-act="call-no">거절</button>
@@ -598,7 +615,7 @@
 
   <div id="toast"></div>
 
-  <script src="js/rtccall.js?v=164"></script>
-  <script src="js/app.js?v=164"></script>
+  <script src="js/rtccall.js?v=166"></script>
+  <script src="js/app.js?v=166"></script>
 </body>
 </html>

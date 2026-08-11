@@ -17,6 +17,10 @@ window.CallTalk = {
   _listening: false,
   _thinking: false,
   _ttsWasEnabled: null,
+  // 상담 세션 — 통화 중 '유료 구간'. null 이면 지금은 무료 통화다.
+  //  { rate, at, callId, name, ended, cut }
+  _consult: null,
+  _consultAsking: false,
 
   start(personaId) {
     if (this._active) return;
@@ -76,6 +80,11 @@ window.CallTalk = {
 
   _bill() {
     if (!this._active) return;
+    // 사람 상담사와의 통화에서는 여기서 돈을 세지 않는다.
+    //  폰의 30초 타이머로 요금을 굴리던 구조가, 화면 잠김 한 번에
+    //  3분 55초 통화를 0원으로 만들었다(실사고). 사람 통화의 시간은 서버가 잰다.
+    //  이 함수는 이제 AI 보이스톡 전용이다.
+    if (this._human) return;
     // 무발화 자동 종료: 5분간 말이 없으면 끊는다.
     // 켜둔 채 잠들거나 자리를 비웠을 때 캐시·API 비용이 새는 것을 막는 안전장치.
     if (!this._human && this._lastTalk && Date.now() - this._lastTalk > 5 * 60000) {
@@ -105,10 +114,13 @@ window.CallTalk = {
     const liveRate = window.Marketplace.callRateFor(c); // 예약 상담료 ÷60 ×1.25 자동 책정
     this._rate = prepaid ? 0 : liveRate;
 
-    if (!prepaid && (!window.Wallet || window.Wallet.balance() < this._rate * 2)) {
-      window.UI.alert(`바로상담은 30초당 ${liveRate.toLocaleString()}캐시가 실시간 차감돼요.\n잔액이 부족합니다. 마이페이지에서 충전해주세요.`);
-      if (window.App) window.App.switchTab('mypage');
-      return;
+    // 전화를 거는 것은 이제 공짜다. 잔액이 없다고 통화를 막지 않는다 —
+    //  돈이 붙는 구간은 상담사가 [상담 시작]을 누르고 내가 동의한 뒤부터다.
+    //  다만 지금 잔액으로는 상담을 시작할 수 없다는 것은 미리 귀띔한다.
+    if (!prepaid && window.Wallet && window.Wallet.balance() < liveRate * 2) {
+      if (window.App && window.App.showRecordToast) {
+        window.App.showRecordToast(`통화는 무료예요 · 상담을 시작하려면 ${(liveRate * 2).toLocaleString()}캐시 이상 필요해요`);
+      }
     }
 
     if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
@@ -127,6 +139,8 @@ window.CallTalk = {
     this._prepaid = prepaid;
     this._pendingCounselor = c;
     this._billStarted = false;
+    this._consult = null;           // 지난 통화의 상담 상태가 새 통화에 묻어오면 안 된다
+    this._consultAsking = false;
     this._renderHumanOverlay(c, prepaid);
     this._voice(c.id, prepaid ? 0 : this._rate);   // 앱 안에서 음성 연결 (번호 없음)
     // 연결음은 상담사가 받을 때까지 계속 울린다 — 진짜 전화가 그렇듯이.
@@ -161,36 +175,232 @@ window.CallTalk = {
     this._spk = false;
   },
 
-  // 과금 시작 — 반드시 상담사가 받은 뒤에만 부른다.
-  //  (서버 rtc/connected 가 찍는 시각과 같은 순간이라 표시 요금과 실제 차감이 일치한다)
+  // 통화가 붙었다 — 시계를 0부터 다시 센다.
+  //  이름은 그대로 두지만 하는 일이 바뀌었다: 여기서 더는 돈을 세지 않는다.
+  //  (예전에는 여기서 30초 타이머가 지갑을 깎았다. 화면이 잠기면 그 타이머가
+  //   얼어붙어 3분 55초 통화가 0원으로 끝난 사고가 실제로 났다)
   _startHumanBilling() {
     if (this._billStarted || !this._active) return;
     this._billStarted = true;
     this._connected = true;
     clearTimeout(this._noAnswerTimer);
     clearTimeout(this._connTimer);
-    const c = this._pendingCounselor;
     this._startTs = Date.now(); // 통화 시간도 연결부터 센다 — 연결음은 통화가 아니다
-    if (!this._prepaid) {
-      this._bill();
-      this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
-    } else {
-      // 회기권 = 예약된 30분. 5분 전 안내, 만료 시 동의한 경우에만 초당 과금으로 연장.
+    const el = document.getElementById('call-spent');
+    if (el && !this._consult) {
+      el.textContent = this._prepaid
+        ? '회기권(예약 30분) 이용 중 · 추가 과금 없음'
+        : '통화는 무료예요 · 상담을 시작하면 그때부터 요금이 붙어요';
+    }
+    if (this._prepaid) {
+      // 회기권 = 예약된 30분. 5분 전에 알려주고, 지나면 알려만 준다.
+      //  연장 과금을 앱이 마음대로 시작하지 않는다 — 유료 구간을 여는 건
+      //  이제 상담사의 [상담 시작]과 내담자의 동의, 그 두 개뿐이다.
       this._warnTimer = setTimeout(() => { if (this._active) this._setStatus('⏰ 상담 종료 5분 전이에요'); }, 25 * 60000);
-      this._prepaidTimer = setTimeout(async () => {
+      this._prepaidTimer = setTimeout(() => {
         if (!this._active) return;
-        const rate = window.Marketplace.callRateFor(c);
-        if (await window.UI.confirm(`예약된 30분 상담 시간이 끝났어요.\n계속 통화하면 지금부터 30초당 ${rate.toLocaleString()}캐시가 차감됩니다.\n연장할까요?`)) {
-          this._rate = rate;
-          const el = document.getElementById('call-spent');
-          if (el) el.textContent = `연장 통화 중 · 30초당 ${rate.toLocaleString()}캐시`;
-          this._bill();
-          this._billTimer = setInterval(() => this._bill(), this.TICK_MS);
-        } else {
-          this.end('예약된 30분 상담이 완료되었습니다. 수고하셨어요!');
-        }
+        this._setStatus('예약된 30분이 지났어요');
+        const e2 = document.getElementById('call-spent');
+        if (e2 && !this._consult) e2.textContent = '예약 시간이 끝났어요 · 이어서 상담하면 상담사님이 [상담 시작]으로 안내해요';
       }, 30 * 60000);
     }
+  },
+
+  // ==========================================================================
+  //  상담 세션 — 통화 안의 '유료 구간'
+  //
+  //  통화는 무료다. 잘못 걸 수도 있고, 안부만 물을 수도 있고, "지금 되세요?"
+  //  하고 약속만 잡을 수도 있다. 그런 통화에 돈을 받으면 안 된다.
+  //  그래서 유료 구간을 따로 연다 — 상담사가 [상담 시작]을 누르면 여기로
+  //  신호가 오고, 내가 동의한 순간부터 서버 시계가 돈다.
+  //  차감은 통화가 끝날 때 서버가 잰 시간으로 딱 한 번 일어난다.
+  // ==========================================================================
+
+  // 상담사의 제안이 도착했다 (서버가 발행한 consult-offer 신호)
+  async _consultOffer(d) {
+    if (!this._active) return;
+    if (this._consult && !this._consult.ended) return;  // 이미 상담 중이면 다시 묻지 않는다
+    if (this._consultAsking) return;                    // 폴링이 같은 신호를 두 번 집어와도 팝업은 하나
+    this._consultAsking = true;
+    const rate = Math.max(0, Number(d && d.rate) || 0);
+    const name = (d && d.counselorName)
+      || (this._pendingCounselor && this._pendingCounselor.name) || '상담사';
+    const callId = (window.RtcCall && window.RtcCall.callId) || (d && d.callId) || '';
+    try {
+      const bal = window.Wallet ? window.Wallet.balance() : 0;
+      // 1분치(30초 두 단위)도 없으면 시작하게 두면 안 된다 —
+      //  시작하자마자 "캐시가 다 됐어요"로 끊기는 편이 더 나쁘다.
+      if (rate > 0 && bal < rate * 2) {
+        this._consultDecline(callId, 'no-cash');
+        await window.UI.alert({
+          title: '캐시가 부족해요',
+          body: `상담은 30초당 ${rate.toLocaleString()}캐시예요.\n지금 잔액 ${bal.toLocaleString()}캐시로는 시작할 수 없어요.\n통화는 그대로 이어져요 — 충전한 뒤에 다시 시작할 수 있어요.`,
+          okLabel: '충전하러 가기'
+        });
+        // 통화는 끊지 않는다. 미니바로 접고 충전 화면을 열어준다.
+        this.minimize();
+        if (window.App && window.App.switchTab) window.App.switchTab('mypage');
+        if (window.Wallet && window.Wallet.renderCard) window.Wallet.renderCard();
+        return;
+      }
+      const ok = await window.UI.confirm({
+        title: `${name} 상담사가 상담을 시작하려고 해요`,
+        body: `동의하면 지금부터 시간이 계산되고, 30초당 ${rate.toLocaleString()}캐시가 사용돼요.\n통화 자체는 무료예요 — 동의하지 않아도 대화는 그대로 이어집니다.`,
+        okLabel: '동의하고 시작', cancelLabel: '지금은 아니요'
+      });
+      if (!ok) { this._consultDecline(callId, 'no'); return; }
+      const r = await window.Api.json('/api/rtc/consult/accept', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, clientId: window.App ? window.App.clientId() : '' })
+      }).catch(() => null);
+      if (!r || !r.ok) {
+        if (window.App && window.App.showRecordToast) window.App.showRecordToast('상담을 시작하지 못했어요');
+        return;
+      }
+      // 요금은 서버가 정한 값을 쓴다 — 신호에 실려온 숫자가 아니라
+      this._consultStart({ rate: r.rate || rate, callId, name });
+    } catch (e) {
+    } finally { this._consultAsking = false; }
+  },
+
+  _consultDecline(callId, why) {
+    try {
+      window.Api.f('/api/rtc/consult/decline', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ callId, clientId: window.App ? window.App.clientId() : '', why: why || 'no' })
+      }).catch(() => {});
+    } catch (e) {}
+  },
+
+  // 시작 시각은 화면 표시용으로만 내 시계를 쓴다. 실제 청구는 서버가 잰
+  //  consult_start ~ consult_end 로만 계산되므로 몇 초 어긋나도 돈은 정확하다.
+  _consultStart(o) {
+    this._consult = {
+      rate: Math.max(0, Number(o.rate) || 0), at: Date.now(),
+      callId: o.callId || '', name: o.name || '', ended: false, cut: false
+    };
+    this._setStatus('상담 중');
+    this._consultTick();
+    this._updateMiniBar();
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('상담을 시작했어요');
+  },
+
+  // 화면의 '지금까지 얼마'. 어디까지나 추정이다 — 진짜 숫자는 끝날 때 서버가 준다.
+  _consultTick() {
+    const c = this._consult;
+    if (!c || c.ended) return;
+    const ms = Math.max(0, Date.now() - c.at);
+    const s = Math.floor(ms / 1000);
+    const est = c.rate ? Math.ceil(ms / 30000) * c.rate : 0;
+    const el = document.getElementById('call-spent');
+    if (el) {
+      el.textContent = `상담 ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+        + ` · 사용 ${est.toLocaleString()}캐시(예상)`;
+    }
+    // 잔액 소진 — 서버는 내 잔액을 모른다(캐시는 이 기기에 있다).
+    //  넘기 전에 내가 상담을 닫는다. 통화 자체는 그대로 이어진다.
+    if (!c.cut && c.rate > 0 && window.Wallet && est >= window.Wallet.balance()) {
+      c.cut = true;
+      this._setStatus('캐시가 다 됐어요 — 상담이 곧 종료돼요');
+      this.endConsult('no-cash');
+    }
+  },
+
+  // 상담만 끝낸다 — 통화는 유지된다(마무리 인사가 남았다)
+  async endConsult(why) {
+    const c = this._consult;
+    if (!c || c.ended) return;
+    c.ended = true;
+    const callId = c.callId || (window.RtcCall && window.RtcCall.callId) || '';
+    const r = await window.Api.json('/api/rtc/consult/end', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callId, clientId: window.App ? window.App.clientId() : '' })
+    }).catch(() => null);
+    if (r && r.ok) this._settleConsult(callId, r.seconds || 0, r.charge || 0, c.name);
+    this._consultDone(r ? (r.seconds || 0) : 0, r ? (r.charge || 0) : 0);
+    if (why === 'no-cash' && window.App && window.App.showRecordToast) {
+      window.App.showRecordToast('캐시가 다 되어 상담을 마쳤어요 — 통화는 이어져요');
+    }
+  },
+
+  // 상담사가 [상담 완료]를 눌렀거나 서버가 자동 마감했다 (consult-ended 신호)
+  _consultEnded(d) {
+    const callId = (d && d.callId) || (this._consult && this._consult.callId) || '';
+    const secs = Number(d && d.seconds) || 0;
+    const charge = Number(d && d.charge) || 0;
+    const name = (this._consult && this._consult.name) || '';
+    if (this._consult) this._consult.ended = true;
+    this._settleConsult(callId, secs, charge, name);
+    this._consultDone(secs, charge);
+  },
+
+  _consultDone(secs, charge) {
+    const el = document.getElementById('call-spent');
+    if (el) {
+      el.textContent = charge > 0
+        ? `상담 마침 ${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')} · ${charge.toLocaleString()}캐시`
+        : '상담이 마무리됐어요 · 통화는 무료로 이어져요';
+    }
+    if (this._connected) this._setStatus('통화 중');
+    this._updateMiniBar();
+  },
+
+  // 지갑 차감은 이 함수 하나에서만 일어난다.
+  //  서버가 잰 시간·요금이 진실이고, 차감한 callId 를 기기에 적어 두므로
+  //  신호·종료 응답·시작 시 복구가 겹쳐 와도 같은 통화가 두 번 빠지지 않는다.
+  _settleConsult(callId, seconds, charge, name) {
+    charge = Math.max(0, Math.round(Number(charge) || 0));
+    if (!callId || !charge) return false;
+    try {
+      const done = window.Storage._safeGet('cbt_call_billed', []) || [];
+      if (done.indexOf(callId) >= 0) return false;
+      done.unshift(callId);
+      window.Storage._safeSet('cbt_call_billed', done.slice(0, 300));
+    } catch (e) { return false; }
+    if (!window.Wallet) return false;
+    // 잔액보다 더 뺄 수는 없다 — 마이너스 지갑은 만들지 않는다
+    const amt = Math.min(charge, window.Wallet.balance());
+    const s = Math.max(0, Math.round(Number(seconds) || 0));
+    const label = `음성 상담 ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+      + (name ? ' · ' + name : '');
+    if (amt > 0) window.Wallet.spend(amt, label);
+    this._spent = (this._spent || 0) + amt;
+    return true;
+  },
+
+  // 통화가 완전히 끝났다 — 서버가 알려준 상담 시간·요금으로 지갑을 맞춘다.
+  //  내가 끊었든·상대가 끊었든·서버가 자동 마감했든 길은 여기 하나로 모인다.
+  _onCallEnded(info) {
+    const c = (info && info.consult) || null;
+    const name = (this._consult && this._consult.name) || this._lastConsultName || '';
+    if (c && c.charge > 0 && info && info.callId) {
+      this._settleConsult(info.callId, c.seconds || 0, c.charge, name);
+      // 상담 내역의 숫자도 서버 값으로 고쳐 적는다 — 지갑에서 빠진 액수와
+      //  화면에 적힌 액수가 다르면 그것만으로 신뢰가 무너진다.
+      try {
+        const logs = window.Storage._safeGet('cbt_call_logs', []) || [];
+        if (logs[0]) {
+          logs[0].spent = c.charge;
+          logs[0].consultSecs = c.seconds || 0;
+          window.Storage._safeSet('cbt_call_logs', logs);
+        }
+      } catch (e) {}
+    }
+    // 종료 화면이 아직 떠 있으면 정확한 숫자로 고쳐 적는다
+    const line = document.getElementById('call-fin-line');
+    if (line && c && c.had) {
+      line.textContent = `음성 상담 ${String(Math.floor((c.seconds || 0) / 60)).padStart(2, '0')}:${String((c.seconds || 0) % 60).padStart(2, '0')}`
+        + ` · ${(c.charge || 0).toLocaleString()}캐시`;
+    }
+  },
+
+  // 통화 이벤트 중 '상담 세션'에 해당하는 것만 골라 처리한다.
+  //  발신(_voice)과 수신(receiveHuman)이 같은 규칙을 써야 하므로 한 곳에 모았다.
+  _consultEvent(type, d) {
+    if (type === 'consult-offer') { this._consultOffer(d); return true; }
+    if (type === 'consult-ended') { this._consultEnded(d); return true; }
+    if (type === 'ended') { this._onCallEnded(d); return true; }
+    return false;
   },
 
   dialSafe(safeTel) {
@@ -205,6 +415,8 @@ window.CallTalk = {
     if (!window.RtcCall) { this._setStatus('통화 모듈을 불러오지 못했어요'); return; }
     this._humanCounselorId = counselorId;
     window.RtcCall.onEvent = (type, d) => {
+      // 상담 세션(제안·마감)과 통화 종료 정산은 한 곳에서 처리한다
+      if (this._consultEvent(type, d)) return;
       if (type === 'ringing')  this._setStatus('전화 거는 중…');
       if (type === 'peer-ringing') this._setStatus('통화 대기 중…'); // 상대 기기에서 벨이 울리기 시작
       if (type === 'unstable') {
@@ -236,8 +448,8 @@ window.CallTalk = {
           const s = Math.floor(d.ms / 1000);
           el.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
         }
-        const sp = document.getElementById('call-spent');
-        if (sp && d.spent) sp.textContent = d.spent.toLocaleString() + '캐시 사용 중';
+        // 요금 줄은 상담 세션이 쓴다 — 통화 시간으로 계산한 금액을 여기 적으면
+        //  '무료 통화'인데도 돈이 나가는 것처럼 보인다
       }
       if (type === 'remote-hangup') this.end(this._connected ? '상담사가 통화를 종료했어요' : '상담사가 지금 받기 어려워요.\n채팅으로 남겨보시면 확인 후 연락드려요.');
       if (type === 'error') {
@@ -258,12 +470,19 @@ window.CallTalk = {
 
   // 통화 결과를 내 채팅방에 칩으로 남긴다 — '통화 12:34' / '부재중 전화'.
   //  상담사 쪽 기록은 서버(rtc/end)가 이미 남기므로 여기서 또 보내면 이중이 된다.
-  _logCall(c, connected, secs) {
+  //  상담이었던 통화는 '음성 상담 MM:SS · N캐시', 아니면 그냥 '통화 MM:SS'.
+  //  둘을 같은 문구로 적으면 나중에 "이 통화에 왜 돈이 나갔지"를 알 길이 없다.
+  _logCall(c, connected, secs, consult) {
     try {
       const dur = `${String(Math.floor(secs / 60)).padStart(2, '0')}:${String(secs % 60).padStart(2, '0')}`;
+      const cs = consult && consult.secs ? consult.secs : 0;
+      const cdur = `${String(Math.floor(cs / 60)).padStart(2, '0')}:${String(cs % 60).padStart(2, '0')}`;
+      const text = !connected ? '부재중 전화'
+        : consult ? `음성 상담 ${cdur}${consult.charge ? ` · ${consult.charge.toLocaleString()}캐시` : ''}`
+        : `통화 ${dur}`;
       const key = 'cbt_hchat_' + c.id;
       const msgs = window.Storage._safeGet(key, []) || [];
-      msgs.push({ role: 'call', ok: connected, text: connected ? `통화 ${dur}` : '부재중 전화', ts: Date.now() });
+      msgs.push({ role: 'call', ok: connected, text, ts: Date.now() });
       window.Storage._safeSet(key, msgs.slice(-200));
     } catch (e) {}
   },
@@ -305,7 +524,7 @@ window.CallTalk = {
         <p style="margin: 0 0 0.6rem; font-size: 0.8rem; color: rgba(255,255,255,0.6);">${String(c.hospital || '').replace(/</g, '&lt;')}</p>
         <div id="call-status" style="font-size: 0.94rem; color: rgba(255,255,255,0.7);">전화 거는 중…</div>
         <div id="call-clock" style="font-size: 1.35rem; font-weight: 700; margin-top: 0.35rem; font-variant-numeric: tabular-nums;">00:00</div>
-        <p id="call-spent" style="margin: 0.7rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `연결 전 무료 · 연결 후 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시`}</p>
+        <p id="call-spent" style="margin: 0.7rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `통화는 무료예요 · 상담을 시작하면 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시`}</p>
         <p id="call-audio-hint" style="margin: 0.5rem auto 0; max-width: 250px; font-size: 0.7rem; line-height: 1.5; color: rgba(255,255,255,0.5);">${this._native() ? '📞 귀에 대고 통화하세요 · 스피커는 아래 버튼으로' : '🔈 스피커로 들려요 · 조용한 곳이 아니면 이어폰을 끼면 훨씬 편해요'}</p>
       </div>
       <div style="flex: 1 1 auto;"></div>
@@ -461,6 +680,8 @@ window.CallTalk = {
     this._rate = 0;                 // 상담사 발신 = 내담자 무료
     this._prepaid = false;
     this._billStarted = false;
+    this._consult = null;
+    this._consultAsking = false;
     this._startTs = Date.now();
     this._spent = 0;
     this._counselorId = null;       // 회선 점유는 발신 쪽이 했다 — 해제도 그쪽 몫
@@ -473,6 +694,8 @@ window.CallTalk = {
     this._clockTimer = setInterval(() => this._updateClock(), 1000);
     if (!window.RtcCall) { this._setStatus('통화 모듈을 불러오지 못했어요'); return; }
     window.RtcCall.onEvent = (type, d) => {
+      // 상담사가 건 전화도 상담이 될 수 있다 — [상담 시작] 제안은 여기로도 온다
+      if (this._consultEvent(type, d)) return;
       if (type === 'connected') { this._setStatus('통화 중'); this._startHumanBilling(); }
       if (type === 'unstable') this._setStatus('연결이 불안정합니다… 다시 잇는 중');
       if (type === 'stable') this._setStatus('통화 중');
@@ -616,6 +839,14 @@ window.CallTalk = {
     const txt = document.getElementById('call-minibar-txt');
     if (!txt) return;
     const clock = (document.getElementById('call-clock') || {}).textContent || '00:00';
+    // 상담 중이면 미니바에도 '상담 시간'이 보여야 한다 — 접어둔 채로도
+    //  돈이 붙고 있다는 사실이 화면에서 사라지면 안 된다.
+    const c = this._consult;
+    if (c && !c.ended && this._connected) {
+      const s = Math.max(0, Math.floor((Date.now() - c.at) / 1000));
+      txt.textContent = `📞 상담 ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')} — 탭하면 돌아가요`;
+      return;
+    }
     txt.textContent = this._connected ? `📞 통화 중 ${clock} — 탭하면 돌아가요` : '📞 연결 중… — 탭하면 돌아가요';
   },
 
@@ -631,6 +862,7 @@ window.CallTalk = {
     el.textContent = h > 0
       ? `${h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`
       : `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
+    this._consultTick();   // 상담 중이면 경과·예상 요금도 같이 갱신된다
     this._updateMiniBar();
   },
 
@@ -719,6 +951,8 @@ window.CallTalk = {
     this._counselorId = null;
     this._humanCounselorId = null;
     this._pendingCounselor = null;
+    this._consult = null;
+    this._consultAsking = false;
     ['call-overlay', 'call-minibar', 'call-peek', 'call-incoming'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.remove();
@@ -739,6 +973,18 @@ window.CallTalk = {
     const connected = !!this._connected;
     const callSecs = connected ? Math.max(0, Math.floor((Date.now() - this._startTs) / 1000)) : 0;
     const callee = this._pendingCounselor;
+    // 상담 세션이 있었나 — 리뷰 넛지·기록 문구·종료 화면이 전부 여기서 갈린다.
+    //  (정확한 시간·요금은 조금 뒤 서버 응답이 알려준다. 여기서는 내 추정으로 먼저 적고
+    //   _onCallEnded 가 도착하면 같은 자리를 고쳐 쓴다)
+    const cs = this._consult;
+    const hadConsult = !!(cs && cs.at);
+    const consultSnap = hadConsult ? {
+      secs: Math.max(0, Math.floor((Date.now() - cs.at) / 1000)),
+      charge: cs.rate ? Math.ceil(Math.max(0, Date.now() - cs.at) / 30000) * cs.rate : 0
+    } : null;
+    this._lastConsultName = cs ? cs.name : '';
+    this._consult = null;
+    this._consultAsking = false;
     // 인간 상담이었다면 서버 회선 해제 → 다른 내담자가 걸 수 있게
     if (this._human && this._counselorId) {
       try {
@@ -762,7 +1008,7 @@ window.CallTalk = {
     this._pendingCounselor = null;
     // 통화는 채팅방에 흔적을 남긴다 — 카톡처럼 '통화 12:34' / '부재중 전화'.
     //  기록이 없으면 부재중인 줄도 모르고, 상담사는 회신할 이유를 못 본다.
-    if (humanCall && callee) this._logCall(callee, connected, callSecs);
+    if (humanCall && callee) this._logCall(callee, connected, callSecs, consultSnap);
     // 상담 내역(마이)에도 '몇 분 상담했는지'가 남아야 한다 — 최근 로그에 결과를 채운다
     if (humanCall && callee) {
       try {
@@ -776,11 +1022,15 @@ window.CallTalk = {
         if (recent) {
           recent.result = connected ? 'done' : 'missed';
           recent.secs = callSecs;
-          recent.spent = this._spent;
+          recent.consultSecs = consultSnap ? consultSnap.secs : 0;
+          // 실제 차감은 서버 응답이 도착한 뒤에 일어난다(_settleConsult).
+          //  여기서 this._spent 를 적으면 아직 0이라 '무료 통화'로 남는다 — 추정치를 적는다.
+          recent.spent = consultSnap ? consultSnap.charge : 0;
           window.Storage._safeSet('cbt_call_logs', logs.slice(0, 50));
         }
-        // 1분 넘게 실제 상담했다면 — 기억이 생생할 때 딱 한 번 리뷰를 청한다
-        if (connected && callSecs >= 60 && recent && window.App && window.App.writeCallReview) {
+        // 리뷰는 '상담'에만 청한다. 안부 전화·잘못 걸린 전화에 별점을 물으면
+        //  그건 무례하고, 별점의 뜻도 흐려진다.
+        if (hadConsult && consultSnap.secs >= 60 && recent && window.App && window.App.writeCallReview) {
           const reviews = window.Storage._safeGet('cbt_reviews', {}) || {};
           if (!reviews['call_' + recent.ts]) {
             const ts = recent.ts;
@@ -832,10 +1082,17 @@ window.CallTalk = {
     if (humanCall) {
       const fin = document.createElement('div');
       fin.style.cssText = 'position: fixed; inset: 0; z-index: 10002; background: rgba(20,28,26,0.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.4rem; color: #f7f3ea;';
+      // 상담이었으면 '음성 상담 MM:SS · N캐시', 아니면 '통화 MM:SS · 무료'.
+      //  id 를 붙여두는 이유: 서버가 잰 정확한 숫자가 곧 도착하면 이 줄만 고쳐 쓴다.
+      const mmss = n => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(n % 60).padStart(2, '0')}`;
+      const line = !connected ? '부재중으로 남겨뒀어요 — 채팅으로 이어보세요'
+        : hadConsult ? `음성 상담 ${mmss(consultSnap.secs)} · ${consultSnap.charge.toLocaleString()}캐시`
+        : `통화 ${mmss(callSecs)} · 무료`;
       fin.innerHTML = `<div style="font-size: 1.15rem; font-weight: 700;">${connected ? '통화 종료' : '연결되지 않았어요'}</div>
-        <div style="font-size: 0.82rem; color: rgba(255,255,255,0.65);">${connected ? `${Math.floor(callSecs / 60)}분 ${callSecs % 60}초 · ${this._spent.toLocaleString()}캐시` : '부재중으로 남겨뒀어요 — 채팅으로 이어보세요'}</div>`;
+        <div id="call-fin-line" style="font-size: 0.82rem; color: rgba(255,255,255,0.65);">${line}</div>`;
       document.body.appendChild(fin);
-      setTimeout(() => fin.remove(), 1200);
+      // 서버가 준 정확한 숫자가 늦게 오는 일이 있다 — 조금 더 오래 보여준다
+      setTimeout(() => fin.remove(), 1800);
     } else {
       // AI 보이스톡은 기존 요약 유지 (정직한 숫자)
       window.UI.alert(connected

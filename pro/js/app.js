@@ -67,7 +67,7 @@ let NOTI_NATIVE = '';
 let ME = null;                      // /api/me 프로필
 let TAB = 'home';
 let ROOM = null;                    // 열려 있는 대화방 key
-const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], presence: null, scope: '' };
+const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '' };
 const OPEN = {};                    // 접이식 섹션 열림 상태
 let SEEN = {};                      // 스레드별 '여기까지 읽음' ts
 try { SEEN = JSON.parse(localStorage.getItem('pro_seen') || '{}'); } catch (e) { SEEN = {}; }
@@ -508,8 +508,15 @@ async function guideToNotifSettings() {
 let lastClientMsgs = null;   // 새 메시지 감지용
 
 async function loadAll() {
-  await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework()]);
+  await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework(), loadCalls()]);
   renderAll();
+}
+
+// 바로상담(음성 상담) 수입. 예약(bookings)만 보던 정산 탭에서는
+//  통화로 번 돈이 통째로 보이지 않았다 — 운영자 화면에만 잡혔다.
+async function loadCalls() {
+  const d = await getJson('/api/rtc/my-calls?' + authQS());
+  if (d && Array.isArray(d.items)) D.calls = d.items;
 }
 
 async function loadMe() {
@@ -1345,7 +1352,16 @@ function renderMoney() {
   const month = earned.filter(b => b.whenTs >= ms);
   const monthSum = month.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
-  const waiting = total - paid;
+
+  // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 70%).
+  //  market.js payoutOf 와 같은 값이어야 한다. 여기가 빠져 있어서
+  //  통화로 번 돈이 상담사 화면에는 아예 보이지 않았다.
+  const calls = (D.calls || []).slice().sort((a, b) => b.at - a.at);
+  const share = n => Math.round(Math.max(0, n || 0) * 70 / 100);
+  const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
+  const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
+  const callPaid = calls.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
+  const waiting = (total + callTotal) - (paid + callPaid);
 
   // 최근 6개월 — '이번 달이 지난달보다 나은가'는 숫자 하나로는 절대 안 보인다
   const months = [];
@@ -1353,13 +1369,18 @@ function renderMoney() {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(mref.getFullYear(), mref.getMonth() - i, 1);
     const from = d.getTime(), to = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    const mCalls = calls.filter(c => c.at >= from && c.at < to);
     const v = earned.filter(b => b.whenTs >= from && b.whenTs < to)
-      .reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
-    months.push({ label: (d.getMonth() + 1) + '월', v, n: earned.filter(b => b.whenTs >= from && b.whenTs < to).length });
+      .reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0)
+      + mCalls.reduce((s, c) => s + share(c.charge), 0);   // 음성 상담도 같이 센다
+    months.push({
+      label: (d.getMonth() + 1) + '월', v,
+      n: earned.filter(b => b.whenTs >= from && b.whenTs < to).length + mCalls.length
+    });
   }
   const prev = months[4] ? months[4].v : 0;
-  const diff = monthSum - prev;
-  const trend = !prev && !monthSum ? '아직 기록이 쌓이는 중이에요'
+  const diff = (monthSum + callMonth) - prev;
+  const trend = !prev && !(monthSum + callMonth) ? '아직 기록이 쌓이는 중이에요'
     : diff > 0 ? `지난달보다 <b style="color:var(--accent)">+${won(diff)}캐시</b>`
     : diff < 0 ? `지난달보다 <b style="color:var(--warn)">${won(diff)}캐시</b>`
     : '지난달과 같아요';
@@ -1372,6 +1393,26 @@ function renderMoney() {
       <div class="chartwrap">${barchart(months)}</div>
       <p class="muted" style="margin-top:0.3rem;">막대 위 숫자는 천 캐시 단위예요 (예: 120k = 120,000캐시)</p>
     </div>`;
+
+  // 음성 상담(바로상담) 줄 — 예약과 섞어 놓으면 무엇으로 번 돈인지 알 수 없다.
+  //  '음성 상담' 칩과 상담 시간을 함께 적어 예약 상담과 한눈에 구분되게 한다.
+  const callRows = calls.slice(0, 60).map(c => {
+    const who = nameOfClient(c.clientId);
+    return `
+    <div class="listrow">
+      ${avatar(who, 'sm')}
+      <div class="grow">
+        <strong style="font-size:0.86rem;">${esc(who)} 님</strong>
+        <div class="muted"><span class="chip ok">음성 상담</span>
+          ${new Date(c.at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+          · ${mmss(c.consultSeconds || 0)} · ${won(c.charge)}캐시</div>
+      </div>
+      <div style="text-align:right;">
+        <strong style="font-size:0.88rem; color:var(--accent);">+${won(share(c.charge))}</strong>
+        <div>${c.settledAt ? '<span class="chip ok">지급 완료</span>' : '<span class="chip gold">정산 대기</span>'}</div>
+      </div>
+    </div>`;
+  }).join('');
 
   const rows = earned.slice().sort((a, b) => b.whenTs - a.whenTs).slice(0, 60).map(b => `
     <div class="listrow">
@@ -1391,10 +1432,10 @@ function renderMoney() {
   el.innerHTML = `
     <div class="card" style="background:linear-gradient(135deg, var(--accent-soft), #fff);">
       <div class="muted">이번 달 내 수입</div>
-      <div class="serif" style="font-size:2rem; color:var(--accent); line-height:1.3;">${won(monthSum)}<span style="font-size:0.9rem;">캐시</span></div>
+      <div class="serif" style="font-size:2rem; color:var(--accent); line-height:1.3;">${won(monthSum + callMonth)}<span style="font-size:0.9rem;">캐시</span></div>
       <div class="row" style="margin-top:0.6rem; gap:1.4rem;">
-        <div><div class="muted">이번 달 상담</div><strong>${month.length}건</strong></div>
-        <div><div class="muted">누적 수입</div><strong>${won(total)}캐시</strong></div>
+        <div><div class="muted">이번 달 상담</div><strong>${month.length + calls.filter(c => c.at >= ms).length}건</strong></div>
+        <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
       <p class="muted" style="margin-top:0.6rem;">상담사 70% · 결제 수수료 3% · 플랫폼 27%</p>
@@ -1404,6 +1445,9 @@ function renderMoney() {
     ${chartCard}
     <div class="sec-title">계좌</div>
     ${foldPayout()}
+    ${callRows ? `<div class="sec-title">음성 상담<span class="right muted">${calls.length}건</span></div>
+    <div class="card pad0" style="padding:0 1.1rem;">${callRows}</div>
+    <p class="muted" style="margin:0.4rem 0.2rem 0;">통화는 무료예요. [상담 시작]을 눌러 내담자가 동의한 구간만 정산됩니다.</p>` : ''}
     <div class="sec-title">정산 내역<span class="right muted">${earned.length ? earned.length + '건' : ''}</span></div>
     <div class="card ${rows ? 'pad0' : ''}" ${rows ? 'style="padding:0 1.1rem;"' : ''}>${rows ||
       empty('money', '완료된 상담이 아직 없어요', '상담을 마치고 [상담 완료]를 누르면<br>여기에 정산이 쌓이기 시작해요.')}</div>`;
@@ -1632,6 +1676,10 @@ function callBtns(mode) {
   const min = $('call-min'), chat = $('call-chat');
   if (min) min.hidden = mode === 'incoming';
   if (chat) chat.hidden = mode === 'incoming';
+  // [상담 시작]은 '붙은 뒤'에만 나타난다 — 벨이 울리는 화면에 요금 버튼이
+  //  보이면 받기도 전에 돈이 나가는 줄 안다. 켜는 건 connected 이벤트가 한다.
+  const cs = $('call-consult');
+  if (cs && mode === 'incoming') cs.hidden = true;
 }
 
 // ============================================================================
@@ -1645,9 +1693,129 @@ const callFullScreen = () => { const el = $('callov'); return !!(el && !el.hidde
 
 function callbarLabel() {
   const clock = ($('call-clock') || {}).textContent || '00:00';
+  // 상담 중이면 접어둔 바에도 '상담 시간'이 보여야 한다 —
+  //  요금이 붙고 있다는 사실이 화면에서 사라지면 안 된다.
+  if (CONSULT && CONSULT.state === 'on') {
+    return `상담 ${mmss(Math.floor((Date.now() - CONSULT.at) / 1000))}`;
+  }
   // 연결 전인데 '통화 중'이라 적으면 거짓말이다 — 통화 화면의 문구를 그대로 쓴다
   const connected = !!(window.RtcCall && window.RtcCall.connectAt);
   return connected ? `통화 중 ${clock}` : (($('call-st') || {}).textContent || '연결 중…');
+}
+
+// ============================================================================
+//  상담 세션 — 통화 안의 '유료 구간'
+//
+//  통화 자체는 무료다. 잘못 걸린 전화·안부 전화에 돈을 받지 않기 위해서다.
+//  [상담 시작]을 누르면 내담자에게 동의를 묻고, 동의한 순간부터 서버가
+//  시간을 잰다(폰이 잠겨도 서버 시계는 멈추지 않는다).
+//  [상담 완료]를 누르거나 통화가 끝나면 서버가 요금을 확정해 정산으로 넘긴다.
+// ============================================================================
+let CONSULT = null;     // { state: 'wait'|'on', at, rate, callId }
+let CONSULT_T = null;   // 경과 시간 갱신 타이머
+
+const mmss = s => `${String(Math.floor(Math.max(0, s) / 60)).padStart(2, '0')}:${String(Math.max(0, s) % 60).padStart(2, '0')}`;
+
+function consultUi(state, label) {
+  const b = $('call-consult');
+  if (!b) return;
+  if (!state) { b.hidden = true; return; }   // 정산 문구(info)는 남겨둔다
+  b.hidden = false;
+  b.className = 'consultbtn' + (state === 'wait' ? ' wait' : state === 'on' ? ' on' : '');
+  b.textContent = label;
+}
+
+function consultTick() {
+  if (!CONSULT || CONSULT.state !== 'on') return;
+  const ms = Math.max(0, Date.now() - CONSULT.at);
+  const est = CONSULT.rate ? Math.ceil(ms / 30000) * CONSULT.rate : 0;
+  const info = $('call-consult-info');
+  if (info) {
+    info.hidden = false;
+    info.textContent = `상담 ${mmss(Math.floor(ms / 1000))} · 예상 ${won(est)}캐시`;
+  }
+}
+
+function consultReset() {
+  clearInterval(CONSULT_T); CONSULT_T = null;
+  CONSULT = null;
+  consultUi(null);
+  const info = $('call-consult-info');
+  if (info) { info.hidden = true; info.textContent = ''; }
+}
+
+// 연결됐다 — 이제부터 [상담 시작]을 누를 수 있다
+function consultReady() {
+  if (CONSULT) return;              // 이미 진행 중인 상담이 있으면 건드리지 않는다
+  consultUi('idle', '상담 시작');
+}
+
+async function offerConsult() {
+  if (CONSULT && CONSULT.state === 'on') { endConsultNow(); return; }
+  if (CONSULT && CONSULT.state === 'wait') { toast('내담자 동의를 기다리는 중이에요'); return; }
+  const callId = (window.RtcCall && window.RtcCall.callId) || '';
+  if (!callId || !window.RtcCall.connectAt) { toast('통화가 연결된 뒤에 눌러주세요'); return; }
+  CONSULT = { state: 'wait', at: 0, rate: 0, callId };
+  consultUi('wait', '내담자 동의를 기다려요…');
+  $('call-st').textContent = '내담자 동의를 기다려요…';
+  const r = await postJson('/api/rtc/consult/offer', authBody({ callId }));
+  if (!r || !r.ok) {
+    consultReset();
+    consultUi('idle', '상담 시작');
+    $('call-st').textContent = '통화 중';
+    toast(r && r.error === 'not-connected' ? '통화가 연결된 뒤에 시작할 수 있어요' : '상담을 시작하지 못했어요');
+    return;
+  }
+  CONSULT.rate = r.rate || 0;
+  // 이미 진행 중이던 상담(앱을 껐다 켠 경우) — 곧장 진행 화면으로
+  if (r.already) consultStarted({ rate: r.rate, at: r.startedAt });
+}
+
+function consultStarted(d) {
+  const rate = Number(d && d.rate) || (CONSULT ? CONSULT.rate : 0);
+  clearInterval(CONSULT_T);
+  CONSULT = { state: 'on', at: Date.now(), rate, callId: (window.RtcCall && window.RtcCall.callId) || '' };
+  $('call-st').textContent = '상담 중';
+  consultUi('on', '상담 완료');
+  consultTick();
+  CONSULT_T = setInterval(consultTick, 1000);
+  toast('상담을 시작했어요');
+}
+
+async function endConsultNow() {
+  if (!CONSULT || CONSULT.state !== 'on') return;
+  const callId = CONSULT.callId || (window.RtcCall && window.RtcCall.callId) || '';
+  consultUi('wait', '마감하는 중…');
+  const r = await postJson('/api/rtc/consult/end', authBody({ callId }));
+  consultFinished(r || {});
+}
+
+// 마감됨 — 내가 눌렀든, 내담자 잔액이 다 됐든, 통화가 끊겨 서버가 자동 마감했든.
+//  통화는 유지된다. 마무리 인사를 하고 끊으면 된다.
+function consultFinished(d) {
+  clearInterval(CONSULT_T); CONSULT_T = null;
+  const secs = Number(d && d.seconds) || 0;
+  const charge = Number(d && d.charge) || 0;
+  CONSULT = null;
+  consultUi(null);
+  const info = $('call-consult-info');
+  if (info) { info.hidden = false; info.textContent = `상담 ${mmss(secs)} · ${won(charge)}캐시 정산 예정`; }
+  if (window.RtcCall && window.RtcCall.callId) $('call-st').textContent = '통화 중';
+  toast(`상담 ${mmss(secs)} · ${won(charge)}캐시 정산 예정`);
+}
+
+// 통화 이벤트 중 상담 세션에 해당하는 것 — 발신·수신이 같은 규칙을 쓴다
+function consultEvent(type, d) {
+  if (type === 'consult-accepted') { consultStarted(d); return true; }
+  if (type === 'consult-declined') {
+    consultReset();
+    consultUi('idle', '상담 시작');
+    $('call-st').textContent = '통화 중';
+    toast('내담자가 "지금은 아니요"를 눌렀어요');
+    return true;
+  }
+  if (type === 'consult-ended') { consultFinished(d); return true; }
+  return false;
 }
 
 function showCallbar() {
@@ -1782,7 +1950,8 @@ async function answerCall() {
   callBtns('active'); // 받았다 — 이제 남은 버튼은 종료뿐
   $('call-st').textContent = '연결 중…';
   window.RtcCall.onEvent = (type, d) => {
-    if (type === 'connected') $('call-st').textContent = '통화 중';
+    if (consultEvent(type, d)) return;
+    if (type === 'connected') { $('call-st').textContent = '통화 중'; consultReady(); }
     // 폰과 태블릿이 같이 울렸고, 다른 기기가 먼저 받았다.
     //  여기서 실패로 소란을 떨 이유가 없다 — 전화는 이미 받아졌다.
     //  한 줄만 알려주고 조용히 닫는다(끊기 신호는 절대 보내지 않는다).
@@ -1820,8 +1989,9 @@ async function callClient(clientId, clientName) {
   $('call-clock').textContent = '00:00';
   $('callov').hidden = false;
   window.RtcCall.onEvent = (type, d) => {
+    if (consultEvent(type, d)) return;
     if (type === 'peer-ringing') $('call-st').textContent = '통화 대기 중…';
-    if (type === 'connected') $('call-st').textContent = '통화 중';
+    if (type === 'connected') { $('call-st').textContent = '통화 중'; consultReady(); }
     if (type === 'unstable') $('call-st').textContent = '연결이 불안정합니다…';
     if (type === 'stable') $('call-st').textContent = '통화 중';
     if (type === 'tick') {
@@ -1861,14 +2031,21 @@ async function closeCall() {
   // 통화가 끝났는데 알림이 남아 있으면 벨이 계속 운다 — 울리던 것 전부를 내린다
   stopNativeRing('');
   if (CUR_CALL) clearInterval(CUR_CALL.watch);
+  // 상담을 열어둔 채 그냥 끊었다 — 서버가 알아서 마감한다(요금은 정확히 계산된다).
+  //  다만 아무 말 없이 사라지면 "안 눌렀는데 정산이 되나?" 하고 불안해진다.
+  const hadConsult = !!(CONSULT && CONSULT.state === 'on');
+  consultReset();
   try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
+  if (hadConsult) toast('상담은 통화 종료 시각으로 자동 마감돼요 — 정산에 올라갑니다');
   // 어느 길로 끝나든(내가 끊든·상대가 끊든) 미니바와 본문 여백은 여기서 걷힌다
   hideCallbar();
   const pk = $('call-peek');
   if (pk) pk.remove();
   $('callov').hidden = true;
   CUR_CALL = null;
-  loadChats().then(() => { renderChatList(); renderDots(); });   // 통화 기록이 채팅에 남는다
+  // 통화 기록이 채팅에 남고, 상담이었다면 정산 탭에도 바로 올라와야 한다
+  loadChats().then(() => { renderChatList(); renderDots(); });
+  loadCalls().then(() => { if (TAB === 'money') renderMoney(); });
 }
 
 // ============================================================================
@@ -2284,7 +2461,9 @@ const ACT = {
   'call-yes': answerCall,
   'call-no': rejectCall,
   'call-min': minimizeCall,
-  'call-chat': callWithChat
+  'call-chat': callWithChat,
+  // 같은 버튼이 상황에 따라 [상담 시작] / [상담 완료] 두 일을 한다
+  'consult': offerConsult
 };
 
 document.addEventListener('click', e => {
@@ -2487,7 +2666,7 @@ setInterval(() => {
 
 setInterval(() => {
   if (!(SESSION || CODE) || document.hidden) return;
-  Promise.all([loadInbox(), loadBookings(), loadPresence(), loadHomework(), loadReviews()]).then(renderAll);
+  Promise.all([loadInbox(), loadBookings(), loadPresence(), loadHomework(), loadReviews(), loadCalls()]).then(renderAll);
 }, 45000);
 
 // 걸려오는 전화는 자주 확인해야 한다 — 늦게 뜨면 이미 끊긴 뒤다.
