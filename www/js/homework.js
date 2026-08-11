@@ -65,6 +65,8 @@ window.Homework = {
     const list = this.all();
     const h = list.find(x => x.id === id);
     if (!h) return;
+    // 완료로 받은 물은 되돌리면 돌려준다 (반복 눌러 물 캐는 구멍 방지)
+    if (h.doneAt && window.Farm && window.Farm.takeWater) window.Farm.takeWater(4, '숙제 완료 취소');
     h.doneAt = 0;
     this._save(list);
     if (window.Sfx) window.Sfx.play('close');

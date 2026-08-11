@@ -310,6 +310,8 @@ window.CarePlan = {
     if (p.done[k]) {
       delete p.done[k];
       if (window.Sfx) window.Sfx.play('close');
+      // 체크로 받은 물은 해제하면 돌려준다 (반복 눌러 물 캐는 구멍 방지)
+      if (window.Farm && window.Farm.takeWater) window.Farm.takeWater(2, '케어플랜 체크 취소');
     } else {
       p.done[k] = Date.now();
       if (window.Sfx) window.Sfx.hit('save');
@@ -321,6 +323,8 @@ window.CarePlan = {
     }
     this._S()._safeSet('cbt_careplan', p);
     this.render();
+    // 퀘스트 화면에도 같은 할 일이 떠 있다 — 양쪽 체크를 같이 새로 그린다
+    if (window.Missions && window.Missions.renderCard) window.Missions.renderCard();
   },
 
   // --------------------------------------------------------------------------
@@ -362,6 +366,7 @@ window.CarePlan = {
         p.done[this._key(wi, i)] = Date.now();
         this._S()._safeSet('cbt_careplan', p);
         this.render();
+        if (window.Missions && window.Missions.renderCard) window.Missions.renderCard();
         if (window.App && window.App.showRecordToast) {
           window.App.showRecordToast('케어플랜에도 체크했어요 — ' + acts[i]);
         }

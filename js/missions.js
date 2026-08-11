@@ -387,6 +387,8 @@ ${recent}` }],
     if (log[k]) {
       delete log[k];
       if (window.Sfx) window.Sfx.play('close');
+      // 체크로 받은 물은 해제하면 돌려준다 (반복 눌러 물 캐는 구멍 방지)
+      if (window.Farm && window.Farm.takeWater) window.Farm.takeWater(2, '미션 체크 취소');
     } else {
       log[k] = Date.now();
       if (window.Sfx) window.Sfx.hit('save');
@@ -412,25 +414,45 @@ ${recent}` }],
   // 오늘 보여줄 처방 미션 목록
   rxToday() {
     const out = [];
-    // 케어플랜 카드에 이미 떠 있는 할 일은 여기서 또 보여주지 않는다.
-    //  (할 일이 비면 weekActions 가 quests 를 끌어다 쓰기 때문에 그대로 두면 겹친다)
+    // 케어플랜의 이번 주 할 일을 퀘스트에도 그대로 얹는다.
+    //  전에는 "케어플랜 카드에 있으니 여기선 숨기자"였는데, 사용자는 퀘스트
+    //  화면을 '오늘 할 일이 다 모이는 곳'으로 쓴다 — 숨기니까 "왜 안 떠?"가 됐다.
+    //  체크 상태는 케어플랜 저장소 그대로 쓴다(수첩이 하나여야 어긋나지 않는다).
     let planActs = [];
+    let planKinds = [];
     try {
       if (window.CarePlan && window.CarePlan.active()) {
+        const wi = window.CarePlan.weekIndex();
         planActs = window.CarePlan.weekActions(window.CarePlan.currentWeek()) || [];
+        planActs.forEach((a, i) => {
+          out.push({ text: a, why: '케어플랜 이번 주 할 일', src: 'planact', planW: wi, planI: i });
+        });
+        if (window.CarePlan._kindsOf) {
+          planKinds = planActs.map(a => window.CarePlan._kindsOf(a)).flat();
+        }
       }
     } catch (e) {}
-    // 사람 상담사가 낸 숙제가 가장 앞. AI 제안보다 우선한다.
+    // 같은 종류의 퀘스트는 중복이라 걸러낸다 —
+    //  "하루 한 번 체크인하기"(케어플랜)와 "지금 마음 체크인하기"(퀘스트)가
+    //  나란히 뜨면 두 번 해야 하는 것처럼 보인다.
+    const dup = (text) => {
+      try {
+        if (!planKinds.length || !window.CarePlan || !window.CarePlan._kindsOf) return false;
+        return window.CarePlan._kindsOf(text).some(k => planKinds.includes(k));
+      } catch (e) { return false; }
+    };
+    // 사람 상담사가 낸 숙제가 가장 앞. AI 제안보다 우선한다 (숙제는 중복 필터 예외 —
+    //  상담사가 시킨 건 문구가 비슷해도 그 사람 지시라서 따로 보여야 한다).
     if (window.Homework && window.Homework.questSeeds) {
-      window.Homework.questSeeds().forEach(q => out.push({ ...q, src: 'hw' }));
+      window.Homework.questSeeds().forEach(q => out.unshift({ ...q, src: 'hw' }));
     }
     if (window.CarePlan && window.CarePlan.questsFor) {
       window.CarePlan.questsFor(this._today(), 2)
-        .filter(q => planActs.indexOf(q.text) < 0)
+        .filter(q => planActs.indexOf(q.text) < 0 && !dup(q.text))
         .forEach(q => out.push({ ...q, src: 'plan' }));
     }
     if (window.Goals && window.Goals.questSeeds) {
-      window.Goals.questSeeds().slice(0, 1).forEach(q => out.push({ ...q, src: 'goal' }));
+      window.Goals.questSeeds().slice(0, 1).filter(q => !dup(q.text)).forEach(q => out.push({ ...q, src: 'goal' }));
     }
     return out;
   },
@@ -449,8 +471,15 @@ ${recent}` }],
           <span style="margin-left: auto; font-size: 0.64rem; color: var(--text-muted); flex: 0 1 auto; min-width: 0;">무작위가 아니라 내 기록에서 나온 것</span>
         </div>
         ${rows.map(r => {
-          const done = this.rxDone(r.text);
+          // 케어플랜 할 일은 케어플랜 수첩을 그대로 본다 — 두 화면이 같은 체크를 공유
+          const isPlanAct = r.src === 'planact';
+          const done = isPlanAct
+            ? (window.CarePlan && window.CarePlan.isDone(r.planW, r.planI))
+            : this.rxDone(r.text);
           const arg = String(r.text).replace(/'/g, "\\'");
+          const toggleJs = isPlanAct
+            ? `window.CarePlan.toggle(${r.planW}, ${r.planI}); window.Missions.renderCard();`
+            : `window.Missions.rxToggle('${arg}', '${r.src}')`;
           const route = this.routeFor(r.text);
           // 행 전체가 체크 토글 버튼이라 그 안에 버튼을 또 둘 수 없다 —
           //  겉을 div 로 바꾸고 토글과 '하러 가기'를 형제로 놓는다.
@@ -458,7 +487,7 @@ ${recent}` }],
           <div style="box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
                       background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
                       border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
-            <button onclick="window.Missions.rxToggle('${arg}', '${r.src}')"
+            <button onclick="${toggleJs}"
               style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;">
               <span style="flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
                            background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
@@ -467,7 +496,7 @@ ${recent}` }],
               <span style="flex: 1 1 0%; min-width: 0;">
                 <span style="display: block; font-size: 0.82rem; line-height: 1.5; font-weight: 700;
                              color: ${done ? 'var(--text-muted)' : 'var(--text-primary)'}; text-decoration: ${done ? 'line-through' : 'none'};">${esc(r.text)}</span>
-                ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '리포트 근거'} · ${esc(r.why)}</span>` : ''}
+                ${r.why ? `<span style="display: block; margin-top: 0.12rem; font-size: 0.68rem; line-height: 1.5; color: var(--text-muted);">${r.src === 'hw' ? '상담사 숙제 · ' : r.src === 'goal' ? '내가 적어둔 것 · ' : r.src === 'planact' ? '' : '리포트 근거 · '}${esc(r.why)}</span>` : ''}
               </span>
               <span style="flex-shrink: 0; align-self: center; font-size: 0.68rem; font-weight: 800; white-space: nowrap;
                            display: inline-flex; align-items: center; gap: 0.1rem;

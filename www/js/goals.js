@@ -41,6 +41,8 @@ window.Goals = {
     if (g.doneAt) {
       g.doneAt = 0;
       if (window.Sfx) window.Sfx.play('close');
+      // 체크로 받은 물은 해제하면 돌려준다 (반복 눌러 물 캐는 구멍 방지)
+      if (window.Farm && window.Farm.takeWater) window.Farm.takeWater(5, '목표 체크 취소');
     } else {
       g.doneAt = Date.now();
       if (window.Sfx) window.Sfx.hit('levelup');

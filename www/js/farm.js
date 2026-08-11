@@ -100,6 +100,17 @@ window.Farm = {
     this.render();
   },
 
+  // 체크를 되돌리면 준 물도 되가져간다 — 체크·해제 반복으로 물이 무한히 차는
+  //  구멍을 막는다. 이미 써버려서 0 밑으로 내려가면 0 에서 멈춘다(빚은 없다).
+  takeWater(n, reason) {
+    if (!n || n <= 0) return;
+    this._setWater(Math.max(0, this.water() - n));
+    if (window.App && window.App.showRecordToast) {
+      window.App.showRecordToast(`물 -${n} — ${reason || '체크를 되돌렸어요'}`);
+    }
+    this.render();
+  },
+
   // 우렁 캐시로 물 사기 (급할 때만 — 기본은 돌봄 행동으로 모으는 것)
   WATER_PACKS: [
     { water: 10, cash: 300 },
