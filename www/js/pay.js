@@ -149,14 +149,32 @@ window.Pay = {
     let p = null;
     try { p = JSON.parse(localStorage.getItem(this.PENDING_KEY) || 'null'); } catch (e) { p = null; }
     if (!p || !p.orderId || !(p.cash > 0)) return;
-    try { localStorage.removeItem(this.PENDING_KEY); } catch (e) {}
 
     // 같은 주문을 두 번 얹지 않는다 — 뒤로 가기·세션 복원으로 다시 들어올 수 있다
     const done = (window.Storage && window.Storage._safeGet(this.DONE_KEY, [])) || [];
-    if (done.indexOf(p.orderId) >= 0) return;
-    window.Storage._safeSet(this.DONE_KEY, [p.orderId].concat(done).slice(0, 50));
+    if (done.indexOf(p.orderId) >= 0) {
+      // 이미 반영된 주문 — 남아 있던 대기표만 정리한다
+      try { localStorage.removeItem(this.PENDING_KEY); } catch (e) {}
+      return;
+    }
 
+    // 순서가 중요하다: 지갑에 먼저 얹고, 실제로 얹혔음을 확인한 뒤에야
+    //  대기표(PENDING_KEY)를 지운다. 예전에는 대기표를 먼저 지워서, credit 이
+    //  용량 초과 등으로 조용히 실패하면 "돈은 냈는데 캐시도 재시도 근거도 소멸"했다.
+    const expected = Math.max(0, Math.round(Number(p.cash) || 0));
+    const before = window.Wallet.balance ? window.Wallet.balance() : null;
     window.Wallet.credit(p.cash, p.bonus || 0);
+    // credit 은 _safeSet 실패를 알려주지 않으므로 잔액으로 직접 확인한다.
+    if (before != null && expected > 0) {
+      const after = window.Wallet.balance ? window.Wallet.balance() : null;
+      if (after != null && after < before + expected) {
+        // 반영 실패 — 대기표를 남겨 다음 부팅에 다시 시도한다 (돈은 지키고 재시도 근거 보존)
+        return;
+      }
+    }
+    // 여기까지 왔으면 캐시가 지갑에 실제로 얹혔다 — 이제 완료 기록하고 대기표를 지운다
+    window.Storage._safeSet(this.DONE_KEY, [p.orderId].concat(done).slice(0, 50));
+    try { localStorage.removeItem(this.PENDING_KEY); } catch (e) {}
     // 앱이 다 뜬 뒤에 알려준다 — 부팅 도중 띄우면 토스트가 화면과 함께 날아간다
     setTimeout(() => {
       try {

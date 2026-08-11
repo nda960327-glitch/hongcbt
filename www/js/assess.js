@@ -1105,7 +1105,7 @@ b{font-weight:800}
       const rec = { id: 'as_' + Date.now(), date, json, facts: this.factCharts(),
                     history: (this._S()._safeGet('cbt_assess_history', []) || []).slice(-8) };
       reps.unshift(rec);
-      this._S()._safeSet('cbt_assessments', reps.slice(0, 10));
+      this._S()._safeSet('cbt_assessments', reps.slice(0, 30)); // 유료 AI 리포트 — 상한 10→30
       // 리포트를 읽고 끝내지 않는다 — 2주 케어플랜을 바로 심는다
       if (window.CarePlan) {
         // 계획을 못 담아냈으면(모델이 필드를 빠뜨림) 조용히 넘기지 않는다 —

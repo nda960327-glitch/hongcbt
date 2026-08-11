@@ -1259,7 +1259,7 @@ ${transcript}`;
         title: title || `[${topic}] 주제 요약`,
         body: body || text
       });
-      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 10)); // 최대 10개 유지 (한도 끝도 없이 길어지는 것 방지)
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 30)); // 최대 30개 (대시보드와 통일 — 10이면 챗봇 요약 한 번에 지난 리포트가 잘렸다)
 
       const note = {
         role: 'bot',

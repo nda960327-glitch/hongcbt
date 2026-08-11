@@ -46,14 +46,17 @@ const ALLOW = new Set([
   'cbt_cash', 'cbt_cash_history', 'cbt_sub_until', 'cbt_trial_start',
   'cbt_free_sessions', 'cbt_pro_mode',
   // 상담
-  'cbt_bookings', 'cbt_reviews', 'cbt_favs', 'cbt_counselor_apps'
+  'cbt_bookings', 'cbt_reviews', 'cbt_favs', 'cbt_counselor_apps',
+  // 사용자가 직접 만든 것 — 폰을 바꿔도 따라와야 한다.
+  //  cbt_night_journal 은 '완성된' 밤 일기다(초안 cbt_night_draft 와 다르다).
+  'cbt_night_journal', 'cbt_kept_cards', 'cbt_mailbox'
 ]);
 
 // 절대 올라오면 안 되는 것. 흰 목록에 없으니 이미 막히지만,
 //  누군가 실수로 목록에 넣는 날을 대비해 이름으로도 한 번 더 막는다.
 const DENY = [
   /^cbt_messages$/, /^cbt_hchat_/, /^cbt_daily_chat$/, /^cbt_mem_turn$/,
-  /^cbt_thought_records$/, /^cbt_night_/, /^cbt_wiz_draft$/,
+  /^cbt_thought_records$/, /^cbt_night_(?!journal$)/, /^cbt_wiz_draft$/,
   /^cbt_api_key$/, /^cbt_lock_/, /^cbt_client_id$/, /^cbt_user_phone$/,
   /^cbt_share/, /^cbt_auth$/
 ];

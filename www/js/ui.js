@@ -50,6 +50,9 @@ window.UI = {
     const id = 'ui-sheet-' + (++this._seq);
     const wrap = document.createElement('div');
     wrap.id = id;
+    // 안드로이드 뒤로가기 가드(app._initBackGuard)가 이 시트를 '닫히는 오버레이'로
+    //  인식하게 한다 — 이게 없으면 계정삭제·로그아웃 확인창에서 뒤로가기 시 앱이 꺼졌다.
+    wrap.dataset.ovGuard = '1';
     wrap.setAttribute('role', 'dialog');
     wrap.setAttribute('aria-modal', 'true');
     wrap.style.cssText =

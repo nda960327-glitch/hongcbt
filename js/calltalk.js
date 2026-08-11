@@ -793,9 +793,10 @@ window.CallTalk = {
     if (!bar) {
       bar = document.createElement('div');
       bar.id = 'call-minibar';
-      // z-index 는 채팅방(hchat-overlay: 10001)·공유 시트(10002)보다 위여야 한다.
-      //  채팅 화면 위에서도 '돌아갈 길'과 '끊을 길'이 항상 보여야 하니까.
-      bar.style.cssText = 'box-sizing: border-box; position: fixed; top: 0; left: 0; right: 0; z-index: 10005;'
+      // z-index 는 모든 오버레이(applock 10030 ~ ui-sheet 10090)보다 위여야 한다.
+      //  통화를 최소화한 뒤 편지함·안전계획 등 불투명 오버레이에 들어가도
+      //  '돌아갈 길'과 '끊을 길'이 절대 가려지면 안 되기 때문 — 10100 으로 최상단 고정.
+      bar.style.cssText = 'box-sizing: border-box; position: fixed; top: 0; left: 0; right: 0; z-index: 10100;'
         + 'padding: 0.35rem 0.7rem; padding-top: calc(0.35rem + env(safe-area-inset-top));'
         + 'background: #2e4237; color: #fff; font-size: 0.8rem; font-weight: 700;'
         + 'display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.28);';
@@ -824,14 +825,20 @@ window.CallTalk = {
     this._syncMiniBarPad();
   },
 
-  // 미니바가 채팅방 맨 위(상담사 이름·닫기 버튼)를 덮으면 채팅을 닫을 수조차 없다.
-  //  바 높이만큼 채팅방 안쪽을 밀어준다. 바가 없으면 여백도 없다.
+  // 미니바가 오버레이 맨 위(상담사 이름·닫기·우상단 X)를 덮으면 그 화면을 닫을 수조차 없다.
+  //  미니바가 항상 최상단(z 10100)이므로, 미니바가 떠 있는 동안엔 그 아래 깔리는
+  //  오버레이들의 위쪽 내용을 바 높이만큼 밀어 내려 겹치지 않게 한다. 바가 없으면 여백도 없다.
   _syncMiniBarPad() {
     try {
       const bar = document.getElementById('call-minibar');
       const h = bar ? bar.offsetHeight : 0;
-      const ov = document.getElementById('hchat-overlay');
-      if (ov) ov.style.paddingTop = h ? h + 'px' : '';
+      const pad = h ? h + 'px' : '';
+      // 전체화면으로 뜨는 주요 오버레이들 — 위쪽에 헤더/닫기/X 가 있어 미니바에 가리기 쉽다.
+      ['hchat-overlay', 'tr-wizard', 'calm-overlay', 'night-overlay', 'inbox-overlay',
+       'safety-now-ov', 'diary-full-ov'].forEach(id => {
+        const ov = document.getElementById(id);
+        if (ov) ov.style.paddingTop = pad;
+      });
     } catch (e) {}
   },
 

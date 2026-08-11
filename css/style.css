@@ -1617,8 +1617,11 @@ body.pro-mode-active #btn-pro {
    앱이 자체 라이트/다크 테마를 가지고 있음을 명시해,
    브라우저가 색을 멋대로 반전시키지 않게 한다.
    ============================================================ */
-:root, html[data-theme="light"] { color-scheme: light; }
-html[data-theme="dark"], [data-theme="dark"] { color-scheme: dark; }
+/* 앱 기본 테마는 '다크'다 (applyTheme 는 다크일 때 data-theme 를 아예 지운다).
+   그래서 :root 기본값을 dark 로 두고, 라이트일 때만 html[data-theme="light"] 로 덮는다.
+   이렇게 해야 select·date 같은 네이티브 팝업이 다크에서 흰 글자로 사라지지 않는다. */
+:root { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
 
 /* 헤더 없는 탭(홈·챗봇·상담사매칭·대시보드): 로고 바와 그 여백까지 제거 */
 body.header-hidden #app-header { display: none; }

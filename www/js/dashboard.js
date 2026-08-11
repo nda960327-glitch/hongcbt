@@ -709,7 +709,7 @@ ${recent}`;
           + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
         body
       });
-      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 20));
+      window.Storage._safeSet('cbt_my_reports', reports.slice(0, 30)); // 상한 통일 20→30 (dashboard:469 와 일치)
       this.renderMyReports();
     } catch (e) {
       loading.remove();

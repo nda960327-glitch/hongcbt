@@ -16,6 +16,7 @@ window.Account = {
     'cbt_lang', 'cbt_font_scale', 'cbt_sound_on', 'cbt_haptic_on',
     'cbt_tts_enabled', 'cbt_tts_gender', 'cbt_checkin_mode', 'cbt_checkin_times',
     'cbt_user_memory',
+    'cbt_night_journal', 'cbt_kept_cards', 'cbt_mailbox',
     'cbt_my_reports', 'cbt_latest_summary_report', 'cbt_assessments',
     'cbt_assess_history', 'cbt_careplan', 'cbt_careplan_history',
     'cbt_mood_log', 'cbt_mood_entries', 'cbt_distortion_stats',
@@ -302,8 +303,18 @@ window.Account = {
     })) return;
     const s = this._session();
     await this._post('/api/oauth/logout', { session: s }).catch(() => {});
-    this._setSession(''); this._setMeta({}); this._cacheUser(null); this.user = null;
+    // meta(동기화 시계)는 지우지 않는다.
+    //  지우면 다음 pull 에서 mine=0 이 되어 59개 키를 서버 스냅샷으로 무조건
+    //  덮어써, 로그아웃 중 이 기기에 쓴 기록이 전멸했다("기록은 남아요"가 거짓말이 됨).
+    //  meta 를 유지하면 재로그인 시 로컬/서버가 정상 병합된다.
+    //  (계정 삭제는 사용자가 전체 삭제를 의도한 것이라 removeAccount 쪽은 그대로 둔다.)
+    this._setSession(''); this._cacheUser(null); this.user = null;
     this.render();
+    // 로그아웃하면 로그인 화면을 다시 띄운다 — 안 그러면 화면에 남아 조용히 401 난다.
+    try {
+      const sc = document.getElementById('login-screen');
+      if (sc) sc.classList.remove('hidden');
+    } catch (e) {}
     if (window.App) window.App.showRecordToast('로그아웃했어요');
   },
 

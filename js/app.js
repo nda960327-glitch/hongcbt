@@ -1470,7 +1470,7 @@ window.App = {
     if (!toast) {
       toast = document.createElement('div');
       toast.id = 'record-toast';
-      toast.style.cssText = 'position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-90px); z-index: 10000; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,0.16); border-radius: 999px; padding: 0.55rem 1.05rem; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: transform 0.35s ease; max-width: 90vw; white-space: nowrap;';
+      toast.style.cssText = 'position: fixed; top: 14px; left: 50%; transform: translateX(-50%) translateY(-90px); z-index: 10110; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,0.16); border-radius: 999px; padding: 0.55rem 1.05rem; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 0.45rem; cursor: pointer; transition: transform 0.35s ease; max-width: 90vw; white-space: nowrap;';
       toast.addEventListener('click', () => {
         this.switchTab('dashboard');
         toast.style.transform = 'translateX(-50%) translateY(-90px)';
@@ -3657,12 +3657,12 @@ ${body}
     const b = typeof bookingId === 'object' ? bookingId
       : (window.Storage._safeGet('cbt_bookings', []) || []).find(x => x.id === bookingId);
     if (!b) return;
-    const old = document.getElementById('review-overlay');
+    const old = document.getElementById('call-review-overlay');
     if (old) old.remove();
 
     let rating = 0;
     const ov = document.createElement('div');
-    ov.id = 'review-overlay';
+    ov.id = 'call-review-overlay';
     ov.style.cssText =
       'position: fixed; inset: 0; z-index: 10090; background: rgba(33,26,20,0.55);' +
       'backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);' +
@@ -4616,10 +4616,20 @@ ${body}
     document.getElementById('hchat-close').addEventListener('click', () => {
       clearInterval(this._hchatPoll);
       try { if (this._hchatWs) { this._hchatWs.close(); this._hchatWs = null; } } catch (e) {}
+      this._closeChatSheets();
       ov.remove();
     });
     document.getElementById('hchat-call').addEventListener('click', () => this.startHumanCall(c.id));
     document.getElementById('hchat-share').addEventListener('click', openShare);
+  },
+
+  // 채팅방이 닫힐 때 딸려 있던 시트들(공유·숙제 상세)도 같이 걷어낸다.
+  //  이것들이 body 에 남으면 이미 사라진 채팅방에 sendText 를 걸어 유령 전송이 된다.
+  _closeChatSheets() {
+    ['hchat-share-sheet', 'hw-detail-sheet'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
   },
 
   // 채팅 속 숙제 카드를 눌렀을 때 — 과제·이유·마감·완료 버튼이 있는 상세 시트
@@ -4752,13 +4762,21 @@ ${body}
   // === 안드로이드 뒤로가기: 앱이 꺼지는 대신 열린 오버레이가 닫히게 ===
   _initBackGuard() {
     // 뒤로가기로 닫아도 안전한 동적 오버레이 (통화는 실수 종료 방지를 위해 제외)
+    //  이제 id 화이트리스트에만 의존하지 않는다 — 오버레이가 생성될 때
+    //  dataset.ovGuard='1' 를 달면 여기서 자동으로 '뒤로가기로 닫히는 것'으로 인식한다.
+    //  (ui.js 의 UI.confirm/alert/prompt 시트가 동적 id 라 화이트리스트로는 못 잡았다.)
+    //  DYNAMIC 배열은 dataset 을 못 다는 오버레이(다른 파일 소유)를 위해 병행 유지.
     const DYNAMIC = ['night-overlay', 'calm-overlay', 'sleep-overlay', 'tr-wizard', 'onboard-overlay',
       'admin-overlay', 'admin-code-overlay', 'hchat-overlay', 'chat-search-overlay', 'day-detail-overlay',
-      'share-pack-overlay', 'report-send-overlay', 'cprof-edit-overlay'];
+      'share-pack-overlay', 'report-send-overlay', 'cprof-edit-overlay',
+      // 감사에서 누락 확인 — 위기화면/편지함/일기 전체보기가 빠져 있어 여기서 앱이 꺼졌다.
+      'safety-now-ov', 'inbox-overlay', 'diary-full-ov'];
+    const isGuardable = el => !!el && el.nodeType === 1 && !!el.id
+      && (el.dataset.ovGuard === '1' || DYNAMIC.includes(el.id));
     const currentTop = () => {
       for (let i = document.body.children.length - 1; i >= 0; i--) {
         const el = document.body.children[i];
-        if (el.id && DYNAMIC.includes(el.id)) return el;
+        if (isGuardable(el)) return el;
       }
       const open = [...document.querySelectorAll('.modal-overlay')].filter(m => !m.classList.contains('hidden') && m.offsetParent !== null);
       return open[open.length - 1] || null;
@@ -4784,7 +4802,17 @@ ${body}
         }
         return;
       }
-      if (t.id === 'hchat-overlay') clearInterval(this._hchatPoll);
+      // UI.confirm/alert/prompt 시트는 스택·keydown 리스너·await 를 걸어둔 채라
+      //  그냥 remove 하면 await 가 영영 안 풀리고 리스너가 샌다. 자기 close 로 닫는다.
+      if (t.id && t.id.indexOf('ui-sheet-') === 0 && window.UI && Array.isArray(window.UI._stack)) {
+        const entry = window.UI._stack.find(x => x.id === t.id);
+        if (entry) { entry.close(undefined); return; }
+      }
+      if (t.id === 'hchat-overlay') {
+        clearInterval(this._hchatPoll);
+        try { if (this._hchatWs) { this._hchatWs.close(); this._hchatWs = null; } } catch (e) {}
+        this._closeChatSheets();
+      }
       if (t.classList.contains('modal-overlay')) t.classList.add('hidden');
       else t.remove();
     });

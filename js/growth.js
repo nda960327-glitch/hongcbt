@@ -357,7 +357,7 @@ window.Growth = {
     let lastMonth = null;
     const entries = sorted.map(j => {
       const d = new Date(j.ts);
-      const mo = d.toISOString().slice(0, 7);
+      const mo = d.toLocaleDateString('sv-CA').slice(0, 7);   // 로컬 기준(헤더와 일치)
       const monthHead = mo !== lastMonth ? `<h2 class="mhead">${d.getFullYear()}년 ${d.getMonth() + 1}월</h2>` : '';
       lastMonth = mo;
  const emoji = j.mood && window.Icons ? window.Icons.mood(j.mood.emo, 14) : '';
@@ -494,8 +494,10 @@ ${entries}
       return;
     }
     const shown = (q || dq || this._diaryShowAll) ? items : items.slice(0, 10);
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    const monthOf = ts => new Date(ts).toISOString().slice(0, 7);
+    // 월 그룹핑은 로컬 기준으로 — UTC(toISOString)로 묶으면 월초/월말 밤 일기가
+    //  헤더(로컬 getFullYear/getMonth)와 다른 달로 갈려 "1월인데 12월 칸에" 붙었다.
+    const thisMonth = new Date().toLocaleDateString('sv-CA').slice(0, 7);
+    const monthOf = ts => new Date(ts).toLocaleDateString('sv-CA').slice(0, 7);
     let lastMonth = null;
     let html = `<p style="margin: 0 0 0.55rem; font-size: 0.7rem; color: var(--text-muted);">모두 ${journal.length}편 · 이번 달 ${journal.filter(j => monthOf(j.ts) === thisMonth).length}편</p>`;
     shown.forEach(j => {
@@ -648,7 +650,10 @@ ${entries}
         (m.moment ? ` / 남은 순간: ${m.moment}` : '') +
         (m.note ? ` / 스스로에게: ${m.note}` : '');
       let prev = window.Storage.getUserMemory() || '';
-      if (prev.length + line.length > 6000) prev = prev.slice(0, 6000 - line.length); // 상한 초과 시 새 줄이 잘리지 않게
+      const MAX = window.Storage.MEMORY_MAX || 6000; // storage 와 상수 통일
+      // 상한 초과 시 오래된 앞부분을 버리고 최신(뒤)을 남긴 뒤 새 줄을 붙인다.
+      //  setUserMemory 도 slice(-MAX) 라 방금 붙인 줄이 안 잘린다.
+      if (prev.length + line.length > MAX) prev = prev.slice(-(MAX - line.length));
       window.Storage.setUserMemory(prev + line);
     } catch (e) {}
 

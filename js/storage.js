@@ -1,11 +1,31 @@
 ﻿window.Storage = {
   // === Helper Methods ===
   _safeGet(key, defaultValue) {
+    let item;
     try {
-      const item = localStorage.getItem(key);
-      return item ? JSON.parse(item) : defaultValue;
+      item = localStorage.getItem(key);
     } catch (error) {
+      // 저장소 자체를 못 읽는 경우(사파리 프라이빗 등) — 없음으로 취급
       console.error(`Error reading ${key} from localStorage`, error);
+      return defaultValue;
+    }
+    // "없음(미존재)"은 정상이다 — 그냥 기본값을 준다.
+    if (item == null) return defaultValue;
+    try {
+      return JSON.parse(item);
+    } catch (error) {
+      // "깨짐"은 다르다. 여기서 기본값([] 등)만 돌려주면 호출부가
+      //  읽기→수정→쓰기로 그 빈 값을 원본 위에 덮어써 기록이 영영 사라진다.
+      //  기본값 반환 동작은 그대로 두되(호환성 — 호출부 수백 곳), 덮이기 전에
+      //  원본 raw 문자열을 백업해 복구 가능성만 확보한다. 세션당 키별 1회만.
+      console.warn(`Corrupt JSON in "${key}" — preserving raw value before returning default`, error);
+      try {
+        this._corruptBackedUp = this._corruptBackedUp || {};
+        if (!this._corruptBackedUp[key]) {
+          localStorage.setItem(key + '__corrupt_' + Date.now(), item);
+          this._corruptBackedUp[key] = true;
+        }
+      } catch (e) { /* 백업까지 실패하면 어쩔 수 없다 — 원본은 아직 안 지웠다 */ }
       return defaultValue;
     }
   },
@@ -61,12 +81,16 @@
     return this._safeGet('cbt_user_memory', '');
   },
 
+  // 장기기억 상한. growth.js 의 하루정리 append 도 이 값을 함께 본다(상수 통일).
+  //  6,000자 ≈ 6KB 로 localStorage 용량에 부담이 없고, 최근 대화를 넉넉히 기억한다.
+  MEMORY_MAX: 6000,
+
   setUserMemory(text) {
-    // Guard against runaway growth of the injected memory blob.
-    // 3,000자 요약이 들어온다.
-    //  모델이 조금 넘겨 쓰는 경우가 있어 200자 여유만 둔다.
-    if (typeof text === 'string' && text.length > 3200) {
-      text = text.slice(0, 3200);
+    // 상한을 넘기면 잘라내되, 앞이 아니라 뒤(최신)를 남긴다 —
+    //  하루정리·대화 요약은 끝에 덧붙으므로, slice(0,N) 이면 방금 추가한
+    //  최신 줄이 매번 버려져 "요즘 걸 기억 못 함" 증상이 났다.
+    if (typeof text === 'string' && text.length > this.MEMORY_MAX) {
+      text = text.slice(-this.MEMORY_MAX);
     }
     this._safeSet('cbt_user_memory', text || '');
   },
@@ -282,14 +306,17 @@
     const activeDays = this._safeGet('cbt_active_days', []);
     if (activeDays.length === 0) return 0;
     
-    activeDays.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-    
+    // 날짜 문자열('YYYY-MM-DD')은 'T00:00:00' 을 붙여 로컬 자정으로 읽는다.
+    //  안 붙이면 new Date('2026-08-11') 이 UTC 자정으로 파싱돼, 음수 시간대에서는
+    //  하루 앞당겨져 스트릭이 깨진다. growth.js:59 와 규칙을 맞춘다.
+    activeDays.sort((a, b) => new Date(b + 'T00:00:00').getTime() - new Date(a + 'T00:00:00').getTime());
+
     let streak = 0;
     let currentDate = new Date();
     currentDate.setHours(0, 0, 0, 0);
-    
+
     // Check if active today
-    const lastActiveDate = new Date(activeDays[0]);
+    const lastActiveDate = new Date(activeDays[0] + 'T00:00:00');
     lastActiveDate.setHours(0, 0, 0, 0);
     
     const diffTime = Math.abs(currentDate - lastActiveDate);
@@ -303,7 +330,7 @@
     let checkDate = lastActiveDate;
     
     for (let i = 1; i < activeDays.length; i++) {
-      const prevDate = new Date(activeDays[i]);
+      const prevDate = new Date(activeDays[i] + 'T00:00:00');
       prevDate.setHours(0, 0, 0, 0);
       
       const checkDiff = Math.floor(Math.abs(checkDate - prevDate) / (1000 * 60 * 60 * 24));

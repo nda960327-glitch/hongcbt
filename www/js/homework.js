@@ -88,10 +88,19 @@ window.Homework = {
     }
   },
 
+  // 마감까지 남은 '날짜 수'. 자정 기준으로 정규화해서 센다 —
+  //  Math.ceil((dueAt-now)/일) 은 시각이 섞여 하루씩 밀렸다(오늘 마감인데 '1일 남음').
+  _daysLeft(h) {
+    if (!h || !h.dueAt) return null;
+    const due = new Date(h.dueAt); due.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return Math.round((due - today) / 86400000);
+  },
+
   // 남은 기한 문구
   dueText(h) {
-    if (!h.dueAt) return '';
-    const d = Math.ceil((h.dueAt - Date.now()) / 86400000);
+    const d = this._daysLeft(h);
+    if (d == null) return '';
     if (d < 0) return `${-d}일 지남`;
     if (d === 0) return '오늘까지';
     return `${d}일 남음`;
@@ -140,7 +149,8 @@ window.Homework = {
     }
 
     const row = h => {
-      const overdue = h.dueAt && !h.doneAt && h.dueAt < Date.now();
+      // 마감일이 지난 뒤에만 빨간 표시 — 자정 기준으로 판정해 dueText('오늘까지')와 어긋나지 않게
+      const overdue = !h.doneAt && this._daysLeft(h) != null && this._daysLeft(h) < 0;
       return `
         <div class="my-row my-row--static" style="align-items: flex-start;">
           <button onclick="window.Homework.${h.doneAt ? 'undo' : 'complete'}('${h.id}')"

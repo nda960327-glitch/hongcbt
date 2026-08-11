@@ -234,10 +234,15 @@ window.CarePlan = {
   },
 
   // 시작일로부터 며칠째인가 (1일차부터)
+  //  startedAt 은 벽시계라 그대로 빼면 '시작 시각'에 날짜가 넘어간다
+  //  (오후 3시에 시작하면 매일 오후 3시에 하루가 바뀜). 양쪽을 자정으로
+  //  정규화해 달력상의 날짜 경계(자정)에서 하루가 넘어가게 한다.
   dayIndex() {
     const p = this.active();
     if (!p) return 0;
-    return Math.floor((Date.now() - p.startedAt) / 86400000) + 1;
+    const start = new Date(p.startedAt); start.setHours(0, 0, 0, 0);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    return Math.floor((now - start) / 86400000) + 1;
   },
 
   // 지금은 몇 주차인가 (1 또는 2, 끝났으면 weeks.length 로 고정)

@@ -78,7 +78,15 @@ const saveSeen = () => { try { localStorage.setItem('pro_seen', JSON.stringify(S
 //  특히 메모는 서버로 절대 보내지 않는다 — 상담사의 사적인 기록이고,
 //  서버에 올라가는 순간 '언젠가 누군가 볼 수 있는 것'이 되어 아무도 솔직하게 못 적는다.
 const lsGet = (k, dflt) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? dflt : v; } catch (e) { return dflt; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const lsSet = (k, v) => {
+  try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+  catch (e) {
+    // 조용히 삼키면 내담자 임상 메모(이 기기의 유일본)가 용량 초과 시 소리 없이 사라진다.
+    //  최소한 사용자에게 저장 실패를 알린다. (toast/#toast 아직 없을 수 있어 이중 방어)
+    try { if (typeof toast === 'function' && document.getElementById('toast')) toast('저장 공간이 가득 차 저장하지 못했어요. 오래된 기록을 정리한 뒤 다시 시도해주세요.'); } catch (_) {}
+    return false;
+  }
+};
 
 const QR_DEFAULT = [
   '네, 확인했습니다. 곧 답드릴게요',
