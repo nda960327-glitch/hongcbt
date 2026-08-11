@@ -323,6 +323,54 @@ window.CarePlan = {
     this.render();
   },
 
+  // --------------------------------------------------------------------------
+  //  다른 화면에서 한 일을 케어플랜에 얹기.
+  //
+  //  퀘스트의 "지금 마음 체크인하기"와 케어플랜의 "하루 한 번 체크인하기"는
+  //  같은 활동인데 저장소가 달라서, 퀘스트에서 다 해도 케어플랜은 0% 였다
+  //  ("여기서 다 했는데 연동이 안돼"). 문구가 매번 조금씩 달라서(리포트가
+  //  생성) 글자 비교로는 못 잇고, 활동의 '종류'로 잇는다.
+  // --------------------------------------------------------------------------
+  KIND_WORDS: {
+    checkin: ['체크인', '기분 기록', '마음 기록'],
+    breath:  ['호흡', '숨'],
+    record:  ['한 줄', '일기', '적기', '쓰기', '기록지', '생각 기록', '사고 기록'],
+    night:   ['잠들기', '자기 전', '하루 정리', '회고'],
+    walk:    ['산책', '걷', '스트레칭', '움직'],
+    chat:    ['대화', '상담', '이야기']
+  },
+
+  _kindsOf(text) {
+    const t = String(text || '');
+    return Object.keys(this.KIND_WORDS).filter(k => this.KIND_WORDS[k].some(w => t.includes(w)));
+  },
+
+  // kindOrText: 'breath' 같은 종류 이름, 또는 실천한 활동의 문구 그대로.
+  //  이번 주 할 일 중 같은 종류의 미완료 항목을 찾아 완료로 찍는다.
+  autoDone(kindOrText) {
+    try {
+      const p = this.active();
+      if (!p) return false;
+      const kinds = this.KIND_WORDS[kindOrText] ? [kindOrText] : this._kindsOf(kindOrText);
+      if (!kinds.length) return false;
+      const wi = this.weekIndex();
+      const acts = this.weekActions(this.currentWeek());
+      for (let i = 0; i < acts.length; i++) {
+        if (this.isDone(wi, i)) continue;
+        const actKinds = this._kindsOf(acts[i]);
+        if (!actKinds.some(k => kinds.includes(k))) continue;
+        p.done[this._key(wi, i)] = Date.now();
+        this._S()._safeSet('cbt_careplan', p);
+        this.render();
+        if (window.App && window.App.showRecordToast) {
+          window.App.showRecordToast('케어플랜에도 체크했어요 — ' + acts[i]);
+        }
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  },
+
   // 이번 주 실행률 (0~1)
   progress() {
     const p = this.active();

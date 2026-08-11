@@ -3307,6 +3307,8 @@ ${memory || '(없음)'}`;
     else log.push({ ts: Date.now(), emo, v, src: 'quick' });
     window.Storage._safeSet('cbt_mood_log', log.slice(-800));
     window.Storage.markDayActive();
+    // 체크인은 케어플랜의 단골 할 일이다 — 여기서 했으면 거기도 찍는다 (연동)
+    if (window.CarePlan && window.CarePlan.autoDone) window.CarePlan.autoDone('checkin');
     if (window.Growth) window.Growth.checkAwards();
     if (replacing) {
       // 교체 모드: 조용히 바꿨다고만 알리고 끝 (반응 토스트·팝·호흡 권유 생략)

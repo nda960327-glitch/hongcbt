@@ -167,6 +167,8 @@
     
     this._safeSet('cbt_thought_records', records);
     if (existingIndex < 0 && isNewRealRecord && window.Farm) window.Farm.addWater(4, '사고 기록 정리');
+    // 사고 기록은 케어플랜의 '기록' 계열 할 일이기도 하다 (연동)
+    if (existingIndex < 0 && isNewRealRecord && window.CarePlan && window.CarePlan.autoDone) window.CarePlan.autoDone('record');
     return newRecord;
   },
   

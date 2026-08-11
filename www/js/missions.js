@@ -209,6 +209,11 @@ window.Missions = {
     log.unshift({ id: s.id, ts: Date.now(), done: true, text: s.custom ? s.custom.text : undefined });
     window.Storage._safeSet('cbt_mission_log', log.slice(0, 200));
     window.Storage.markDayActive();
+    // 오늘의 퀘스트가 케어플랜 할 일과 같은 종류면 거기에도 찍는다 (연동)
+    if (window.CarePlan && window.CarePlan.autoDone) {
+      const m = this.todayMission();
+      if (m && m.text) window.CarePlan.autoDone(m.text);
+    }
     this.renderCard();
     if (window.App && window.App.showRecordToast) {
       // 시스템 이모지는 쓰지 않는다 — 우렁이의 표정은 전용 스티커로만 표현한다
@@ -387,6 +392,9 @@ ${recent}` }],
       if (window.Sfx) window.Sfx.hit('save');
       if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '처방 미션 완료');
       if (window.Storage.markDayActive) window.Storage.markDayActive();
+      // 퀘스트의 "지금 마음 체크인하기"와 케어플랜의 "하루 한 번 체크인하기"는
+      //  같은 활동이다 — 여기서 체크하면 케어플랜에도 얹는다 (연동)
+      if (window.CarePlan && window.CarePlan.autoDone) window.CarePlan.autoDone(text);
       // 전후 기분은 '기법을 실천했을 때' 만 의미가 있다.
       //  케어플랜에서 나온 미션은 특정 개입의 효과를 재는 것이지만,
       //  본인이 적어둔 개선 목표나 상담사 숙제는 습관·과제라

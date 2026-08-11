@@ -88,6 +88,8 @@ window.Growth = {
     window.Storage._safeSet('cbt_breath_count', (window.Storage._safeGet('cbt_breath_count', 0) || 0) + 1);
     this.checkAwards();
     if (window.Farm) window.Farm.addWater(2, '호흡으로 마음 가라앉히기');
+    // "잠들기 전 3분 호흡하기" 같은 케어플랜 할 일도 같이 찍는다 (연동)
+    if (window.CarePlan && window.CarePlan.autoDone) window.CarePlan.autoDone('breath');
   },
 
   checkAwards(silent) {
@@ -679,7 +681,7 @@ ${entries}
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('love', 110) :''}</span>
         <h2 style="margin: 0.8rem 0 0.5rem; font-size: 1.25rem; color: #ffffff;">오늘 하루 정리 완료</h2>
         <p style="font-size: 0.95rem; color: #f3edde; line-height: 1.75; white-space: pre-line;">${goodnight}</p>
- <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards();"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 </button>
+ <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); if (window.CarePlan && window.CarePlan.autoDone) window.CarePlan.autoDone('night');"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f0ead9; color: #232f3b; font-weight: 800; cursor: pointer; margin-top: 1.3rem;">잘 자요 </button>
  <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.Calm && window.Calm.startBreath('478');"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;"> 4·7·8 호흡하면서 잠들기</button>
  <button onclick="document.getElementById('night-overlay').remove(); window.Growth.maybeShowNightCard(); window.Growth.checkAwards(); window.SleepSounds && window.SleepSounds.open();"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.55rem; font-size: 0.84rem; color: #ded6c3; cursor: pointer;"> 빗소리 들으면서 잠들기</button>
       </div>`;
