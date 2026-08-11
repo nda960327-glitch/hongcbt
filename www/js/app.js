@@ -207,6 +207,8 @@ window.App = {
     // 4.48 내담자도 카톡처럼: 앱이 꺼져 있어도 답장·숙제가 닿는 웹푸시 + 상시 실시간
     this._initClientPush();
     this._initRealtime();
+    // 4.49 앱: 잠긴 화면을 뚫고 울린 전화 알림에서 '받기·거절'을 눌러 들어온 길
+    this._initCallActions();
 
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
@@ -462,6 +464,9 @@ window.App = {
     if (tabName === 'counselors' && window.Marketplace) {
       window.Marketplace.renderCounselors();
       this.renderChatInbox(); // 대화한 상담사 방으로 바로 돌아가는 입구
+      // 여기가 '전화가 오갈 수 있는 화면'의 입구다 — 절전 예외는 이때 딱 한 번 묻는다.
+      //  앱을 켜자마자 물으면 무슨 말인지 모르고 거절한다.
+      setTimeout(() => this._askBatteryExemption(), 1200);
     }
     if (tabName === 'record' && window.ThoughtRecord) {
       window.ThoughtRecord.loadRecords();
@@ -2889,12 +2894,15 @@ ${memory || '(없음)'}`;
         });
       }
       this._checkIncomingCall(); // 앱을 여는 순간에도 — 벨이 울리는 중일 수 있다
-      // 웹소켓이 끊겨 있어도 벨은 떠야 한다 — 화면이 보이는 동안 4초마다 확인
+      // 웹소켓이 끊겨 있어도 벨은 떠야 한다 — 화면이 보이는 동안 주기적으로 확인.
+      //  스토어 앱에서는 전화를 FCM 이 먼저 알려준다(잠긴 화면도 뚫는다).
+      //  그래서 폴링은 '만약을 위한 보험'으로 내려앉는다 — 4초로 돌리면
+      //  하루 2만 번 서버를 두드리면서 배터리만 먹는다.
       setInterval(() => {
         if (document.hidden) return;
         if (window.CallTalk && window.CallTalk._active) return;
         this._checkIncomingCall();
-      }, 4000);
+      }, this.isNativeApp() ? 15000 : 4000);
     } catch (e) {}
   },
 
@@ -2902,7 +2910,82 @@ ${memory || '(없음)'}`;
   async _checkIncomingCall() {
     try {
       const d = await window.Api.json('/api/rtc/incoming-client?clientId=' + encodeURIComponent(this.clientId()));
-      if (d && d.call && window.CallTalk) window.CallTalk.showIncoming(d.call);
+      if (!d || !d.call || !window.CallTalk) return;
+      // 알림의 '받기'를 눌러서 들어왔다 — 수신화면을 한 번 더 보여주는 건
+      //  이미 받겠다고 말한 사람에게 또 묻는 것이다. 바로 연결로 간다.
+      if (this._autoAcceptCall && this._autoAcceptCall === d.call.id) {
+        this._autoAcceptCall = null;
+        window.CallTalk.receiveHuman(d.call);
+        return;
+      }
+      window.CallTalk.showIncoming(d.call);
+    } catch (e) {}
+  },
+
+  // ── 스토어 앱: 전화 알림(받기·거절)에서 열렸을 때 ────────────────────
+  //  네이티브 알림은 벨만 울릴 수 있다. 실제로 전화를 받고 끊는 코드는
+  //  이 웹 안에 있으므로, 눌린 버튼이 무엇이었는지를 넘겨받아 이어붙인다.
+  _callPlugin() {
+    try {
+      if (!this.isNativeApp()) return null;
+      const C = window.Capacitor;
+      return (C && C.Plugins && C.Plugins.CallNotification) || null;
+    } catch (e) { return null; }
+  },
+
+  async _handleCallAction() {
+    const P = this._callPlugin();
+    if (!P || !P.getPendingAction) return;
+    let r = null;
+    try { r = await P.getPendingAction(); } catch (e) { return; }
+    if (!r || !r.action) return;
+    const callId = r.callId || '';
+    if (r.action === 'decline') {
+      // 거절은 화면을 하나도 띄우지 않는다. 끊었다는 사실만 서버에 알린다 —
+      //  안 알리면 상담사 쪽은 60초 동안 '통화 대기 중…'을 보게 된다.
+      if (callId) {
+        try {
+          window.Api.f('/api/rtc/end', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId, by: 'client' })
+          }).catch(() => {});
+        } catch (e) {}
+      }
+      return;
+    }
+    // 받기 / 알림 본체 탭 — 어느 쪽이든 서버에 그 전화가 살아 있는지부터 본다
+    if (r.action === 'accept') this._autoAcceptCall = callId;
+    this._checkIncomingCall();
+  },
+
+  // 전화 알림으로 앱이 깨어나는 길은 둘이다: 처음 켜질 때와, 뒤에 있다가 앞으로 나올 때.
+  _initCallActions() {
+    if (!this._callPlugin()) return;
+    this._handleCallAction();
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this._handleCallAction();
+    });
+  },
+
+  // ── 배터리 최적화 예외 ───────────────────────────────────────────────
+  //  폰이 깊이 잠들면(도즈) 푸시가 몇 분씩 묶여 있다가 온다. 전화의 유통기한은
+  //  60초다 — 묶여 있는 동안 전화는 이미 끊긴다.
+  //  딱 한 번만 묻는다. 거절해도 다시 조르지 않는다 — 두 번째부터는 협박이다.
+  async _askBatteryExemption() {
+    try {
+      const P = this._callPlugin();
+      if (!P || !P.requestBatteryExemption) return;
+      if (window.Storage._safeGet('cbt_batt_asked', 0)) return;
+      const st = await P.isBatteryExempt().catch(() => null);
+      if (st && st.exempt) { window.Storage._safeSet('cbt_batt_asked', 1); return; }
+      window.Storage._safeSet('cbt_batt_asked', 1);   // 물어본 그 순간 기록한다(답과 무관하게)
+      if (!window.UI || !window.UI.confirm) return;
+      const ok = await window.UI.confirm({
+        title: '전화를 놓치지 않으려면',
+        body: '폰이 절전 상태로 깊이 잠들면 상담사님의 전화가 늦게 도착해요.\n다음 화면에서 "허용"을 눌러주시면 벨이 제때 울립니다.',
+        okLabel: '설정하기', cancelLabel: '나중에'
+      });
+      if (ok) await P.requestBatteryExemption().catch(() => {});
     } catch (e) {}
   },
 

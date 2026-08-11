@@ -339,6 +339,75 @@ async function logout() {
 function enterApp() {
   $('screen-login').hidden = true;
   $('app').hidden = false;
+  // 로그인한 그 순간이 '이 앱을 전화기로 쓰기 시작하는' 순간이다 —
+  //  절전 예외는 여기서 딱 한 번 묻는다 (자세한 이유는 askBatteryExemption).
+  setTimeout(askBatteryExemption, 2000);
+}
+
+// ── 전화 알림 다리 (스토어 앱 전용) ──────────────────────────────────
+//  네이티브가 할 수 있는 건 '울리는 것'까지다. 받고 끊는 코드는 이 웹 안에 있으므로,
+//  알림에서 무슨 버튼이 눌렸는지를 넘겨받아 이어붙인다.
+function callPlugin() {
+  try {
+    if (!isNativeApp()) return null;
+    const C = window.Capacitor;
+    return (C && C.Plugins && C.Plugins.CallNotification) || null;
+  } catch (e) { return null; }
+}
+
+// 울리고 있는 전화 알림을 내린다. 네이티브 벨은 알림이 사라져야 그친다 —
+//  안 내리면 통화 중에 자기 벨소리를 계속 듣게 된다.
+function stopNativeRing(callId) {
+  try {
+    const p = callPlugin();
+    if (p && p.stopRinging) p.stopRinging({ callId: callId || '' }).catch(() => {});
+  } catch (e) {}
+}
+
+let AUTO_ACCEPT = '';   // 알림에서 '받기'를 누른 통화 — 벨 화면을 건너뛴다
+
+async function handleCallAction() {
+  const P = callPlugin();
+  if (!P || !P.getPendingAction) return;
+  let r = null;
+  try { r = await P.getPendingAction(); } catch (e) { return; }
+  if (!r || !r.action) return;
+  const id = r.callId || '';
+  if (r.action === 'decline') {
+    // 거절은 화면을 하나도 띄우지 않는다. 끊었다는 사실만 서버에 알린다 —
+    //  안 알리면 내담자 쪽은 60초 동안 '통화 대기 중…'을 본다.
+    if (id) await postJson('/api/rtc/end', { callId: id, by: 'counselor' }).catch(() => {});
+    loadChats().then(() => { renderChatList(); renderDots(); }).catch(() => {});
+    return;
+  }
+  if (r.action === 'accept') {
+    // 폴링이 먼저 벨 화면을 띄워둔 경우 — pollIncoming 은 CUR_CALL 이 있으면
+    //  그냥 돌아간다. 이미 '받기'를 누른 사람에게 또 누르라고 할 수는 없다.
+    if (CUR_CALL && !CUR_CALL.out) { stopNativeRing(id); answerCall(); return; }
+    AUTO_ACCEPT = id;
+  }
+  pollIncoming();
+}
+
+/**
+ * 배터리 최적화 예외 — 폰이 깊이 잠들면(도즈) 푸시가 몇 분씩 묶여 있다가 온다.
+ *  전화의 유통기한은 60초다. 묶여 있는 동안 그 전화는 이미 끊긴 뒤다.
+ *  딱 한 번만 묻고, 거절해도 다시 조르지 않는다 — 두 번째부터는 협박이다.
+ */
+async function askBatteryExemption() {
+  try {
+    const P = callPlugin();
+    if (!P || !P.requestBatteryExemption) return;
+    if (!(SESSION || CODE)) return;
+    if (localStorage.getItem('pro_batt_asked')) return;
+    const st = await P.isBatteryExempt().catch(() => null);
+    if (st && st.exempt) { localStorage.setItem('pro_batt_asked', '1'); return; }
+    localStorage.setItem('pro_batt_asked', '1');   // 물어본 순간 기록한다(답과 무관하게)
+    const ok = confirm('전화를 놓치지 않으려면 한 가지만 더 설정해주세요.\n\n'
+      + '폰이 절전 상태로 깊이 잠들면 내담자의 전화가 몇 분씩 늦게 도착합니다.\n'
+      + '다음 화면에서 "허용"을 눌러주시면 벨이 제때 울립니다.');
+    if (ok) await P.requestBatteryExemption().catch(() => {});
+  } catch (e) {}
 }
 
 async function askNotify() {
@@ -1475,7 +1544,16 @@ function showIncoming(call) {
   $('call-st').textContent = '걸려온 상담 전화';
   $('call-clock').textContent = '00:00';
   $('callov').hidden = false;
+  // 알림에서 '받기'를 눌러 들어왔다 — 이미 받겠다고 말한 사람에게 또 묻지 않는다.
+  //  벨도 울리지 않고 곧장 연결로 간다.
+  if (AUTO_ACCEPT && AUTO_ACCEPT === call.id) {
+    AUTO_ACCEPT = '';
+    stopNativeRing(call.id);
+    answerCall();
+    return;
+  }
   ringStart();
+  stopNativeRing(call.id);   // 앱 알림이 울리는 중이었다면 벨이 두 겹이 된다
   // 발신자가 끊었는데 벨이 계속 울리면 고문이다 — 2.5초마다 생사를 확인한다
   clearInterval(call.watch);
   call.watch = setInterval(async () => {
@@ -1495,6 +1573,7 @@ function showIncoming(call) {
 async function answerCall() {
   ringStop();
   if (!CUR_CALL) return;
+  stopNativeRing(CUR_CALL.id);
   clearInterval(CUR_CALL.watch);
   callBtns('active'); // 받았다 — 이제 남은 버튼은 종료뿐
   $('call-st').textContent = '연결 중…';
@@ -1570,6 +1649,8 @@ async function callClient(clientId, clientName) {
 
 async function closeCall() {
   ringStop();
+  // 통화가 끝났는데 알림이 남아 있으면 벨이 계속 운다 — 울리던 것 전부를 내린다
+  stopNativeRing('');
   if (CUR_CALL) clearInterval(CUR_CALL.watch);
   try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
   $('callov').hidden = true;
@@ -2141,10 +2222,17 @@ setInterval(() => {
   Promise.all([loadInbox(), loadBookings(), loadPresence(), loadHomework(), loadReviews()]).then(renderAll);
 }, 45000);
 
-// 걸려오는 전화는 자주 확인해야 한다 — 늦게 뜨면 이미 끊긴 뒤다
-setInterval(() => { if (SESSION || CODE) pollIncoming(); }, 3000);
+// 걸려오는 전화는 자주 확인해야 한다 — 늦게 뜨면 이미 끊긴 뒤다.
+//  단, 스토어 앱에서는 FCM 이 잠긴 화면까지 뚫고 먼저 알려준다.
+//  거기서도 3초마다 두드리면 하루 3만 번 — 배터리만 먹는다. 폴링은 보험으로 내린다.
+setInterval(() => { if (SESSION || CODE) pollIncoming(); }, isNativeApp() ? 15000 : 3000);
 
 // 화면을 다시 켜면 곧바로 최신으로 (뒤에 있는 동안 폴링이 죽어 있었다)
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && (SESSION || CODE)) { loadAll(); pollIncoming(); }
+  if (document.hidden) return;
+  handleCallAction();   // 알림의 받기·거절로 앱이 앞으로 나온 길
+  if (SESSION || CODE) { loadAll(); pollIncoming(); }
 });
+
+// 앱이 처음 켜질 때도 — 꺼져 있던 앱을 전화 알림이 깨웠을 수 있다
+handleCallAction();

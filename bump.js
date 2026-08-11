@@ -29,5 +29,13 @@ fs.writeFileSync(R + 'version.json', JSON.stringify({ build: next }) + '\n');
 // 배포 대상(www)에도 그대로 복사
 ['sw.js', 'index.html', 'version.json'].forEach(f => fs.copyFileSync(R + f, R + 'www/' + f));
 
+// 상담사 앱(pro)도 같은 번호로 — pro 는 서비스워커가 없어서 ?v= 가 유일한 캐시 파쇄기다.
+//  커스텀 도메인이 _headers 의 no-cache 를 무시하고 4시간 캐시를 붙이는 걸 실측했다
+//  (pages.dev 직접 접속은 no-cache 가 붙는데 pro.neurumind.com 은 max-age=14400).
+//  그래서 파일 내용이 바뀌면 주소 자체가 바뀌게 한다. index.html 은 항상 재검증되므로 안전하다.
+let pro = fs.readFileSync(R + 'pro/index.html', 'utf8');
+pro = pro.replace(/(src="js\/[^"?]+\.js)\?v=\d+/g, '$1?v=' + next);
+fs.writeFileSync(R + 'pro/index.html', pro);
+
 console.log('판 번호 ' + cur + ' → ' + next);
-console.log('  sw.js · index.html(APP_BUILD) · version.json · www/ 동기화 완료');
+console.log('  sw.js · index.html(APP_BUILD) · version.json · www/ · pro(?v=) 동기화 완료');

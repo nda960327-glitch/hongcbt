@@ -72,6 +72,10 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // 걸려온 전화 알림(CallMessagingService)이 상속할 클래스가 여기 들어 있다.
+    //  google-services.json 이 없어도 컴파일·설치는 그대로 된다 —
+    //  Firebase 가 초기화되지 않아 메시지가 안 올 뿐이다.
+    implementation "com.google.firebase:firebase-messaging:$firebaseMessagingVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"

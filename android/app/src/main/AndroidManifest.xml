@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -34,6 +35,24 @@
 
         </activity>
 
+        <!-- ── 걸려온 전화 알림 ─────────────────────────────────────────
+             Capacitor 푸시 플러그인도 같은 MESSAGING_EVENT 를 노리는 서비스를
+             하나 갖고 있다. 둘이 있으면 어느 쪽이 받을지 기기마다 달라져서
+             전화가 울리다 말다 한다 — 운에 맡길 수 없다.
+             그래서 플러그인 쪽은 떼어내고, 그 클래스를 상속한 우리 서비스
+             하나만 남긴다. super 를 부르므로 플러그인 기능은 그대로 산다. -->
+        <service
+            android:name="com.capacitorjs.plugins.pushnotifications.MessagingService"
+            tools:node="remove" />
+
+        <service
+            android:name="com.uroong.cbt.CallMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -55,6 +74,16 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- 통화·상담사 답장 알림 (안드로이드 13+ 는 런타임 동의가 필요하다) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 잠긴 화면을 뚫고 전화벨 화면을 띄운다. 안드로이드 14+ 는 이 선언이
+         없으면 전체화면 알림이 그냥 헤드업 알림으로 내려앉는다 —
+         자는 사람은 전화를 못 받는다. (전화 앱에만 허용되는 권한이다) -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- 전화벨 진동 -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 배터리 최적화 예외를 '요청'할 자격. 폰이 깊이 잠들면(도즈) 푸시가
+         몇 분씩 늦게 도착하는데, 전화의 유통기한은 60초다.
+         강제하지 않는다 — 사용자가 거절하면 그대로 둔다. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- 통화 중 화면을 꺼도 연결이 끊기지 않게 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />

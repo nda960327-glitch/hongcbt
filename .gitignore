@@ -19,3 +19,4 @@ android/local.properties
 android/app/release/
 android/uroong-release.keystore
 android/keystore.properties
+android/app/google-services.json

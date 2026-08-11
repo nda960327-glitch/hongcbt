@@ -67,6 +67,38 @@ async function reapDeadCalls(db, env, ctx, counselorId) {
   } catch (e) {}
 }
 
+// 전화 알림에 띄울 상대 이름 — "010-…" 대신 "홍길동 님"이 떠야 전화 같다.
+//  내담자 이름은 calls 테이블에 없다. 대화·예약에 남은 이름을 한 번만 되짚는다.
+//  못 찾으면 그냥 '내담자'로 간다 — 이름 하나 때문에 전화를 못 걸면 안 된다.
+async function clientNameOf(db, counselorId, clientId) {
+  try {
+    const r = await db.prepare(
+      "SELECT client_name FROM chat_msgs WHERE counselor_id = ? AND client_id = ? AND client_name != '' ORDER BY ts DESC LIMIT 1"
+    ).bind(counselorId, clientId).first();
+    if (r && r.client_name) return String(r.client_name).slice(0, 30);
+  } catch (e) {}
+  try {
+    const b = await db.prepare(
+      "SELECT client_name FROM bookings WHERE counselor_id = ? AND client_id = ? AND client_name != '' ORDER BY rowid DESC LIMIT 1"
+    ).bind(counselorId, clientId).first();
+    if (b && b.client_name) return String(b.client_name).slice(0, 30);
+  } catch (e) {}
+  return '내담자';
+}
+
+// 울리고 있는 폰을 멈추는 신호. 발신자가 끊었는데 상대 폰이 계속 울리면
+//  그건 고문이다 — 웹은 2.5초 폴링이 알아서 멈추지만, 앱의 전체화면 알림은
+//  누가 꺼주지 않으면 60초를 다 채운다.
+function cancelCallPush(env, ctx, call) {
+  if (!call || !call.id) return;
+  const toClient = call.dir === 'to-client';
+  const p = (toClient
+    ? notifyClient(env, call.client_id, { kind: 'cancel', callId: call.id })
+    : notifyCounselor(env, call.counselor_id, { kind: 'cancel', callId: call.id })
+  ).catch(() => {});
+  if (ctx && ctx.waitUntil) ctx.waitUntil(p);
+}
+
 // 통화 상태(거는 중·통화 중·끝)를 양쪽 앱에 실시간으로 민다 — 저장하지 않는 순간 신호.
 //  카톡처럼 채팅방에 '전화 거는 중…'이 떠 있으려면 이게 있어야 한다.
 function pushCallState(env, ctx, counselorId, clientId, state, extra) {
@@ -218,9 +250,12 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,?,?,'to-counselor')"
     ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t).run();
 
-    // 상담사 기기를 깨운다. 앱이 닫혀 있어도 알림이 뜬다.
+    // 상담사 기기를 깨운다. 앱이 닫혀 있어도, 잠긴 화면이어도 벨이 울린다.
     //  응답보다 뒤에 보낸다 — 푸시가 느려도 전화 거는 쪽은 기다리지 않는다.
-    const wake = notifyCounselor(env, counselorId).catch(() => {});
+    //  이름을 실어 보내는 이유: 알림에 '내담자'만 뜨면 받을지 말지 판단할 근거가 없다.
+    const wake = clientNameOf(db, counselorId, clientId)
+      .then(peer => notifyCounselor(env, counselorId, { kind: 'invite', callId: id, peer }))
+      .catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
     // 열려 있는 앱에는 웹소켓으로 즉시 — 3초 폴링보다 벨이 훨씬 빨리 울린다
     pushCallState(env, ctx, counselorId, clientId, 'ringing', { callId: id, room });
@@ -265,7 +300,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     await db.prepare(
       "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,0,?,'to-client')"
     ).bind(id, room, me.id, clientId, '', t).run();
-    const wake = notifyClient(env, clientId).catch(() => {});
+    // 내담자 폰이 잠겨 있어도 상담사 이름을 띄우고 벨이 울린다
+    const wake = notifyClient(env, clientId, { kind: 'invite', callId: id, peer: me.name || '상담사' }).catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
     pushCallState(env, ctx, me.id, clientId, 'ringing', { callId: id, room, from: 'counselor', counselorName: me.name });
     return json({ ok: true, room, callId: id }, 200, cors);
@@ -360,8 +396,12 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const id = s(body.callId, 80);
     await db.prepare('UPDATE calls SET connect_at = ? WHERE id = ? AND connect_at = 0')
       .bind(nowMs(), id).run();
-    const r = await db.prepare('SELECT counselor_id, client_id, connect_at, rate FROM calls WHERE id = ?').bind(id).first();
-    if (r) pushCallState(env, ctx, r.counselor_id, r.client_id, 'connected', { callId: id });
+    const r = await db.prepare('SELECT counselor_id, client_id, connect_at, rate, dir FROM calls WHERE id = ?').bind(id).first();
+    if (r) {
+      pushCallState(env, ctx, r.counselor_id, r.client_id, 'connected', { callId: id });
+      // 폰을 두 대 쓰는 사람이 있다 — 한 대로 받으면 나머지 한 대의 벨은 꺼져야 한다
+      cancelCallPush(env, ctx, { id, dir: r.dir, counselor_id: r.counselor_id, client_id: r.client_id });
+    }
     return json({ ok: true, connectAt: r ? r.connect_at : 0, rate: r ? r.rate : 0 }, 200, cors);
   }
 
@@ -425,6 +465,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
     await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
     pushCallState(env, ctx, r.counselor_id, r.client_id, 'ended', { callId: id });
+    // 받기 전에 끝났다 = 상대 폰은 아직 울리는 중이다. 그 벨을 꺼준다.
+    //  웹은 2.5초 폴링이 알아서 멈추지만, 앱의 전체화면 알림은 누가 꺼주지 않으면
+    //  발신자가 포기한 뒤에도 60초를 다 채운다.
+    if (!r.connect_at) cancelCallPush(env, ctx, r);
     // 내담자가 걸었는데 못 받고 끝났다 — 상담사 폰이 이걸 알아야 회신한다
     if (!r.connect_at && by !== 'counselor') {
       const wake = notifyCounselor(env, r.counselor_id).catch(() => {});

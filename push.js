@@ -159,11 +159,31 @@ async function fcmAccessToken(env) {
 
 // 앱 한 대에 보내기. 본문은 웹푸시와 같은 원칙 — 최소한만.
 //  data.act 에 목적지를 실어 알림을 눌렀을 때 갈 곳을 알려준다.
-async function fcmOne(env, db, row, retried) {
+//
+//  call 이 실려 오면 '전화'다. 이때는 규칙이 완전히 달라진다:
+//   · notification 필드를 쓰지 않는다(data-only). 본문을 실으면 안드로이드가
+//     시스템 트레이 알림을 대신 그려버려서, 앱이 가로챌 기회 자체가 없다 —
+//     전화벨도, 잠금화면을 뚫는 전체화면 알림도 만들 수 없다.
+//   · android.priority = high. 폰이 잠들어 있어도 즉시 깨운다.
+//     (normal 로 보내면 도즈에서 몇 분씩 묶여 있다가 온다 — 그땐 이미 끊긴 뒤다)
+//   · data 값은 전부 문자열이어야 한다. FCM v1 이 그렇게 요구한다.
+async function fcmOne(env, db, row, call, retried) {
   const access = await fcmAccessToken(env);
   if (!access) return 'no-key';
   const isClient = String(row.counselor_id || '').startsWith('cl:');
-  const body = {
+  const body = call ? {
+    message: {
+      token: row.endpoint,
+      android: { priority: 'high', ttl: TTL + 's' },
+      data: {
+        act: 'call',
+        kind: call.kind === 'cancel' ? 'cancel' : 'invite',
+        callId: String(call.callId || ''),
+        peer: String(call.peer || ''),
+        ts: String(Date.now())
+      }
+    }
+  } : {
     message: {
       token: row.endpoint,
       notification: {
@@ -206,7 +226,7 @@ async function fcmOne(env, db, row, retried) {
   if (res.status === 401) {
     FCM_TOKEN = { value: '', exp: 0 };
     if (retried) return 'auth';
-    return fcmOne(env, db, row, true);
+    return fcmOne(env, db, row, call, true);
   }
   if (res.status >= 200 && res.status < 300) {
     if (row.fail_count) await db.prepare('UPDATE push_subs SET fail_count = 0 WHERE endpoint = ?').bind(row.endpoint).run().catch(() => {});
@@ -268,7 +288,12 @@ async function subsOf(db, key) {
 
 // 상담사 한 명의 모든 기기를 깨운다 (폰·태블릿·PC 를 같이 쓸 수 있다)
 //  웹 구독은 VAPID 로, 앱 구독은 FCM 으로 — 한 사람이 둘 다 가질 수 있다.
-export async function notifyCounselor(env, counselorId) {
+//
+//  call 을 넘기면 '전화 신호'가 된다 — 앱(FCM)만 다르게 보낸다.
+//   웹 구독은 예전 그대로 '깨우기'다. 웹은 어차피 서비스워커가 깨어나
+//   서버에 다시 물어보므로 본문이 필요 없고, 여기를 건드리면
+//   잘 돌아가던 브라우저 알림까지 같이 흔들린다.
+export async function notifyCounselor(env, counselorId, call) {
   const db = env.DB;
   if (!db || !counselorId) return { sent: 0 };
   const canWeb = !!env.VAPID_PRIVATE;
@@ -282,7 +307,10 @@ export async function notifyCounselor(env, counselorId) {
     const fcm = r.kind === 'fcm';
     if (fcm && !canFcm) return Promise.resolve('skip-fcm');
     if (!fcm && !canWeb) return Promise.resolve('skip-web');
-    return (fcm ? fcmOne(env, db, r) : pushOne(env, db, r)).catch(() => 'err');
+    // 전화 취소는 앱의 울리는 알림을 끄는 신호다 — 웹에는 보낼 이유가 없다
+    //  (웹은 2.5초마다 /rtc/state 를 보고 알아서 벨을 멈춘다)
+    if (!fcm && call && call.kind === 'cancel') return Promise.resolve('skip-web');
+    return (fcm ? fcmOne(env, db, r, call) : pushOne(env, db, r)).catch(() => 'err');
   }));
   return { sent: out.filter(x => x === 'ok').length, total: rows.length, results: out };
 }
@@ -290,9 +318,9 @@ export async function notifyCounselor(env, counselorId) {
 // 내담자 한 명의 기기들을 깨운다 — 상담사 답장·숙제가 앱이 꺼져 있어도 닿게.
 //  별도 테이블을 만들지 않고 push_subs 의 counselor_id 칸에 'cl:'+clientId 로
 //  구분해 담는다 (스키마 변경 없이, 같은 정리·실패 처리 로직을 그대로 탄다).
-export async function notifyClient(env, clientId) {
+export async function notifyClient(env, clientId, call) {
   if (!clientId) return { sent: 0 };
-  return notifyCounselor(env, 'cl:' + String(clientId).slice(0, 64));
+  return notifyCounselor(env, 'cl:' + String(clientId).slice(0, 64), call);
 }
 
 // ── 엔드포인트 ───────────────────────────────────────────────────────

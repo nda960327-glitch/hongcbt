@@ -353,7 +353,9 @@ window.CallTalk = {
       @keyframes incPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }</style>`;
     document.body.appendChild(ov);
     if (window.App && window.App.ringStart) window.App.ringStart();
-    const stopRing = () => { if (window.App && window.App.ringStop) window.App.ringStop(); };
+    // 앱 알림이 울리는 중에 이 화면이 떴다면 벨이 두 겹으로 겹친다 — 알림 쪽을 내린다
+    this._stopNativeRing(call.id);
+    const stopRing = () => { if (window.App && window.App.ringStop) window.App.ringStop(); this._stopNativeRing(call.id); };
     // 상담사가 취소했는데 벨이 계속 울리면 안 된다 — 2.5초마다 생사 확인
     const watch = setInterval(async () => {
       if (!document.getElementById('call-incoming')) { clearInterval(watch); return; }
@@ -384,6 +386,13 @@ window.CallTalk = {
 
   async receiveHuman(call) {
     if (this._active) return;
+    // 알림에서 '받기'로 바로 들어온 길도 있다 — 그때는 수신화면(오버레이)을
+    //  거치지 않으므로, 이미 떠 있던 벨 화면과 벨소리를 여기서 직접 걷어낸다.
+    //  안 걷으면 통화 화면 뒤에 벨 화면이 남아 통화가 끝나도 사라지지 않는다.
+    this._stopNativeRing(call && call.id);
+    if (window.App && window.App.ringStop) window.App.ringStop();
+    const inc = document.getElementById('call-incoming');
+    if (inc) inc.remove();
     if (window.SleepSounds) window.SleepSounds.stop(true);
     this._active = true;
     this._human = true;
@@ -448,6 +457,19 @@ window.CallTalk = {
       const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AudioRoute;
       return (p && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? p : null;
     } catch (e) { return null; }
+  },
+
+  // 앱에서 울리고 있는 전화 알림을 내린다.
+  //  네이티브 알림은 벨을 반복 재생(FLAG_INSISTENT)하므로 누가 꺼주지 않으면
+  //  받은 뒤에도 계속 울린다 — 통화 중에 자기 벨소리를 듣는 꼴이 된다.
+  //  플러그인이 없는 웹에서는 아무 일도 하지 않는다.
+  _stopNativeRing(callId) {
+    try {
+      const C = window.Capacitor;
+      if (!C || !C.isNativePlatform || !C.isNativePlatform()) return;
+      const p = C.Plugins && C.Plugins.CallNotification;
+      if (p && p.stopRinging) p.stopRinging({ callId: callId || '' }).catch(() => {});
+    } catch (e) {}
   },
 
   _spk: false,
@@ -587,6 +609,9 @@ window.CallTalk = {
   end(reason) {
     if (window.Sfx) window.Sfx.play('close');
     if (!this._active) return;
+    // 통화가 끝났는데 알림이 남아 있으면(다른 기기에서 받았을 때 등) 벨이 계속 운다.
+    //  callId 없이 부르면 울리던 전화 알림을 전부 내린다.
+    this._stopNativeRing('');
     // 흔적용 스냅샷 — 아래에서 상태를 지우기 전에 떠 둔다
     const humanCall = this._human;
     const connected = !!this._connected;
