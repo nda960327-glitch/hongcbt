@@ -234,6 +234,12 @@
               await this.pc.addIceCandidate(JSON.parse(m.payload));
             } else if (m.kind === 'ring') {
               this._emit('peer-ringing', {}); // 상대 기기에서 벨이 울리기 시작했다
+            } else if (m.kind.indexOf('consult-') === 0) {
+              // 상담 세션 신호(제안·동의·거절·마감). 서버만 발행하므로 위조가 없다.
+              //  통화(WebRTC)와는 무관하다 — 여기서는 앱에 그대로 넘겨주기만 한다.
+              let d = {};
+              try { d = JSON.parse(m.payload || '{}'); } catch (e) { d = {}; }
+              this._emit(m.kind, d);
             } else if (m.kind === 'bye') {
               this._emit('remote-hangup', {});
               this.hangup('remote', true);
@@ -345,7 +351,9 @@
         });
       }
       this.pc = null; this.stream = null; this.connectAt = 0;
-      const info = res || {};
+      // callId 를 같이 실어 준다 — 지갑 차감은 '어느 통화의 요금인가'로 멱등을
+      //  잡는데, 이 줄 아래에서 callId 가 지워지면 그 열쇠가 사라진다.
+      const info = Object.assign({ callId: this.callId }, res || {});
       this._emit('ended', info);
       this.callId = ''; this.room = '';
       return info;

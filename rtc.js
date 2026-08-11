@@ -8,9 +8,12 @@
 //  서버가 하는 일은 '처음 만나게 해주는 것'뿐이다.
 //  음성은 P2P 로 직접 흐르므로 대화 내용은 서버를 지나가지 않는다.
 //
-//  과금 원칙: 실제로 연결된 시간에만 받는다.
-//   전에는 앱이 타이머를 돌려서, 상담사가 안 받아도 초가 쌓였다.
-//   이제 connect_at 은 서버가 찍고, 그 시각부터만 계산한다.
+//  과금 원칙: 통화는 무료, 상담만 유료, 시간은 서버가 잰다.
+//   전에는 내담자 폰의 30초 타이머가 요금을 굴렸다. 화면이 잠기면 그 타이머가
+//   얼어붙어서 3분 55초 통화가 0원으로 끝난 사고가 실제로 있었다.
+//   반대로 잘못 걸린 전화·안부 전화도 연결만 되면 돈이 나갔다.
+//   이제 돈이 붙는 구간은 '상담 세션'뿐이다 — 상담사가 [상담 시작]을 누르고
+//   내담자가 동의한 순간부터, 그 시각은 서버가 찍는다(consult_start/consult_end).
 // ============================================================================
 
 import { notifyCounselor, notifyClient } from './push.js';
@@ -40,6 +43,75 @@ function billFor(rate, ms) {
   return Math.ceil(ms / 30000) * rate;
 }
 
+// ── 상담 세션 ────────────────────────────────────────────────────────────
+//  요금은 서버가 정한다. 클라이언트가 보낸 rate 를 그대로 믿으면 누구든
+//  30초당 10캐시짜리 상담을 만들어 낼 수 있다.
+//  식은 js/marketplace.js 의 callRateFor 와 한 글자도 다르면 안 된다 —
+//  화면에 적힌 숫자와 실제로 빠져나가는 숫자가 어긋나는 순간 신뢰가 끝난다.
+async function consultRateOf(db, counselorId) {
+  try {
+    const c = await db.prepare('SELECT price, call_rate FROM counselors WHERE id = ?')
+      .bind(counselorId).first();
+    if (!c) return 700;
+    if (Number(c.call_rate) > 0) return Number(c.call_rate);   // 상담사가 직접 정한 값이 우선
+    const price = Number(c.price) || 0;
+    if (!price) return 700;
+    return Math.max(500, Math.round(price / 60 * 1.25 / 10) * 10);
+  } catch (e) { return 700; }
+}
+
+// 상담 신호는 서버만 발행한다. /rtc/signal 이 받아주는 kind 목록에 consult-* 가
+//  없으므로(claim 과 같은 방식) 밖에서는 위조할 수 없다.
+//  sender 로 '누구에게 갈지'가 정해진다 — 폴링이 sender != 나 인 것만 집어가므로
+//  'counselor' 는 내담자에게, 'client' 는 상담사에게, 'sys' 는 양쪽 모두에게 간다.
+async function consultSignal(db, room, sender, kind, payload) {
+  try {
+    await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
+      .bind(room, sender, kind, JSON.stringify(payload || {}).slice(0, 2000), nowMs()).run();
+  } catch (e) {}
+}
+
+// 열려 있는 상담 세션을 마감하고 요금을 calls.billed 에 적는다.
+//  upto 는 '통화가 살아 있던 마지막 시각'이다. 죽은 통화를 지금 시각으로 마감하면
+//  아무도 없는 방에 요금이 계속 붙는다 — 그래서 마지막 심박을 넘기지 않는다.
+//  멱등: 이미 마감됐거나 시작된 적이 없으면 null 을 돌려주고 아무것도 건드리지 않는다.
+//  consult_* 컬럼이 아직 없는 배포(스키마 적용 전)에서도 죽지 않는다 — 그때는
+//  값이 undefined 라 곧장 null 이고, 통화는 그냥 무료가 된다.
+async function endConsult(db, call, upto) {
+  try {
+    if (!call || !call.consult_start || call.consult_end) return null;
+    const end = Math.max(call.consult_start, Math.min(Number(upto) || nowMs(), nowMs()));
+    const ms = end - call.consult_start;
+    const charge = billFor(call.consult_rate, ms);
+    const r = await db.prepare(
+      'UPDATE calls SET consult_end = ?, billed = ? WHERE id = ? AND consult_end = 0'
+    ).bind(end, charge, call.id).run();
+    // 다른 요청이 반 박자 먼저 마감했다면 changes = 0 이다 — 두 번 청구하지 않는다
+    if (!(r && r.meta && r.meta.changes > 0)) return null;
+    return { seconds: Math.round(ms / 1000), charge, consultEnd: end };
+  } catch (e) { return null; }
+}
+
+// 이 통화에 붙은 상담 요금 요약 (이미 마감된 것도, 아직 없는 것도 같은 모양으로)
+function consultInfo(call, fin) {
+  if (fin) return { had: true, seconds: fin.seconds, charge: fin.charge };
+  if (call && call.consult_start && call.consult_end) {
+    return { had: true, seconds: Math.round((call.consult_end - call.consult_start) / 1000), charge: call.billed || 0 };
+  }
+  return { had: false, seconds: 0, charge: 0 };
+}
+
+// 통화 기록 한 줄의 문구 — 상담이었나 그냥 통화였나를 글자로 구분한다.
+//  "음성 상담 3분 20초 · 1,400캐시" / "통화 3분 20초" (무료)
+function callLine(ms, info, tail) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const dur = `${s >= 60 ? Math.floor(s / 60) + '분 ' : ''}${s % 60}초`;
+  const t = tail ? ' ' + tail : '';
+  return info && info.had && info.charge > 0
+    ? `음성 상담 ${dur} · ${info.charge.toLocaleString()}캐시${t}`
+    : `통화 ${dur}${t}`;
+}
+
 // 죽은 통화 수거 — 양쪽이 모두 이탈하면(둘 다 앱 종료·크래시) 아무도 끊지
 //  않아 통화가 영원히 '진행 중'으로 남고 회선이 잠긴다. 양쪽 클라이언트는
 //  통화 중 6초마다 /rtc/state 를 찍으므로(심박), 30초 넘게 심박이 없으면
@@ -55,13 +127,15 @@ async function reapDeadCalls(db, env, ctx, counselorId) {
     for (const r of (rows.results || [])) {
       const upto = r.last_seen > r.connect_at ? r.last_seen : r.connect_at;
       const ms = Math.max(0, upto - r.connect_at);
-      const billed = billFor(r.rate, ms);
+      // 통화 자체는 무료다. 열려 있던 상담 세션만 마지막 심박 시각으로 마감한다 —
+      //  양쪽 앱이 죽은 뒤의 시간까지 청구하면 그건 없던 상담에 돈을 받는 것이다.
+      const fin = await endConsult(db, r, upto);
+      const info = consultInfo(r, fin);
       await db.prepare("UPDATE calls SET end_at = ?, end_by = 'dead', billed = ? WHERE id = ? AND end_at = 0")
-        .bind(t, billed, r.id).run();
+        .bind(t, info.charge, r.id).run();
       await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(r.counselor_id).run();
       await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(r.room).run();
-      const ss = Math.round(ms / 1000);
-      await logCallToChat(db, env, ctx, r, `음성 상담 ${ss >= 60 ? Math.floor(ss / 60) + '분 ' : ''}${ss % 60}초 (연결 끊김)`,
+      await logCallToChat(db, env, ctx, r, callLine(ms, info, '(연결 끊김)'),
         r.dir === 'to-client' ? 'counselor' : 'client');
     }
   } catch (e) {}
@@ -477,12 +551,24 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const id = s(body.callId, 80);
     const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
-    if (r.end_at) return json({ ok: true, billed: r.billed, already: true }, 200, cors);
+    // 이미 끝난 통화도 요금은 그대로 돌려준다 — 늦게 도착한 앱이
+    //  '얼마가 나갔는지'를 여기서 알아내 지갑을 맞춘다(멱등)
+    if (r.end_at) {
+      const done = consultInfo(r, null);
+      return json({
+        ok: true, billed: r.billed, already: true,
+        consult: done, seconds: Math.round(((r.end_at - (r.connect_at || r.end_at)) || 0) / 1000)
+      }, 200, cors);
+    }
 
     const t = nowMs();
     // 연결된 적이 없으면 요금 0 — 안 받은 전화에 돈을 받지 않는다
     const ms = r.connect_at ? (t - r.connect_at) : 0;
-    const billed = billFor(r.rate, ms);
+    // 통화는 무료다. 남아 있는 상담 세션이 있으면 여기서 자동 마감하고,
+    //  그 세션의 요금만 청구한다 — 끊고 도망가도 상담비는 정확히 계산된다.
+    const fin = await endConsult(db, r, t);
+    const info = consultInfo(r, fin);
+    const billed = info.charge;
     const by = s(body.by, 20) || 'client';
     await db.prepare('UPDATE calls SET end_at = ?, end_by = ?, billed = ? WHERE id = ?')
       .bind(t, by, billed, id).run();
@@ -496,11 +582,14 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
         .bind(r.room, byeSender, 'bye', '1', t).run();
     } catch (e) {}
+    // 상담이 열린 채 통화가 끊겼다면 마감 결과도 양쪽에 심는다 —
+    //  bye 만 보면 상대 앱은 '얼마가 청구됐는지'를 영영 모른다.
+    //  (신호 청소 뒤에 넣어야 살아남는다)
+    if (fin) await consultSignal(db, r.room, 'sys', 'consult-ended', { callId: id, ...fin, auto: true });
 
     // 채팅에 통화 기록을 남긴다. 카톡처럼 '부재중 전화' 가 대화에 보여야
     //  못 받은 쪽이 나중에라도 알고 다시 연락할 수 있다.
     //  안 남기면 상담사는 걸었다는 걸, 내담자는 왔다는 걸 서로 모른다.
-    const mm = Math.floor(ms / 60000), ss = Math.round((ms % 60000) / 1000);
     // 연결 전 종료의 세 얼굴: 건 사람이 끊음=취소 · 받는 사람이 끊음=거절 · 아무도 안 끊음=부재중
     const toClient = r.dir === 'to-client';
     const caller = toClient ? 'counselor' : 'client';
@@ -512,7 +601,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
           : (by === caller
             ? '통화 취소'
             : (toClient ? '부재중 전화 — 지금 받기 어려워요' : '부재중 전화 — 상담사가 지금 받기 어려워요')))
-      : `음성 상담 ${mm > 0 ? mm + '분 ' : ''}${ss}초`;
+      : callLine(ms, info);
     await logCallToChat(db, env, ctx, r, line, by === 'counselor' ? 'counselor' : 'client');
     pushCallState(env, ctx, r.counselor_id, r.client_id, 'ended', { callId: id });
     // 받기 전에 끝났다 = 상대 폰은 아직 울리는 중이다. 그 벨을 꺼준다.
@@ -527,11 +616,159 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     return json({
       ok: true, billed, connected: !!r.connect_at,
       seconds: Math.round(ms / 1000),
+      consult: info,               // { had, seconds, charge } — 내담자 앱이 이걸로 지갑을 맞춘다
       noAnswer: !r.connect_at
     }, 200, cors);
   }
 
+  // ══ 상담 세션 ═══════════════════════════════════════════════════════
+  //  통화가 붙었다고 상담이 시작된 것은 아니다. 잘못 걸 수도, 안부만 물을 수도,
+  //  "지금 통화 되세요?" 하고 약속만 잡을 수도 있다.
+  //  그래서 유료 구간은 따로 연다: 상담사가 [상담 시작] → 내담자가 동의 →
+  //  그때부터 서버 시계가 돈다. 끝은 [상담 완료]거나 통화 종료다.
+
+  // ── 상담 시작 제안 (상담사만) ────────────────────────────────────────
+  if (path === '/rtc/consult/offer' && method === 'POST') {
+    const me = await resolveCounselor(db, { session: s(body.session, 128), code: s(body.code, 64) });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const id = s(body.callId, 80);
+    const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
+    if (!r) return json({ error: 'not-found' }, 404, cors);
+    // 남의 통화에 요금을 제안할 수 없다
+    if (r.counselor_id !== me.id) return json({ error: 'forbidden' }, 403, cors);
+    // 붙지도 않은 전화에 상담을 열 수 없다 — 벨만 울리는 동안은 아무 일도 일어나지 않는다
+    if (!r.connect_at || r.end_at) return json({ error: 'not-connected' }, 409, cors);
+    const rate = await consultRateOf(db, me.id);
+    // 이미 진행 중이면 다시 묻지 않는다 (버튼 두 번 눌림)
+    if (r.consult_start && !r.consult_end) {
+      return json({ ok: true, already: true, rate: r.consult_rate || rate, startedAt: r.consult_start }, 200, cors);
+    }
+    await consultSignal(db, r.room, 'counselor', 'consult-offer',
+      { callId: id, rate, counselorName: me.name || '상담사' });
+    return json({ ok: true, rate }, 200, cors);
+  }
+
+  // ── 상담 시작 동의 (내담자만) ────────────────────────────────────────
+  //  요금은 서버가 다시 계산한다. 앱이 보낸 rate 는 쳐다보지도 않는다.
+  if (path === '/rtc/consult/accept' && method === 'POST') {
+    const id = s(body.callId, 80), clientId = s(body.clientId);
+    const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
+    if (!r) return json({ error: 'not-found' }, 404, cors);
+    if (!clientId || r.client_id !== clientId) return json({ error: 'forbidden' }, 403, cors);
+    if (!r.connect_at || r.end_at) return json({ error: 'not-connected' }, 409, cors);
+    // 멱등 — 폴링이 offer 를 두 번 집어 왔거나 버튼이 두 번 눌려도 시각은 하나다
+    if (r.consult_start && !r.consult_end) {
+      return json({ ok: true, already: true, rate: r.consult_rate, at: r.consult_start }, 200, cors);
+    }
+    const rate = await consultRateOf(db, r.counselor_id);
+    const t = nowMs();
+    try {
+      const up = await db.prepare(
+        'UPDATE calls SET consult_start = ?, consult_rate = ?, consult_end = 0 WHERE id = ? AND end_at = 0 AND consult_start = 0'
+      ).bind(t, rate, id).run();
+      if (!(up && up.meta && up.meta.changes > 0)) {
+        // 한 통화에 상담은 한 번이다. 이미 마감된 상담을 다시 열지 않는다.
+        const now = await db.prepare('SELECT consult_start, consult_rate FROM calls WHERE id = ?').bind(id).first();
+        return json({ ok: true, already: true, rate: (now && now.consult_rate) || rate, at: (now && now.consult_start) || 0 }, 200, cors);
+      }
+    } catch (e) {
+      // consult_* 컬럼이 아직 없는 배포 — 통화는 살리고 상담만 열지 못한다
+      return json({ error: 'not-ready' }, 503, cors);
+    }
+    await consultSignal(db, r.room, 'client', 'consult-accepted', { callId: id, rate, at: t });
+    return json({ ok: true, rate, at: t }, 200, cors);
+  }
+
+  // ── 지금은 아니요 (내담자) ───────────────────────────────────────────
+  if (path === '/rtc/consult/decline' && method === 'POST') {
+    const id = s(body.callId, 80), clientId = s(body.clientId);
+    const r = await db.prepare('SELECT room, client_id FROM calls WHERE id = ?').bind(id).first();
+    if (!r) return json({ error: 'not-found' }, 404, cors);
+    if (!clientId || r.client_id !== clientId) return json({ error: 'forbidden' }, 403, cors);
+    await consultSignal(db, r.room, 'client', 'consult-declined',
+      { callId: id, why: s(body.why, 40) });
+    return json({ ok: true }, 200, cors);
+  }
+
+  // ── 상담 완료 ────────────────────────────────────────────────────────
+  //  상담사가 누른다. 잔액이 다 된 내담자도 끝낼 수 있어야 하므로
+  //  동의한 본인의 호출도 받는다. 통화는 유지된다 — 마무리 인사가 남았다.
+  if (path === '/rtc/consult/end' && method === 'POST') {
+    const id = s(body.callId, 80);
+    const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
+    if (!r) return json({ error: 'not-found' }, 404, cors);
+    let by = 'counselor';
+    const clientId = s(body.clientId);
+    if (clientId && r.client_id === clientId) {
+      by = 'client';
+    } else {
+      const me = await resolveCounselor(db, { session: s(body.session, 128), code: s(body.code, 64) });
+      if (!me || me.id !== r.counselor_id) return json({ error: 'forbidden' }, 403, cors);
+    }
+    if (!r.consult_start) return json({ ok: true, seconds: 0, charge: 0, none: true }, 200, cors);
+    // 통화가 이미 끝났다면 그 시각을, 살아 있다면 마지막 심박을 넘지 않는 지금을.
+    //  화면이 잠긴 폰의 시계가 아니라 서버가 본 마지막 생존 시각이 기준이다.
+    const cap = r.end_at ? r.end_at : nowMs();
+    const fin = await endConsult(db, r, cap);
+    const info = consultInfo(r, fin);
+    if (fin) {
+      await consultSignal(db, r.room, 'sys', 'consult-ended', { callId: id, ...fin, by });
+    }
+    return json({ ok: true, seconds: info.seconds, charge: info.charge, already: !fin }, 200, cors);
+  }
+
+  // ── 내가 낸 상담비 (내담자) ──────────────────────────────────────────
+  //  차감은 기기가 한다(캐시가 기기에 있다). 그래서 앱이 꺼져 있는 사이에
+  //  끝난 상담은 차감이 통째로 빠질 수 있다 — 앱을 켤 때 여기서 되짚어 맞춘다.
+  if (path === '/rtc/my-charges' && method === 'GET') {
+    const cid = s(q('clientId'));
+    if (!cid) return json({ items: [] }, 200, cors);
+    const since = nowMs() - 30 * 86400000;
+    try {
+      const r = await db.prepare(
+        `SELECT c.id, c.billed, c.end_at, c.consult_start, c.consult_end, k.name AS cname
+           FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+          WHERE c.client_id = ? AND c.billed > 0 AND c.end_at > 0 AND c.end_at >= ?
+          ORDER BY c.end_at DESC LIMIT 50`
+      ).bind(cid, since).all();
+      return json({
+        items: (r.results || []).map(x => ({
+          callId: x.id, charge: x.billed || 0, at: x.end_at,
+          seconds: x.consult_start && x.consult_end ? Math.round((x.consult_end - x.consult_start) / 1000) : 0,
+          counselorName: x.cname || '상담사'
+        }))
+      }, 200, cors);
+    } catch (e) { return json({ items: [] }, 200, cors); }
+  }
+
+  // ── 내가 받은 상담비 (상담사) ────────────────────────────────────────
+  //  정산 탭은 예약(bookings)만 보고 있었다. 바로상담은 /settle 에서만 잡혀서
+  //  상담사 화면에는 통화 수입이 통째로 보이지 않았다.
+  if (path === '/rtc/my-calls' && method === 'GET') {
+    const me = await resolveCounselor(db, { session: s(q('session'), 128), code: s(q('code'), 64) });
+    if (!me) return json({ items: [] }, 403, cors);
+    const since = nowMs() - 400 * 86400000;
+    try {
+      const r = await db.prepare(
+        `SELECT id, client_id, billed, connect_at, end_at, consult_start, consult_end, settled_at
+           FROM calls WHERE counselor_id = ? AND billed > 0 AND end_at >= ?
+          ORDER BY end_at DESC LIMIT 200`
+      ).bind(me.id, since).all();
+      return json({
+        items: (r.results || []).map(x => ({
+          id: x.id, clientId: x.client_id, charge: x.billed || 0, at: x.end_at,
+          callSeconds: Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000)),
+          consultSeconds: x.consult_start && x.consult_end ? Math.round((x.consult_end - x.consult_start) / 1000) : 0,
+          settledAt: x.settled_at || 0
+        }))
+      }, 200, cors);
+    } catch (e) { return json({ items: [] }, 200, cors); }
+  }
+
   // ── 신호 주고받기 ────────────────────────────────────────────────────
+  //  consult-* 와 claim 은 이 목록에 없다 — 서버만 발행한다.
+  //  밖에서 넣을 수 있게 두면 내담자 동의 없이 과금을 시작하거나,
+  //  남의 상담을 멋대로 끝낼 수 있다.
   if (path === '/rtc/signal' && method === 'POST') {
     const room = s(body.room, 160), sender = body.sender === 'counselor' ? 'counselor' : 'client';
     const kind = s(body.kind, 12);

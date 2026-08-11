@@ -2094,14 +2094,16 @@ ${memory || '(없음)'}`;
         <div style="margin-top: 0.7rem; font-size: 0.9rem; font-weight: bold; color: var(--text-primary);">
           <span class="h-ico" data-icon="calendar" data-icon-size="17"></span>${b.time}
         </div>
-        <div style="margin-top: 0.7rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- 버튼 2×2 격자 — flex-wrap 은 3+1 로 어긋나게 접혀서 '깨져' 보였다 -->
+        <div style="margin-top: 0.7rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
           ${b.whenTs && Math.abs(b.whenTs - now) < 3600000
- ?`<button class="btn-primary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 예약 상담 시작 <span style="font-size: 0.66rem; font-weight: 500;">(30분 정액 · 추가 과금 없음)</span></button>`
- :`<button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 전화 상담</button>`}
- <button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.openHumanChat('${b.counselorId}')"> 채팅</button>
- <button class="btn-secondary"style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem;"onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ?'자료 전달됨':'상담 자료 보내기'}</button>
-          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.4rem 0.85rem; color: #c14a4a;" onclick="window.App.cancelBooking('${b.id}')">예약 취소</button>
+ ?`<button class="btn-primary"style="width: 100%; font-size: 0.78rem; padding: 0.5rem 0.4rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 예약 상담 시작</button>`
+ :`<button class="btn-secondary"style="width: 100%; font-size: 0.78rem; padding: 0.5rem 0.4rem;"onclick="window.App.startHumanCall('${b.counselorId}')"> 전화 상담</button>`}
+ <button class="btn-secondary"style="width: 100%; font-size: 0.78rem; padding: 0.5rem 0.4rem;"onclick="window.App.openHumanChat('${b.counselorId}')"> 채팅</button>
+ <button class="btn-secondary"style="width: 100%; font-size: 0.78rem; padding: 0.5rem 0.4rem;"onclick="window.App.openSharePack('${b.id}')">${(window.Storage._safeGet('cbt_shared_packs', {}) || {})[b.id] ?'자료 전달됨':'상담 자료 보내기'}</button>
+          <button class="btn-secondary" style="width: 100%; font-size: 0.78rem; padding: 0.5rem 0.4rem; color: #c14a4a;" onclick="window.App.cancelBooking('${b.id}')">예약 취소</button>
         </div>
+        ${b.whenTs && Math.abs(b.whenTs - now) < 3600000 ? '<p style="margin: 0.45rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">예약 상담은 30분 정액 · 추가 과금 없음</p>' : ''}
       </div>`).join('')
       || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
 

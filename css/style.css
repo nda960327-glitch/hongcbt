@@ -1300,7 +1300,13 @@ textarea:focus { border-color: var(--accent-primary); }
 .home-sec h3 {
   margin: 0; font-size: 0.98rem; font-weight: 800;
   color: var(--text-primary); font-family: var(--font-heading);
-  display: flex; align-items: center; gap: 0.4rem;
+  display: flex; align-items: center; gap: 0.45rem;
+}
+/* 구획 제목 앞의 초록 막대 — 크림색 일색이라 어디서 단락이 바뀌는지 안 보였다 */
+.home-sec h3::before {
+  content: ''; width: 4px; height: 15px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--accent-primary), color-mix(in srgb, var(--accent-primary) 55%, transparent));
+  flex-shrink: 0;
 }
 .home-sec__sub { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); }
 
@@ -1349,13 +1355,14 @@ textarea:focus { border-color: var(--accent-primary); }
   transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
 }
 .home-start__card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+/* 색 농도 12%→20% — 크림색 바탕에서 12%는 흰 카드와 구분이 안 됐다 ("색이 다 날아갔어") */
 .home-start__card--ai {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)), var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 20%, var(--bg-secondary)), color-mix(in srgb, var(--accent-primary) 6%, var(--bg-secondary)));
+  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
 }
 .home-start__card--human {
-  background: linear-gradient(135deg, color-mix(in srgb, #3b82f6 9%, var(--bg-secondary)), var(--bg-secondary));
-  border-color: rgba(138, 180, 248, 0.3);
+  background: linear-gradient(135deg, color-mix(in srgb, #3b82f6 16%, var(--bg-secondary)), color-mix(in srgb, #3b82f6 5%, var(--bg-secondary)));
+  border-color: rgba(59, 130, 246, 0.4);
 }
 .home-start__ico {
   width: 42px; height: 42px; flex-shrink: 0;
@@ -1371,12 +1378,15 @@ textarea:focus { border-color: var(--accent-primary); }
   font-family: var(--font-heading);
 }
 .home-start__d { font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; }
+/* '대화 시작·둘러보기'를 맨글자 링크에서 알약 버튼으로 — 눌러야 할 곳이 한눈에 보이게 */
 .home-start__go {
-  margin-top: auto; font-size: 0.76rem; font-weight: 700;
-  color: var(--accent-primary);
+  margin-top: auto; font-size: 0.76rem; font-weight: 800;
+  color: #fff; background: var(--accent-primary);
   display: inline-flex; align-items: center; gap: 0.2rem;
+  align-self: flex-start; padding: 0.34rem 0.7rem; border-radius: 999px;
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--accent-primary) 35%, transparent);
 }
-.home-start__card--human .home-start__go { color: #8ab4f8; }
+.home-start__card--human .home-start__go { background: #3b82f6; box-shadow: 0 2px 7px rgba(59, 130, 246, 0.35); }
 
 /* 라이트 테마에서는 진한 파랑이 대비가 좋다 */
 [data-theme="light"] .home-start__card--human { border-color: rgba(37, 99, 235, 0.28); }
@@ -1402,9 +1412,17 @@ textarea:focus { border-color: var(--accent-primary); }
   width: 38px; height: 38px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
   color: var(--accent-primary);
 }
+/* 도구마다 고유색 — 네 개가 전부 초록이면 어떤 도구인지 색으로 구분이 안 된다 */
+.home-tool:nth-child(2) .home-tool__ico { background: rgba(14, 159, 199, 0.16); color: #0e9fc7; }   /* 마음 안정: 물빛 */
+.home-tool:nth-child(3) .home-tool__ico { background: rgba(124, 92, 214, 0.15); color: #7c5cd6; }   /* 하루 정리: 저녁 보라 */
+.home-tool:nth-child(4) .home-tool__ico { background: rgba(201, 130, 31, 0.16); color: #c9821f; }   /* 인지왜곡: 호박색 */
+.home-tool:nth-child(2) { border-color: rgba(14, 159, 199, 0.26); }
+.home-tool:nth-child(3) { border-color: rgba(124, 92, 214, 0.24); }
+.home-tool:nth-child(4) { border-color: rgba(201, 130, 31, 0.26); }
+.home-tool:nth-child(1) { border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent); }
 .home-tool__txt { display: flex; flex-direction: column; min-width: 0; }
 .home-tool__t,
 .home-tool__d { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
