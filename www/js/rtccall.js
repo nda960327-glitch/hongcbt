@@ -97,8 +97,20 @@
           //  기기 시계를 믿으면 조작도 되고 시차도 생긴다.
           const r = await API().json('/api/rtc/connected', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callId: this.callId })
+            // as 로 '나는 건 쪽인가 받은 쪽인가'를 알린다 — 서버는 받는 쪽에만
+            //  자물쇠를 채운다(두 대가 같이 받는 사고는 그쪽에서만 난다).
+            body: JSON.stringify({ callId: this.callId, as: this.role })
           });
+          // 다른 기기가 먼저 받았다. 폰과 태블릿에 같이 로그인해 두면 둘 다 울리고,
+          //  둘 다 '받기'를 누를 수 있다 — 서버가 한 대만 통과시킨다.
+          //  진 쪽은 조용히 사라져야 한다. hangup 을 부르면 /rtc/end 와 bye 가 나가서
+          //  방금 통화를 시작한 기기가 끊긴다 — 그래서 abandon 이다.
+          if (r && r.ok === false && (r.error === 'taken' || r.error === 'ended')) {
+            this._diag('connected-lost', r.error);
+            this._emit('taken', { reason: r.error });
+            this.abandon();
+            return;
+          }
           this.connectAt = (r && r.connectAt) || Date.now();
           this.rate = (r && r.rate) || 0;
           this._emit('connected', { rate: this.rate });
@@ -301,6 +313,20 @@
       this._startPoll();   // offer 가 폴링으로 들어와 answer 를 만든다
       this._emit('answering', {});
       return true;
+    },
+
+    // 조용히 물러난다 — 서버에도 상대에게도 아무 말 하지 않는다.
+    //  '다른 기기가 먼저 받았다'는 이 통화가 남의 것이 됐다는 뜻이라,
+    //  끝났다는 신호를 보내는 순간 남의 통화를 끊는 일이 된다.
+    //  callId 를 비우는 것도 중요하다 — pagehide 비콘이 그걸 보고 /rtc/end 를 쏜다.
+    abandon() {
+      clearInterval(this.pollTimer); clearInterval(this.tickTimer); clearInterval(this.audioTimer);
+      clearTimeout(this.graceTimer); this.graceTimer = null;
+      try { this.pc && this.pc.close(); } catch (e) {}
+      try { this.stream && this.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      if (this.remote) { try { this.remote.srcObject = null; } catch (e) {} }
+      this.pc = null; this.stream = null; this.connectAt = 0;
+      this.callId = ''; this.room = '';
     },
 
     async hangup(by, skipSignal) {

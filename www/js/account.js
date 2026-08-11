@@ -218,6 +218,12 @@ window.Account = {
     this._setSession(d.session);
     this.user = d.user;
     this._cacheUser(d.user);
+    // 로그인 게이트를 내린다 — 앱(웹뷰)은 페이지를 새로 열지 않고 이 자리에서
+    //  로그인이 끝나므로, 여기서 안 내리면 게이트가 화면을 영원히 덮는다.
+    try {
+      const sc = document.getElementById('login-screen');
+      if (sc) sc.classList.add('hidden');
+    } catch (e) {}
     if (window.Sfx) { try { window.Sfx.hit('levelup'); } catch (e) {} }
     await this.pull();
     if (window.UI) {
@@ -313,6 +319,11 @@ window.Account = {
     await this._post('/api/sync/wipe', { session: s }).catch(() => {});
     const r = await this._post('/api/oauth/delete', { session: s }).catch(() => null);
     if (!r || !r.ok) { window.UI.alert('삭제하지 못했어요. 잠시 뒤 다시 시도해주세요.'); return; }
+    // 계정을 지웠는데 이 폰에서 상담 알림이 계속 울리면 '안 지워졌다'로 읽힌다.
+    //  이 기기의 구독만 끊는다(다른 기기는 그 기기에서 끊어야 한다).
+    //  로그아웃에서는 하지 않는다 — 상담사 전화는 계정이 아니라 기기(clientId)로
+    //  오기 때문에, 로그아웃했다고 끊으면 전화가 조용히 사라진다.
+    if (window.App && window.App.unsubscribePushHere) await window.App.unsubscribePushHere();
     this._setSession(''); this._setMeta({}); this._cacheUser(null); this.user = null;
     this.render();
     window.UI.alert('계정을 삭제했어요.');

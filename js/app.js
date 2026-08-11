@@ -2772,6 +2772,12 @@ ${memory || '(없음)'}`;
         const token = (t && t.value) || '';
         this._pushDiag('fcm-token', token ? ('len' + token.length) : 'empty');
         if (!token) return;
+        // 나중에 '이 기기만' 알림을 끊으려면 토큰을 알고 있어야 한다.
+        //  registration 이벤트는 한 번 주고 지나가므로 그 자리에서 붙잡아 둔다.
+        try { window.Storage._safeSet('cbt_fcm_token', token); } catch (e) {}
+        // 알림을 받기로 한 기기라는 도장 — 네이티브 벨의 2중 잠금(자세한 이유는
+        //  CallNotificationPlugin 주석). 계정 연동을 해제하면 false 로 바뀐다.
+        this._setNativeSignedIn(true);
         window.Api.f('/api/push/fcm-subscribe', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token, clientId: this.clientId() })
@@ -2932,6 +2938,45 @@ ${memory || '(없음)'}`;
       const C = window.Capacitor;
       return (C && C.Plugins && C.Plugins.CallNotification) || null;
     } catch (e) { return null; }
+  },
+
+  // 네이티브 벨의 2중 잠금 도장.
+  //  내담자에게는 로그인 개념이 약하다 — 계정 없이도 앱을 쓰고, 상담사 전화는
+  //  기기 고유 clientId 로 온다. 그래서 기본값은 '울린다'이고,
+  //  계정 연동을 명시적으로 끊을 때(계정 삭제)만 false 로 박는다.
+  //  구글 로그아웃만으로는 끄지 않는다 — clientId 는 그대로라, 그 기기로 오던
+  //  상담사 전화는 여전히 이 사람의 것이다. 여기서 꺼버리면 전화가 조용히 사라진다.
+  _setNativeSignedIn(on) {
+    try {
+      const P = this._callPlugin();
+      if (P && P.setSignedIn) P.setSignedIn({ value: !!on }).catch(() => {});
+    } catch (e) {}
+  },
+
+  // 이 기기의 알림만 서버에서 끊는다 (다른 기기는 그대로).
+  //  실패해도 부르는 쪽의 흐름을 막지 않는다 — 네이티브 도장이 받쳐준다.
+  async unsubscribePushHere() {
+    let token = '';
+    try { token = window.Storage._safeGet('cbt_fcm_token', '') || ''; } catch (e) {}
+    if (!token && 'serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) { token = sub.endpoint; await sub.unsubscribe().catch(() => {}); }
+      } catch (e) {}
+    }
+    this._setNativeSignedIn(false);
+    if (!token) return;
+    try {
+      await Promise.race([
+        window.Api.f('/api/push/unsubscribe', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, endpoint: token })
+        }),
+        new Promise(r => setTimeout(r, 3000))   // 네트워크에 인질로 잡히지 않는다
+      ]);
+    } catch (e) {}
+    try { window.Storage._safeSet('cbt_fcm_token', ''); } catch (e) {}
   },
 
   async _handleCallAction() {

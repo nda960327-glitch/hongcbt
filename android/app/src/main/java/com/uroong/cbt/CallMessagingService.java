@@ -35,9 +35,15 @@ public class CallMessagingService extends MessagingService {
                     //  callId 가 없으면(옛 서버) 울리던 것 전부를 내린다.
                     CallNotificationPlugin.cancelCall(getApplicationContext(), callId == null ? "" : callId);
                 } else if (callId != null && !callId.isEmpty()) {
-                    // 앱이 이미 눈앞에 떠 있으면 웹 수신화면이 뜬다 — 알림까지 띄우면
-                    //  같은 전화가 두 번 울리는 꼴이 된다.
-                    if (!CallNotificationPlugin.isForeground()) {
+                    // 벨을 울리기 전에 두 가지를 본다.
+                    //  ① 로그아웃한 기기인가 — 서버에서 구독을 지우는 게 1차 방어지만,
+                    //    그 요청은 네트워크가 없으면 못 나가고 앱을 지웠다 깐 토큰은
+                    //    아무도 지워주지 않는다. 넘겨준 폰에서 남의 상담 전화가 울리는
+                    //    사고의 마지막 안전망이 이 도장이다(도장이 없는 폰은 예전처럼 울린다).
+                    //  ② 앱이 이미 눈앞에 떠 있는가 — 웹 수신화면이 이미 뜨므로
+                    //    알림까지 띄우면 같은 전화가 두 번 울리는 꼴이 된다.
+                    if (CallNotificationPlugin.isSignedIn(getApplicationContext())
+                        && !CallNotificationPlugin.isForeground()) {
                         CallNotificationPlugin.showIncoming(getApplicationContext(), callId, d.get("peer"));
                     }
                 }

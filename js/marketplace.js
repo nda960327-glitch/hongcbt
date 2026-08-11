@@ -14,6 +14,16 @@
     this.loadServer();          // 입점 상담사는 서버에서 — 받아오면 다시 그린다
     // 위치 동기화 자동 시도 (GPS)
     this.requestUserLocation(true);
+
+    // 실시간 반영 — 앱을 켠 채로 두면 운영자가 상담사를 등록·삭제해도 몰랐다.
+    //  매칭 탭에 들어올 때마다, 그리고 화면에 다시 돌아올 때마다 명부를 새로 받는다.
+    //  (15초 안에 또 부르면 건너뛰어 서버를 괴롭히지 않는다)
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.nav-item[data-tab="counselors"]')) this.loadServer();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this.loadServer();
+    });
   },
 
   // 하버스인(Haversine) 공식을 이용한 두 위경도 좌표 간 직선 거리(km) 계산
@@ -434,7 +444,7 @@
     if (window.Sfx) window.Sfx.play('nav');
     if (btn) { btn.style.opacity = '0.35'; btn.disabled = true; }
     try {
-      await Promise.resolve(this.loadServer());
+      await Promise.resolve(this.loadServer(true));
       await Promise.resolve(this.fetchPresence(true));
       this.renderCounselors();
       if (window.App) window.App.showRecordToast('최신 정보로 새로고침했어요');
@@ -489,11 +499,25 @@
   //  받아둔 걸 캐시에 넣고 all() 은 그걸 읽기만 한다.
   _server: [],
 
-  async loadServer() {
+  _loadedAt: 0,
+  async loadServer(force) {
+    if (!force && Date.now() - this._loadedAt < 15000) return;   // 15초 안 중복 호출 방지
+    this._loadedAt = Date.now();
     const d = await (window.Api && window.Api.json
       ? window.Api.json('/api/counselors')
       : fetch('/api/counselors').then(r => r.ok ? r.json() : null)).catch(() => null);
-    if (!d || !Array.isArray(d.items)) return;
+    if (!d || !Array.isArray(d.items)) { this._loadedAt = 0; return; }
+    // 서버가 정상 응답한 순간, 서버에 없는 기기 사본은 '삭제된 상담사'다.
+    //  전에는 "구버전 잔재"라며 남겨뒀는데, 그 탓에 운영자가 지운 상담사가
+    //  옛날에 저장해둔 폰에서만 유령처럼 계속 보였다. 지운다.
+    try {
+      const liveIds = new Set(d.items.map(c => c.id));
+      const customs = (window.Storage && window.Storage._safeGet('cbt_custom_counselors', [])) || [];
+      const kept = customs.filter(c => liveIds.has(c.id));
+      if (kept.length !== customs.length && window.Storage) {
+        window.Storage._safeSet('cbt_custom_counselors', kept);
+      }
+    } catch (e) {}
     this._server = d.items.map(c => ({
       id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
       tags: c.tags || [], price: c.price || 40000,
@@ -555,7 +579,9 @@
           <h2 style="margin: 0;">${counselor.name}</h2>
           <p class="meta-line" style="color: var(--text-muted); font-size: 0.9rem; margin: 0.3rem 0;">${window.Icons ? window.Icons.svg('hospital', { size: 15 }) : ''}${counselor.hospital}</p>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.4rem 0;">
- <span style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;"> 내 위치에서 ${dist} km</span>
+ ${dist == null
+   ? (counselor.addr ? `<span style="background: color-mix(in srgb, var(--accent-primary) 12%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;">${counselor.addr}</span>` : '')
+   : `<span style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;"> 내 위치에서 ${dist} km</span>`}
           </div>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.5rem 0;">
             ${window.Icons ? window.Icons.stars(counselor.rating, 17) : ''}

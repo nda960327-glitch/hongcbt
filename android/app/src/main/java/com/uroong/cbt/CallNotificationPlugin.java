@@ -92,6 +92,30 @@ public class CallNotificationPlugin extends Plugin {
     static void setForeground(boolean v) { foreground = v; }
     static boolean isForeground() { return foreground; }
 
+    // ── 로그인 도장 (벨의 2중 잠금) ────────────────────────────────────
+    //  로그아웃하면 웹 JS 가 서버에서 이 기기의 구독을 지운다. 그게 1차 방어다.
+    //  그런데 그 요청은 네트워크가 없으면 못 나가고, 앱을 지웠다 깐 경우처럼
+    //  아무도 지워주지 않은 채 남는 토큰도 있다. 그런 기기는 서버가 볼 때
+    //  여전히 '로그인한 상담사의 폰'이라 전화가 계속 간다 —
+    //  넘겨준 폰, 서랍 속 옛 폰에서 남의 상담 전화가 울린다.
+    //
+    //  그래서 폰 안에도 도장을 하나 둔다. 이 도장이 false 면 invite 가 도착해도
+    //  벨을 울리지 않는다. 서버가 실패해도 여기서 막힌다.
+    //
+    //  기본값은 true 다. 도장이 없는 폰(이 기능이 없던 버전에서 올라온 폰)의 벨을
+    //  죽이면, 멀쩡히 로그인해 있는 상담사가 전화를 통째로 놓친다 —
+    //  그건 '안전'이 아니라 더 큰 고장이다.
+    private static final String PREFS = "woorung_call";
+    private static final String KEY_SIGNED_IN = "signed_in";
+
+    static boolean isSignedIn(Context ctx) {
+        try {
+            return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_SIGNED_IN, true);
+        } catch (Exception e) {
+            return true;   // 읽지 못했다고 전화를 막지는 않는다
+        }
+    }
+
     // ── 알림 띄우기 / 지우기 ───────────────────────────────────────────
 
     /**
@@ -249,6 +273,25 @@ public class CallNotificationPlugin extends Plugin {
         r.put("callId", pendingCallId);
         pendingAction = "";
         pendingCallId = "";
+        call.resolve(r);
+    }
+
+    /**
+     * 웹 JS 가 로그인/로그아웃 순간에 도장을 찍는다.
+     *  로그인 성공 → true, 로그아웃 → false.
+     *  false 로 바뀌는 순간 울리고 있던 벨도 같이 내린다 — 로그아웃 버튼을 누른
+     *  손 위에서 계속 울리면 그 앱은 고장 난 것으로 보인다.
+     */
+    @PluginMethod
+    public void setSignedIn(PluginCall call) {
+        boolean v = Boolean.TRUE.equals(call.getBoolean("value", Boolean.TRUE));
+        try {
+            getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit().putBoolean(KEY_SIGNED_IN, v).apply();
+        } catch (Exception ignored) {}
+        if (!v) cancelCall(getContext(), "");
+        JSObject r = new JSObject();
+        r.put("signedIn", v);
         call.resolve(r);
     }
 

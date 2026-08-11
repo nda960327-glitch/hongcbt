@@ -423,6 +423,8 @@ window.CallTalk = {
         : d.side === 'in' ? '🔈 상대 목소리가 오지 않아요 — 볼륨을 올려보세요'
         : '소리가 오가지 않아요 — 잠시 후 다시 걸어주세요');
       if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
+      // 내 폰과 태블릿이 같이 울렸고, 다른 기기가 먼저 받았다 — 조용히 물러난다
+      if (type === 'taken') this._closeTaken();
       if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
     };
     this._wakeLock();
@@ -604,6 +606,34 @@ window.CallTalk = {
       else setTimeout(wait, 300);
     };
     setTimeout(wait, 400);
+  },
+
+  // 다른 기기가 먼저 받았을 때의 닫기 — end() 와 일부러 다르다.
+  //  end() 는 '부재중'으로 기록하고 채팅방을 열고 종료 화면을 1.2초 띄운다.
+  //  받아진 전화를 못 받은 것처럼 적으면 거짓말이고, 화면까지 옮기면
+  //  옆에서 통화 중인 자기 자신을 방해한다. 여기서는 한 줄만 알리고 사라진다.
+  //  (RtcCall 은 이미 abandon 으로 조용히 정리됐다 — 끊기 신호는 나가지 않았다)
+  _closeTaken() {
+    this._stopNativeRing('');
+    if (window.App && window.App.ringStop) window.App.ringStop();
+    clearInterval(this._billTimer);
+    clearInterval(this._clockTimer);
+    clearTimeout(this._prepaidTimer);
+    clearTimeout(this._warnTimer);
+    clearTimeout(this._noAnswerTimer);
+    clearTimeout(this._connTimer);
+    this._wakeUnlock();
+    this._active = false;
+    this._human = false;
+    this._connected = false;
+    this._counselorId = null;
+    this._humanCounselorId = null;
+    this._pendingCounselor = null;
+    ['call-overlay', 'call-minibar', 'call-incoming'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    });
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('다른 기기에서 이미 받았어요');
   },
 
   end(reason) {

@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v155';
+﻿const CACHE_NAME = 'cbt-app-v159';
 const ASSETS = [
   './',
   './index.html',
@@ -158,13 +158,13 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req))   // 오프라인이면 마지막으로 받은 버전 사용
+        .catch(() => caches.match(req, { ignoreSearch: true }))   // 오프라인이면 마지막으로 받은 버전 사용 (?v= 무시)
     );
     return;
   }
 
   // 이미지·아이콘 등 정적 자원은 캐시 우선이어도 무방하다.
   event.respondWith(
-    caches.match(req).then((cached) => cached || fetch(req))
+    caches.match(req, { ignoreSearch: true }).then((cached) => cached || fetch(req))
   );
 });

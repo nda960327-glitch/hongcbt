@@ -392,10 +392,60 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
   // ── 붙었다 (양쪽이 알림) ─────────────────────────────────────────────
   //  과금 시작점은 여기다. 벨만 울린 시간에는 돈을 받지 않는다.
+  //  폰과 태블릿에 같이 로그인해 두면 두 대가 같이 울린다. 둘 다 '받기'를 누르면
+  //  같은 방에 answer 가 두 벌 들어가 통화가 꼬인다 — 소리가 한쪽만 나거나,
+  //  먼저 받은 사람이 끊긴다. 그래서 여기가 결승선이다.
+  //
+  //  주의: 이 자리는 '받은 기기'만 부르는 곳이 아니다. 양쪽 피어가 붙는 순간
+  //   둘 다 부른다(과금 시각·요금을 받아가야 하므로). 그래서 무턱대고
+  //   'connect_at 이 이미 있으면 진 것'으로 처리하면 모든 통화가 깨진다 —
+  //   상대편을 남의 기기로 오해하는 것이다.
+  //   경쟁이 가능한 쪽은 '받는 쪽'뿐이다. 건 기기는 자기 혼자만 callId 를 알고,
+  //   같은 계정의 다른 기기는 수신 조회(dir 필터)에서 그 통화를 보지도 못한다.
+  //   누가 받는 쪽인지는 서버가 dir 로 정한다 — 클라이언트가 대는 역할(as)은
+  //   '나는 발신/수신 중 어느 다리인가'를 알려주는 힌트로만 쓴다.
+  //
+  //  자물쇠를 connect_at 으로 걸면 안 된다. 양쪽이 거의 동시에 도착하는데
+  //   건 쪽이 반 박자 먼저 오면 진짜 받은 기기가 '늦었다'로 튕긴다 —
+  //   동전 던지기로 통화의 절반이 깨진다(로컬 검증에서 실제로 잡았다).
+  //   그래서 자물쇠는 따로 둔다: rtc_signals 에 이 통화의 'claim' 한 줄을
+  //   조건부 INSERT 로 넣고, 넣은 기기만 이긴다. 한 문장이라 원자적이다.
+  //   (kind='claim' 은 /rtc/signal 이 받아주는 목록에 없다 — 밖에서 위조할 수 없고,
+  //    폴링으로 흘러가도 양쪽 앱이 모르는 종류라 그냥 무시한다)
+  //
+  //  진 기기에는 error:'taken' 을 돌려준다. 그쪽은 조용히 접어야 하고,
+  //  절대 /rtc/end 나 bye 를 보내면 안 된다 — 이긴 기기의 통화가 끊긴다.
   if (path === '/rtc/connected' && method === 'POST') {
     const id = s(body.callId, 80);
+    // 옛 앱(캐시된 JS)은 as 를 안 보낸다. 그때는 예전 그대로 — 아무도 지지 않는다.
+    //  새 기능 때문에 업데이트 안 한 폰의 통화가 깨지면 안 된다.
+    const as = body.as === 'counselor' ? 'counselor' : (body.as === 'client' ? 'client' : '');
+    const pre = await db.prepare('SELECT room, dir, connect_at, end_at FROM calls WHERE id = ?').bind(id).first();
+    if (!pre) return json({ ok: false, error: 'not-found' }, 404, cors);
+    const answerer = pre.dir === 'to-client' ? 'client' : 'counselor';
+
+    if (as && as === answerer) {
+      if (pre.end_at) return json({ ok: false, error: 'ended' }, 200, cors);
+      let won = true;
+      try {
+        const claim = await db.prepare(
+          `INSERT INTO rtc_signals (room, sender, kind, payload, ts)
+           SELECT ?, 'sys', 'claim', ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM rtc_signals WHERE room = ? AND kind = 'claim' AND payload = ?)`
+        ).bind(pre.room, id, nowMs(), pre.room, id).run();
+        won = !!(claim && claim.meta && claim.meta.changes > 0);
+      } catch (e) {
+        // 자물쇠를 못 걸었다고 통화를 막지는 않는다 — 두 대가 같이 받는 사고는
+        //  드물고, 아무도 못 받는 사고는 매번이다.
+        won = true;
+      }
+      if (!won) return json({ ok: false, error: 'taken' }, 200, cors);
+    }
+
+    // 과금 시작점은 처음 도착한 쪽이 찍는다. 이미 찍혀 있으면 그대로 둔다.
     await db.prepare('UPDATE calls SET connect_at = ? WHERE id = ? AND connect_at = 0')
       .bind(nowMs(), id).run();
+
     const r = await db.prepare('SELECT counselor_id, client_id, connect_at, rate, dir FROM calls WHERE id = ?').bind(id).first();
     if (r) {
       pushCallState(env, ctx, r.counselor_id, r.client_id, 'connected', { callId: id });

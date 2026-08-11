@@ -27,6 +27,12 @@ import { resolveCounselor } from './auth.js';
 
 const TTL = 60;                    // 60초 안에 못 꽂으면 버려라 — 전화는 유통기한이 짧다
 const MAX_FAIL = 3;                // 세 번 연속 실패하면 죽은 구독으로 본다
+// 한 사람이 들고 다니는 기기는 많아야 폰·태블릿·PC 몇 대다.
+//  그런데 앱을 지웠다 깔거나 브라우저를 갈아엎으면 매번 '새 기기'가 하나 생기고,
+//  옛 구독은 서버가 실패를 세 번 겪기 전까지 살아 있다. 그 사이 전화 한 통이
+//  쓰지도 않는 기기 열 대를 두드린다(느려지고, 남의 폰에서 벨이 운다).
+//  그래서 최신 8대만 남긴다 — 아래 trimDevices.
+const MAX_DEVICES = 8;
 
 const enc = new TextEncoder();
 
@@ -323,6 +329,26 @@ export async function notifyClient(env, clientId, call) {
   return notifyCounselor(env, 'cl:' + String(clientId).slice(0, 64), call);
 }
 
+// ── 기기 정리 ────────────────────────────────────────────────────────
+//  한 사람의 구독이 MAX_DEVICES 를 넘으면 오래된 것부터 버린다.
+//  기준은 created_at 인데, 구독은 등록할 때마다 UPSERT 로 created_at 을 새로 찍는다 —
+//  그래서 이 값은 사실상 '마지막으로 이 기기가 자기를 등록한 시각'이다.
+//  덕분에 매일 쓰는 기기는 아무리 오래됐어도 살아남고,
+//  1년 전에 한 번 깔았다 지운 폰만 밀려난다.
+//
+//  실패해도 조용히 넘어간다 — 청소 한 번 못 했다고 방금 성공한 구독을
+//  거절하면, 사용자는 '알림 켜기'가 안 되는 것으로 본다.
+async function trimDevices(db, key) {
+  try {
+    await db.prepare(
+      `DELETE FROM push_subs WHERE endpoint IN (
+         SELECT endpoint FROM push_subs WHERE counselor_id = ?
+          ORDER BY created_at DESC LIMIT -1 OFFSET ?
+       )`
+    ).bind(key, MAX_DEVICES).run();
+  } catch (e) {}
+}
+
 // ── 엔드포인트 ───────────────────────────────────────────────────────
 export async function handlePush(request, env, cors, path, body, url) {
   const db = env.DB;
@@ -342,12 +368,16 @@ export async function handlePush(request, env, cors, path, body, url) {
     const endpoint = String(sub.endpoint || '').slice(0, 900);
     if (!/^https:\/\//.test(endpoint)) return json({ error: 'missing' }, 400, cors);
     const keys = sub.keys || {};
+    // created_at 도 같이 새로 찍는다 — 이 값이 '마지막 등록 시각'이라야
+    //  기기 정리(trimDevices)가 안 쓰는 기기부터 밀어낼 수 있다.
     await db.prepare(
       `INSERT INTO push_subs (endpoint, counselor_id, p256dh, auth, created_at, fail_count)
        VALUES (?,?,?,?,?,0)
-       ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, fail_count = 0`
+       ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id,
+         created_at = excluded.created_at, fail_count = 0`
     ).bind(endpoint, counselorId, String(keys.p256dh || '').slice(0, 200),
            String(keys.auth || '').slice(0, 100), Date.now()).run();
+    await trimDevices(db, counselorId);
     return json({ ok: true }, 200, cors);
   }
 
@@ -363,9 +393,11 @@ export async function handlePush(request, env, cors, path, body, url) {
     await db.prepare(
       `INSERT INTO push_subs (endpoint, counselor_id, p256dh, auth, created_at, fail_count)
        VALUES (?,?,?,?,?,0)
-       ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, fail_count = 0`
+       ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id,
+         created_at = excluded.created_at, fail_count = 0`
     ).bind(endpoint, 'cl:' + clientId, String(keys.p256dh || '').slice(0, 200),
            String(keys.auth || '').slice(0, 100), Date.now()).run();
+    await trimDevices(db, 'cl:' + clientId);
     return json({ ok: true }, 200, cors);
   }
 
@@ -391,19 +423,77 @@ export async function handlePush(request, env, cors, path, body, url) {
       await db.prepare(
         `INSERT INTO push_subs (endpoint, counselor_id, p256dh, auth, created_at, fail_count, kind)
          VALUES (?,?,'','',?,0,'fcm')
-         ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, kind = 'fcm', fail_count = 0`
+         ON CONFLICT(endpoint) DO UPDATE SET counselor_id = excluded.counselor_id, kind = 'fcm',
+           created_at = excluded.created_at, fail_count = 0`
       ).bind(token, key, Date.now()).run();
     } catch (e) {
       // kind 칸이 아직 없는 DB — 스키마를 올리기 전이다. 앱을 죽이지는 않는다.
       return json({ ok: false, error: 'schema' }, 200, cors);
     }
+    await trimDevices(db, key);
     return json({ ok: true }, 200, cors);
   }
 
+  // 로그아웃하는 기기가 스스로 알림을 끊는 자리. 인증을 요구하지 않는다 —
+  //  로그아웃은 세션이 이미 죽은 뒤(만료·다른 기기에서 강제 해제)에도 눌리고,
+  //  그때 '인증 실패'로 막으면 그 기기는 영원히 벨이 울린다.
+  //  endpoint·토큰을 아는 사람만 지울 수 있으니 남의 알림을 끄려면 그 값을 알아야 한다.
   if (path === '/push/unsubscribe' && method === 'POST') {
     const endpoint = String((body.sub && body.sub.endpoint) || body.endpoint || body.token || '').slice(0, 900);
     if (endpoint) await db.prepare('DELETE FROM push_subs WHERE endpoint = ?').bind(endpoint).run();
     return json({ ok: true }, 200, cors);
+  }
+
+  // ── 내 알림이 몇 대에 가고 있나 ──────────────────────────────────────
+  //  상담사가 폰을 바꾸거나 병원 PC 에서 한 번 로그인하면 그 기기도 벨이 울린다.
+  //  본인은 그 사실을 모른다 — 눈에 보이지 않으면 정리할 생각도 못 한다.
+  //  숫자로 보여주고, 아래 prune-others 로 한 번에 정리하게 한다.
+  if (path === '/push/devices' && method === 'POST') {
+    const me = await resolveCounselor(db, {
+      session: String(body.session || '').slice(0, 128),
+      code: String(body.code || '').slice(0, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const mine = String(body.token || body.endpoint || '').slice(0, 900);
+    let rows = [];
+    try {
+      const r = await db.prepare(
+        'SELECT endpoint, created_at FROM push_subs WHERE counselor_id = ? ORDER BY created_at DESC LIMIT ?'
+      ).bind(me.id, MAX_DEVICES + 4).all();
+      rows = (r && r.results) || [];
+    } catch (e) { return json({ ok: true, count: 0, others: 0, here: false }, 200, cors); }
+    const here = !!mine && rows.some(x => x.endpoint === mine);
+    return json({
+      ok: true,
+      count: rows.length,
+      // '이 기기를 뺀 나머지' — 버튼 문구에 그대로 쓰는 숫자다
+      others: Math.max(0, rows.length - (here ? 1 : 0)),
+      here
+    }, 200, cors);
+  }
+
+  // ── 이 기기만 남기고 모두 해제 ───────────────────────────────────────
+  //  로그아웃 해제(아래 unsubscribe)는 그 기기가 살아 있고 네트워크가 될 때만 돈다.
+  //  잃어버린 폰·초기화한 태블릿은 스스로 해제할 수 없다 — 남은 기기에서
+  //  일방적으로 끊을 수 있는 길이 하나는 있어야 한다.
+  //  세션을 지우는 게 아니라 '알림만' 끊는다(auth/logout-others 와 역할이 다르다).
+  if (path === '/push/prune-others' && method === 'POST') {
+    const me = await resolveCounselor(db, {
+      session: String(body.session || '').slice(0, 128),
+      code: String(body.code || '').slice(0, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    // 남길 기기 — FCM 이면 토큰, 웹이면 endpoint. 없으면 전부 지운다
+    //  (알림 자체를 끄고 싶은 사람도 있다. 빈 값을 오류로 막지 않는다)
+    const keep = String(body.token || body.endpoint || '').slice(0, 900);
+    let removed = 0;
+    try {
+      const r = keep
+        ? await db.prepare('DELETE FROM push_subs WHERE counselor_id = ? AND endpoint != ?').bind(me.id, keep).run()
+        : await db.prepare('DELETE FROM push_subs WHERE counselor_id = ?').bind(me.id).run();
+      removed = (r && r.meta && r.meta.changes) || 0;
+    } catch (e) {}
+    return json({ ok: true, removed }, 200, cors);
   }
 
   // 상담사가 '알림이 오나?' 를 직접 확인해볼 수 있어야 한다.

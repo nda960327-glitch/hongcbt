@@ -56,6 +56,10 @@ function isNativeApp() {
 
 // ── 상태 ─────────────────────────────────────────────────────────────
 let FCM_BOUND = false;              // FCM 리스너를 이미 걸었는가
+// 이 기기의 알림 주소. 로그아웃할 때 '이 기기만' 해제하려면 값을 알고 있어야 한다.
+//  FCM 토큰은 registration 이벤트가 딱 한 번 주고 지나가므로 그때 붙잡아 둔다.
+//  localStorage 에 남기는 이유: 앱을 껐다 켜고 로그아웃하면 그 이벤트는 다시 오지 않는다.
+let FCM_TOKEN = localStorage.getItem('pro_fcm_token') || '';
 // 앱에서의 알림 권한 상태 ('granted' | 'denied' | '').
 //  웹뷰의 Notification.permission 은 안드로이드의 진짜 알림 권한과 다른 값을 보인다.
 //  이걸 안 두면 알림이 멀쩡히 켜져 있는데도 '알림이 꺼져 있어요' 카드가 계속 뜬다.
@@ -324,8 +328,61 @@ async function verifyLink(t) {
   return true;
 }
 
+// ── 이 기기의 알림 주소 ──────────────────────────────────────────────
+//  앱이면 FCM 토큰, 웹이면 서비스워커 구독의 endpoint.
+//  '이 기기'를 서버에서 가리키는 유일한 값이라, 로그아웃 해제와
+//  [이 기기만 남기고 모두 해제] 가 둘 다 이 값을 쓴다.
+async function myPushId() {
+  if (isNativeApp()) return FCM_TOKEN;
+  try {
+    if (!SWREG || !SWREG.pushManager) return '';
+    const sub = await SWREG.pushManager.getSubscription();
+    return (sub && sub.endpoint) || '';
+  } catch (e) { return ''; }
+}
+
+// 네이티브 벨의 2중 잠금.
+//  서버에서 구독을 지우는 게 1차 방어인데, 그 요청은 네트워크가 없으면 못 나간다.
+//  그런 기기는 서버가 볼 때 여전히 '로그인한 상담사의 폰'이라 전화가 계속 간다.
+//  그래서 폰 안에도 도장을 하나 찍어 둔다 — 이 도장이 false 면
+//  CallMessagingService 가 invite 를 받아도 벨을 울리지 않는다.
+function setNativeSignedIn(on) {
+  try {
+    const P = callPlugin();
+    if (P && P.setSignedIn) P.setSignedIn({ value: !!on }).catch(() => {});
+  } catch (e) {}
+}
+
+// 이 기기의 알림만 끊는다. 다른 기기(집 PC·태블릿)의 알림은 건드리지 않는다.
+//  실패해도 로그아웃은 그대로 진행한다 — 지하철에서 폰을 빌려준 사람이
+//  '네트워크가 없어서 로그아웃이 안 됩니다'를 보면 그게 더 큰 사고다.
+//  대신 아래 setNativeSignedIn(false) 가 폰 안에서 벨을 막는다.
+async function unsubscribeThisDevice() {
+  const id = await myPushId().catch(() => '');
+  if (!id) return;
+  try {
+    // 3초 안에 안 끝나면 그냥 둔다 — 로그아웃을 네트워크에 인질로 잡히지 않는다
+    await Promise.race([
+      postJson('/api/push/unsubscribe', { token: id, endpoint: id }),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
+  } catch (e) {}
+  // 웹 구독은 브라우저 쪽에서도 끊어야 다음 로그인 때 새 구독으로 다시 붙는다
+  if (!isNativeApp()) {
+    try {
+      const sub = SWREG && SWREG.pushManager && await SWREG.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe().catch(() => {});
+    } catch (e) {}
+  }
+}
+
 async function logout() {
   if (!confirm('앱을 잠글까요? 다시 열려면 코드를 입력해야 합니다.')) return;
+  // 순서가 중요하다. 세션을 지운 뒤에 해제하면 '이 기기가 누구였는지'는
+  //  남지만(토큰은 그대로다) 실패했을 때 다시 시도할 화면이 없다.
+  //  그리고 무엇보다 — 지우기 전에 끊어야 로그아웃 직후 오는 전화가 안 울린다.
+  await unsubscribeThisDevice();
+  setNativeSignedIn(false);
   if (SESSION) await postJson('/api/auth/logout', { session: SESSION });
   localStorage.removeItem('counselor_session');
   localStorage.removeItem('inbox_code');
@@ -339,6 +396,9 @@ async function logout() {
 function enterApp() {
   $('screen-login').hidden = true;
   $('app').hidden = false;
+  // 로그인 상태 도장을 다시 찍는다. 로그아웃 때 false 로 박아둔 폰이
+  //  다시 로그인했는데 벨이 안 울리면, 그건 더 나쁜 고장이다.
+  setNativeSignedIn(true);
   // 로그인한 그 순간이 '이 앱을 전화기로 쓰기 시작하는' 순간이다 —
   //  절전 예외는 여기서 딱 한 번 묻는다 (자세한 이유는 askBatteryExemption).
   setTimeout(askBatteryExemption, 2000);
@@ -1478,7 +1538,44 @@ function foldPrefs() {
         : notiDenied ? (native ? '<button class="btn sm" data-act="noti-settings">설정 열기</button>'
                                : '<span class="chip bad">차단됨</span>')
         : '<button class="btn sm" data-act="ask-noti">켜기</button>'}
-    </div>`);
+    </div>
+    ${devicesRow()}`);
+}
+
+// ── 알림 받는 기기 ───────────────────────────────────────────────────
+//  폰을 바꾸거나 병원 PC 에서 한 번 로그인하면 그 기기도 같이 울린다.
+//  본인은 그걸 모른다 — 안 보이면 정리할 생각도 못 하고, 어느 날
+//  서랍 속 옛 폰에서 내담자 전화벨이 울린다. 숫자로 보여주고 한 번에 끊게 한다.
+let DEVICES = null;          // /push/devices 응답 캐시 (null = 아직 안 물어봄)
+let DEVICES_BUSY = false;
+
+function devicesRow() {
+  const n = DEVICES ? DEVICES.count : 0;
+  const others = DEVICES ? DEVICES.others : 0;
+  return `
+    <div class="row" style="margin-top:0.8rem;">
+      <div class="grow"><strong style="font-size:0.9rem;">알림 받는 기기</strong>
+        <p class="muted" style="margin-top:0.2rem;">${DEVICES
+          ? (n <= 1
+            ? '이 기기 하나예요. 다른 곳에서는 울리지 않아요.'
+            : `${n}대에 전화·메시지 알림이 갑니다. 쓰지 않는 기기가 있으면 정리해 주세요.`)
+          : '확인 중…'}</p></div>
+      <span class="chip ${DEVICES && n > 1 ? 'new' : 'ok'}">${DEVICES ? n + '대' : '…'}</span>
+    </div>
+    ${others > 0 ? `<button class="btn sm" data-act="prune-devices" style="margin-top:0.5rem;">이 기기만 남기고 모두 해제</button>` : ''}`;
+}
+
+async function loadDevices(force) {
+  if (DEVICES_BUSY || (DEVICES && !force)) return;
+  if (!(SESSION || CODE)) return;
+  DEVICES_BUSY = true;
+  const id = await myPushId().catch(() => '');
+  const r = await postJson('/api/push/devices', authBody({ token: id, endpoint: id }));
+  DEVICES_BUSY = false;
+  // 못 물어봤으면 0대로 적지 않는다 — 없는 기기를 '정리했다'고 착각하게 만든다
+  if (!r || !r.ok) return;
+  DEVICES = r;
+  try { renderHome(); } catch (e) {}
 }
 
 function foldPayout() {
@@ -1579,6 +1676,10 @@ async function answerCall() {
   $('call-st').textContent = '연결 중…';
   window.RtcCall.onEvent = (type, d) => {
     if (type === 'connected') $('call-st').textContent = '통화 중';
+    // 폰과 태블릿이 같이 울렸고, 다른 기기가 먼저 받았다.
+    //  여기서 실패로 소란을 떨 이유가 없다 — 전화는 이미 받아졌다.
+    //  한 줄만 알려주고 조용히 닫는다(끊기 신호는 절대 보내지 않는다).
+    if (type === 'taken') { toast('다른 기기에서 이미 받았어요'); closeCall(); return; }
     if (type === 'tick') {
       const sec = Math.floor(d.ms / 1000);
       $('call-clock').textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
@@ -1748,6 +1849,9 @@ async function enableFcmPush() {
       const token = (t && t.value) || '';
       pushDiag('fcm-token', token ? ('len' + token.length) : 'empty');
       if (!token || !(SESSION || CODE)) return;
+      // 로그아웃할 때 이 기기만 골라 해제하려면 토큰을 기억해야 한다
+      FCM_TOKEN = token;
+      try { localStorage.setItem('pro_fcm_token', token); } catch (e) {}
       postJson('/api/push/fcm-subscribe', authBody({ token }))
         .then(r => pushDiag('fcm-sub', (r && r.ok) ? 'ok' : ((r && r.error) || 'fail')))
         .catch(() => pushDiag('fcm-sub', 'net'));
@@ -1811,8 +1915,26 @@ const ACT = {
   tab: (el) => setTab(el.dataset.tab),
   refresh: () => { loadAll(); toast('새로고침했어요'); },
   logout,
-  fold: (el) => { OPEN[el.dataset.key] = !OPEN[el.dataset.key]; renderHome(); renderMoney(); },
+  fold: (el) => {
+    const k = el.dataset.key;
+    OPEN[k] = !OPEN[k];
+    renderHome(); renderMoney();
+    // 기기 수는 열어본 사람에게만 물어본다 — 30초 폴링마다 서버를 두드릴 값이 아니다
+    if (k === 'pref' && OPEN[k]) loadDevices();
+  },
   'ask-noti': askNotify,
+  // 잃어버린 폰·초기화한 태블릿은 스스로 알림을 끊을 수 없다.
+  //  남아 있는 기기에서 일방적으로 끊는 길이 하나는 있어야 한다.
+  'prune-devices': async () => {
+    const id = await myPushId().catch(() => '');
+    if (!id) { toast('이 기기의 알림이 아직 등록되지 않았어요'); return; }
+    const n = DEVICES ? DEVICES.others : 0;
+    if (!confirm(`이 기기만 남기고 다른 ${n}대의 알림을 끌까요?\n그 기기들은 전화·메시지 알림을 더 이상 받지 않아요.\n(로그인은 그대로예요 — 다시 켜려면 그 기기에서 알림을 다시 허용하면 됩니다)`)) return;
+    const r = await postJson('/api/push/prune-others', authBody({ token: id, endpoint: id }));
+    if (!r || !r.ok) { toast('정리하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
+    toast(r.removed ? `다른 기기 ${r.removed}대의 알림을 껐어요` : '끌 기기가 없었어요');
+    await loadDevices(true);
+  },
   // 이미 거부한 뒤의 복구 수단 — 팝업이 다시 뜨지 않으므로 설정 화면으로 데려간다
   'noti-settings': async () => { await guideToNotifSettings(); },
 

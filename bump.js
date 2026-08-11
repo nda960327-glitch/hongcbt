@@ -16,6 +16,10 @@ sw = sw.replace(/cbt-app-v\d+/g, 'cbt-app-v' + next);
 fs.writeFileSync(R + 'sw.js', sw);
 
 let html = fs.readFileSync(R + 'index.html', 'utf8');
+// 모든 js·css 참조의 ?v= 도 같이 올린다 — 앱(웹뷰)에는 서비스워커가 없어서
+//  이 번호가 유일한 캐시 파쇄기다. 없으면 새 index.html 이 4시간 묵은 JS 와
+//  섞여 화면이 깨진다 (2026-08-11 실제로 겪음).
+html = html.replace(/((?:src="js\/|href="css\/)[^"?]+\.(?:js|css))\?v=\d+/g, '$1?v=' + next);
 if (/window\.APP_BUILD\s*=\s*\d+/.test(html)) {
   html = html.replace(/window\.APP_BUILD\s*=\s*\d+/, 'window.APP_BUILD = ' + next);
 } else {
