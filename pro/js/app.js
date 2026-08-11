@@ -1221,7 +1221,7 @@ function renderMoney() {
         <div><div class="muted">누적 수입</div><strong>${won(total)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.6rem;">상담사 70% · 소속 기관 10% · 결제 수수료 3% · 플랫폼 17%</p>
+      <p class="muted" style="margin-top:0.6rem;">상담사 70% · 결제 수수료 3% · 플랫폼 27%</p>
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
     <div class="sec-title">수입 흐름</div>

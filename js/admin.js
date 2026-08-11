@@ -673,11 +673,11 @@ window.Admin = {
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
             <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
-            상담사 <b style="color: var(--text-primary);">70%</b> · 소속 기관 10% · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">17%</b><br>
+            상담사 <b style="color: var(--text-primary);">70%</b> · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">27%</b> (기관 수수료는 플랫폼 몫에서 별도 협의)<br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
-              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 70 · 기관 10 · PG 3 · 플랫폼 17)
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 70 · PG 3 · 플랫폼 27)
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
@@ -787,7 +787,7 @@ window.Admin = {
       const now = Date.now();
       const done = (d.items || []).filter(b => b.status !== 'cancelled' && b.whenTs <= now);
       const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.80).toLocaleString()} · 병원 ${Math.round(gross * 0.10).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.07).toLocaleString()}</b> (PG 실비 ${Math.round(gross * 0.03).toLocaleString()})`;
+      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.70).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.27).toLocaleString()}</b> (PG 실비 ${Math.round(gross * 0.03).toLocaleString()})`;
     }).catch(() => {});
   }
 };

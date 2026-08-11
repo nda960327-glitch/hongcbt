@@ -552,8 +552,8 @@ function viewDash() {
   if (D.stats === undefined) return loading;
   if (!D.stats) return failed;
   const d = D.stats;
-  const rev = d.revenue || { gross: 0, split: { counselor: 70, hospital: 10, pg: 3, platform: 17 } };
-  const sp = rev.split || { counselor: 70, hospital: 10, pg: 3, platform: 17 };
+  const rev = d.revenue || { gross: 0, split: { counselor: 70, hospital: 0, pg: 3, platform: 27 } };
+  const sp = rev.split || { counselor: 70, hospital: 0, pg: 3, platform: 27 };
   const pending = (D.apps || []).filter(a => a.status === 'pending').length;
   const settleN = (D.settle || []).length;
   const settleSum = (D.settle || []).reduce((a, x) => a + ((x.payout && x.payout.counselor) || 0), 0);
@@ -609,13 +609,13 @@ function viewDash() {
       </div>
       <div class="splitbar">
         <i style="width:${sp.counselor}%; background:#4f8a6b;"></i>
-        <i style="width:${sp.hospital}%; background:#8fb8a0;"></i>
+        ${sp.hospital > 0 ? `<i style="width:${sp.hospital}%; background:#8fb8a0;"></i>` : ''}
         <i style="width:${sp.pg}%; background:#d9cbb4;"></i>
         <i style="width:${sp.platform}%; background:#b98a1a;"></i>
       </div>
       <div class="splitlegend">
         <span><i style="background:#4f8a6b;"></i>상담사 ${sp.counselor}% · <b>${won(rev.counselor)}</b></span>
-        <span><i style="background:#8fb8a0;"></i>기관 ${sp.hospital}% · <b>${won(rev.hospital)}</b></span>
+        ${sp.hospital > 0 ? `<span><i style="background:#8fb8a0;"></i>기관 ${sp.hospital}% · <b>${won(rev.hospital)}</b></span>` : ''}
         <span><i style="background:#d9cbb4;"></i>PG ${sp.pg}% · <b>${won(rev.pg)}</b></span>
         <span><i style="background:#b98a1a;"></i>플랫폼 ${sp.platform}% · <b>${won(rev.platform)}</b></span>
       </div>

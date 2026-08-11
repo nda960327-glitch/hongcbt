@@ -27,7 +27,7 @@ window.SafetyPlan = {
       hint: '고민을 털어놓지 않아도 됩니다. 그냥 그 자리에 있으면 마음이 가라앉는 사람이나 장소.',
       ph: '예) 동생네 집 / 단골 카페 / 도서관 / 헬스장' },
     { key: 'contact', n: 4, title: '도움을 청할 사람',
-      hint: '힘들다고 말할 수 있는 사람. 이름과 연락처를 같이 적어두세요.',
+      hint: '힘들다고 말할 수 있는 사람. 이름과 연락처를 같이 적어두세요.\n여기 적어도 앱이 이 번호로 연락하는 일은 절대 없어요 — 힘든 순간에 내가 직접 걸기 위한 나만의 메모예요.',
       ph: '예) 누나 010-0000-0000 / 친구 민지 010-0000-0000' },
     { key: 'pro', n: 5, title: '전문가·기관',
       hint: '다니는 병원이나 상담센터가 있다면 적어두세요. 없어도 아래 상담전화가 있습니다.',
@@ -89,7 +89,7 @@ window.SafetyPlan = {
                          font-size: 0.68rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;">${s.n}</span>
             <strong style="font-size: 0.87rem; color: var(--text-primary);">${s.title}</strong>
           </div>
-          <p style="margin: 0 0 0.3rem 1.6rem; font-size: 0.73rem; line-height: 1.6; color: var(--text-muted);">${s.hint}</p>
+          <p style="margin: 0 0 0.3rem 1.6rem; font-size: 0.73rem; line-height: 1.6; color: var(--text-muted); white-space: pre-line;">${s.hint}</p>
           <textarea id="sp-${s.key}" rows="2" placeholder="${this.esc(s.ph)}"
             oninput="window.SafetyPlan.set('${s.key}', this.value)"
             style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; border-radius: 11px; background: var(--bg-tertiary);

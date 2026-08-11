@@ -735,7 +735,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       WHERE m.sender = 'client'`).first() || {};
 
     const gross = r.gross || 0;
-    const SPLIT = { counselor: 70, hospital: 10, pg: 3, platform: 17 };  // js/payout.js 와 같은 값
+    const SPLIT = { counselor: 70, hospital: 0, pg: 3, platform: 27 };  // js/payout.js 와 같은 값
     return json({
       // 앱의 운영자 콘솔이 기대하는 모양 그대로 (여기가 어긋나면 화면이 빈칸이 된다)
       uniqueClients: Math.max(r.clientsA || 0, r.clientsB || 0),
@@ -1420,8 +1420,9 @@ function maskAcct(n) {
 }
 
 // 정산 배분. js/payout.js 의 SPLIT 과 같은 값이어야 한다.
-//  반올림 오차는 플랫폼이 흡수한다 — 상담사·기관 몫이 1원이라도 줄면 안 된다.
-const SPLIT = { counselor: 70, hospital: 10, pg: 3, platform: 17 };
+//  반올림 오차는 플랫폼이 흡수한다 — 상담사 몫이 1원이라도 줄면 안 된다.
+//  기관 몫은 2026-08-11 부로 배분 종료 (기관 수수료는 플랫폼 몫에서 별도 협의).
+const SPLIT = { counselor: 70, hospital: 0, pg: 3, platform: 27 };
 function payoutOf(price) {
   const p = Math.max(0, Math.round(price || 0));
   const counselor = Math.round(p * SPLIT.counselor / 100);

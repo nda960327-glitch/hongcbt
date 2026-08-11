@@ -7,15 +7,17 @@
 //  결제는 인앱이 아니라 외부 PG 로 받는다.
 //   · 앱 내에서만 쓰이는 것(구독·캐시)은 스토어 인앱 결제 의무 대상이지만,
 //     실제 사람이 제공하는 상담은 오프라인 서비스라 외부 결제가 가능하다.
-//   · 인앱으로 받으면 수수료 15% 가 붙어 플랫폼 몫(17%)이 거의 남지 않는다.
+//   · 인앱으로 받으면 수수료 15% 가 붙어 플랫폼 몫(27%)이 크게 깎인다.
 // ============================================================================
 window.Payout = {
   // 합이 100 이어야 한다. 바꿀 때 이 주석도 같이 고칠 것.
+  //  2026-08-11 개편: 기관 몫은 배분에서 뺐다 — 기관 협의 수수료는 플랫폼 몫에서
+  //  나중에 따로 떼어주는 방식이 정산 관리가 훨씬 단순하다.
   SPLIT: {
     counselor: 70,   // 상담을 실제로 하는 사람
-    hospital: 10,    // 소속 기관 (공간·행정·감독)
+    hospital: 0,     // (배분 종료 — 기관 수수료는 플랫폼 몫에서 별도 협의)
     pg: 3,           // 결제대행 수수료
-    platform: 17     // 우렁의사 — 매칭·기록·리포트·정산 운영
+    platform: 27     // 우렁의사 — 매칭·기록·리포트·정산 운영
   },
 
   LABEL: {
@@ -68,12 +70,11 @@ window.Payout = {
           <span style="margin-left: auto; font-size: 0.68rem; color: var(--text-muted);">${this.won(sample)} 상담 기준</span>
         </div>
         ${row(this.LABEL.counselor, s.counselor, b.counselor, true)}
-        ${row(this.LABEL.hospital, s.hospital, b.hospital)}
+        ${s.hospital > 0 ? row(this.LABEL.hospital, s.hospital, b.hospital) : ''}
         ${row(this.LABEL.pg, s.pg, b.pg)}
         ${row(this.LABEL.platform, s.platform, b.platform)}
         <p style="margin: 0.55rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.
-          소속 기관 몫은 기관 계좌로 따로 보내드려요.
         </p>
       </div>`;
   },
