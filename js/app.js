@@ -213,6 +213,7 @@ window.App = {
     // 4.45+ 글자 크기 복원 + 뒤로가기 가드 + 앱 잠금
     this.initFontScale();
     this._initBackGuard();
+    this._initNativeBack();
     if (window.AppLock) window.AppLock.init();
 
     // 4.5 Theme toggle
@@ -4669,6 +4670,45 @@ ${body}
       if (t.classList.contains('modal-overlay')) t.classList.add('hidden');
       else t.remove();
     });
+  },
+
+  // === 앱(웹뷰) 전용: 하드웨어 뒤로가기 ===
+  //  JS 가 backButton 을 구독하는 순간 기본 동작(액티비티 종료)이 꺼지므로
+  //  여기서 전부 책임진다: 오버레이 닫기 → 홈으로 → 홈에서는 두 번 눌러 종료.
+  //  통화 화면에서는 무시 — 실수로 전화가 끊기는 게 제일 나쁘다.
+  _initNativeBack() {
+    try {
+      const C = window.Capacitor;
+      if (!(C && C.isNativePlatform && C.isNativePlatform())) return;
+      const A = C.Plugins && C.Plugins.App;
+      if (!A || !A.addListener) return;
+      A.addListener('backButton', () => {
+        try {
+          if (document.getElementById('call-overlay') || document.getElementById('call-incoming')) return;
+          // 열린 오버레이는 히스토리를 되감아 닫는다 (_initBackGuard 의 popstate 가 받는다)
+          if (history.state && history.state.ov) { history.back(); return; }
+          if (this.currentTab !== 'dashboard') { this.switchTab('dashboard'); return; }
+          const now = Date.now();
+          if (this._backExitAt && now - this._backExitAt < 2000) { try { A.exitApp(); } catch (e) {} return; }
+          this._backExitAt = now;
+          this._backToast('한 번 더 누르면 앱이 꺼져요');
+        } catch (e) { try { A.exitApp(); } catch (e2) {} }
+      });
+    } catch (e) {}
+  },
+
+  _backToast(msg) {
+    let el = document.getElementById('back-exit-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'back-exit-toast';
+      el.style.cssText = 'position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 10005; background: rgba(30,30,30,0.88); color: #fff; padding: 0.55rem 1.1rem; border-radius: 999px; font-size: 0.82rem; opacity: 0; transition: opacity 0.2s; pointer-events: none;';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    requestAnimationFrame(() => { el.style.opacity = '1'; });
+    clearTimeout(this._backToastTimer);
+    this._backToastTimer = setTimeout(() => { el.style.opacity = '0'; }, 1800);
   },
 
   // === 글자 크기 (접근성) ===

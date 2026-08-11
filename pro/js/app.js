@@ -2203,6 +2203,34 @@ function connectHub() {
   } catch (e) { hubWs = null; }
 }
 
+// ── 안드로이드 뒤로가기 ─────────────────────────────────────────────────
+//  앱(웹뷰)에서 뒤로가기를 누르면 기본 동작이 '액티비티 종료'라 앱이 그냥 꺼진다.
+//  카카오톡처럼: 열린 것(시트→대화방)을 먼저 닫고, 홈이 아니면 홈으로,
+//  홈에서는 두 번 눌러야 꺼진다. 통화 화면에서는 무시 — 실수로 전화가 끊기는 게 최악이다.
+function initBackButton() {
+  try {
+    const C = window.Capacitor;
+    if (!(C && C.isNativePlatform && C.isNativePlatform())) return;
+    const A = C.Plugins && C.Plugins.App;
+    if (!A || !A.addListener) return;
+    let backAt = 0;
+    A.addListener('backButton', () => {
+      try {
+        const vis = (id) => { const el = $(id); return el && !el.hidden; };
+        if (vis('callov')) return;                       // 통화·수신 화면
+        if (vis('sheet')) { closeSheet(); return; }      // 바텀시트
+        if (vis('chatroom')) { closeRoom(); return; }    // 대화방 → 목록
+        if (TAB !== 'home') { setTab('home'); return; }  // 다른 탭 → 홈
+        const now = Date.now();
+        if (now - backAt < 2000) { try { A.exitApp(); } catch (e) {} return; }
+        backAt = now;
+        toast('한 번 더 누르면 앱이 꺼져요');
+      } catch (e) { try { A.exitApp(); } catch (e2) {} }
+    });
+  } catch (e) {}
+}
+initBackButton();
+
 (async () => {
   const t = new URLSearchParams(location.search).get('t');
   if (t) { if (await verifyLink(t)) askNotify(); }
