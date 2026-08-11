@@ -66,6 +66,10 @@
         if (!this.remote) {
           this.remote = new Audio();
           this.remote.autoplay = true;
+          // 모바일 사파리는 playsInline 이 없으면 오디오도 전체화면 플레이어로 끌고 간다
+          this.remote.playsInline = true;
+          this.remote.setAttribute('playsinline', '');
+          this.remote.volume = 1;
         }
         this.remote.srcObject = e.streams[0];
         // 자동재생이 막히면 '한쪽만 안 들리는' 통화가 된다 — 조용히 삼키지 않는다.
@@ -99,6 +103,7 @@
           this.rate = (r && r.rate) || 0;
           this._emit('connected', { rate: this.rate });
           this._startTick();
+          this._startAudioWatch();
           // 어떤 길로 붙었는지 남긴다 — relay 면 TURN 경유, srflx/host 면 직결
           try {
             const stats = await pc.getStats();
@@ -131,6 +136,50 @@
         }
       };
       return pc;
+    },
+
+    // ── 무음 감시 ────────────────────────────────────────────────────
+    //  '연결됐다'와 '들린다'는 다르다. 연결은 붙었는데 소리 바이트가 0이면
+    //  사용자는 원인을 모른 채 "안 들려요"만 반복한다.
+    //  받는 쪽(상대 목소리)과 보내는 쪽(내 마이크)을 따로 보고, 어느 쪽이
+    //  막혔는지 이름을 붙여 알려준다.
+    _startAudioWatch() {
+      clearInterval(this.audioTimer);
+      let lastIn = -1, lastOut = -1, silentIn = 0, silentOut = 0, told = '';
+      this.audioTimer = setInterval(async () => {
+        if (!this.pc || !this.connectAt) return;
+        let inB = 0, outB = 0;
+        try {
+          const stats = await this.pc.getStats();
+          stats.forEach(s => {
+            if (s.type === 'inbound-rtp' && s.kind === 'audio') inB += s.bytesReceived || 0;
+            if (s.type === 'outbound-rtp' && s.kind === 'audio') outB += s.bytesSent || 0;
+          });
+        } catch (e) { return; }
+        if (lastIn >= 0) {
+          silentIn = (inB - lastIn) < 300 ? silentIn + 1 : 0;   // 3초간 사실상 무음
+          silentOut = (outB - lastOut) < 300 ? silentOut + 1 : 0;
+        }
+        lastIn = inB; lastOut = outB;
+
+        // 내 마이크가 꺼져 있으면(음소거·권한 회수) 그것부터 알린다
+        const myTrack = this.stream && this.stream.getAudioTracks()[0];
+        const micDead = !myTrack || myTrack.readyState !== 'live' || myTrack.enabled === false;
+
+        let now = '';
+        if (silentIn >= 2 && silentOut >= 2) now = 'both';
+        else if (silentIn >= 2) now = 'in';
+        else if (silentOut >= 2 && !micDead) now = 'out';
+        if (now !== told) {
+          told = now;
+          if (now) {
+            this._diag('audio-silent', now + ' in=' + inB + ' out=' + outB);
+            this._emit('no-audio', { side: now });
+          } else {
+            this._emit('audio-ok', {});
+          }
+        }
+      }, 3000);
     },
 
     // 네트워크가 바뀌면(LTE↔WiFi) 경로를 다시 뚫는다. 발신자가 새 offer 를 만든다.
@@ -255,7 +304,7 @@
     },
 
     async hangup(by, skipSignal) {
-      clearInterval(this.pollTimer); clearInterval(this.tickTimer);
+      clearInterval(this.pollTimer); clearInterval(this.tickTimer); clearInterval(this.audioTimer);
       clearTimeout(this.graceTimer); this.graceTimer = null;
       if (!skipSignal) { try { await this._send('bye', '1'); } catch (e) {} }
       try { this.pc && this.pc.close(); } catch (e) {}

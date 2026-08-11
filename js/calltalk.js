@@ -207,6 +207,11 @@ window.CallTalk = {
       }
       if (type === 'audio-blocked') this._setStatus('🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요');
       if (type === 'audio-ok') this._setStatus('통화 중');
+      // 연결은 됐는데 소리가 안 오간다 — 어느 쪽이 막혔는지 이름을 붙여준다
+      if (type === 'no-audio') this._setStatus(
+        d.side === 'out' ? '🎤 내 목소리가 안 나가요 — 음소거·마이크 권한을 확인해주세요'
+        : d.side === 'in' ? '🔈 상대 목소리가 오지 않아요 — 볼륨을 올려보세요'
+        : '소리가 오가지 않아요 — 잠시 후 다시 걸어주세요');
       if (type === 'stable') {
         this._setStatus('통화 중');
         const ck = document.getElementById('call-clock');
@@ -281,6 +286,7 @@ window.CallTalk = {
         <div id="call-status" style="font-size: 0.94rem; color: rgba(255,255,255,0.7);">전화 거는 중…</div>
         <div id="call-clock" style="font-size: 1.35rem; font-weight: 700; margin-top: 0.35rem; font-variant-numeric: tabular-nums;">00:00</div>
         <p id="call-spent" style="margin: 0.7rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `연결 전 무료 · 연결 후 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시`}</p>
+        <p style="margin: 0.5rem auto 0; max-width: 250px; font-size: 0.7rem; line-height: 1.5; color: rgba(255,255,255,0.5);">🔈 스피커로 들려요 · 조용한 곳이 아니면 <b>이어폰</b>을 끼면 훨씬 편해요</p>
       </div>
       <div style="flex: 1 1 auto;"></div>
       <div style="display: flex; align-items: flex-start; justify-content: center; gap: 2rem; margin-bottom: 1.4rem;">
@@ -393,6 +399,11 @@ window.CallTalk = {
       if (type === 'stable') this._setStatus('통화 중');
       if (type === 'audio-blocked') this._setStatus('🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요');
       if (type === 'audio-ok') this._setStatus('통화 중');
+      // 연결은 됐는데 소리가 안 오간다 — 어느 쪽이 막혔는지 이름을 붙여준다
+      if (type === 'no-audio') this._setStatus(
+        d.side === 'out' ? '🎤 내 목소리가 안 나가요 — 음소거·마이크 권한을 확인해주세요'
+        : d.side === 'in' ? '🔈 상대 목소리가 오지 않아요 — 볼륨을 올려보세요'
+        : '소리가 오가지 않아요 — 잠시 후 다시 걸어주세요');
       if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
       if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
     };

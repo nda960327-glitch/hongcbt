@@ -1456,6 +1456,7 @@ async function answerCall() {
     }
     if (type === 'remote-hangup') closeCall();
     if (type === 'audio-blocked') $('call-st').textContent = '🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요';
+    if (type === 'no-audio') $('call-st').textContent = d.side === 'out' ? '🎤 내 목소리가 안 나가요 — 음소거·마이크 권한 확인' : d.side === 'in' ? '🔈 상대 목소리가 오지 않아요 — 볼륨 확인' : '소리가 오가지 않아요';
     if (type === 'audio-ok') $('call-st').textContent = '통화 중';
     if (type === 'error') $('call-st').textContent = d.message || '연결 실패';
   };
@@ -1491,6 +1492,7 @@ async function callClient(clientId, clientName) {
     }
     if (type === 'remote-hangup') closeCall();
     if (type === 'audio-blocked') $('call-st').textContent = '🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요';
+    if (type === 'no-audio') $('call-st').textContent = d.side === 'out' ? '🎤 내 목소리가 안 나가요 — 음소거·마이크 권한 확인' : d.side === 'in' ? '🔈 상대 목소리가 오지 않아요 — 볼륨 확인' : '소리가 오가지 않아요';
     if (type === 'audio-ok') $('call-st').textContent = '통화 중';
     if (type === 'error') { $('call-st').textContent = d.message || '연결 실패'; }
   };
