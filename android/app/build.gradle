@@ -16,10 +16,27 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 앱 하나의 프로젝트로 둘을 만든다 — 내담자 앱과 상담사 앱.
+    //  코드·통화 플러그인은 똑같고, 바라보는 주소와 이름·패키지만 다르다.
+    //  Android Studio 왼쪽 아래 'Build Variants' 에서 골라 실행하면 된다.
+    flavorDimensions = ["app"]
+    productFlavors {
+        consumer {
+            dimension "app"
+            // 기본값 그대로 (com.uroong.cbt · neurumind.com)
+        }
+        pro {
+            dimension "app"
+            applicationId "com.uroong.pro"     // 두 앱을 한 폰에 같이 깔 수 있게
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // 최신 Android Gradle Plugin 에서 'proguard-android.txt' 가 삭제됐다.
+            //  optimize 판만 남아 있어서 그쪽을 쓴다 (minifyEnabled false 라 동작은 동일).
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

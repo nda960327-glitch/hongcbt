@@ -9,3 +9,11 @@ server.js
 # 상담사 수신함 등 서버 저장 데이터 (개인정보 — 절대 커밋 금지)
 data/
 .wr-bundle/
+
+# 안드로이드 빌드 산출물
+android/app/build/
+android/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/release/

@@ -1,0 +1,15 @@
+{
+	"appId": "com.uroong.pro",
+	"appName": "우렁의사 프로",
+	"webDir": "www",
+	"server": {
+		"url": "https://pro.neurumind.com",
+		"androidScheme": "https",
+		"cleartext": false,
+		"errorPath": "offline.html"
+	},
+	"android": {
+		"allowMixedContent": false,
+		"webContentsDebuggingEnabled": true
+	}
+}

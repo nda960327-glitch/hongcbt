@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- 상담사 앱(pro) 전용 이름. 같은 파일명이면 이 값이 main 을 덮어쓴다. -->
+<resources>
+    <string name="app_name">우렁의사 프로</string>
+    <string name="title_activity_main">우렁의사 프로</string>
+    <string name="package_name">com.uroong.pro</string>
+    <string name="custom_url_scheme">com.uroong.pro</string>
+</resources>
