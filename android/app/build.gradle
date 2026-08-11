@@ -7,8 +7,8 @@ android {
         applicationId "com.uroong.cbt"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1        // 스토어 업로드마다 +1 (같은 번호는 거부된다)
-        versionName "1.0.0"  // 사용자에게 보이는 버전
+        versionCode 2        // 스토어 업로드마다 +1 (같은 번호는 거부된다)
+        versionName "1.1.0"  // 사용자에게 보이는 버전 — FCM 알림·전화 풀스크린 수신 포함
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
