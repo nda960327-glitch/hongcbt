@@ -278,7 +278,8 @@ window.Assess = {
       <div style="height:100%;width:${Math.min(100, m.total)}%;background:var(--accent-primary);"></div></div>`;
 
     el.innerHTML = `
-      <div class="glass-card" style="padding:0.9rem 1rem;${accent ? 'border:1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);' : ''}">
+      <div class="glass-card" style="position:relative;padding:0.9rem 1rem;border:1.5px solid color-mix(in srgb, var(--accent-primary) ${accent ? '45' : '28'}%, transparent);box-shadow:0 3px 14px color-mix(in srgb, var(--accent-primary) 12%, transparent);">
+        <span style="position:absolute;top:-9px;right:12px;background:linear-gradient(90deg,#e8b93c,#d98f2b);color:#fff;font-size:0.64rem;font-weight:900;padding:0.2rem 0.6rem;border-radius:999px;letter-spacing:0.05em;box-shadow:0 2px 8px rgba(217,143,43,0.45);">★ 추천</span>
         <div style="display:flex;align-items:center;gap:0.4rem;">
           <span style="line-height:0;color:var(--accent-primary);">${window.Icons ? window.Icons.svg('search', { size: 18 }) : ''}</span>
           <strong style="font-size:0.92rem;color:var(--text-primary);">AI 마음 리포트</strong>
@@ -626,10 +627,31 @@ window.Assess = {
       </div>
       <div id="assess-risk"></div>
 
-      <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
- AI 마음 리포트 생성 — ${this.PRICE.toLocaleString()}캐시
-      </button>
-      <p style="margin: 0.4rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불</p>
+      <!-- 추천 카드 — 검진의 종착지가 이 리포트라서, 버튼 하나로 두면 지나친다.
+           금테 두른 카드로 '여기가 하이라이트'임을 한눈에 보이게 한다. -->
+      <div style="position: relative; margin-top: 1rem; border-radius: 16px; padding: 1rem 1rem 0.9rem;
+        background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 16%, var(--bg-secondary)), var(--bg-secondary) 72%);
+        border: 1.5px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);
+        box-shadow: 0 4px 18px color-mix(in srgb, var(--accent-primary) 16%, transparent);">
+        <span style="position: absolute; top: -10px; right: 14px; background: linear-gradient(90deg, #e8b93c, #d98f2b);
+          color: #fff; font-size: 0.68rem; font-weight: 900; padding: 0.24rem 0.7rem; border-radius: 999px;
+          letter-spacing: 0.05em; box-shadow: 0 2px 8px rgba(217,143,43,0.45);">★ 추천</span>
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('joy', 40) : '✨'}</span>
+          <div>
+            <strong style="display: block; font-size: 1.02rem; color: var(--text-primary);">AI 마음 리포트</strong>
+            <span style="font-size: 0.72rem; color: var(--text-muted); font-weight: 600;">검진 점수 + 대화 흐름 종합 분석</span>
+          </div>
+        </div>
+        <p style="margin: 0.6rem 0 0.75rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+          점수만으로는 보이지 않는 것까지 — 우렁이가 최근 대화의 결을 함께 읽고
+          <b style="color: var(--text-primary);">지금 마음 상태와 다음 한 걸음</b>을 정리해드려요.
+          상담사에게 그대로 보낼 수도 있어요.</p>
+        <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
+ 지금 만들어보기 — ${this.PRICE.toLocaleString()}캐시
+        </button>
+        <p style="margin: 0.45rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불 · 참고용(진단 아님)</p>
+      </div>
 
       <div id="assess-result" style="margin-top: 0.9rem;"></div>
 

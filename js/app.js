@@ -2880,7 +2880,11 @@ ${memory || '(없음)'}`;
             const c = window.Marketplace ? window.Marketplace.getCounselor(m.counselorId) : null;
             const name = (c && c.name) || m.counselorName || '상담사';
             const preview = String(m.text || '').replace(/^\[숙제:[^\]]*\]\s*/, '숙제: ');
-            if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, preview, 'hchat:' + m.counselorId); this.playWoorung(); }
+            // 통화 중이면 소리를 내지 않는다 — 알림음이 통화 목소리를 덮는 게 더 방해다.
+            //  대신 통화 화면 아래에 한 줄 미리보기를 띄운다(탭하면 접히고 채팅이 열린다).
+            const inCall = !!(window.CallTalk && window.CallTalk._active);
+            if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, preview, 'hchat:' + m.counselorId); if (!inCall) this.playWoorung(); }
+            if (inCall) window.CallTalk.peekChat(name, preview, m.counselorId);
             this._setNavBadge('counselors', true);
             this.renderChatInbox();
           } catch (err) {}
@@ -3122,8 +3126,11 @@ ${memory || '(없음)'}`;
         const name = (c && c.name) || fresh[0].counselorName || '상담사';
         const lastText = String(fresh[fresh.length - 1].text || '').replace(/^\[숙제:[^\]]*\]\s*/, '숙제: ');
         // 알림을 누르면 바로 그 채팅방이 열린다 (hchat:상담사id)
- if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, lastText, 'hchat:' + cid); this.playWoorung(); }
- this.showRecordToast(`${name}님이 답장했어요 — 상담사 매칭 탭 '내 채팅'`);
+        //  통화 중이면 소리도 토스트도 내지 않는다 — 통화 화면 위 미리보기 한 줄로 대신한다
+        const inCall = !!(window.CallTalk && window.CallTalk._active);
+ if (this._notifOn('chat')) { this.notify(`${name}님의 답장`, lastText, 'hchat:' + cid); if (!inCall) this.playWoorung(); }
+        if (inCall) window.CallTalk.peekChat(name, lastText, cid);
+        else this.showRecordToast(`${name}님이 답장했어요 — 상담사 매칭 탭 '내 채팅'`);
         this._setNavBadge('counselors', true);
         this.renderChatInbox();
       }
@@ -4346,10 +4353,13 @@ ${body}
         if (!res.ok) return;
         const data = await res.json();
         let added = false;
-        (data.items || []).forEach(m => { if (acceptMsg(m)) added = true; });
+        let lastAdded = '';
+        (data.items || []).forEach(m => { if (acceptMsg(m)) { added = true; lastAdded = m.text || ''; } });
         if (added) {
           if (document.getElementById('hchat-overlay')) render();
-          this.playWoorung();
+          // 통화 화면이 채팅방을 덮고 있는 동안엔 소리 대신 한 줄 미리보기 (통화 목소리가 먼저다)
+          if (window.CallTalk && window.CallTalk._active) window.CallTalk.peekChat(c.name, lastAdded, c.id);
+          else this.playWoorung();
         }
       } catch (e) {}
     };
@@ -4366,7 +4376,9 @@ ${body}
             const d = JSON.parse(e.data);
             if (d.type === 'chat' && d.msg && d.msg.counselorId === c.id && acceptMsg(d.msg)) {
               if (document.getElementById('hchat-overlay')) render();
-              this.playWoorung();
+              // 통화 중이면 소리 대신 통화 화면 위 미리보기 한 줄
+              if (window.CallTalk && window.CallTalk._active) window.CallTalk.peekChat(c.name, d.msg.text, c.id);
+              else this.playWoorung();
             }
             // 통화 상태가 채팅방에 실시간으로 — '전화 거는 중…' → '통화 중' → (끝나면 기록 칩)
             if (d.type === 'call-state' && d.counselorId === c.id) {
@@ -4415,6 +4427,9 @@ ${body}
         <button id="hchat-send" class="btn-primary" style="width: auto; padding: 0.5rem 1rem; border-radius: 999px;">전송</button>
       </div>`;
     document.body.appendChild(ov);
+    // 통화를 접어둔 채로 들어왔다면 화면 맨 위를 통화 미니바가 쓰고 있다 —
+    //  그만큼 안쪽을 밀지 않으면 상담사 이름과 닫기 버튼이 미니바에 가린다.
+    if (window.CallTalk && window.CallTalk._syncMiniBarPad) window.CallTalk._syncMiniBarPad();
 
     const render = () => {
       const box = document.getElementById('hchat-msgs');
@@ -4729,10 +4744,19 @@ ${body}
       if (!A || !A.addListener) return;
       A.addListener('backButton', () => {
         try {
-          if (document.getElementById('call-overlay') || document.getElementById('call-incoming')) return;
+          // 통화·수신 화면이 '보이는 중'일 때만 무시한다 — 실수로 전화가 끊기는 게 최악이라서.
+          //  축소된 통화(call-overlay 는 display:none 으로 남아 있다)에서는 뒤로가기가
+          //  평소처럼 동작해야 한다. 있는지가 아니라 보이는지를 본다.
+          const callOv = document.getElementById('call-overlay');
+          if ((callOv && callOv.style.display !== 'none') || document.getElementById('call-incoming')) return;
           // 열린 오버레이는 히스토리를 되감아 닫는다 (_initBackGuard 의 popstate 가 받는다)
           if (history.state && history.state.ov) { history.back(); return; }
           if (this.currentTab !== 'dashboard') { this.switchTab('dashboard'); return; }
+          // 접어둔 통화가 뒤로가기 두 번에 끊기면 최악이다 — 통화 중엔 앱을 끄지 않는다
+          if (window.CallTalk && window.CallTalk._active) {
+            this._backToast('통화 중이에요 — 위쪽 바를 누르면 통화 화면으로 돌아가요');
+            return;
+          }
           const now = Date.now();
           if (this._backExitAt && now - this._backExitAt < 2000) { try { A.exitApp(); } catch (e) {} return; }
           this._backExitAt = now;

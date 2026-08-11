@@ -564,8 +564,11 @@ async function loadChats() {
   //  서버에는 와 있는데 화면이 조용해서 아무도 몰랐다.
   const n = D.chats.filter(m => m.from === 'client').length;
   if (lastClientMsgs !== null && n > lastClientMsgs) {
-    chime();
     const last = [...D.chats].reverse().find(m => m.from === 'client');
+    // 통화 화면이 떠 있으면 소리를 내지 않는다 — 알림음이 통화 목소리를 덮는다.
+    //  대신 통화 화면 아래에 한 줄 미리보기를 띄우고, 누르면 그 대화방으로 간다.
+    if (callFullScreen()) { callPeek(last); lastClientMsgs = n; return; }
+    chime();
     const who = last ? last.clientName : '내담자';
     if (!(ROOM && last && threadKey(last) === ROOM)) {
       toast(who + ' 님이 메시지를 보냈어요');
@@ -1624,11 +1627,114 @@ function callBtns(mode) {
   if (no) no.hidden = mode !== 'incoming';
   if (yes) yes.hidden = mode !== 'incoming';
   if (end) end.hidden = mode === 'incoming';
+  // 벨이 울리는 중에는 축소·채팅을 막는다 — 받을지 말지부터 정해야 한다.
+  //  (여기서 화면을 접어버리면 상대는 계속 신호음만 듣는다)
+  const min = $('call-min'), chat = $('call-chat');
+  if (min) min.hidden = mode === 'incoming';
+  if (chat) chat.hidden = mode === 'incoming';
+}
+
+// ============================================================================
+//  통화 축소 — 통화를 켜둔 채 채팅을 본다.
+//   전체화면 통화가 화면을 다 덮으면 상담사는 "전화를 채팅 보면서 할 수가 없다".
+//   접어도 '돌아갈 길'과 '끊을 길'이 화면 맨 위에 항상 남아 있어야 한다.
+// ============================================================================
+let CALLBAR_T = null;
+
+const callFullScreen = () => { const el = $('callov'); return !!(el && !el.hidden); };
+
+function callbarLabel() {
+  const clock = ($('call-clock') || {}).textContent || '00:00';
+  // 연결 전인데 '통화 중'이라 적으면 거짓말이다 — 통화 화면의 문구를 그대로 쓴다
+  const connected = !!(window.RtcCall && window.RtcCall.connectAt);
+  return connected ? `통화 중 ${clock}` : (($('call-st') || {}).textContent || '연결 중…');
+}
+
+function showCallbar() {
+  let bar = $('pro-callbar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'pro-callbar';
+    bar.innerHTML = '<span id="pro-callbar-lbl">통화 중 00:00</span>'
+      + '<span class="hint">탭하면 통화 화면</span>'
+      + '<button type="button" class="end" id="pro-callbar-end">종료</button>';
+    document.body.appendChild(bar);
+    // 종료 버튼을 뺀 어디를 눌러도 통화 화면으로 돌아간다
+    bar.addEventListener('click', e => {
+      if (e.target.closest('#pro-callbar-end')) return;
+      restoreCall();
+    });
+    $('pro-callbar-end').addEventListener('click', e => {
+      // 통화 끊기는 원래도 확인 없이 즉시다 — 여기서만 한 번 더 물으면 손이 헷갈린다
+      e.stopPropagation();
+      closeCall();
+    });
+  }
+  const lbl = $('pro-callbar-lbl');
+  if (lbl) lbl.textContent = callbarLabel();
+  // 미니바 높이만큼 본문·대화방을 밀어낸다 (안전영역 때문에 기기마다 다르다 — 실측).
+  //  올림(ceil)하는 이유: 소수점이 잘리면 1px 차이로 대화방 머리가 바 밑에 깔린다.
+  document.documentElement.style.setProperty('--callbar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
+  clearInterval(CALLBAR_T);
+  CALLBAR_T = setInterval(() => {
+    const l = $('pro-callbar-lbl');
+    if (!l) { clearInterval(CALLBAR_T); return; }
+    l.textContent = callbarLabel();
+  }, 500);
+}
+
+function hideCallbar() {
+  clearInterval(CALLBAR_T);
+  const bar = $('pro-callbar');
+  if (bar) bar.remove();
+  document.documentElement.style.removeProperty('--callbar-h');
+}
+
+function minimizeCall() {
+  if (!callFullScreen()) return;
+  $('callov').hidden = true;
+  showCallbar();
+}
+
+function restoreCall() {
+  hideCallbar();
+  $('callov').hidden = false;
+}
+
+// [채팅 보며 통화] — 축소하고, 통화 상대의 대화방을 바로 연다.
+//  통화 중에 열어야 할 화면은 하나뿐이다: 지금 통화하는 그 사람의 대화방.
+function callWithChat() {
+  minimizeCall();
+  const cid = CUR_CALL && CUR_CALL.clientId;
+  const t = cid ? threads().find(x => x.clientId === cid) : null;
+  if (t) { openRoom(t.key); return; }
+  // 아직 한 번도 문자를 주고받지 않은 내담자 — 열 방이 없으니 채팅 탭까지만 데려간다
+  closeRoom();
+  setTab('chat');
+  toast('아직 이 내담자와 나눈 대화가 없어요');
+}
+
+// 통화 화면이 떠 있는 동안 도착한 메시지 — 아래에 한 줄만, 3초. 소리는 내지 않는다.
+function callPeek(m) {
+  if (!m || !callFullScreen()) return;
+  const ov = $('callov');
+  const old = $('call-peek');
+  if (old) old.remove();
+  const el = document.createElement('button');
+  el.id = 'call-peek';
+  el.type = 'button';
+  el.innerHTML = `<span class="pk grow"><b>${esc(m.clientName || '내담자')} 님</b><span>${esc(m.text || '')}</span></span>
+    <span style="font-size:0.72rem; font-weight:800; color:var(--accent); flex-shrink:0;">읽기 ›</span>`;
+  el.addEventListener('click', () => { el.remove(); callWithChat(); });
+  ov.appendChild(el);
+  clearTimeout(callPeek._t);
+  callPeek._t = setTimeout(() => { const e2 = $('call-peek'); if (e2) e2.remove(); }, 3000);
 }
 
 function showIncoming(call) {
   if (CUR_CALL) return;
   CUR_CALL = call;
+  hideCallbar();   // 지난 통화의 미니바가 남아 있으면 새 전화의 시계를 덮어쓴다
   callBtns('incoming');
   // 발신자에게 "지금 벨 울리는 중"을 알린다 → 저쪽 화면이 '통화 대기 중…'으로 바뀐다
   try {
@@ -1659,6 +1765,7 @@ function showIncoming(call) {
     if (st && st.ended) {
       clearInterval(call.watch);
       ringStop();
+      hideCallbar();
       $('callov').hidden = true;
       CUR_CALL = null;
       toast('상대방이 통화를 취소했어요');
@@ -1706,6 +1813,7 @@ async function rejectCall() {
 async function callClient(clientId, clientName) {
   if (CUR_CALL) { toast('이미 통화 중이에요'); return; }
   CUR_CALL = { out: true, clientId };
+  hideCallbar();        // 지난 통화의 미니바가 남아 있으면 새 통화와 겹친다
   callBtns('outgoing'); // 발신 화면엔 [종료]만
   $('call-who').textContent = (clientName || nameOfClient(clientId)) + ' 님';
   $('call-st').textContent = '전화 거는 중…';
@@ -1754,6 +1862,10 @@ async function closeCall() {
   stopNativeRing('');
   if (CUR_CALL) clearInterval(CUR_CALL.watch);
   try { if (window.RtcCall && window.RtcCall.callId) await window.RtcCall.hangup('counselor'); } catch (e) {}
+  // 어느 길로 끝나든(내가 끊든·상대가 끊든) 미니바와 본문 여백은 여기서 걷힌다
+  hideCallbar();
+  const pk = $('call-peek');
+  if (pk) pk.remove();
   $('callov').hidden = true;
   CUR_CALL = null;
   loadChats().then(() => { renderChatList(); renderDots(); });   // 통화 기록이 채팅에 남는다
@@ -2170,7 +2282,9 @@ const ACT = {
   },
 
   'call-yes': answerCall,
-  'call-no': rejectCall
+  'call-no': rejectCall,
+  'call-min': minimizeCall,
+  'call-chat': callWithChat
 };
 
 document.addEventListener('click', e => {
@@ -2301,7 +2415,8 @@ function connectHub() {
           loadChats().then(() => {
             renderChatList(); renderDots();
             if (ROOM) renderRoom();
-            if (d.msg && d.msg.from === 'client') chime();
+            // 통화 화면 위에서는 소리를 내지 않는다(loadChats 가 미리보기를 이미 띄웠다)
+            if (d.msg && d.msg.from === 'client' && !callFullScreen()) chime();
           });
         }
         // 전화가 오는 순간 — 3초 폴링을 기다리지 않고 즉시 벨 화면을 띄운다
@@ -2310,6 +2425,7 @@ function connectHub() {
         if (d.type === 'call-state' && d.state === 'ended' && CUR_CALL && CUR_CALL.id === d.callId && !window.RtcCall.callId) {
           clearInterval(CUR_CALL.watch);
           ringStop();
+          hideCallbar();
           $('callov').hidden = true;
           CUR_CALL = null;
           toast('상대방이 통화를 취소했어요');
@@ -2343,6 +2459,8 @@ function initBackButton() {
         if (vis('sheet')) { closeSheet(); return; }      // 바텀시트
         if (vis('chatroom')) { closeRoom(); return; }    // 대화방 → 목록
         if (TAB !== 'home') { setTab('home'); return; }  // 다른 탭 → 홈
+        // 접어둔 통화가 뒤로가기 두 번에 끊기면 최악이다 — 통화 중엔 앱을 끄지 않는다
+        if (CUR_CALL) { toast('통화 중이에요 — 위쪽 바를 누르면 통화 화면으로 돌아가요'); return; }
         const now = Date.now();
         if (now - backAt < 2000) { try { A.exitApp(); } catch (e) {} return; }
         backAt = now;

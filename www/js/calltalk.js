@@ -283,9 +283,20 @@ window.CallTalk = {
     ov.id = 'call-overlay';
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 10001; background: linear-gradient(160deg, #37554六 0%, #2e4237 45%, #1d2c24 100%); display: flex; flex-direction: column; align-items: center; padding: calc(1rem + env(safe-area-inset-top)) 1.5rem calc(2.2rem + env(safe-area-inset-bottom)); color: #f7f3ea;'.replace('37554六', '37554a');
     ov.innerHTML = `
-      <button id="call-min" title="최소화" style="all: unset; align-self: flex-start; cursor: pointer; padding: 0.5rem; line-height: 0; color: rgba(255,255,255,0.85);">
-        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
+      <div style="display: flex; align-items: center; width: 100%; gap: 0.5rem;">
+        <button id="call-min" title="최소화" style="all: unset; cursor: pointer; padding: 0.5rem; line-height: 0; color: rgba(255,255,255,0.85);">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div style="flex: 1;"></div>
+        <!-- 통화하면서 채팅을 친다 — 말로 못 하는 것(이름·날짜·링크)은 글로 보내야 한다.
+             누르면 통화는 위쪽 미니바로 접히고 그 상담사와의 채팅방이 열린다. -->
+        <button id="call-chat" title="채팅 보며 통화" style="all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 0.35rem;
+          padding: 0.45rem 0.95rem; border-radius: 999px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3);
+          font-size: 0.8rem; font-weight: 700; color: #f7f3ea;">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-4.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8Z"/></svg>
+          채팅
+        </button>
+      </div>
       <div style="flex: 0 0 auto; margin-top: 6vh; text-align: center; width: 100%;">
         <div style="width: 120px; height: 120px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center;
                     background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.45); font-size: 2.6rem; font-weight: 800; color: #fff;
@@ -313,9 +324,59 @@ window.CallTalk = {
       <style>@keyframes callPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }</style>`;
     document.body.appendChild(ov);
     document.getElementById('call-min').addEventListener('click', () => this.minimize());
+    document.getElementById('call-chat').addEventListener('click', () => this.openChat());
     document.getElementById('call-mute').addEventListener('click', () => this.toggleMute());
     const spk = document.getElementById('call-spk');
     if (spk) spk.addEventListener('click', () => this.toggleSpeaker());
+  },
+
+  // === 통화를 켜둔 채 상담사와의 채팅방으로 ===
+  //  통화 화면이 화면을 다 덮으면 통화 중에는 아무 것도 쓸 수가 없다.
+  //  접고(minimize) 그 상담사 방을 연다 — 통화는 끊기지 않는다.
+  openChat() {
+    const cid = this._humanCounselorId || (this._pendingCounselor && this._pendingCounselor.id) || null;
+    this.minimize();
+    if (!cid || !window.App || !window.App.openHumanChat) return;
+    // 마켓 목록에 없는 상담사면 채팅방을 만들 수 없다 — 조용히 접기만 하고 이유를 말해준다
+    const known = window.Marketplace && window.Marketplace.getCounselor(cid);
+    if (!known) {
+      if (window.App.showRecordToast) window.App.showRecordToast('이 상담사와의 채팅방을 아직 열 수 없어요');
+      return;
+    }
+    window.App.openHumanChat(cid);
+    this._syncMiniBarPad();
+  },
+
+  // === 통화 중 도착한 메시지 — 통화 화면 아래 한 줄, 3초 ===
+  //  소리는 내지 않는다. 알림음이 통화 목소리를 덮으면 그게 더 큰 방해다.
+  //  탭하면 통화를 접고 그 채팅방으로 간다.
+  peekChat(name, text, counselorId) {
+    try {
+      const ov = document.getElementById('call-overlay');
+      if (!ov || ov.style.display === 'none') return;   // 이미 접혀 있으면 채팅이 이미 보인다
+      const old = document.getElementById('call-peek');
+      if (old) old.remove();
+      const el = document.createElement('button');
+      el.id = 'call-peek';
+      el.type = 'button';
+      el.style.cssText = 'all: unset; box-sizing: border-box; position: absolute; left: 1rem; right: 1rem;'
+        + 'bottom: calc(11rem + env(safe-area-inset-bottom)); cursor: pointer; text-align: left; z-index: 2;'
+        + 'display: flex; align-items: center; gap: 0.6rem; background: rgba(255,255,255,0.96); color: #24302b;'
+        + 'border-radius: 14px; padding: 0.6rem 0.85rem; box-shadow: 0 10px 26px rgba(0,0,0,0.35);';
+      const esc = s => String(s == null ? '' : s).replace(/</g, '&lt;');
+      el.innerHTML = `<span style="flex: 1; min-width: 0;">
+          <b style="display: block; font-size: 0.72rem; color: #4f8a6b;">${esc(name || '상담사')}</b>
+          <span style="display: block; font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(text)}</span>
+        </span>
+        <span style="flex-shrink: 0; font-size: 0.72rem; font-weight: 800; color: #4f8a6b;">읽기 ›</span>`;
+      el.addEventListener('click', () => { el.remove(); this.openChat(); });
+      ov.appendChild(el);
+      clearTimeout(this._peekTimer);
+      this._peekTimer = setTimeout(() => {
+        const e2 = document.getElementById('call-peek');
+        if (e2) e2.remove();
+      }, 3000);
+    } catch (e) {}
   },
 
   // ==========================================================================
@@ -496,23 +557,40 @@ window.CallTalk = {
     } catch (e) {}
   },
 
-  // === 최소화 — 통화는 이어진 채, 화면 위 32px 바로 줄어든다 ===
+  // === 최소화 — 통화는 이어진 채, 화면 위 바 하나로 줄어든다 ===
+  //  바에는 [통화 시간]과 [종료]가 같이 있다. 채팅을 보다가 전화를 끊으려고
+  //  통화 화면을 찾아 헤매는 일이 없어야 한다.
   minimize() {
     const ov = document.getElementById('call-overlay');
     if (!ov) return;
     ov.style.display = 'none';
+    const peek = document.getElementById('call-peek');
+    if (peek) peek.remove();       // 접힌 뒤에도 미리보기가 떠 있으면 유령이 된다
     let bar = document.getElementById('call-minibar');
     if (!bar) {
-      bar = document.createElement('button');
+      bar = document.createElement('div');
       bar.id = 'call-minibar';
-      bar.style.cssText = 'all: unset; box-sizing: border-box; position: fixed; top: 0; left: 0; right: 0; z-index: 10000;'
-        + 'height: calc(32px + env(safe-area-inset-top)); padding-top: env(safe-area-inset-top);'
-        + 'background: #2e4237; color: #fff; font-size: 0.8rem; font-weight: 700; text-align: center; cursor: pointer;'
-        + 'display: flex; align-items: center; justify-content: center; gap: 0.4rem;';
-      bar.addEventListener('click', () => this.restore());
+      // z-index 는 채팅방(hchat-overlay: 10001)·공유 시트(10002)보다 위여야 한다.
+      //  채팅 화면 위에서도 '돌아갈 길'과 '끊을 길'이 항상 보여야 하니까.
+      bar.style.cssText = 'box-sizing: border-box; position: fixed; top: 0; left: 0; right: 0; z-index: 10005;'
+        + 'padding: 0.35rem 0.7rem; padding-top: calc(0.35rem + env(safe-area-inset-top));'
+        + 'background: #2e4237; color: #fff; font-size: 0.8rem; font-weight: 700;'
+        + 'display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 10px rgba(0,0,0,0.28);';
+      bar.innerHTML = '<span id="call-minibar-txt" style="flex: 1; min-width: 0; cursor: pointer; padding: 0.3rem 0;'
+        + ' overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📞 통화 중</span>'
+        + '<button type="button" id="call-minibar-end" style="all: unset; flex-shrink: 0; cursor: pointer;'
+        + ' padding: 0.32rem 0.9rem; border-radius: 999px; background: #ea3323; color: #fff; font-size: 0.76rem; font-weight: 800;">종료</button>';
+      bar.style.cursor = 'pointer';
       document.body.appendChild(bar);
+      // 종료 버튼을 뺀 어디를 눌러도 통화 화면으로 돌아간다 (좁은 여백까지 전부)
+      bar.addEventListener('click', e => {
+        if (e.target.closest('#call-minibar-end')) return;
+        this.restore();
+      });
+      document.getElementById('call-minibar-end').addEventListener('click', () => this.end());
     }
     this._updateMiniBar();
+    this._syncMiniBarPad();
   },
 
   restore() {
@@ -520,13 +598,25 @@ window.CallTalk = {
     if (ov) ov.style.display = 'flex';
     const bar = document.getElementById('call-minibar');
     if (bar) bar.remove();
+    this._syncMiniBarPad();
+  },
+
+  // 미니바가 채팅방 맨 위(상담사 이름·닫기 버튼)를 덮으면 채팅을 닫을 수조차 없다.
+  //  바 높이만큼 채팅방 안쪽을 밀어준다. 바가 없으면 여백도 없다.
+  _syncMiniBarPad() {
+    try {
+      const bar = document.getElementById('call-minibar');
+      const h = bar ? bar.offsetHeight : 0;
+      const ov = document.getElementById('hchat-overlay');
+      if (ov) ov.style.paddingTop = h ? h + 'px' : '';
+    } catch (e) {}
   },
 
   _updateMiniBar() {
-    const bar = document.getElementById('call-minibar');
-    if (!bar) return;
+    const txt = document.getElementById('call-minibar-txt');
+    if (!txt) return;
     const clock = (document.getElementById('call-clock') || {}).textContent || '00:00';
-    bar.textContent = this._connected ? `📞 통화 중 ${clock} — 탭하면 돌아가요` : '📞 연결 중… — 탭하면 돌아가요';
+    txt.textContent = this._connected ? `📞 통화 중 ${clock} — 탭하면 돌아가요` : '📞 연결 중… — 탭하면 돌아가요';
   },
 
   _updateClock() {
@@ -629,10 +719,12 @@ window.CallTalk = {
     this._counselorId = null;
     this._humanCounselorId = null;
     this._pendingCounselor = null;
-    ['call-overlay', 'call-minibar', 'call-incoming'].forEach(id => {
+    ['call-overlay', 'call-minibar', 'call-peek', 'call-incoming'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.remove();
     });
+    clearTimeout(this._peekTimer);
+    this._syncMiniBarPad();   // 채팅방을 열어둔 채였다면 위쪽 여백도 같이 걷는다
     if (window.App && window.App.showRecordToast) window.App.showRecordToast('다른 기기에서 이미 받았어요');
   },
 
@@ -725,8 +817,14 @@ window.CallTalk = {
     }
     const ov = document.getElementById('call-overlay');
     if (ov) ov.remove();
+    // 어느 길로 끝나든(내가 끊든·상대가 끊든·잔액이 떨어지든) 미니바와
+    //  미리보기, 그리고 채팅방 위쪽 여백까지 여기서 전부 걷힌다.
     const mb = document.getElementById('call-minibar');
     if (mb) mb.remove();
+    const pk = document.getElementById('call-peek');
+    if (pk) pk.remove();
+    clearTimeout(this._peekTimer);
+    this._syncMiniBarPad();
     this._connected = false;
     this._muted = false;
     // 종료 UX — 카톡처럼: "통화 종료"를 1.2초 보여주고 채팅방으로 조용히 복귀.

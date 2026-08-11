@@ -31,6 +31,9 @@
     body {
       font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text);
       font-size: 15px; line-height: 1.5; overscroll-behavior-y: none;
+      /* 통화를 축소하면 화면 맨 위를 미니바가 차지한다 — 그만큼 내용을 밀어야
+         제목이 미니바에 가려지지 않는다. 통화가 없으면 0이라 아무 일도 안 일어난다. */
+      padding-top: var(--callbar-h, 0px);
     }
     [hidden] { display: none !important; }
     input, button, textarea, select { font-family: inherit; font-size: 0.92rem; color: inherit; }
@@ -295,7 +298,8 @@
     }
 
     /* 대화방 — 탭바 위를 덮는 전체화면 */
-    #chatroom { position: fixed; inset: 0; z-index: 80; background: var(--bg); display: flex; flex-direction: column; }
+    /* inset 뒤의 top 이 이깁니다 — 통화 미니바가 떠 있으면 대화방도 그만큼 내려온다 */
+    #chatroom { position: fixed; inset: 0; top: var(--callbar-h, 0px); z-index: 80; background: var(--bg); display: flex; flex-direction: column; }
     #chatroom .rhead {
       display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.8rem;
       padding-top: calc(0.6rem + env(safe-area-inset-top));
@@ -356,6 +360,55 @@
     }
     #callov .cbtn.yes { background: #3fa06d; box-shadow: 0 6px 20px rgba(63, 160, 109, 0.45); }
     #callov .cbtn.no { background: #d9534f; box-shadow: 0 6px 20px rgba(217, 83, 79, 0.4); }
+
+    /* ── 통화 축소 · 통화 중 채팅 ─────────────────────────────
+       전체화면 통화가 화면을 다 덮으면 상담사는 통화하면서 내담자가 방금
+       보낸 문장을 볼 수 없다. 축소 버튼과 '채팅 보며 통화'가 그 길을 연다.
+       absolute 로 띄우는 이유: #callov 는 space-between 이라 자식을 하나만
+       더해도 위아래 배치가 통째로 흔들린다. */
+    #callov .minbtn {
+      all: unset; position: absolute; top: calc(0.9rem + env(safe-area-inset-top)); left: 0.9rem;
+      width: 42px; height: 42px; border-radius: 50%; cursor: pointer; color: #f2ede4;
+      display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.13);
+    }
+    #callov .minbtn:active { transform: scale(0.94); }
+    #callov .chatbtn {
+      all: unset; display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 1rem; cursor: pointer;
+      padding: 0.55rem 1.15rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; color: #f2ede4;
+      background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    #callov .chatbtn:active { transform: scale(0.97); }
+    /* 통화 중에 도착한 메시지 한 줄 — 소리는 내지 않는다(통화 목소리를 덮으면 안 된다) */
+    #call-peek {
+      all: unset; box-sizing: border-box; position: absolute; left: 0.9rem; right: 0.9rem;
+      bottom: calc(9.5rem + env(safe-area-inset-bottom)); cursor: pointer; text-align: left;
+      display: flex; align-items: center; gap: 0.55rem; background: rgba(255, 255, 255, 0.96); color: #2a2320;
+      border-radius: 14px; padding: 0.6rem 0.85rem; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+      animation: peekIn 0.2s ease;
+    }
+    #call-peek .pk { min-width: 0; }
+    #call-peek .pk b { display: block; font-size: 0.74rem; color: var(--accent); }
+    #call-peek .pk span { display: block; font-size: 0.84rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @keyframes peekIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* 통화 미니바 — 축소된 통화. 시트(250)·토스트(300)보다 위여야 한다.
+       '통화 화면으로 돌아갈 길'과 '끊을 길'은 무슨 화면 위에서도 사라지면 안 된다. */
+    #pro-callbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 400; cursor: pointer;
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.9rem; padding-top: calc(0.5rem + env(safe-area-inset-top));
+      background: #3fa06d; color: #fff; font-size: 0.84rem; font-weight: 700;
+      box-shadow: 0 2px 10px rgba(30, 25, 20, 0.2);
+    }
+    /* 한 줄로 못 들어가면 바가 두 줄로 부푼다 — 시계는 그대로 두고 안내 문구만 줄인다 */
+    #pro-callbar > span { white-space: nowrap; }
+    #pro-callbar .hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 500; opacity: 0.85; font-size: 0.73rem; }
+    #pro-callbar .end {
+      all: unset; margin-left: auto; flex-shrink: 0; cursor: pointer;
+      padding: 0.33rem 0.9rem; border-radius: 999px; background: #d9534f; color: #fff;
+      font-size: 0.78rem; font-weight: 800;
+    }
+    #pro-callbar .end:active { transform: scale(0.96); }
 
     /* ── 바텀시트 (숙제 내기 등) ─────────────────────────────── */
     #sheet { position: fixed; inset: 0; z-index: 250; display: flex; flex-direction: column; justify-content: flex-end; }
@@ -514,6 +567,9 @@
 
   <!-- 걸려오는 전화 -->
   <div id="callov" hidden>
+    <button class="minbtn" id="call-min" data-act="call-min" aria-label="통화 화면 축소" hidden>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
     <div>
       <div style="font-size: 0.88rem; opacity: 0.85;" id="call-st">걸려온 상담 전화</div>
       <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.3rem;" id="call-clock">00:00</div>
@@ -522,6 +578,10 @@
       <div class="pulse">📞</div>
       <h2 class="serif" id="call-who" style="margin: 1.1rem 0 0.25rem; font-size: 1.35rem;">내담자</h2>
       <p style="font-size: 0.78rem; opacity: 0.72;">전화번호는 서로에게 보이지 않아요</p>
+      <button class="chatbtn" id="call-chat" data-act="call-chat" hidden>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-4.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8Z"/></svg>
+        채팅 보며 통화
+      </button>
     </div>
     <div style="display: flex; gap: 2.2rem;">
       <button class="cbtn no" id="call-btn-no" data-act="call-no">거절</button>
@@ -538,7 +598,7 @@
 
   <div id="toast"></div>
 
-  <script src="js/rtccall.js?v=159"></script>
-  <script src="js/app.js?v=159"></script>
+  <script src="js/rtccall.js?v=161"></script>
+  <script src="js/app.js?v=161"></script>
 </body>
 </html>
