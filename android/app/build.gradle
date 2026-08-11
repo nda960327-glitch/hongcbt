@@ -31,8 +31,27 @@ android {
         }
     }
 
+    // 배포용 서명. 열쇠와 비밀번호는 저장소에 올리지 않는다(gitignore) —
+    //  이 열쇠를 잃어버리면 같은 앱으로 업데이트를 낼 수 없다. 반드시 백업할 것.
+    signingConfigs {
+        release {
+            def propsFile = rootProject.file('keystore.properties')
+            if (propsFile.exists()) {
+                def props = new Properties()
+                props.load(new FileInputStream(propsFile))
+                storeFile rootProject.file(props['storeFile'])
+                storePassword props['storePassword']
+                keyAlias props['keyAlias']
+                keyPassword props['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (rootProject.file('keystore.properties').exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             // 최신 Android Gradle Plugin 에서 'proguard-android.txt' 가 삭제됐다.
             //  optimize 판만 남아 있어서 그쪽을 쓴다 (minifyEnabled false 라 동작은 동일).

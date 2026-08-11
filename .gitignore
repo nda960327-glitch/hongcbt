@@ -17,3 +17,5 @@ android/.gradle/
 android/.idea/
 android/local.properties
 android/app/release/
+android/uroong-release.keystore
+android/keystore.properties
