@@ -114,6 +114,59 @@ function maskContacts(text) {
 // 운영자 마스터 코드 — 전체 열람. 시크릿으로만 준다.
 const isAdmin = (env, code) => !!env.ADMIN_CODE && code === env.ADMIN_CODE;
 
+// ── 연락처 정규화 ──────────────────────────────────────────────────────
+//  이 번호는 정산·운영 연락용이고 내담자 응답에는 절대 넣지 않는다.
+//  그래서 검증은 '형식이 그럴듯한가'까지만 한다 — 대표번호·내선·해외번호를
+//  전부 맞히려 들면 정작 진짜 번호가 거부당한다.
+const telClean = v => String(v == null ? '' : v).replace(/[^0-9-]/g, '').slice(0, 20);
+
+// ── 프로필 사진 ────────────────────────────────────────────────────────
+//  앱이 긴 변 512px·JPEG 0.8 로 줄여서 보낸다(보통 40~60KB).
+//  서버가 다시 한 번 막는 이유: 앱은 고쳐 쓸 수 있고, fetch 한 줄이면
+//  10MB 짜리 원본을 그대로 밀어 넣을 수 있다. 그러면 /counselors 응답이
+//  통째로 무거워져 매칭 탭이 안 뜬다 — 한 사람이 전체를 망가뜨리는 구조다.
+const PHOTO_MAX = 70 * 1024;              // base64 는 ASCII 라 length = 바이트
+function checkPhoto(v) {
+  const p = String(v == null ? '' : v);
+  if (!p) return { ok: true, photo: '' };                       // 빈 값 = 사진 삭제
+  if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(p)) return { ok: false, code: 'bad-photo' };
+  if (p.length > PHOTO_MAX) return { ok: false, code: 'too-big' };
+  return { ok: true, photo: p };
+}
+
+// ── 주소 → 좌표 ────────────────────────────────────────────────────────
+//  내담자 카드의 '내 위치에서 ○km' 는 좌표가 있어야 그릴 수 있는데,
+//  상담사가 넣는 건 글자로 된 주소다. 그 사이를 여기서 메운다.
+//
+//  저장과 묶지 않는다 — Nominatim 은 남의 무료 서비스라 느리거나 안 뜬다.
+//  그때 상담사의 [내 정보 저장]이 같이 실패하면, 주소와 상관없는 상담료 변경까지
+//  못 하게 된다. 그래서 응답을 먼저 보내고 ctx.waitUntil 로 뒤에서 돈다.
+//  실패하면 조용히 넘어간다 — 좌표가 없으면 화면은 주소 글자를 대신 보여준다.
+async function geocodeInto(db, id, addr) {
+  const q = String(addr || '').trim();
+  if (!q) return;
+  try {
+    const r = await fetch(
+      'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q),
+      { headers: { 'User-Agent': 'neurumind/1.0 (help@neurumind.com)', 'Accept-Language': 'ko' } }
+    );
+    if (!r.ok) return;
+    const j = await r.json();
+    const hit = Array.isArray(j) ? j[0] : null;
+    if (!hit) return;
+    const lat = Number(hit.lat), lng = Number(hit.lon);
+    // (0,0)은 대서양 한가운데다. 좌표를 못 찾은 것으로 본다.
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (!lat && !lng)) return;
+    await db.prepare('UPDATE counselors SET lat = ?, lng = ?, geo_at = ? WHERE id = ?')
+      .bind(lat, lng, Date.now(), id).run();
+  } catch (e) { /* 좌표는 있으면 좋은 것이지, 없으면 안 되는 것이 아니다 */ }
+}
+// ctx 가 없는 경로(테스트 하네스 등)에서도 터지지 않게 감싼다
+function fireGeocode(ctx, db, id, addr) {
+  const p = geocodeInto(db, id, addr);
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
+}
+
 // ---------------------------------------------------------------------------
 export async function handleMarket(request, env, cors, path, ctx) {
   const db = env.DB;
@@ -334,15 +387,24 @@ export async function handleMarket(request, env, cors, path, ctx) {
   //  전화번호는 주지 않는다 — 앱 안에서 통화하므로 번호가 오갈 이유가 없다.
   if (path === '/counselors' && method === 'GET') {
     const r = await db.prepare(
-      `SELECT id, name, hospital, addr, intro, tags, price, call_rate, license, available, busy_until
+      `SELECT id, name, hospital, addr, addr_detail, intro, tags, price, call_rate, license,
+              photo, lat, lng, available, busy_until
          FROM counselors WHERE active = 1 ORDER BY created DESC`
     ).all();
     return json({
       items: (r.results || []).map(c => ({
-        id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
+        id: c.id, name: c.name, hospital: c.hospital || '',
+        // 도로명 + 상세(층·호)를 여기서 합친다. 나눠 두는 건 지오코딩 때문이지
+        //  사람에게 보여줄 때까지 나눠 놓을 이유는 없다.
+        addr: [c.addr || '', c.addr_detail || ''].filter(Boolean).join(' '),
         intro: c.intro || '', tags: safeJson(c.tags, []),
         price: c.price || 0, callRate: c.call_rate || 0, license: c.license || '',
+        photo: c.photo || '',
+        // 0 은 '좌표를 모른다'. 앱은 0 이면 거리를 그리지 않고 주소 글자를 보여준다.
+        lat: c.lat || 0, lng: c.lng || 0,
         available: !!c.available, busyUntil: c.busy_until || 0
+        // tel 은 여기 절대 넣지 않는다. 내담자가 앱 밖에서 전화하면
+        //  기록도 정산도 안전장치도 전부 사라진다.
       }))
     }, 200, cors);
   }
@@ -968,30 +1030,71 @@ export async function handleMarket(request, env, cors, path, ctx) {
 
     if (method === 'GET') {
       const c = await db.prepare(
-        `SELECT id,name,hospital,email,tel,addr,intro,tags,price,call_rate,license,
-                slots,offdays,bank,bank_no,bank_holder,available,updated
+        `SELECT id,name,hospital,email,tel,addr,addr_detail,intro,tags,price,call_rate,license,
+                photo,lat,lng,geo_at,slots,offdays,bank,bank_no,bank_holder,available,updated
            FROM counselors WHERE id = ?`).bind(me.id).first();
       return json({ ok: true, me: rowProfile(c) }, 200, cors);
     }
 
     if (method === 'POST') {
-      // 이름은 본인이 못 바꾼다 — 자격 확인을 거친 값이라 운영자만 손댄다
-      const p = {
-        hospital: s(body.hospital, 120), tel: s(body.tel, 40), addr: s(body.addr, 200),
-        intro: s(body.intro, 600), license: s(body.license, 80),
-        price: Math.max(0, Math.min(1000000, num(body.price))),
-        call_rate: Math.max(0, Math.min(100000, num(body.callRate)))
-      };
-      let tags = '';
-      try {
-        const t = Array.isArray(body.tags) ? body.tags : [];
-        tags = JSON.stringify(t.map(x => s(x, 20)).filter(Boolean).slice(0, 6));
-      } catch (e) { tags = '[]'; }
-      await db.prepare(
-        `UPDATE counselors SET hospital=?, tel=?, addr=?, intro=?, license=?,
-                price=?, call_rate=?, tags=?, updated=? WHERE id=?`
-      ).bind(p.hospital, p.tel, p.addr, p.intro, p.license,
-             p.price, p.call_rate, tags, nowMs(), me.id).run();
+      // 이름은 본인이 못 바꾼다 — 자격 확인을 거친 값이라 운영자만 손댄다.
+      //
+      // 보내온 칸만 고친다. 전에는 UPDATE 문에 모든 칸이 박혀 있어서,
+      //  사진 칸을 모르는 옛 버전 앱이 저장을 누르면 사진이 통째로 지워졌다.
+      //  '안 보낸 것'과 '비우라는 것'은 다르다.
+      const has = k => Object.prototype.hasOwnProperty.call(body, k);
+      const sets = [], vals = [];
+      const put = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
+
+      if (has('hospital')) put('hospital', s(body.hospital, 120));
+      if (has('intro'))    put('intro', s(body.intro, 600));
+      if (has('license'))  put('license', s(body.license, 80));
+      if (has('price'))    put('price', Math.max(0, Math.min(1000000, num(body.price))));
+      if (has('callRate')) put('call_rate', Math.max(0, Math.min(100000, num(body.callRate))));
+      // 옛 앱은 tel, 새 앱은 phone 으로 부를 수 있다 — 둘 다 같은 칸이다
+      if (has('tel') || has('phone')) put('tel', telClean(has('tel') ? body.tel : body.phone));
+
+      const addr = has('addr') ? s(body.addr, 200).trim() : null;
+      if (addr !== null) put('addr', addr);
+      if (has('addrDetail') || has('addr_detail')) {
+        put('addr_detail', s(has('addrDetail') ? body.addrDetail : body.addr_detail, 100).trim());
+      }
+
+      if (has('photo')) {
+        const chk = checkPhoto(body.photo);
+        if (!chk.ok) {
+          return json({
+            error: chk.code === 'too-big'
+              ? '사진이 너무 커요. 다시 골라주세요 (70KB 이하)'
+              : '사진 형식이 올바르지 않아요 (JPEG 만 됩니다)',
+            code: chk.code
+          }, 400, cors);
+        }
+        put('photo', chk.photo);
+      }
+
+      if (has('tags')) {
+        let tags = '[]';
+        try {
+          const t = Array.isArray(body.tags) ? body.tags : [];
+          tags = JSON.stringify(t.map(x => s(x, 20)).filter(Boolean).slice(0, 6));
+        } catch (e) { tags = '[]'; }
+        put('tags', tags);
+      }
+
+      // 주소가 바뀌었는지 보려면 바꾸기 '전' 값이 필요하다.
+      //  geo_at 이 0 이면 아직 한 번도 좌표를 못 구한 사람이라, 주소가 그대로여도
+      //  다시 시도한다(예전에 등록돼 좌표가 없는 상담사들이 여기에 해당한다).
+      const before = addr === null ? null
+        : await db.prepare('SELECT addr, geo_at FROM counselors WHERE id = ?').bind(me.id).first();
+
+      put('updated', nowMs());
+      vals.push(me.id);
+      await db.prepare(`UPDATE counselors SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+
+      if (addr && before && (addr !== (before.addr || '') || !before.geo_at)) {
+        fireGeocode(ctx, db, me.id, addr);
+      }
       return json({ ok: true }, 200, cors);
     }
   }
@@ -1111,15 +1214,25 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const cid = 'c' + nowMs().toString(36).slice(-6);
     const newCode = makeCode();
     // 신청서에 적힌 계좌를 그대로 상담사 계정으로 옮긴다 (다시 입력하게 하지 않는다)
+    //  사진도 함께 옮긴다 — 신청할 때 올린 얼굴이 승인되는 순간 사라져서,
+    //  매칭 카드에 얼굴 없는 상담사로 등장하던 문제가 있었다.
+    //  신청서 사진은 256px 라 70KB 제한 안에 들어오지만, 옛 신청서가 그보다 클 수
+    //  있으므로 같은 검사를 통과한 것만 옮긴다(거부 대신 조용히 비운다 —
+    //  사진 하나 때문에 승인 자체가 막히면 안 된다).
+    const apPhoto = checkPhoto(a.photo);
     await db.prepare(
       `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created,
-                               tel, addr, intro, tags, price, license, bank, bank_no, bank_holder, updated)
-       VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?)`
+                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated)
+       VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).bind(cid, a.name, a.hospital, a.email || null, newCode, nowMs(),
-      a.tel, a.addr, a.intro, a.tags, a.price, a.license,
+      telClean(a.tel), a.addr, a.intro, a.tags, a.price, a.license,
+      apPhoto.ok ? apPhoto.photo : '',
       a.bank, a.bank_no, a.bank_holder, nowMs()).run();
     await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
       .bind(cid, nowMs(), id).run();
+    // 승인되자마자 매칭 카드에 뜨는 사람이다. 좌표를 지금 구해 둬야
+    //  첫 화면부터 '내 위치에서 ○km' 가 나온다.
+    if (a.addr) fireGeocode(ctx, db, cid, a.addr);
     // 코드를 한 번 메일로 보낸다. 이후로는 상담사가 그 코드로 계속 들어온다.
     let mailed = null;
     if (a.email) mailed = await sendCodeMail(env, db, a.email, a.name, newCode, env.APP_URL);
@@ -1144,12 +1257,46 @@ export async function handleMarket(request, env, cors, path, ctx) {
       // subs = 이 상담사가 등록한 푸시 구독 기기 수.
       //  0 이면 전화가 와도 폰이 울리지 않는다 — 운영자가 가장 먼저 봐야 할 값인데
       //  지금까지는 DB 를 직접 열어야만 알 수 있었다.
+      // 연락처·주소는 운영자에게만 준다 — 정산 문의와 서류 발송에 매번 필요한데
+      //  지금까지는 D1 을 직접 열어야 알 수 있었다. 사진은 일부러 빼고 '있다/없다'만
+      //  보낸다(70KB × 500명 = 35MB. 목록 하나 때문에 콘솔이 안 뜬다).
       const r = await db.prepare(
         `SELECT c.id, c.name, c.hospital, c.email, c.code, c.available, c.busy_until, c.active, c.created,
+                c.tel, c.addr, c.addr_detail, c.lat, c.lng, c.geo_at,
+                CASE WHEN LENGTH(COALESCE(c.photo, '')) > 0 THEN 1 ELSE 0 END AS has_photo,
                 (SELECT COUNT(*) FROM push_subs p WHERE p.counselor_id = c.id) AS subs
            FROM counselors c ORDER BY c.created DESC LIMIT 500`
       ).all();
       return json({ items: r.results || [] }, 200, cors);
+    }
+
+    // 연락처·주소 대리 수정. 상담사가 프로 앱을 아직 못 쓰는 동안
+    //  운영자가 전화로 받아 적어 넣을 수 있어야 한다(입점 초기엔 이게 대부분이다).
+    //  주소를 고치면 좌표도 다시 구한다 — 안 그러면 카드에서 거리가 옛 자리에 찍힌다.
+    if (path === '/admin/counselors/profile' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      if (!id) return json({ error: 'id 필요' }, 400, cors);
+      const has = k => Object.prototype.hasOwnProperty.call(body, k);
+      const sets = [], vals = [];
+      const put = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
+      if (has('tel') || has('phone')) put('tel', telClean(has('tel') ? body.tel : body.phone));
+      const addr = has('addr') ? s(body.addr, 200).trim() : null;
+      if (addr !== null) put('addr', addr);
+      if (has('addrDetail') || has('addr_detail')) {
+        put('addr_detail', s(has('addrDetail') ? body.addrDetail : body.addr_detail, 100).trim());
+      }
+      if (has('hospital')) put('hospital', s(body.hospital, 120));
+      if (!sets.length) return json({ error: '바꿀 값이 없습니다' }, 400, cors);
+
+      const before = addr === null ? null
+        : await db.prepare('SELECT addr, geo_at FROM counselors WHERE id = ?').bind(id).first();
+      put('updated', nowMs());
+      vals.push(id);
+      await db.prepare(`UPDATE counselors SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+      if (addr && before && (addr !== (before.addr || '') || !before.geo_at)) {
+        fireGeocode(ctx, db, id, addr);
+      }
+      return json({ ok: true }, 200, cors);
     }
 
     if (path === '/admin/counselors' && method === 'POST') {
@@ -1655,7 +1802,13 @@ function rowProfile(c) {
   if (!c) return null;
   return {
     id: c.id, name: c.name, hospital: c.hospital || '', email: c.email || '',
-    tel: c.tel || '', addr: c.addr || '', intro: c.intro || '',
+    tel: c.tel || '', addr: c.addr || '', addrDetail: c.addr_detail || '',
+    intro: c.intro || '',
+    // 본인 화면에는 사진 원본을 그대로 돌려준다 — 미리보기와 [사진 삭제]가
+    //  '지금 뭐가 올라가 있는지'를 보여줘야 하기 때문이다.
+    photo: c.photo || '',
+    // 좌표는 읽기 전용이다. 서버가 주소로 구한 값이고 앱이 고칠 수 없다.
+    lat: c.lat || 0, lng: c.lng || 0, geoAt: c.geo_at || 0,
     license: c.license || '', tags: safeJson(c.tags, []),
     price: c.price || 0, callRate: c.call_rate || 0,
     slots: safeJson(c.slots, {}), offdays: safeJson(c.offdays, []),

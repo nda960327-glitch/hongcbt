@@ -724,12 +724,19 @@ function viewApply() {
 }
 
 // ── ③ 상담사 관리 ────────────────────────────────────────────────────
+// 도로명 + 상세(층·호). 서버는 지오코딩 때문에 둘을 나눠 두지만
+//  사람이 볼 때는 한 줄이어야 한다.
+const fullAddr = c => [c.addr || '', c.addr_detail || ''].filter(Boolean).join(' ');
+
 function viewCounselors() {
   if (D.cs === undefined) return loading;
   if (!D.cs) return failed;
   const q = CSQ.trim().toLowerCase();
+  // 전화번호로도 찾을 수 있어야 한다 — 모르는 번호로 부재중 전화가 왔을 때
+  //  그게 누구인지 확인하는 게 운영자의 실제 첫 동작이다.
   const list = q
-    ? D.cs.filter(c => (c.name + ' ' + (c.hospital || '') + ' ' + (c.email || '') + ' ' + c.id).toLowerCase().includes(q))
+    ? D.cs.filter(c => (c.name + ' ' + (c.hospital || '') + ' ' + (c.email || '') + ' ' +
+        (c.tel || '') + ' ' + (c.addr || '') + ' ' + c.id).toLowerCase().includes(q))
     : D.cs;
   const now = Date.now();
 
@@ -740,6 +747,10 @@ function viewCounselors() {
     // 푸시 구독 기기 수. 옛 워커가 이 값을 안 주면 undefined 다 — 그때 0 으로 보고
     //  '알림 없음'이라 단정하면 거짓말이 된다. 모르는 것은 모른다고 적는다.
     const subs = (c.subs === undefined || c.subs === null) ? null : Number(c.subs);
+    // 좌표가 있어야 내담자 카드에 '내 위치에서 ○km' 가 뜬다.
+    //  주소는 적혀 있는데 거리가 안 나온다는 문의가 실제로 들어오므로,
+    //  운영자가 그 이유(좌표 없음)를 한눈에 보게 적어 둔다.
+    const geo = !!(Number(c.lat) && Number(c.lng));
     return `
     <div class="card" ${on ? '' : 'style="opacity: 0.72; border-color: rgba(207,107,96,0.35);"'}>
       <div class="row wrap">
@@ -774,6 +785,24 @@ function viewCounselors() {
         <button class="btn ghost sm" data-act="push-test" data-id="${esc(c.id)}">푸시 테스트</button>
       </div>
 
+      <div class="row" style="margin-top: 0.45rem;">
+        <span class="grow ell muted" style="${c.tel ? '' : 'color: var(--gold);'}">
+          ${c.tel ? '☎ ' + esc(c.tel) : '연락처 없음 — 정산 문제가 생겨도 연락할 방법이 없어요'}</span>
+        <button class="btn ghost sm" data-act="cs-tel" data-id="${esc(c.id)}">${c.tel ? '연락처 변경' : '연락처 입력'}</button>
+      </div>
+
+      <div class="row" style="margin-top: 0.45rem;">
+        <span class="grow ell muted" style="${c.addr ? '' : 'color: var(--gold);'}">
+          ${c.addr ? '📍 ' + esc(fullAddr(c)) + (geo ? '' : ' · 좌표 없음(거리 표시 안 됨)')
+                   : '주소 없음 — 내담자 카드에 거리가 뜨지 않아요'}</span>
+        <button class="btn ghost sm" data-act="cs-addr" data-id="${esc(c.id)}">${c.addr ? '주소 변경' : '주소 입력'}</button>
+      </div>
+
+      ${c.has_photo === undefined ? '' : `<div class="row" style="margin-top: 0.45rem;">
+        <span class="grow muted" style="${c.has_photo ? '' : 'color: var(--gold);'}">
+          ${c.has_photo ? '프로필 사진 등록됨' : '프로필 사진 없음 — 상담사가 프로 앱에서 직접 올릴 수 있어요'}</span>
+      </div>`}
+
       <div class="row wrap" style="margin-top: 0.7rem; gap: 0.35rem;">
         <button class="btn soft sm" data-act="share" data-id="${esc(c.id)}">안내문</button>
         <button class="btn ghost sm" data-act="rotate" data-id="${esc(c.id)}">코드 재발급</button>
@@ -792,7 +821,7 @@ function viewCounselors() {
     <div class="sec-title">등록된 상담사
       <span class="right muted">전체 ${D.cs.length}명 · 정지 ${off}명 · 이메일 미등록 ${noMail}명</span></div>
     <div class="row" style="margin-bottom: 0.7rem;">
-      <input id="cs-q" type="text" placeholder="이름 · 병원 · 이메일 · ID 로 찾기" autocomplete="off">
+      <input id="cs-q" type="text" placeholder="이름 · 병원 · 이메일 · 연락처 · 주소 · ID 로 찾기" autocomplete="off">
     </div>
     ${list.length ? list.map(row).join('')
       : `<div class="card"><div class="empty"><b>${q ? '검색 결과가 없어요' : '등록된 상담사가 없어요'}</b>${q ? '다른 말로 찾아보세요.' : '입점 심사에서 승인하면 여기에 나타납니다.'}</div></div>`}
@@ -1607,6 +1636,42 @@ async function setEmail(id, btn) {
   loadCounselors();
 }
 
+// 연락처·주소 대리 입력.
+//  상담사가 프로 앱을 아직 못 쓰는 동안(입점 첫 주가 대부분 그렇다)
+//  운영자가 전화로 받아 적어 넣을 수 있어야 한다.
+async function setTel(id, btn) {
+  const c = csOf(id); if (!c) return;
+  const v = await promptBox({
+    title: `${c.name} 선생님 연락처`,
+    body: '정산·운영 연락용입니다. 내담자에게는 어디에도 보이지 않아요.\n숫자와 하이픈만 저장됩니다.',
+    value: c.tel || '', placeholder: '010-1234-5678', type: 'tel', okLabel: '저장'
+  });
+  if (v === null) return;
+  const r = await busy(btn, '저장 중…', () => adminPost('/api/admin/counselors/profile', { id, tel: v }));
+  if (!r || !r.ok) { alertBox('저장하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
+  toast('연락처를 저장했어요');
+  loadCounselors();
+}
+
+// 주소를 고치면 서버가 뒤에서 좌표를 다시 구한다(내담자 카드의 거리 표시).
+//  바로 반영되지 않으므로 그렇다고 말해 준다 — 안 그러면 새로고침만 반복하게 된다.
+async function setAddr(id, btn) {
+  const c = csOf(id); if (!c) return;
+  const v = await promptBox({
+    title: `${c.name} 선생님 주소`,
+    body: '도로명 주소로 적어주세요. 층·호는 뒤에 이어서 적으셔도 됩니다.\n저장하면 좌표를 다시 찾습니다 — 거리 표시는 잠시 뒤에 켜져요.',
+    value: fullAddr(c), placeholder: '서울 서대문구 신촌로 00', okLabel: '저장'
+  });
+  if (v === null) return;
+  // 상세주소는 운영자 화면에서 굳이 나누지 않는다. 도로명 칸에 통째로 넣고
+  //  상세 칸은 비운다 — 나눠 두는 건 지오코딩 편의일 뿐, 두 칸을 강요할 일이 아니다.
+  const r = await busy(btn, '저장 중…',
+    () => adminPost('/api/admin/counselors/profile', { id, addr: v, addrDetail: '' }));
+  if (!r || !r.ok) { alertBox('저장하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
+  toast('주소를 저장했어요 — 좌표는 잠시 뒤에 붙어요');
+  loadCounselors();
+}
+
 // 삭제는 예약·수신함·채팅·후기까지 함께 지운다. 그래서 두 번 묻는다.
 async function removeCs(id) {
   const c = csOf(id); if (!c) return;
@@ -1831,6 +1896,8 @@ document.addEventListener('click', e => {
   if (act === 'rotate') { rotate(id, el); return; }
   if (act === 'toggle') { toggleActive(id, el.dataset.on === '1', el); return; }
   if (act === 'email') { setEmail(id, el); return; }
+  if (act === 'cs-tel') { setTel(id, el); return; }
+  if (act === 'cs-addr') { setAddr(id, el); return; }
   if (act === 'del') { removeCs(id); return; }
   if (act === 'add-cs') { addCs(el); return; }
 

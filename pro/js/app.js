@@ -525,7 +525,18 @@ async function loadMe() {
     ME = d.me;
     $('me-name').textContent = ME.name || '상담사';
     $('me-sub').textContent = [ME.hospital || '소속 미입력', ME.license || ''].filter(Boolean).join(' · ');
-    $('me-av').textContent = (ME.name || '우').slice(0, 1);
+    // 올린 사진은 맨 위 아바타에도 바로 보인다 — '저장이 됐나?'를 확인하려고
+    //  내담자 앱을 따로 켜 보지 않아도 된다.
+    const av = $('me-av');
+    if (ME.photo) {
+      av.textContent = '';
+      av.style.backgroundImage = `url(${ME.photo})`;
+      av.style.backgroundSize = 'cover';
+      av.style.backgroundPosition = 'center';
+    } else {
+      av.style.backgroundImage = '';
+      av.textContent = (ME.name || '우').slice(0, 1);
+    }
     tellSwWhoIAm(); enablePush();
   } else {
     // 운영자 마스터 코드는 /api/me 가 없다 — 그래도 앱은 돌아가야 한다
@@ -1460,9 +1471,168 @@ function syncProfileForm() {
   if (!ME || !$('pf-hospital')) return;
   const g = id => ($(id) || {}).value || '';
   ME.hospital = g('pf-hospital'); ME.addr = g('pf-addr'); ME.tel = g('pf-tel');
+  ME.addrDetail = g('pf-addr2');
   ME.license = g('pf-license'); ME.intro = g('pf-intro');
   ME.price = parseInt(g('pf-price'), 10) || 0;
   ME.callRate = parseInt(g('pf-callrate'), 10) || 0;
+  // 사진은 칸이 아니라 ME.photo 에 직접 들어간다 — 여기서 건드리지 않는다
+}
+
+// ── 연락처 자동 하이픈 ──────────────────────────────────────────────────
+//  손으로 하이픈을 치게 두면 010 1234 5678 · 010.1234.5678 · 01012345678 이
+//  뒤섞여 들어온다. 급할 때 이 번호로 전화를 거는 사람은 운영자인데,
+//  그때 형식이 제각각이면 그 차이가 그대로 실수가 된다. 숫자만 받아 우리가 넣는다.
+function hyphenTel(v) {
+  const d = String(v || '').replace(/[^0-9]/g, '').slice(0, 11);
+  // 1588·1666 같은 대표번호에는 지역번호가 없다
+  if (/^1[5678]/.test(d)) return d.length <= 4 ? d : d.slice(0, 4) + '-' + d.slice(4, 8);
+  if (d.startsWith('02')) {                       // 서울만 지역번호가 두 자리다
+    if (d.length <= 2) return d;
+    if (d.length <= 5) return d.slice(0, 2) + '-' + d.slice(2);
+    if (d.length <= 9) return d.slice(0, 2) + '-' + d.slice(2, 5) + '-' + d.slice(5);
+    return d.slice(0, 2) + '-' + d.slice(2, 6) + '-' + d.slice(6, 10);
+  }
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return d.slice(0, 3) + '-' + d.slice(3);
+  if (d.length <= 10) return d.slice(0, 3) + '-' + d.slice(3, 6) + '-' + d.slice(6);
+  return d.slice(0, 3) + '-' + d.slice(3, 7) + '-' + d.slice(7, 11);
+}
+
+// ── 주소 찾기 (카카오 우편번호 서비스) ──────────────────────────────────
+//  스크립트는 [주소 찾기]를 처음 누른 그 순간에만 받아온다.
+//  앱을 켤 때마다 미리 받으면, 주소를 평생 한두 번 고칠까 말까 한 상담사
+//  전원이 매번 그 비용(외부 도메인 접속 + 200KB)을 낸다.
+let POSTCODE_LOADING = null;
+function loadPostcodeScript() {
+  if (window.daum && window.daum.Postcode) return Promise.resolve(true);
+  if (POSTCODE_LOADING) return POSTCODE_LOADING;
+  POSTCODE_LOADING = new Promise(resolve => {
+    const sc = document.createElement('script');
+    sc.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    sc.onload = () => resolve(!!(window.daum && window.daum.Postcode));
+    // 실패는 기억하지 않는다 — 지하 진료실에서 한 번 끊긴 걸로 영영 못 쓰게 되면 안 된다
+    sc.onerror = () => { POSTCODE_LOADING = null; resolve(false); };
+    document.head.appendChild(sc);
+  });
+  return POSTCODE_LOADING;
+}
+
+function closeAddrFinder() {
+  const ov = $('addrov');
+  if (!ov || ov.hidden) return;
+  ov.hidden = true;
+  $('addrbox').innerHTML = '';     // 남겨두면 다음에 열 때 옛 검색 결과가 그대로 보인다
+}
+
+async function openAddrFinder(btn) {
+  syncProfileForm();               // 열기 전에 지금 칸에 적힌 값을 지켜둔다
+  const label = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '여는 중…'; }
+  const ok = await loadPostcodeScript();
+  if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = label; }
+  if (!ok) { toast('주소 검색을 불러오지 못했어요. 주소를 직접 적어주셔도 됩니다'); return; }
+
+  const ov = $('addrov'), box = $('addrbox');
+  box.innerHTML = '';
+  ov.hidden = false;
+  new daum.Postcode({
+    width: '100%', height: '100%',
+    oncomplete: (d) => {
+      // 도로명이 원칙이다. 도로명이 아직 없는 건물(신축 등)만 지번으로 받는다.
+      ME.addr = d.roadAddress || d.autoRoadAddress || d.jibunAddress || d.autoJibunAddress || '';
+      closeAddrFinder();
+      renderHome();
+      // 커서를 상세주소로 옮긴다 — 다음에 적을 것이 층·호라는 걸 손이 먼저 안다
+      const el = $('pf-addr2');
+      if (el) { try { el.focus(); } catch (e) {} }
+      toast('주소를 넣었어요. 층·호는 아래 상세주소에 적어주세요');
+    },
+    onclose: (state) => { if (state === 'FORCE_CLOSE') closeAddrFinder(); }
+  }).embed(box, { autoClose: false });
+}
+
+// ── 프로필 사진 ────────────────────────────────────────────────────────
+//  폰 카메라 사진은 3~8MB 다. 그대로 보내면 서버가 거부하고(70KB 제한),
+//  설령 통과해도 내담자 앱의 매칭 목록 응답이 통째로 무거워져 탭이 안 뜬다.
+//  한 사람이 전체를 느리게 만드는 구조라서, 기기에서 먼저 줄여 보낸다.
+//   · 긴 변 512px — 96px 프로필과 레티나(3배) 화면을 함께 만족하는 최소치
+//   · 정사각 중앙 크롭 — 카드의 동그란 자리에 맞춘다
+//   · JPEG 0.8 — 얼굴 사진에서 열화가 눈에 띄기 직전
+const PHOTO_PX = 512, PHOTO_Q = 0.8;
+const PHOTO_BUDGET = 66000;        // 서버 한도 70KB 보다 낮게 — 여유를 남긴다
+
+async function decodePhoto(file) {
+  // 세로로 찍은 폰 사진이 눕는 건 EXIF 회전 정보 때문이다.
+  //  createImageBitmap 의 imageOrientation 이 그걸 미리 적용해 준다.
+  //  옛 웹뷰에는 이 옵션이 없다 — 그때는 <img> 로 그냥 읽는다(눕더라도 올라는 간다).
+  if (window.createImageBitmap) {
+    try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+    catch (e) { /* 아래로 폴백 */ }
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url;
+  });
+}
+
+async function shrinkPhoto(file) {
+  const img = await decodePhoto(file);
+  const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+  if (!w || !h) throw new Error('empty');
+  const side = Math.min(w, h);                 // 중앙 정사각 크롭
+  const cv = document.createElement('canvas');
+  const cx = cv.getContext('2d');
+  cx.imageSmoothingQuality = 'high';
+
+  // 품질을 먼저 깎고, 그래도 안 들어오면 크기를 줄인다.
+  //  얼굴 사진은 화소보다 '크기'가 먼저 눈에 띄어서 512 를 최대한 지키는 게 맞다.
+  //  다만 배경이 아주 복잡한 사진은 품질만으로 예산에 못 들어온다 —
+  //  실측: 512px 짜리 최대 잡음 이미지는 0.4 로 낮춰도 66KB 를 넘겼다.
+  //  그때 '못 올린다'고 끝내면 그 상담사는 영영 얼굴을 못 올린다. 크기를 양보한다.
+  //  (작은 원본을 억지로 늘리지는 않는다 — Math.min)
+  const sizes = [...new Set([PHOTO_PX, 384, 256].map(p => Math.min(p, side)))];
+  for (const out of sizes) {
+    cv.width = cv.height = out;
+    cx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, out, out);
+    for (let q = PHOTO_Q; q >= 0.4; q -= 0.1) {
+      const url = cv.toDataURL('image/jpeg', q);
+      if (url.length <= PHOTO_BUDGET) { if (img.close) img.close(); return url; }
+    }
+  }
+  if (img.close) img.close();                  // ImageBitmap 은 직접 놓아줘야 한다
+  throw new Error('too-big');
+}
+
+// 파일 칸을 화면에 미리 심어두지 않는다 — renderHome 이 다시 그릴 때마다
+//  리스너를 새로 붙여야 하고, 한 번이라도 어긋나면 아무 반응이 없는 버튼이 된다.
+function pickPhoto() {
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.hidden = true;
+  document.body.appendChild(inp);
+  inp.addEventListener('change', async () => {
+    const f = inp.files && inp.files[0];
+    inp.remove();
+    if (!f) return;
+    syncProfileForm();
+    toast('사진을 줄이는 중이에요…');
+    let data;
+    try { data = await shrinkPhoto(f); }
+    catch (e) {
+      toast(e && e.message === 'too-big'
+        ? '사진을 충분히 줄이지 못했어요. 다른 사진으로 해주세요'
+        : '사진을 읽지 못했어요. 다른 사진으로 해주세요');
+      return;
+    }
+    ME.photo = data;
+    renderHome();
+    toast('사진을 넣었어요 — [내 정보 저장]을 눌러야 반영돼요');
+  });
+  inp.click();
 }
 
 function foldProfile() {
@@ -1473,14 +1643,65 @@ function foldProfile() {
       ${hint ? `<span class="muted" style="margin-top:0.2rem;">${hint}</span>` : ''}</label>`;
   const tags = ME.tags || [];
   const sum = [ME.hospital || '소속 미입력', won(ME.price) + '원'].join(' · ');
+
+  // 사진 — 내담자가 카드에서 '가장 먼저' 보는 것이라 맨 위에 둔다
+  const photoBlock = `
+    <div class="row" style="gap:0.9rem; align-items:flex-start; margin:0.9rem 0 0.9rem;">
+      ${ME.photo
+        ? `<img class="pfoto" src="${esc(ME.photo)}" alt="내 프로필 사진">`
+        : `<div class="pfoto" style="display:flex; align-items:center; justify-content:center;
+             font-family:'Gowun Batang',serif; font-size:2.1rem; color:var(--sub);"
+             aria-hidden="true">${esc((ME.name || '우').slice(0, 1))}</div>`}
+      <div class="grow">
+        <strong style="font-size:0.88rem;">프로필 사진</strong>
+        <p class="muted" style="margin:0.2rem 0 0.5rem;">${ME.photo
+          ? '매칭 카드와 프로필에 이 사진이 보여요.'
+          : '아직 없어요. 얼굴이 있는 쪽을 내담자가 훨씬 많이 고릅니다.'}
+          올리면 <b>자동으로 작게 줄여서</b> 저장돼요.</p>
+        <div class="row" style="gap:0.35rem; flex-wrap:wrap;">
+          <button class="btn ghost sm" data-act="photo-pick">${ME.photo ? '사진 바꾸기' : '＋ 사진 등록'}</button>
+          ${ME.photo ? '<button class="btn ghost sm" data-act="photo-del" style="color:var(--danger);">사진 삭제</button>' : ''}
+        </div>
+      </div>
+    </div>`;
+
+  // 주소 — 좌표가 없으면 내담자 카드에 거리가 안 뜬다. 그 사실을 여기서 알려준다.
+  //  (예전엔 아무 말도 없어서, 주소를 적어 놓고도 왜 거리가 안 나오는지 알 길이 없었다)
+  const geoHint = (ME.lat && ME.lng)
+    ? '지도에서 찾았어요. 내담자 카드에 <b>내 위치에서 ○km</b> 로 보입니다.'
+    : ME.addr
+      ? '아직 지도에서 못 찾았어요. <b>[주소 찾기]</b>로 도로명 주소를 고르시면 거리 표시가 켜집니다.'
+      : '주소를 넣으면 가까운 내담자에게 <b>거리(km)</b>와 함께 먼저 보여요.';
+  const addrBlock = `
+    <label><span>주소</span>
+      <div class="row" style="gap:0.35rem; align-items:stretch;">
+        <input id="pf-addr" class="grow" value="${esc(ME.addr || '')}" placeholder="예: 서울 서대문구 신촌로 00">
+        <button class="btn ghost sm" data-act="addr-find" style="flex-shrink:0;">주소 찾기</button>
+      </div>
+      <input id="pf-addr2" style="margin-top:0.35rem;" maxlength="100"
+        value="${esc(ME.addrDetail || '')}" placeholder="상세주소 — 층·호 (선택)">
+      <span class="muted" style="margin-top:0.25rem;">${geoHint}</span>
+    </label>`;
+
+  // 연락처 — 공개되지 않는다는 말을 칸 바로 아래에 둔다.
+  //  이 문장이 없으면 상담사는 '내 번호가 내담자에게 보이나?' 싶어 아예 안 적는다.
+  const telBlock = `
+    <label><span>연락처</span>
+      <input id="pf-tel" type="tel" inputmode="numeric" maxlength="20" autocomplete="tel"
+        value="${esc(ME.tel || '')}" placeholder="010-1234-5678">
+      <span class="muted" style="margin-top:0.25rem;">정산·운영 연락용이에요.
+        <b>내담자에게는 보이지 않아요.</b> 숫자만 누르시면 하이픈은 저희가 넣어드려요.</span>
+    </label>`;
+
   return fold('profile', '내 정보 수정', esc(sum), `
     <p style="font-weight:700; margin:0.8rem 0 0.2rem;">${esc(ME.name)}
       <span class="muted" style="font-weight:500;">${esc(ME.email || '이메일 미등록')}</span></p>
     <p class="muted" style="margin-bottom:0.8rem;">이름은 자격 확인을 거친 값이라 바꿀 수 없어요.
       개명 등으로 바뀌었다면 운영자에게 문의해 주세요.</p>
+    ${photoBlock}
     ${f('pf-hospital', '소속 기관', ME.hospital, '예: OO 정신건강의학과 (OO점)')}
-    ${f('pf-tel', '연락처', ME.tel, '예: 02-1234-5678 (기관 대표번호)')}
-    ${f('pf-addr', '주소', ME.addr, '예: 서울 서대문구 …')}
+    ${telBlock}
+    ${addrBlock}
     ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
     ${f('pf-price', '예약 상담료 · 30분 (원)', ME.price, '40000', 'number')}
     ${f('pf-callrate', '바로상담 요율 (30초당 캐시)', ME.callRate, '500', 'number',
@@ -2396,15 +2617,32 @@ const ACT = {
     ME.tags = (ME.tags || []).filter((_, i) => i !== +el.dataset.arg);
     renderHome();
   },
+  // 주소 찾기 · 사진 — 칸에 적는 게 아니라 '누르는' 것들
+  'addr-find': (el) => openAddrFinder(el),
+  'addr-close': () => closeAddrFinder(),
+  'photo-pick': () => pickPhoto(),
+  'photo-del': () => {
+    syncProfileForm();
+    ME.photo = '';
+    renderHome();
+    toast('사진을 뺐어요 — [내 정보 저장]을 눌러야 반영돼요');
+  },
+
   'save-profile': async (el) => {
     syncProfileForm();
     el.disabled = true; el.textContent = '저장 중…';
     const r = await postJson('/api/me', authBody({
-      hospital: ME.hospital, addr: ME.addr, tel: ME.tel, license: ME.license,
-      intro: ME.intro, price: ME.price, callRate: ME.callRate, tags: ME.tags || []
+      hospital: ME.hospital, addr: ME.addr, addrDetail: ME.addrDetail || '',
+      tel: ME.tel, license: ME.license,
+      intro: ME.intro, price: ME.price, callRate: ME.callRate, tags: ME.tags || [],
+      // 사진은 항상 보낸다. '안 보냄'은 서버에서 '그대로 두기'로 해석되므로,
+      //  [사진 삭제]를 누른 뒤 저장했을 때 지워지려면 빈 문자열이 가야 한다.
+      photo: ME.photo || ''
     }));
     el.disabled = false; el.textContent = '내 정보 저장';
     if (!r || !r.ok) { toast((r && r.error) || '저장하지 못했어요'); return; }
+    // 주소를 바꾸면 서버가 뒤에서 좌표를 구한다 — 그 결과는 이번 loadMe 에
+    //  아직 안 담길 수 있다. 다음에 화면을 열면 '지도에서 찾았어요'로 바뀐다.
     toast('내 정보를 저장했어요');
     await loadMe(); renderHome();
   },
@@ -2488,6 +2726,23 @@ inp.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && window.matchMedia('(min-width: 768px)').matches) {
     e.preventDefault(); sendReply();
   }
+});
+
+// 연락처 칸 — 치는 대로 하이픈을 끼워 넣는다.
+//  renderHome 이 화면을 몇 번이고 다시 그리므로 칸에 직접 리스너를 달 수 없다.
+//  문서 하나에만 걸어 두면 다시 그려도 계속 동작한다.
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el || el.id !== 'pf-tel') return;
+  const before = el.value;
+  const after = hyphenTel(before);
+  if (after === before) return;
+  const pos = el.selectionStart;
+  el.value = after;
+  // 커서를 끝으로 튕기면 가운데 한 자리를 고칠 수가 없다.
+  //  하이픈이 늘어난 만큼만 밀어 준다.
+  const shift = after.length - before.length;
+  try { el.setSelectionRange(Math.max(0, pos + shift), Math.max(0, pos + shift)); } catch (err) {}
 });
 
 // 채팅 검색 — 한 글자마다 목록만 갈아 끼운다(입력창은 그대로 두어야 커서가 안 튄다)

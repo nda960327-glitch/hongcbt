@@ -522,6 +522,11 @@
       id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
       tags: c.tags || [], price: c.price || 40000,
       callRate: c.callRate || this.callRateFor({ price: c.price }),
+      // 얼굴과 좌표. 전에는 이 둘을 안 받아서, 서버 상담사는 전부 그림 아바타에
+      //  '내 위치에서 null km' 였다 — 좌표가 undefined 라 calcDistance 가
+      //  null 을 돌려주는데 그 null 이 그대로 화면에 찍혔다.
+      photo: c.photo || '',
+      lat: c.lat || 0, lng: c.lng || 0,
       rating: 5, reviews: 0, avatar: 0,
       isAvailableNow: !!c.available, isNew: true, fromServer: true,
       career: [c.hospital ? '현) ' + c.hospital : '', c.license || '', c.intro || ''].filter(Boolean),
