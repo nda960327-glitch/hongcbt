@@ -156,15 +156,39 @@ window.Account = {
       if (window.UI) window.UI.alert('로그인 서버 주소를 불러오지 못했어요.\n앱을 새로고침한 뒤 다시 시도해주세요.');
       return;
     }
-    const scheme = this._nativeScheme();
-    const back = scheme ? scheme + '://auth' : location.origin;
-    const url = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(back);
-    // 앱이면 시스템 브라우저로 열고, 로그인이 끝나면 딥링크로 앱에 되돌아온다
-    if (scheme && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
-      window.Capacitor.Plugins.Browser.open({ url }).catch(() => { location.href = url; });
+    const native = !!this._nativeScheme();
+    if (!native) {
+      location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin);
       return;
     }
-    location.href = url;
+    // 스토어 앱: 구글·카카오가 앱 안 웹뷰 로그인을 막으므로 바깥 브라우저로 나간다.
+    //  돌아오는 길은 딥링크가 아니라 '짝 번호 조회'다 — 웹뷰에서 딥링크 수신이
+    //  막혀도(실기기에서 실제로 막혔다) 이 방식은 반드시 완성된다.
+    const pair = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    const back = location.origin + '/authdone.html';
+    const url = base + '/api/oauth/' + provider + '/start?pair=' + pair
+      + '&back=' + encodeURIComponent(back);
+    const B = window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if (B) B.open({ url }).catch(() => { location.href = url; });
+    else location.href = url;
+    this._pollPair(pair, B);
+  },
+
+  // 로그인이 끝났는지 2초마다 물어본다. 3분이면 포기 (사용자가 그냥 닫았을 수 있다)
+  _pollPair(pair, B) {
+    clearInterval(this._pairTimer);
+    let tries = 0;
+    this._pairTimer = setInterval(async () => {
+      if (++tries > 90) { clearInterval(this._pairTimer); return; }
+      try {
+        const d = await this._api('/api/oauth/pair?pair=' + encodeURIComponent(pair));
+        if (d && d.ready && d.code) {
+          clearInterval(this._pairTimer);
+          if (B) B.close().catch(() => {});
+          await this._exchange(d.code);
+        }
+      } catch (e) {}
+    }, 2000);
   },
 
   // 앱으로 되돌아온 딥링크(com.uroong.cbt://auth?auth=코드) 처리

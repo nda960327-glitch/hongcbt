@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>로그인 완료 — 우렁의사</title>
+  <style>
+    /* 스토어 앱에서 로그인을 마치고 브라우저가 잠깐 머무는 화면.
+       여기서 교환권을 쓰면 안 된다 — 그건 앱이 가져가야 한다. 안내만 한다. */
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: #faf5ee; color: #362f28; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1.5rem; text-align: center; line-height: 1.75;
+    }
+    .ico {
+      width: 78px; height: 78px; border-radius: 50%; margin: 0 auto 1.1rem;
+      background: rgba(79,138,107,0.13); display: flex; align-items: center; justify-content: center;
+    }
+    h1 { font-size: 1.15rem; margin-bottom: 0.45rem; }
+    p { font-size: 0.88rem; color: #7f7264; }
+    .hint { margin-top: 1.5rem; font-size: 0.8rem; color: #4f8a6b; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="ico">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#4f8a6b"
+           stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 12.5 9.5 18 20 6.5"/>
+      </svg>
+    </div>
+    <h1>로그인이 완료됐어요</h1>
+    <p>이 창은 곧 자동으로 닫히고<br>우렁의사 앱으로 돌아갑니다.</p>
+    <p class="hint">닫히지 않으면 뒤로 가기를 눌러주세요</p>
+  </div>
+</body>
+</html>

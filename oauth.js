@@ -181,8 +181,11 @@ export async function handleOauth(request, env, cors, path, body, url) {
     // ── 1단계: 사업자에게 보낸다 ────────────────────────────────────
     if (step === 'start') {
       const st = token(16);
-      await db.prepare('INSERT INTO oauth_state (state, provider, back, expires) VALUES (?,?,?,?)')
-        .bind(st, key, back, nowMs() + STATE_TTL).run();
+      // pair: 스토어 앱이 들고 오는 '짝 번호'. 앱은 딥링크를 기다리지 않고
+      //  이 번호로 서버에 물어본다 — 웹뷰에서 딥링크 수신이 막혀도 로그인이 된다.
+      const pair = String(q('pair') || '').replace(/[^\w-]/g, '').slice(0, 40) || null;
+      await db.prepare('INSERT INTO oauth_state (state, provider, back, expires, pair) VALUES (?,?,?,?,?)')
+        .bind(st, key, back, nowMs() + STATE_TTL, pair).run();
       // 오래된 state 는 같이 치운다 (따로 도는 청소 작업을 두지 않기 위해)
       await db.prepare('DELETE FROM oauth_state WHERE expires < ?').bind(nowMs()).run();
 
@@ -249,13 +252,27 @@ export async function handleOauth(request, env, cors, path, body, url) {
 
     // 세션은 서버에 두고, 주소에는 1회용 교환권만 실어 보낸다
     const handoff = token(20);
-    await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires) VALUES (?,?,?)')
-      .bind(handoff, userId, nowMs() + HANDOFF_TTL).run();
+    await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires, pair) VALUES (?,?,?,?)')
+      .bind(handoff, userId, nowMs() + HANDOFF_TTL, row.pair || null).run();
     await db.prepare('DELETE FROM oauth_handoff WHERE expires < ?').bind(nowMs()).run();
 
     // 딥링크(com.uroong.cbt://auth)는 경로를 덧붙이면 안 된다 — 그대로 물음표만 붙인다
     const isDeep = /^com\.uroong\.(cbt|pro):\/\//.test(realBack);
     return Response.redirect(isDeep ? realBack + '?auth=' + handoff : realBack + '/?auth=' + handoff, 302);
+  }
+
+  // ── 짝 번호 조회 (스토어 앱 전용) ───────────────────────────────
+  //  앱은 브라우저에서 로그인이 끝났는지를 이 번호로 물어본다.
+  //  딥링크가 막힌 웹뷰에서도 로그인이 완성되는 유일하게 확실한 길.
+  //  교환권 자체를 돌려줄 뿐이고, 세션은 앱이 /oauth/exchange 로 다시 받아간다.
+  if (path === '/oauth/pair' && method === 'GET') {
+    const pair = String(q('pair') || '').replace(/[^\w-]/g, '').slice(0, 40);
+    if (!pair) return json({ error: 'missing' }, 400, cors);
+    const h = await db.prepare(
+      'SELECT code, expires FROM oauth_handoff WHERE pair = ? ORDER BY expires DESC LIMIT 1'
+    ).bind(pair).first();
+    if (!h || h.expires < nowMs()) return json({ ok: true, ready: false }, 200, cors);
+    return json({ ok: true, ready: true, code: h.code }, 200, cors);
   }
 
   // ── 3단계: 교환권 → 세션 ────────────────────────────────────────
