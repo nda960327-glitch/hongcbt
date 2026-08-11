@@ -26,12 +26,14 @@ window.SafetyPlan = {
     { key: 'distract', n: 3, title: '나를 꺼내줄 사람·장소',
       hint: '고민을 털어놓지 않아도 됩니다. 그냥 그 자리에 있으면 마음이 가라앉는 사람이나 장소.',
       ph: '예) 동생네 집 / 단골 카페 / 도서관 / 헬스장' },
-    { key: 'contact', n: 4, title: '도움을 청할 사람',
-      hint: '힘들다고 말할 수 있는 사람. 이름과 연락처를 같이 적어두세요.\n여기 적어도 앱이 이 번호로 연락하는 일은 절대 없어요 — 힘든 순간에 내가 직접 걸기 위한 나만의 메모예요.',
-      ph: '예) 누나 010-0000-0000 / 친구 민지 010-0000-0000' },
-    { key: 'pro', n: 5, title: '전문가·기관',
+    { key: 'contact', n: 4, title: '도움을 청할 사람', type: 'people',
+      hint: '힘들다고 말할 수 있는 사람. 이름과 번호를 넣어두면 힘들 때 버튼 하나로 걸 수 있어요.\n여기 적어도 앱이 이 번호로 연락하는 일은 절대 없어요 — 내가 직접 걸기 위한 나만의 메모예요.',
+      ph: '예) 누나 010-0000-0000 / 친구 민지 010-0000-0000',
+      phName: '누나 · 친구 민지', phTel: '010-0000-0000' },
+    { key: 'pro', n: 5, title: '전문가·기관', type: 'people',
       hint: '다니는 병원이나 상담센터가 있다면 적어두세요. 없어도 아래 상담전화가 있습니다.',
-      ph: '예) ○○정신건강의학과 02-000-0000 / 학교 상담센터' },
+      ph: '예) ○○정신건강의학과 02-000-0000 / 학교 상담센터',
+      phName: '○○정신건강의학과', phTel: '02-000-0000' },
     { key: 'safe', n: 6, title: '환경 안전하게 만들기',
       hint: '위험할 때 손닿는 곳에 두지 않을 것, 그리고 누구에게 맡길지.',
       ph: '예) 약은 엄마에게 맡긴다 / 술은 집에 두지 않는다' }
@@ -55,6 +57,122 @@ window.SafetyPlan = {
     d[key] = String(val || '').slice(0, 400);
     d.updatedAt = Date.now();
     this._save(d);
+  },
+
+  // ==========================================================================
+  //  연락처 — 위기의 순간에 '읽고 옮겨 적는' 일이 없어야 한다.
+  //  이름과 번호를 따로 담아두고, 버튼 하나로 바로 걸리게 한다.
+  //  예전에 자유 텍스트로 적어둔 사람의 것도 그대로 살려서 읽어들인다.
+  // ==========================================================================
+  fmtTel(v) {
+    const n = String(v || '').replace(/[^\d]/g, '').slice(0, 11);
+    if (n.length < 4) return n;
+    if (n.startsWith('02')) {                       // 서울 지역번호는 두 자리
+      if (n.length <= 5) return n.slice(0, 2) + '-' + n.slice(2);
+      if (n.length <= 9) return n.slice(0, 2) + '-' + n.slice(2, 5) + '-' + n.slice(5);
+      return n.slice(0, 2) + '-' + n.slice(2, 6) + '-' + n.slice(6, 10);
+    }
+    if (/^1[5-9]\d\d/.test(n)) return n.slice(0, 4) + (n.length > 4 ? '-' + n.slice(4, 8) : ''); // 1577-0199 형태
+    if (n.length <= 7) return n.slice(0, 3) + '-' + n.slice(3);
+    if (n.length <= 10) return n.slice(0, 3) + '-' + n.slice(3, 6) + '-' + n.slice(6);
+    return n.slice(0, 3) + '-' + n.slice(3, 7) + '-' + n.slice(7);
+  },
+
+  telHref(tel) { return 'tel:' + String(tel || '').replace(/[^\d+]/g, ''); },
+
+  // 예전 자유 텍스트를 이름·번호로 갈라 읽는다 ("누나 010-1234-5678 / 친구 민지 010-…")
+  _parseLegacy(text) {
+    return String(text || '').split(/[\/\n,]+/).map(part => {
+      const t = part.trim();
+      if (!t) return null;
+      const m = t.match(/(\+?[\d][\d\s-]{6,})$/);
+      if (!m) return { name: t.slice(0, 30), tel: '' };
+      return { name: t.slice(0, m.index).trim().slice(0, 30) || '연락처', tel: this.fmtTel(m[1]) };
+    }).filter(Boolean).slice(0, 8);
+  },
+
+  list(key) {
+    const d = this.data();
+    const store = d.people || {};
+    if (Array.isArray(store[key])) return store[key];
+    const parsed = this._parseLegacy(d[key]);          // 처음 열 때 한 번만 옮겨 담는다
+    return parsed.length ? parsed : [{ name: '', tel: '' }];
+  },
+
+  _saveList(key, list) {
+    const d = this.data();
+    d.people = d.people || {};
+    d.people[key] = list.slice(0, 8);
+    // 요약 텍스트도 같이 맞춘다 — 리포트 공유·단계 채움 계산이 이걸 본다
+    d[key] = list.filter(c => (c.name || '').trim() || (c.tel || '').trim())
+      .map(c => `${(c.name || '').trim()} ${(c.tel || '').trim()}`.trim()).join(' / ').slice(0, 400);
+    d.updatedAt = Date.now();
+    this._save(d);
+  },
+
+  setPerson(key, i, field, val) {
+    const list = this.list(key).slice();
+    if (!list[i]) list[i] = { name: '', tel: '' };
+    list[i][field] = field === 'tel' ? this.fmtTel(val) : String(val || '').slice(0, 30);
+    this._saveList(key, list);
+    return list[i][field];
+  },
+
+  addPerson(key) {
+    const list = this.list(key).slice();
+    if (list.length >= 8) return;
+    list.push({ name: '', tel: '' });
+    this._saveList(key, list);
+    this._renderRows(key);
+  },
+
+  delPerson(key, i) {
+    const list = this.list(key).slice();
+    list.splice(i, 1);
+    if (!list.length) list.push({ name: '', tel: '' });
+    this._saveList(key, list);
+    this._renderRows(key);
+  },
+
+  call(tel) {
+    const clean = String(tel || '').replace(/[^\d+]/g, '');
+    if (!clean) { if (window.App) window.App.showRecordToast('번호를 먼저 적어주세요'); return; }
+    if (window.Sfx) window.Sfx.play('pop');
+    window.location.href = 'tel:' + clean;
+  },
+
+  // 입력 줄들. 타이핑 중에는 다시 그리지 않는다(커서가 튄다) — 추가·삭제 때만 다시 그린다.
+  _rowsHtml(key, step) {
+    const list = this.list(key);
+    return list.map((c, i) => `
+      <div style="display: flex; gap: 0.35rem; align-items: center; margin-bottom: 0.35rem;">
+        <input value="${this.esc(c.name || '')}" placeholder="${this.esc(step.phName)}" maxlength="30"
+          oninput="window.SafetyPlan.setPerson('${key}', ${i}, 'name', this.value)"
+          style="flex: 1 1 34%; min-width: 0; box-sizing: border-box; padding: 0.6rem 0.65rem; border-radius: 10px;
+                 background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);
+                 outline: none; font-size: 0.84rem; font-family: inherit;">
+        <input value="${this.esc(c.tel || '')}" placeholder="${this.esc(step.phTel)}" inputmode="tel" type="tel" maxlength="14"
+          oninput="this.value = window.SafetyPlan.setPerson('${key}', ${i}, 'tel', this.value)"
+          style="flex: 1 1 42%; min-width: 0; box-sizing: border-box; padding: 0.6rem 0.65rem; border-radius: 10px;
+                 background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);
+                 outline: none; font-size: 0.84rem; font-family: inherit;">
+        <button onclick="window.SafetyPlan.call(window.SafetyPlan.list('${key}')[${i}] ? window.SafetyPlan.list('${key}')[${i}].tel : '')"
+          title="바로 전화 걸기"
+          style="all: unset; flex-shrink: 0; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.2rem;
+                 padding: 0.5rem 0.6rem; border-radius: 10px; background: var(--accent-primary); color: #fff; font-size: 0.76rem; font-weight: 800;">
+          ${window.Icons ? window.Icons.svg('phone', { size: 14, line: '#fff' }) : ''}전화
+        </button>
+        <button onclick="window.SafetyPlan.delPerson('${key}', ${i})" title="이 줄 지우기"
+          style="all: unset; flex-shrink: 0; cursor: pointer; padding: 0.5rem 0.35rem; color: var(--text-muted); font-size: 0.95rem;">✕</button>
+      </div>`).join('') + `
+      <button onclick="window.SafetyPlan.addPerson('${key}')"
+        style="all: unset; cursor: pointer; font-size: 0.78rem; font-weight: 700; color: var(--accent-primary); padding: 0.3rem 0.1rem;">＋ 한 명 더 추가</button>`;
+  },
+
+  _renderRows(key) {
+    const box = document.getElementById('sp-rows-' + key);
+    const step = this.STEPS.find(s => s.key === key);
+    if (box && step) box.innerHTML = this._rowsHtml(key, step);
   },
 
   esc(t) { return String(t == null ? '' : t).replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m])); },
@@ -90,11 +208,13 @@ window.SafetyPlan = {
             <strong style="font-size: 0.87rem; color: var(--text-primary);">${s.title}</strong>
           </div>
           <p style="margin: 0 0 0.3rem 1.6rem; font-size: 0.73rem; line-height: 1.6; color: var(--text-muted); white-space: pre-line;">${s.hint}</p>
-          <textarea id="sp-${s.key}" rows="2" placeholder="${this.esc(s.ph)}"
+          ${s.type === 'people'
+            ? `<div id="sp-rows-${s.key}">${this._rowsHtml(s.key, s)}</div>`
+            : `<textarea id="sp-${s.key}" rows="2" placeholder="${this.esc(s.ph)}"
             oninput="window.SafetyPlan.set('${s.key}', this.value)"
             style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.7rem; border-radius: 11px; background: var(--bg-tertiary);
                    border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.84rem;
-                   line-height: 1.6; font-family: inherit; resize: vertical;">${this.esc(d[s.key] || '')}</textarea>
+                   line-height: 1.6; font-family: inherit; resize: vertical;">${this.esc(d[s.key] || '')}</textarea>`}
         </div>`).join('')}
 
       <div style="margin-top: 0.6rem; border-radius: 14px; padding: 0.85rem 0.95rem; background: color-mix(in srgb, #c14a4a 8%, transparent); border: 1px solid color-mix(in srgb, #c14a4a 26%, transparent);">
@@ -159,7 +279,20 @@ window.SafetyPlan = {
                          font-size: 0.66rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;">${s.n}</span>
             <strong style="font-size: 0.83rem; color: var(--text-primary);">${s.title}</strong>
           </div>
-          <p style="margin: 0; font-size: 0.88rem; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap;">${this.esc(d[s.key])}</p>
+          ${s.type === 'people'
+            ? this.list(s.key).filter(c => (c.tel || '').trim() || (c.name || '').trim()).map(c => (c.tel || '').trim()
+              // 위기 순간엔 번호를 읽지 않는다 — 이름을 누르면 바로 걸린다
+              ? `<button onclick="window.SafetyPlan.call('${this.esc(c.tel)}')"
+                   style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer;
+                          margin-top: 0.3rem; padding: 0.7rem 0.8rem; border-radius: 12px;
+                          background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+                          border: 1.5px solid color-mix(in srgb, var(--accent-primary) 38%, transparent);">
+                   <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('phone', { size: 17 }) : ''}</span>
+                   <span style="flex: 1 1 0%; min-width: 0; font-size: 0.92rem; font-weight: 800; color: var(--text-primary);">${this.esc(c.name || '연락처')}</span>
+                   <span style="flex-shrink: 0; font-size: 0.82rem; font-weight: 700; color: var(--accent-primary);">${this.esc(c.tel)}</span>
+                 </button>`
+              : `<p style="margin: 0.3rem 0 0; font-size: 0.88rem; line-height: 1.8; color: var(--text-primary);">${this.esc(c.name)}</p>`).join('')
+            : `<p style="margin: 0; font-size: 0.88rem; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap;">${this.esc(d[s.key])}</p>`}
         </div>`).join('')
       : `<div style="border-radius: 13px; padding: 0.9rem 1rem; background: var(--bg-secondary); border: 1px solid var(--glass-border); margin-bottom: 0.6rem;">
           <p style="margin: 0; font-size: 0.86rem; line-height: 1.8; color: var(--text-primary);">
