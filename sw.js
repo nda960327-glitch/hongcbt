@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v151';
+﻿const CACHE_NAME = 'cbt-app-v152';
 const ASSETS = [
   './',
   './index.html',
@@ -19,6 +19,7 @@ const ASSETS = [
   './js/freshness.js',
   './js/i18n.js',
   './js/wallet.js',
+  './js/pay.js',
   './js/subscription.js',
   './js/calltalk.js',
   './js/calm.js',
@@ -58,6 +59,7 @@ const ASSETS = [
   './privacy.html',
   './terms.html',
   './data-deletion.html',
+  './pay-done.html',
   './icon.svg',
   './icon.png',
   './icon-192.png',

@@ -151,6 +151,143 @@ export async function handleMarket(request, env, cors, path, ctx) {
     return json({ ok: true }, 200, cors);
   }
 
+  // ── 우렁 캐시 충전 (토스페이먼츠) ───────────────────────────────────
+  //  왜 서버가 끼어드나: 결제는 '클라이언트가 성공했다고 말하는 것'으로 끝나면
+  //  안 된다. 브라우저 콘솔에서 fetch 한 줄만 흉내 내면 캐시가 무한히 생긴다.
+  //  그래서 두 단계로 나눈다.
+  //    ① ready   — 결제할 금액을 서버가 먼저 적어 둔다
+  //    ② confirm — 토스 승인 API 를 '서버가' 부르고, 성공했을 때만 캐시를 준다
+  //  ①의 금액과 ②로 들어온 금액이 다르면 승인하지 않는다. 이게 없으면
+  //  5,000원짜리 결제창을 띄우고 300,000원으로 승인 요청을 보낼 수 있다.
+  if (path.startsWith('/pay/')) {
+    // 지급 캐시(보너스 포함)도 서버가 정한다 — 클라이언트가 보내온 cash 를
+    //  믿을 이유가 없다. 아래 표는 js/wallet.js 의 PACKAGES 와 같은 값이어야
+    //  한다. 어긋나면 결제는 되는데 캐시가 다르게 들어간다. 바꿀 땐 같이 고칠 것.
+    const PACKAGES = [
+      { pay: 5000,   bonus: 0 },
+      { pay: 10000,  bonus: 200 },
+      { pay: 30000,  bonus: 900 },
+      { pay: 50000,  bonus: 2000 },
+      { pay: 100000, bonus: 6000 },
+      { pay: 300000, bonus: 24000 }
+    ];
+    // 라이브 전환은 `wrangler secret put TOSS_SECRET_KEY` 하나로 끝난다.
+    //  아래 값은 토스 공식 문서에 공개된 '테스트 시크릿 키'다. 실제 돈이
+    //  움직이지 않으므로 코드에 있어도 사고가 나지 않는다 — 라이브 키는
+    //  절대 여기 적지 말 것.
+    const TOSS_TEST_SECRET = 'test_gsk_docs_OaPz8L5KdmQXkzRz3y47BMw6';
+    const comma = n => String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const cid = s(body.clientId || q('clientId'), MAX.id).replace(/[^\w-]/g, '');
+
+    // ① 주문 예약 — 금액을 못 박아 둔다
+    if (path === '/pay/ready' && method === 'POST') {
+      if (!cid) return json({ error: 'missing-client' }, 400, cors);
+      const amount = Math.round(num(body.amount));
+      const pkg = PACKAGES.find(p => p.pay === amount);
+      if (!pkg) return json({ error: 'bad-amount' }, 400, cors);
+      // 토스 orderId 규격은 6~64자 [A-Za-z0-9_-] 다. rid() 는 짧아서 그대로 못 쓴다.
+      const orderId = 'cash_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 10);
+      const cash = pkg.pay + pkg.bonus;
+      try {
+        await db.prepare(
+          `INSERT INTO orders (id, client_id, amount, cash, status, payment_key, method, fail, created, paid_at)
+           VALUES (?,?,?,?,'pending','','','',?,0)`
+        ).bind(orderId, cid, amount, cash, nowMs()).run();
+      } catch (e) {
+        return json({ error: 'db' }, 500, cors);
+      }
+      return json({
+        ok: true, orderId, amount, cash,
+        orderName: '우렁 캐시 ' + comma(cash)
+      }, 200, cors);
+    }
+
+    // ② 승인 — 여기서만 캐시가 생긴다
+    if (path === '/pay/confirm' && method === 'POST') {
+      const orderId = s(body.orderId, 64).replace(/[^\w-]/g, '');
+      const paymentKey = s(body.paymentKey, 200).replace(/[^\w-]/g, '');
+      const amount = Math.round(num(body.amount));
+      if (!orderId || !paymentKey) return json({ error: 'missing' }, 400, cors);
+
+      let row = null;
+      try { row = await db.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first(); }
+      catch (e) { return json({ error: 'no-table' }, 500, cors); }
+      if (!row) return json({ error: 'no-order' }, 404, cors);
+
+      // 멱등 — 성공 화면을 새로고침하거나 토스가 재시도해도 캐시는 한 번만.
+      //  (실제로 사용자는 결제 직후 화면을 자주 새로고침한다)
+      if (row.status === 'paid') {
+        return json({ ok: true, cash: row.cash, amount: row.amount, already: true }, 200, cors);
+      }
+      if (row.amount !== amount) return json({ error: 'amount-mismatch' }, 400, cors);
+
+      const secret = env.TOSS_SECRET_KEY || TOSS_TEST_SECRET;
+      let res = null, data = {};
+      try {
+        res = await fetch('https://api.tosspayments.com/v1/payments/confirm', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Basic ' + btoa(secret + ':'),
+            'Content-Type': 'application/json',
+            // 네트워크가 끊겨 우리가 재시도해도 토스 쪽에서 두 번 결제되지 않게
+            'Idempotency-Key': orderId
+          },
+          body: JSON.stringify({ paymentKey, orderId, amount })
+        });
+        data = await res.json().catch(() => ({}));
+      } catch (e) {
+        // 승인 요청 자체가 못 갔다. 주문은 pending 으로 남겨 둔다 —
+        //  실제로 결제됐는데 우리만 모르는 상황일 수 있어 failed 로 못 박으면 안 된다.
+        return json({ error: 'toss-unreachable' }, 502, cors);
+      }
+
+      // DONE 이 아니면 캐시를 주지 않는다. 가상계좌(WAITING_FOR_DEPOSIT)는
+      //  입금 전이라 '아직 결제 안 된 것'이다 — 그래서 결제수단을 카드로 제한한다.
+      if (!res.ok || data.status !== 'DONE') {
+        try {
+          await db.prepare("UPDATE orders SET status = 'failed', fail = ? WHERE id = ? AND status = 'pending'")
+            .bind(s(data.message || data.code || 'not-approved', 120), orderId).run();
+        } catch (e) {}
+        return json({
+          error: 'not-approved',
+          code: s(data.code, 40),
+          message: s(data.message || '결제가 승인되지 않았어요', 120)
+        }, 400, cors);
+      }
+
+      // 지급은 'pending → paid' 로 실제로 바꾼 요청만 한다. 같은 orderId 가
+      //  동시에 두 번 들어와도 UPDATE 가 1행을 바꾼 쪽만 캐시를 준다.
+      let changed = 0;
+      try {
+        const r = await db.prepare(
+          `UPDATE orders SET status = 'paid', payment_key = ?, method = ?, paid_at = ?
+            WHERE id = ? AND status = 'pending'`
+        ).bind(paymentKey, s(data.method || '', 30), nowMs(), orderId).run();
+        changed = (r && r.meta && r.meta.changes) || 0;
+      } catch (e) {}
+      return json({
+        ok: true, cash: row.cash, amount: row.amount,
+        method: s(data.method || '', 30), already: !changed
+      }, 200, cors);
+    }
+
+    // ③ 내 충전 내역 — 기기(clientId)가 곧 열쇠다 (내담자는 계정이 없다)
+    if (path === '/pay/history' && method === 'GET') {
+      if (!cid) return json({ items: [] }, 200, cors);
+      try {
+        const r = await db.prepare(
+          `SELECT id, amount, cash, status, method, created, paid_at FROM orders
+            WHERE client_id = ? ORDER BY created DESC LIMIT 20`
+        ).bind(cid).all();
+        return json({ items: r.results || [] }, 200, cors);
+      } catch (e) {
+        return json({ items: [], error: 'no-table' }, 200, cors);
+      }
+    }
+
+    return json({ error: 'not-found' }, 404, cors);
+  }
+
   // 원격 진단 — 실기기의 통화가 어느 단계에서 죽는지 서버가 알아야 고친다
   if (path === '/diag' && method === 'POST') {
     try {
@@ -383,9 +520,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
       `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
          FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
         WHERE b.status = 'done' AND b.settled_at = 0
-          AND (b.confirm_at > 0 OR b.auto_at <= ?)
         ORDER BY b.done_at ASC LIMIT 300`
-    ).bind(t).all();
+    ).all();
     const items = (r.results || []).map(x => {
       const p = payoutOf(x.price || 0);
       return {
@@ -396,8 +532,31 @@ export async function handleMarket(request, env, cors, path, ctx) {
         bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
       };
     });
-    const sum = items.reduce((a, x) => a + x.payout.counselor, 0);
-    return json({ items, counselorTotal: sum }, 200, cors);
+    // 바로상담 통화도 정산 대상이다. 전에는 예약(bookings)만 집계해서,
+    //  내담자 지갑에서는 캐시가 빠져나갔는데 상담사 몫은 어디에도 잡히지 않았다.
+    //  통화는 '완료 확인' 절차가 없다 — 연결돼서 요금이 붙은 순간 이미 제공된 상담이다.
+    const rc = await db.prepare(
+      `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at,
+              k.name cname, k.bank, k.bank_no, k.bank_holder
+         FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+        WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
+        ORDER BY c.end_at ASC LIMIT 300`
+    ).all();
+    const callItems = (rc.results || []).map(x => {
+      const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
+      const p = payoutOf(x.billed || 0);   // 캐시 1 = 1원으로 본다
+      return {
+        id: x.id, kind: 'call', counselorId: x.counselor_id, counselor: x.cname || '상담사',
+        clientName: String(x.client_id || '').slice(0, 8),
+        time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
+        price: x.billed, doneAt: x.end_at, confirmed: true, auto: false,
+        payout: p,
+        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
+      };
+    });
+    const all = items.map(x => ({ ...x, kind: 'booking' })).concat(callItems);
+    const sum = all.reduce((a, x) => a + x.payout.counselor, 0);
+    return json({ items: all, counselorTotal: sum }, 200, cors);
   }
 
   // 지급 완료 처리 (운영자)
@@ -406,8 +565,15 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const ids = (Array.isArray(body.ids) ? body.ids : []).map(x => s(x, MAX.id)).filter(Boolean).slice(0, 200);
     if (!ids.length) return json({ error: 'ids 없음' }, 400, cors);
     const t = nowMs();
-    await db.batch(ids.map(id =>
+    // 예약과 통화가 같은 목록에 섞여 온다. id 앞머리로 갈라 각자의 표에 도장을 찍는다.
+    const callIds = ids.filter(x => x.startsWith('call_'));
+    const bkIds = ids.filter(x => !x.startsWith('call_'));
+    const jobs = [];
+    bkIds.forEach(id => jobs.push(
       db.prepare("UPDATE bookings SET settled_at = ? WHERE id = ? AND status = 'done' AND settled_at = 0").bind(t, id)));
+    callIds.forEach(id => jobs.push(
+      db.prepare('UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND COALESCE(settled_at, 0) = 0').bind(t, id)));
+    if (jobs.length) await db.batch(jobs);
     return json({ ok: true, n: ids.length }, 200, cors);
   }
 
@@ -1080,7 +1246,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
   const OPS_PATHS = [
     '/admin/calls', '/admin/clients', '/admin/timeseries', '/admin/usage',
     '/admin/contact-attempts', '/admin/reviews', '/admin/reviews/delete',
-    '/admin/broadcast', '/admin/push-test'
+    '/admin/broadcast', '/admin/push-test', '/admin/payments'
   ];
   if (OPS_PATHS.includes(path)) {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
@@ -1320,6 +1486,39 @@ export async function handleMarket(request, env, cors, path, ctx) {
       if (body.confirm !== id) return json({ error: 'confirm 불일치' }, 400, cors);
       await db.prepare('DELETE FROM reviews WHERE id = ?').bind(id).run();
       return json({ ok: true, id }, 200, cors);
+    }
+
+    // ── ⑥-2 결제 내역 ─────────────────────────────────────────────────
+    //  캐시 충전은 실제 돈이 오간다. '오늘 얼마 들어왔나'와 '실패한 결제가
+    //  몰리고 있나'를 운영자가 못 보면, 결제창이 죽어도 아무도 모른다.
+    //  (pending 이 계속 쌓이면 결제창은 열리는데 승인이 안 되고 있다는 뜻이다)
+    if (path === '/admin/payments' && method === 'GET') {
+      try {
+        const r = await db.prepare(
+          `SELECT id, client_id, amount, cash, status, method, fail, created, paid_at
+             FROM orders ORDER BY created DESC LIMIT 100`).all();
+        const items = (r.results || []).map(x => ({
+          id: x.id,
+          clientId: String(x.client_id || '').slice(0, 8),   // 앞 8자만 — 식별에는 충분하다
+          amount: x.amount || 0, cash: x.cash || 0,
+          status: x.status || 'pending', method: x.method || '',
+          fail: x.fail || '', created: x.created || 0, paidAt: x.paid_at || 0
+        }));
+        // 오늘 합계는 100건 제한과 무관해야 한다 — 따로 센다
+        const g = await db.prepare(
+          `SELECT COUNT(*) n, SUM(amount) amt, SUM(cash) cash FROM orders
+            WHERE status = 'paid' AND paid_at >= ?`).bind(dayStart).first() || {};
+        const f = await db.prepare(
+          `SELECT COUNT(*) n FROM orders WHERE status = 'failed' AND created >= ?`)
+          .bind(dayStart).first() || {};
+        return json({
+          items,
+          today: { paid: g.n || 0, amount: g.amt || 0, cash: g.cash || 0, failed: f.n || 0 },
+          now: t
+        }, 200, cors);
+      } catch (e) {
+        return json({ items: [], today: null, error: 'no-table', now: t }, 200, cors);
+      }
     }
 
     // ── ⑦ 전체 공지 ───────────────────────────────────────────────────

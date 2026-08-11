@@ -43,7 +43,23 @@ let CODE = localStorage.getItem('inbox_code') || sessionStorage.getItem('inbox_c
 const authQS = () => SESSION ? 'session=' + encodeURIComponent(SESSION) : 'code=' + encodeURIComponent(CODE);
 const authBody = (extra) => Object.assign(SESSION ? { session: SESSION } : { code: CODE }, extra || {});
 
+// ── 스토어 앱인가 ────────────────────────────────────────────────────
+//  앱은 pro.neurumind.com 을 그대로 띄우는 웹뷰다 — 웹과 같은 코드가 돈다.
+//  다른 것은 알림뿐이다: 앱에는 서비스워커가 없어서 웹푸시가 도착할 곳이 없고,
+//  그래서 앱만 FCM(안드로이드 기본 알림 통로)으로 받는다.
+function isNativeApp() {
+  try {
+    const C = window.Capacitor;
+    return !!(C && ((C.isNativePlatform && C.isNativePlatform()) || C.isNative));
+  } catch (e) { return false; }
+}
+
 // ── 상태 ─────────────────────────────────────────────────────────────
+let FCM_BOUND = false;              // FCM 리스너를 이미 걸었는가
+// 앱에서의 알림 권한 상태 ('granted' | 'denied' | '').
+//  웹뷰의 Notification.permission 은 안드로이드의 진짜 알림 권한과 다른 값을 보인다.
+//  이걸 안 두면 알림이 멀쩡히 켜져 있는데도 '알림이 꺼져 있어요' 카드가 계속 뜬다.
+let NOTI_NATIVE = '';
 let ME = null;                      // /api/me 프로필
 let TAB = 'home';
 let ROOM = null;                    // 열려 있는 대화방 key
@@ -326,12 +342,35 @@ function enterApp() {
 }
 
 async function askNotify() {
+  // 스토어 앱: 시스템 팝업 한 번이 전부다. 사용자가 '허용'을 누르면
+  //  기기 등록(FCM 토큰)까지 여기서 자동으로 이어진다 — 따로 누를 버튼이 없다.
+  //  안드로이드 13+ 는 앱이 대신 켜줄 수 없다(OS 정책). 팝업이 유일한 길이다.
+  if (isNativeApp()) {
+    await enableFcmPush();
+    try { renderHome(); } catch (e) {}
+    // 이미 거부한 경우에만 — 설정 화면까지 데려다준다
+    if (NOTI_NATIVE === 'denied') await guideToNotifSettings();
+    return;
+  }
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     try { await Notification.requestPermission(); } catch (e) {}
   }
   enablePush();
   renderHome();
+}
+
+// 한 번 '거부'를 누르면 안드로이드는 그 팝업을 다시 띄우지 않는다.
+//  거기서부터는 설정 앱을 뒤져야 하는데 그 길을 아는 상담사는 거의 없다 —
+//  그러면 전화가 안 울리고, 안 울리는 이유도 모른 채 앱을 탓하게 된다.
+async function guideToNotifSettings() {
+  try {
+    const C = window.Capacitor;
+    const S = C && C.Plugins && C.Plugins.AppSettings;
+    if (S && S.openNotifications) { await S.openNotifications(); return true; }
+  } catch (e) {}
+  alert('알림이 꺼져 있어요.\n\n폰 설정 → 앱 → 우렁의사 프로 → 알림 을 켜주세요.\n켜두지 않으면 걸려오는 전화를 놓칩니다.');
+  return false;
 }
 
 // ============================================================================
@@ -542,7 +581,12 @@ function renderHome() {
       ${p.busy ? `<button class="btn ghost sm" style="margin-top:0.7rem;" data-act="force-end" data-id="${esc(p.id)}">회선 수동 해제</button>` : ''}
     </div>` : '';
 
-  const notiOk = ('Notification' in window) && Notification.permission === 'granted';
+  // 앱에서는 안드로이드의 진짜 권한(NOTI_NATIVE)이 답이다.
+  //  웹뷰의 Notification.permission 은 그것과 따로 놀아서, 알림이 켜져 있는데도
+  //  '꺼져 있어요' 카드가 계속 뜨는 일이 생긴다.
+  const notiOk = isNativeApp()
+    ? NOTI_NATIVE === 'granted'
+    : (('Notification' in window) && Notification.permission === 'granted');
   const notiCard = notiOk ? '' : `
     <div class="card" style="border:1.5px solid var(--warn);">
       <div class="row"><strong class="grow" style="font-size:0.92rem;">알림이 꺼져 있어요</strong><span class="chip new">중요</span></div>
@@ -1339,8 +1383,11 @@ function foldSlots() {
 // 알림·소리 — 진료실에서 앱을 여는 상담사가 제일 먼저 찾는 스위치다.
 //  '내 정보' 옆에 두되, 전화 벨은 여기서 끌 수 없다는 걸 분명히 적어 둔다.
 function foldPrefs() {
-  const notiOk = ('Notification' in window) && Notification.permission === 'granted';
-  const notiDenied = ('Notification' in window) && Notification.permission === 'denied';
+  const native = isNativeApp();
+  const notiOk = native ? NOTI_NATIVE === 'granted'
+                        : (('Notification' in window) && Notification.permission === 'granted');
+  const notiDenied = native ? NOTI_NATIVE === 'denied'
+                            : (('Notification' in window) && Notification.permission === 'denied');
   return fold('pref', '알림 · 소리', SOUND ? '알림음 켜짐' : '알림음 꺼짐', `
     <div class="row" style="margin-top:0.9rem;">
       <div class="grow">
@@ -1355,9 +1402,12 @@ function foldPrefs() {
     <div class="row" style="margin-top:0.8rem;">
       <div class="grow"><strong style="font-size:0.9rem;">기기 알림</strong>
         <p class="muted" style="margin-top:0.2rem;">${notiOk ? '켜져 있어요. 화면을 꺼둬도 전화와 메시지를 받습니다.'
-          : notiDenied ? '브라우저에서 차단돼 있어요. 주소창 자물쇠 → 알림 허용으로 바꿔주세요.'
+          : notiDenied ? (native ? '차단돼 있어요. 아래 버튼으로 설정을 열어 알림을 켜주세요.'
+                                 : '브라우저에서 차단돼 있어요. 주소창 자물쇠 → 알림 허용으로 바꿔주세요.')
           : '아직 허용하지 않았어요.'}</p></div>
-      ${notiOk ? '<span class="chip ok">허용됨</span>' : notiDenied ? '<span class="chip bad">차단됨</span>'
+      ${notiOk ? '<span class="chip ok">허용됨</span>'
+        : notiDenied ? (native ? '<button class="btn sm" data-act="noti-settings">설정 열기</button>'
+                               : '<span class="chip bad">차단됨</span>')
         : '<button class="btn sm" data-act="ask-noti">켜기</button>'}
     </div>`);
 }
@@ -1566,8 +1616,91 @@ function tellSwWhoIAm() {
   else if (SWREG && SWREG.active) SWREG.active.postMessage(msg);
 }
 
+// ── 스토어 앱: FCM 네이티브 푸시 ──────────────────────────────────────
+//  앱은 원격 주소(pro.neurumind.com)를 띄우는 웹뷰다. 그 웹뷰에는 서비스워커가
+//  등록되지 않아서 웹푸시가 도착할 곳이 없다(실기기 로그로 확인).
+//  그래서 앱에서는 FCM 으로 받는다. 다리(bridge)가 안 놓였으면 조용히 웹푸시로 돌아간다.
+// 원격 진단 — 웹뷰에서 플러그인이 잡히는지를 서버가 알아야 판단할 수 있다
+function pushDiag(stage, msg) {
+  try {
+    api('/api/diag', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app: 'pro', stage: String(stage).slice(0, 40),
+        msg: String(msg == null ? '' : msg).slice(0, 180),
+        build: String(window.APP_BUILD || ''),
+        who: String((ME && ME.id) || '').slice(0, 12)
+      })
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+function pushPlugin() {
+  try {
+    if (!isNativeApp()) return null;
+    const C = window.Capacitor;
+    return (C && C.Plugins && C.Plugins.PushNotifications) || null;
+  } catch (e) { return null; }
+}
+
+async function enableFcmPush() {
+  if (!isNativeApp()) return false;
+  const P = pushPlugin();
+  if (!P) { pushDiag('fcm-plugin', 'missing'); return false; }
+  pushDiag('fcm-plugin', 'ok');
+  if (FCM_BOUND) return true;
+  FCM_BOUND = true;
+  try {
+    // 로그인 직후 바로 묻는다. 상담사는 이 앱을 '전화기'로 쓴다 —
+    //  알림 없이 넘어가면 첫 전화부터 놓친다.
+    let perm = await P.checkPermissions().catch(() => null);
+    if (!perm || perm.receive !== 'granted') perm = await P.requestPermissions().catch(() => null);
+    if (!perm || perm.receive !== 'granted') {
+      NOTI_NATIVE = 'denied';
+      FCM_BOUND = false;   // 나중에 설정에서 켜고 돌아오면 다시 시도할 수 있어야 한다
+      pushDiag('fcm-perm', (perm && perm.receive) || 'denied');
+      return true;
+    }
+    NOTI_NATIVE = 'granted';
+
+    P.addListener('registration', (t) => {
+      const token = (t && t.value) || '';
+      pushDiag('fcm-token', token ? ('len' + token.length) : 'empty');
+      if (!token || !(SESSION || CODE)) return;
+      postJson('/api/push/fcm-subscribe', authBody({ token }))
+        .then(r => pushDiag('fcm-sub', (r && r.ok) ? 'ok' : ((r && r.error) || 'fail')))
+        .catch(() => pushDiag('fcm-sub', 'net'));
+    });
+    P.addListener('registrationError', (e) => {
+      // 대개 google-services.json 이 없거나 Firebase 에 이 패키지가 안 붙은 경우
+      pushDiag('fcm-regerr', (e && (e.error || e.message)) || 'err');
+    });
+
+    // 앱이 떠 있는 동안 도착 — 전화가 걸려온 것일 수 있다. 바로 확인한다
+    P.addListener('pushNotificationReceived', () => {
+      pollIncoming();
+      loadChats().then(() => { renderChatList(); renderDots(); }).catch(() => {});
+    });
+
+    // 알림 탭 — 전화면 벨 화면으로, 아니면 목록 새로고침
+    P.addListener('pushNotificationActionPerformed', () => {
+      pollIncoming();
+      loadChats().then(() => { renderChatList(); renderDots(); }).catch(() => {});
+    });
+
+    await P.register();
+    return true;
+  } catch (e) {
+    pushDiag('fcm-init', String((e && e.message) || e).slice(0, 60));
+    return false;
+  }
+}
+
 async function enablePush() {
-  if (!SWREG || !ME || !('PushManager' in window)) return;
+  if (!ME) return;
+  // 스토어 앱이면 FCM 이 먼저다 — 웹푸시는 받을 곳(서비스워커)이 없다
+  try { if (await enableFcmPush()) return; } catch (e) {}
+  if (!SWREG || !('PushManager' in window)) return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   try {
     let sub = await SWREG.pushManager.getSubscription();
@@ -1599,6 +1732,8 @@ const ACT = {
   logout,
   fold: (el) => { OPEN[el.dataset.key] = !OPEN[el.dataset.key]; renderHome(); renderMoney(); },
   'ask-noti': askNotify,
+  // 이미 거부한 뒤의 복구 수단 — 팝업이 다시 뜨지 않으므로 설정 화면으로 데려간다
+  'noti-settings': async () => { await guideToNotifSettings(); },
 
   presence: async (el) => {
     const on = el.dataset.on === '1';
@@ -1901,6 +2036,12 @@ window.addEventListener('beforeinstallprompt', (e) => {
   try { if (!$('screen-login').hidden === false && !$('app').hidden) renderHome(); } catch (err) {}
 });
 function isStandalone() {
+  // 스토어 앱(Capacitor)으로 보고 있으면 이미 '설치된 앱'이다.
+  //  앱 안에서 '앱을 설치하세요'가 뜨면 앱이 덜 만들어진 것처럼 보인다.
+  try {
+    const C = window.Capacitor;
+    if (C && ((C.isNativePlatform && C.isNativePlatform()) || C.isNative)) return true;
+  } catch (e) {}
   return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 }
 ACT['call-cancel'] = () => closeCall();

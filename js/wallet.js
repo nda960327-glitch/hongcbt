@@ -28,22 +28,35 @@ window.Wallet = {
     { pay: 300000, bonus: 24000, label: '30만' }   // +8%
   ],
 
-  // 충전 — 실제 서비스에서는 이 함수 안이 Google Play Billing / PG 호출로 바뀐다
   // 게임 HUD 의 캐시 숫자도 같이 맞춘다
   _syncHud() { if (window.Game && window.Game.renderHud) window.Game.renderHud(); },
 
+  // 충전 — 실제 결제는 js/pay.js(토스페이먼츠)가 한다.
+  //  충전 버튼이 여러 화면에 흩어져 있어서 진입점은 여기 하나로 두고,
+  //  이 함수는 결제 모듈로 넘기기만 한다. 잔액은 절대 여기서 올리지 않는다 —
+  //  '결제창을 띄웠다'와 '승인됐다'는 전혀 다른 일이기 때문이다.
   async charge(pay, bonus = 0) {
     if (!pay || pay <= 0) return false;
-    const total = pay + bonus;
- if (!await window.UI.confirm(`${pay.toLocaleString()}원을 결제하고 ${total.toLocaleString()}캐시를 받을까요?${bonus ?`\n 보너스 +${bonus.toLocaleString()}캐시 포함!`:''}\n(현재는 테스트 충전 — 스토어 결제 연동 전)`)) return false;
-    const bal = this.balance() + total;
+    if (window.Pay) return window.Pay.charge(pay, bonus);
+    await window.UI.alert({
+      title: '결제 모듈을 불러오지 못했어요',
+      body: '앱을 새로고침한 뒤 다시 시도해주세요.'
+    });
+    return false;
+  },
+
+  // 지급 — 서버가 결제를 승인한 뒤에만 불린다 (js/pay.js applyPending).
+  //  이 함수를 결제 승인 밖에서 부르면 캐시가 공짜로 생긴다. 부르는 곳을 늘리지 말 것.
+  credit(total, bonus = 0) {
+    const n = Math.max(0, Math.round(Number(total) || 0));
+    if (!n) return this.balance();
+    const bal = this.balance() + n;
     window.Storage._safeSet('cbt_cash', bal);
-    this._record('charge', total, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
+    this._record('charge', n, bonus ? `캐시 충전 (보너스 +${bonus.toLocaleString()})` : '캐시 충전', bal);
     if (window.Sfx) window.Sfx.hit('coin');
     this.renderCard();
     this._syncHud();
-    if (bonus && window.App && window.App.showRecordToast) window.App.showRecordToast(`보너스 ${bonus.toLocaleString()}캐시를 더 받았어요!`);
-    return true;
+    return bal;
   },
 
   // 차감 — 잔액이 부족하면 false

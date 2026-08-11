@@ -1683,7 +1683,10 @@ window.App = {
     }
 
     // 알림 권한 요청 (기능이 켜져 있을 때만, 조용히)
-    if (cnt > 0 && 'Notification' in window && Notification.permission === 'default') {
+    //  스토어 앱은 여기로 오지 않는다 — 앱을 켜는 즉시 _initFcmPush 가 시스템 팝업을
+    //  띄운다(안드로이드 13+ 는 그 팝업이 유일한 길이다). 여기서 웹 쪽 권한을 또 물으면
+    //  같은 걸 두 번 묻는 꼴이 되거나, 웹뷰에서는 아무 일도 일어나지 않아 '먹통'으로 보인다.
+    if (!this.isNativeApp() && cnt > 0 && 'Notification' in window && Notification.permission === 'default') {
       setTimeout(() => {
         try {
           Notification.requestPermission().then(p => {
@@ -2648,7 +2651,165 @@ ${memory || '(없음)'}`;
   // ==========================================================================
   VAPID_PUBLIC: 'BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc',
 
+  // 원격 진단 — 폰에서 실제로 어떻게 됐는지는 폰만 안다.
+  //  개인정보는 싣지 않는다(단계 이름과 짧은 결과 문자열뿐).
+  _pushDiag(stage, msg) {
+    try {
+      window.Api.f('/api/diag', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          app: 'client', stage: String(stage).slice(0, 40),
+          msg: String(msg == null ? '' : msg).slice(0, 180),
+          build: String(window.APP_BUILD || ''),
+          who: String(this.clientId() || '').slice(0, 12)
+        })
+      }).catch(() => {});
+    } catch (e) {}
+  },
+
+  // 스토어 앱이면 서비스워커가 없다 — FCM 플러그인이 있는지 먼저 확인한다.
+  //  원격 주소를 띄우는 웹뷰라 다리(bridge)가 안 놓일 수도 있어서
+  //  '있으면 쓰고, 없으면 조용히 웹푸시로 돌아간다'.
+  _pushPlugin() {
+    try {
+      if (!this.isNativeApp()) return null;
+      const C = window.Capacitor;
+      return (C && C.Plugins && C.Plugins.PushNotifications) || null;
+    } catch (e) { return null; }
+  },
+
+  // 한 번 '거부'를 누르면 안드로이드는 그 팝업을 다시 띄워주지 않는다.
+  //  그때부터는 설정 앱을 뒤져야 하는데 그 길을 아는 사람은 거의 없다.
+  //  버튼 하나로 그 화면까지 데려다준다 (네이티브 플러그인이 없으면 길을 글로 알려준다).
+  async openNotifSettings() {
+    try {
+      const S = this.isNativeApp() && window.Capacitor && window.Capacitor.Plugins
+        && window.Capacitor.Plugins.AppSettings;
+      if (S && S.openNotifications) { await S.openNotifications(); return true; }
+    } catch (e) {}
+    if (window.UI) {
+      window.UI.alert({
+        title: '알림을 켜주세요',
+        body: '폰 설정 → 앱 → 우렁의사 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
+      });
+    }
+    return false;
+  },
+
+  // 설정의 '알림 받기' 칸에 '폰 알림이 꺼져 있어요' 줄을 보이거나 감춘다.
+  //  스위치를 다 켜놔도 폰 알림이 꺼져 있으면 아무것도 오지 않는다 —
+  //  그 사실을 말해주지 않으면 사용자는 앱이 고장 났다고 생각한다.
+  _renderNotifPermRow() {
+    try {
+      const el = document.getElementById('noti-perm-row');
+      if (el) el.hidden = !this._notifDenied;
+    } catch (e) {}
+  },
+
+  // 설정 화면에 다녀오면 앱이 다시 앞으로 나온다 — 그 순간 조용히 한 번 더 시도한다.
+  _watchNotifReturn() {
+    if (this._notifWatch) return;
+    this._notifWatch = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || !this._notifDenied) return;
+      this._initFcmPush().catch(() => {});
+    });
+  },
+
+  // 거부한 사람에게 딱 한 번만 길을 알려준다. 매번 띄우면 그게 더 성가시다.
+  async _notifRecoveryOnce() {
+    try {
+      if (!this._notifDenied) return;
+      if (window.Storage._safeGet('cbt_noti_guided', 0)) return;
+      window.Storage._safeSet('cbt_noti_guided', 1);
+      if (!window.UI || !window.UI.confirm) return;
+      const ok = await window.UI.confirm({
+        title: '알림이 꺼져 있어요',
+        body: '이대로 두면 상담사님의 답장과 전화를 놓칩니다.\n설정에서 알림을 켜주세요.',
+        okLabel: '설정 열기', cancelLabel: '나중에'
+      });
+      if (ok) this.openNotifSettings();
+    } catch (e) {}
+  },
+
+  // ── 스토어 앱: FCM 네이티브 푸시 ────────────────────────────────────
+  //  권한 요청 → 토큰 수신(registration) → 서버 등록.
+  //  알림을 누르면 기존 라우팅(Inbox.runAct)을 그대로 탄다.
+  async _initFcmPush() {
+    const P = this._pushPlugin();
+    const native = this.isNativeApp();
+    if (!native) return false;
+    if (!P) { this._pushDiag('fcm-plugin', 'missing'); return false; }
+    this._pushDiag('fcm-plugin', 'ok');
+    if (this._fcmBound) return true;
+    this._fcmBound = true;
+    try {
+      // 앱을 처음 켠 그 순간에 묻는다. 나중에 물으면 사용자는 이미 다른 걸 하는 중이고,
+      //  그때 뜬 팝업은 '방해'로 느껴져 거부율이 크게 올라간다.
+      //  (안드로이드 13+ 는 OS 정책상 앱이 대신 켜줄 수 없다 — 팝업이 유일한 길이다)
+      let perm = await P.checkPermissions().catch(() => null);
+      if (!perm || perm.receive !== 'granted') perm = await P.requestPermissions().catch(() => null);
+      if (!perm || perm.receive !== 'granted') {
+        this._pushDiag('fcm-perm', (perm && perm.receive) || 'denied');
+        this._notifDenied = true;
+        // 설정에서 켜고 돌아오면 그 순간 자동으로 등록되게 — 다시 앱을 켜라고
+        //  시키지 않는다. (거부 상태에서 다시 물어도 팝업은 뜨지 않는다. 조용한 재시도다)
+        this._fcmBound = false;
+        this._watchNotifReturn();
+        this._renderNotifPermRow();
+        return true;
+      }
+      this._notifDenied = false;
+      this._renderNotifPermRow();
+
+      P.addListener('registration', (t) => {
+        const token = (t && t.value) || '';
+        this._pushDiag('fcm-token', token ? ('len' + token.length) : 'empty');
+        if (!token) return;
+        window.Api.f('/api/push/fcm-subscribe', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, clientId: this.clientId() })
+        }).then(r => this._pushDiag('fcm-sub', 'http-' + (r && r.status)))
+          .catch(() => this._pushDiag('fcm-sub', 'net'));
+      });
+      P.addListener('registrationError', (e) => {
+        // 대개 google-services.json 이 없거나 Firebase 프로젝트에 앱이 안 붙은 경우다
+        this._pushDiag('fcm-regerr', (e && (e.error || e.message)) || 'err');
+      });
+
+      // 앱이 떠 있는 동안 도착 — 알림함을 새로 받아온다 (웹푸시의 'wake' 와 같은 역할)
+      P.addListener('pushNotificationReceived', () => {
+        try { this._hchatBgTick(); this._homeworkTick(); this._checkIncomingCall(); } catch (e) {}
+      });
+
+      // 알림 탭 — data.act 를 기존 라우팅에 그대로 넘긴다
+      P.addListener('pushNotificationActionPerformed', (ev) => {
+        try {
+          const d = (ev && ev.notification && ev.notification.data) || {};
+          const act = d.act || 'counselors';
+          this._checkIncomingCall();
+          if (window.Inbox) setTimeout(() => { try { window.Inbox.runAct(act); } catch (e) {} }, 300);
+        } catch (e) {}
+      });
+
+      await P.register();
+      return true;
+    } catch (e) {
+      this._pushDiag('fcm-init', String((e && e.message) || e).slice(0, 60));
+      return false;  // 무슨 일이 있어도 웹푸시 쪽 길은 열어둔다
+    }
+  },
+
   async _initClientPush() {
+    // 스토어 앱이면 FCM 이 먼저다. 성공하든 실패하든 웹푸시는 시도하지 않는다
+    //  (앱 웹뷰에는 서비스워커가 없어서 어차피 받을 곳이 없다).
+    try {
+      if (await this._initFcmPush()) {
+        // 거부했다면 잠깐 뒤에 한 번만 길을 알려준다 (첫 화면을 가리지 않게)
+        if (this._notifDenied) setTimeout(() => this._notifRecoveryOnce(), 6000);
+        return;
+      }
+    } catch (e) {}
     try {
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
       if (!('Notification' in window) || Notification.permission !== 'granted') return;

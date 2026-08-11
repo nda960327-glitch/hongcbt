@@ -91,7 +91,8 @@ const D = {
   series: undefined,     // 최근 14일 추이
   usage: undefined,      // AI 호출·차단
   contact: undefined,    // 연락처 유출 시도
-  reviews: undefined     // 후기 관리
+  reviews: undefined,    // 후기 관리
+  payments: undefined    // 캐시 충전 결제 내역
 };
 const SHOWCODE = {};     // 상담사 id → 코드 보이기
 const PICK = {};         // 정산 항목 id → 선택됨
@@ -259,6 +260,7 @@ const TITLES = {
   counselors: ['상담사 관리', '코드 발급 · 푸시 점검 · 정지 · 삭제'],
   clients: ['이용자 현황', '기기별 활동 흔적 (계정 없음)'],
   settle: ['정산', '확인 완료된 상담의 지급 처리'],
+  payments: ['결제 내역', '우렁 캐시 충전 · 승인 실패 감시'],
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
@@ -274,6 +276,7 @@ const LAZY = {
   usage: ['usage', () => loadUsage()],
   contact: ['contact', () => loadContact()],
   reviews: ['reviews', () => loadReviews()],
+  payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
   settings: ['maillog', () => loadMaillog()]
 };
@@ -385,6 +388,12 @@ async function loadReviews() {
   if (TAB === 'reviews') render();
 }
 
+async function loadPayments() {
+  const r = await adminGet('/api/admin/payments');
+  D.payments = r || null;
+  if (TAB === 'payments') render();
+}
+
 // 진단 화면은 통화 사고를 '지금' 보는 화면이다. 눈을 떼도 갱신돼야 한다.
 let diagTimer = null;
 function startDiagTimer() {
@@ -419,7 +428,7 @@ function render() {
 
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
-    clients: viewClients, settle: viewSettle, reviews: viewReviews,
+    clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
     usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
@@ -1115,6 +1124,90 @@ function viewClients() {
 // ── ⑧ 리뷰 관리 ──────────────────────────────────────────────────────
 const stars = n => '★'.repeat(Math.max(0, Math.min(5, n))) + '☆'.repeat(Math.max(0, 5 - n));
 
+// ── ⑧-2 결제 내역 ────────────────────────────────────────────────────
+//  캐시 충전은 실제 돈이 오간다. 여기서 봐야 하는 건 매출이 아니라 '사고'다.
+//   · failed 가 갑자기 늘면 → 승인이 막히고 있다 (키 만료·한도·PG 장애)
+//   · pending 만 쌓이면 → 결제창은 열리는데 아무도 돌아오지 못하고 있다
+//     (successUrl 이 깨졌거나 pay-done.html 이 배포에서 빠진 것)
+//  그래서 표에 상태를 그대로 두고, 실패 사유까지 보여준다.
+const PAYSTATE = {
+  paid: ['ok', '완료'],
+  pending: ['off', '미완료'],
+  failed: ['bad', '실패']
+};
+
+function viewPayments() {
+  if (D.payments === undefined) return loading;
+  if (!D.payments) return failed;
+  const p = D.payments;
+  const items = p.items || [];
+  const today = p.today || { paid: 0, amount: 0, cash: 0, failed: 0 };
+  const stuck = items.filter(x => x.status === 'pending' && Date.now() - x.created > 30 * 60000).length;
+
+  const tile = (lb, v, sb, hi) => `
+    <div class="stat${hi ? ' hi' : ''}">
+      <div class="lb">${esc(lb)}</div>
+      <b>${v}</b>
+      ${sb ? `<div class="sb">${sb}</div>` : ''}
+    </div>`;
+
+  const row = x => {
+    const st = PAYSTATE[x.status] || ['off', esc(x.status)];
+    const when = x.status === 'paid' ? x.paidAt : x.created;
+    return `
+      <tr${x.status === 'failed' ? ' class="hotrow"' : ''}>
+        <td class="t">${fmtDT(when)}<div class="muted" style="font-size:0.66rem;">${esc(ago(when || x.created))}</div></td>
+        <td class="mono muted">${esc(x.clientId)}…</td>
+        <td style="text-align: right; font-variant-numeric: tabular-nums;"><b>${won(x.amount)}</b>원</td>
+        <td style="text-align: right; font-variant-numeric: tabular-nums;" class="muted">${won(x.cash)}캐시</td>
+        <td><span class="chip ${st[0]}">${esc(st[1])}</span></td>
+        <td class="ell muted" style="max-width: 120px;">${esc(x.method || '-')}</td>
+        <td class="msg ell" style="max-width: 200px;">${esc(x.fail || '')}</td>
+      </tr>`;
+  };
+
+  return `
+    ${p.error === 'no-table' ? `
+    <div class="card" style="border-color: rgba(201,162,39,0.4); background: rgba(201,162,39,0.08);">
+      <div class="row"><span class="chip gold">준비 필요</span>
+        <b style="font-size: 0.88rem;">orders 테이블이 아직 없습니다</b></div>
+      <p class="muted" style="margin-top: 0.35rem;">
+        <code>wrangler d1 execute hongcbt --remote --file=./schema-pay.sql</code> 를 한 번 실행하면
+        이 화면이 채워집니다. 그전까지 캐시 충전은 동작하지 않습니다.</p>
+    </div>` : ''}
+
+    <div class="sec-title">오늘<span class="right muted">한국 시간 자정 기준</span></div>
+    <div class="stats">
+      ${tile('승인된 결제', won(today.paid) + '<span class="u">건</span>', '캐시 충전만 집계합니다')}
+      ${tile('결제 금액', won(today.amount) + '<span class="u">원</span>', `지급 캐시 ${won(today.cash)}`, today.amount > 0)}
+      ${tile('승인 실패', won(today.failed) + '<span class="u">건</span>', today.failed ? '사유를 아래 표에서 확인하세요' : '없음', today.failed > 0)}
+      ${tile('미완료(30분 초과)', won(stuck) + '<span class="u">건</span>', stuck ? '결제창에서 돌아오지 못한 주문' : '없음', stuck > 0)}
+    </div>
+
+    <div class="sec-title" style="margin-top: 1rem;">최근 결제
+      <span class="right muted">최근 ${items.length}건</span></div>
+    <div class="tblwrap">
+      <table class="tbl">
+        <thead><tr>
+          <th style="width: 118px;">시각</th><th style="width: 92px;">기기 ID</th>
+          <th style="width: 90px; text-align: right;">결제 금액</th>
+          <th style="width: 96px; text-align: right;">지급 캐시</th>
+          <th style="width: 70px;">상태</th><th style="width: 110px;">결제수단</th>
+          <th>실패 사유</th>
+        </tr></thead>
+        <tbody>
+          ${items.length ? items.map(row).join('')
+            : '<tr><td colspan="7"><div class="empty"><b>결제 기록이 없어요</b>내담자가 캐시를 충전하면 여기에 쌓입니다.</div></td></tr>'}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted" style="margin-top: 0.6rem;">
+      기기 ID 는 앞 8자만 보여줍니다. 카드번호·명의는 우리 서버에 저장되지 않습니다 —
+      결제 정보는 전부 토스페이먼츠가 갖고 있고, 우리는 승인 결과만 받습니다.<br>
+      환불·취소는 토스페이먼츠 상점관리자에서 처리하세요. (이 화면에는 취소 버튼을 두지 않습니다 —
+      한 번 누르면 되돌릴 수 없는 일을 운영 콘솔에서 잘못 누르는 사고가 가장 흔합니다.)</p>`;
+}
+
 function viewReviews() {
   if (D.reviews === undefined) return loading;
   if (!D.reviews) return failed;
@@ -1714,7 +1807,8 @@ document.addEventListener('click', e => {
     //  대시보드 숫자만 갱신되면 아무 일도 안 일어난 것처럼 보인다.
     const only = {
       diag: loadDiag, calls: loadCalls, clients: loadClients,
-      usage: loadUsage, contact: loadContact, reviews: loadReviews
+      usage: loadUsage, contact: loadContact, reviews: loadReviews,
+      payments: loadPayments
     }[TAB];
     if (only) only(); else loadAll();
     toast('새로고침했어요'); return;

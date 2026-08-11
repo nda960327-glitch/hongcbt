@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>결제 확인 중 · 우렁의사</title>
+<style>
+  /* 이 화면은 앱 CSS 를 기다리지 않는다. 결제 직후 몇 초짜리 화면이라
+     스타일 하나 못 받아서 흰 바탕에 검은 글씨가 뜨면 그것만으로 불안해진다. */
+  :root {
+    --bg: #f7f3ec; --card: #fffdf9; --line: rgba(120, 96, 66, 0.16);
+    --text: #3a332b; --sub: #7f7264; --accent: #4f8a6b; --bad: #c14a4a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1a17; --card: #24211d; --line: rgba(220, 200, 170, 0.14);
+            --text: #ece5da; --sub: #a2988a; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 1.2rem;
+  }
+  .box {
+    width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 2rem 1.4rem; text-align: center;
+    box-shadow: 0 8px 30px rgba(80, 62, 40, 0.08);
+  }
+  .spin {
+    width: 34px; height: 34px; margin: 0 auto 1rem; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: sp 0.8s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  h1 { font-size: 1.05rem; margin: 0 0 0.5rem; font-weight: 800; }
+  p { font-size: 0.85rem; line-height: 1.7; color: var(--sub); margin: 0; }
+  .amt { font-size: 1.6rem; font-weight: 800; color: var(--accent); margin: 0.6rem 0 0.3rem; }
+  .mark { font-size: 2rem; line-height: 1; margin-bottom: 0.6rem; }
+  .btn {
+    display: block; width: 100%; margin-top: 1.2rem; padding: 0.8rem;
+    border: 0; border-radius: 12px; background: var(--accent); color: #fff;
+    font-size: 0.9rem; font-weight: 700; font-family: inherit; cursor: pointer;
+  }
+  .btn.ghost { background: transparent; color: var(--sub); margin-top: 0.4rem; font-weight: 600; }
+  .why { margin-top: 0.7rem; font-size: 0.74rem; color: var(--sub); word-break: keep-all; }
+</style>
+</head>
+<body>
+<div class="box" id="box">
+  <div class="spin"></div>
+  <h1>결제를 확인하고 있어요</h1>
+  <p>창을 닫지 말고 잠시만 기다려주세요.</p>
+</div>
+
+<script>
+// ============================================================================
+//  결제 결과 처리 — 토스 결제창이 끝나면 이 주소로 돌아온다.
+//
+//  성공: ?paymentKey=…&orderId=…&amount=…
+//  실패: ?code=…&message=…&orderId=…
+//
+//  여기서 '성공했다'고 잔액을 올리면 안 된다. 이 페이지는 누구나 주소창에
+//  칠 수 있다. 반드시 서버(/api/pay/confirm)가 토스에 승인을 요청하고,
+//  그 응답에 담긴 캐시만 앱에 넘긴다.
+// ============================================================================
+(function () {
+  var Q = new URLSearchParams(location.search);
+  var paymentKey = Q.get('paymentKey') || '';
+  var orderId = Q.get('orderId') || '';
+  var amount = Q.get('amount') || '';
+  var failCode = Q.get('code') || '';
+  var failMsg = Q.get('message') || '';
+
+  // 앱으로 돌아갈 주소 — 지금 문서가 있는 폴더. 서브디렉터리 배포와
+  //  Capacitor 웹뷰에서도 같은 규칙이어야 한다 (js/pay.js returnUrl 과 짝).
+  var HOME = location.pathname.replace(/[^/]*$/, '') || '/';
+
+  // /api 를 어디로 보낼지 — 정적 호스팅에는 /api 가 없다. 그때는 Worker 로.
+  //  (ops 앱과 같은 규칙. 이 페이지는 js/api.js 를 안 불러오므로 여기에 둔다)
+  var API_BASE = 'https://cbt-proxy.hongcbt.workers.dev';
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  var won = function (n) { return (Math.round(Number(n) || 0)).toLocaleString('ko-KR'); };
+
+  function paint(html) { document.getElementById('box').innerHTML = html; }
+
+  function goHome() { location.replace(HOME); }
+
+  function showFail(title, why) {
+    paint(
+      '<div class="mark">😥</div>' +
+      '<h1>' + esc(title) + '</h1>' +
+      '<p>결제는 진행되지 않았어요. 카드에서 빠져나간 금액이 있다면 자동으로 취소됩니다.</p>' +
+      (why ? '<p class="why">' + esc(why) + '</p>' : '') +
+      '<button class="btn" id="go">앱으로 돌아가기</button>');
+    document.getElementById('go').addEventListener('click', goHome);
+  }
+
+  function showOk(cash) {
+    paint(
+      '<div class="mark">🎉</div>' +
+      '<h1>충전이 끝났어요</h1>' +
+      '<div class="amt">+' + esc(won(cash)) + ' 캐시</div>' +
+      '<p>잠시 후 앱으로 돌아갑니다.</p>' +
+      '<button class="btn" id="go">지금 돌아가기</button>');
+    document.getElementById('go').addEventListener('click', goHome);
+    setTimeout(goHome, 1600);
+  }
+
+  // 토스가 실패로 돌려보낸 경우 — 서버에 물어볼 것도 없다
+  if (!paymentKey || !orderId) {
+    showFail(failCode ? '결제가 취소됐어요' : '결제 정보가 없어요', failMsg);
+    return;
+  }
+
+  // 같은 출처에 API 가 있으면 그쪽, 없으면 Worker.
+  //  JSON 이 오는지로만 판단한다 — 정적 호스팅은 405/404 를 HTML 로 준다.
+  function confirmPay() {
+    var opts = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentKey: paymentKey, orderId: orderId, amount: Number(amount) })
+    };
+    return fetch('/api/pay/confirm', opts).then(function (r) {
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') < 0) throw new Error('not-our-api');
+      return r.json();
+    }).catch(function () {
+      return fetch(API_BASE + '/api/pay/confirm', opts).then(function (r) { return r.json(); });
+    });
+  }
+
+  confirmPay().then(function (d) {
+    if (!d || !d.ok) {
+      showFail('결제가 승인되지 않았어요', (d && d.message) || (d && d.error) || '');
+      return;
+    }
+    // 잔액은 앱(js/pay.js applyPending)이 올린다. 여기서는 '승인된 캐시'만 적어 둔다 —
+    //  내역·게임 HUD·효과음이 함께 움직여야 해서 그 규칙은 Wallet 한 곳에만 있다.
+    try {
+      localStorage.setItem('cbt_cash_pending', JSON.stringify({
+        orderId: orderId,
+        cash: Number(d.cash) || 0,
+        bonus: Math.max(0, (Number(d.cash) || 0) - (Number(d.amount) || 0)),
+        ts: Date.now()
+      }));
+    } catch (e) {}
+    showOk(d.cash);
+  }).catch(function () {
+    // 승인 요청 자체가 못 갔다. 결제는 됐는데 우리만 모를 수 있으므로
+    //  '실패했다'고 단정하지 않는다 — 다시 열면 서버가 멱등으로 처리한다.
+    paint(
+      '<div class="mark">📶</div>' +
+      '<h1>결과를 확인하지 못했어요</h1>' +
+      '<p>네트워크가 불안정합니다. 잠시 후 이 화면을 새로고침하면 결과를 다시 확인해요.<br>' +
+      '캐시가 들어오지 않았다면 이중으로 결제되지 않으니 안심하세요.</p>' +
+      '<button class="btn" id="again">다시 확인</button>' +
+      '<button class="btn ghost" id="go">앱으로 돌아가기</button>');
+    document.getElementById('again').addEventListener('click', function () { location.reload(); });
+    document.getElementById('go').addEventListener('click', goHome);
+  });
+})();
+</script>
+</body>
+</html>

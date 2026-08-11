@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 151;</script>
+  <script>window.APP_BUILD = 152;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -1086,6 +1086,13 @@
           <div style="padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;" data-ic="letter" data-ic-size="16">알림 받기</strong>
             <span style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-bottom: 0.55rem;">받고 싶은 알림만 골라서 켜두세요.</span>
+            <!-- 폰 자체의 알림이 꺼져 있으면 아래 스위치를 다 켜도 아무것도 오지 않는다.
+                 그 사실을 여기서 말해주고, 그 자리에서 고칠 수 있게 한다.
+                 (앱에서 알림 권한이 거부됐을 때만 app.js 가 이 줄을 보여준다) -->
+            <div id="noti-perm-row" hidden style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.6rem; padding: 0.55rem 0.65rem; border-radius: 9px; background: rgba(224, 93, 93, 0.09); border: 1px solid rgba(224, 93, 93, 0.35);">
+              <span style="font-size: 0.8rem; color: var(--text-primary); line-height: 1.35;">폰 알림이 꺼져 있어요.<br><span style="color: var(--text-muted); font-size: 0.75rem;">이대로면 답장·전화를 놓칩니다.</span></span>
+              <button type="button" onclick="window.App.openNotifSettings()" style="flex: none; border: 0; border-radius: 8px; padding: 0.42rem 0.7rem; font-size: 0.78rem; font-weight: 700; cursor: pointer; background: var(--accent-primary); color: #fff;">설정 열기</button>
+            </div>
             <div style="display: flex; flex-direction: column; gap: 0.4rem;">
               <label style="display: flex; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--text-primary);">
                 상담사 답장·리뷰 답글
@@ -1441,6 +1448,7 @@
   <script defer src="js/freshness.js"></script>
   <script defer src="js/i18n.js"></script>
   <script defer src="js/wallet.js"></script>
+  <script defer src="js/pay.js"></script>
   <script defer src="js/subscription.js"></script>
   <script defer src="js/calltalk.js"></script>
   <script defer src="js/calm.js"></script>

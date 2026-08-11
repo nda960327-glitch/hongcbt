@@ -80,6 +80,18 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
+// ── FCM 푸시 (앱 알림) ──────────────────────────────────────────────────────
+//  파일이 있을 때만 구글 플러그인을 켠다. 없어도 빌드는 그대로 통과한다 —
+//  열쇠 파일 하나 없다고 앱을 못 만들면, 그 파일을 받으러 가는 동안 아무 일도 못 한다.
+//
+//  android/app/google-services.json 을 넣으면 그 순간부터 푸시가 살아난다.
+//   · 파일 하나로 두 앱(com.uroong.cbt · com.uroong.pro)을 함께 덮는다.
+//     같은 Firebase 프로젝트에 안드로이드 앱 두 개를 등록하고 받으면
+//     그 JSON 안에 client 항목이 두 개 들어 있다.
+//   · 넣는 법·서버 시크릿 설정은 android/FCM-설정방법.md 참고.
+//
+//  파일이 없으면: 앱은 정상 빌드·설치되고, 푸시만 조용히 꺼진다
+//   (웹 브라우저 쪽 웹푸시는 그대로 동작한다).
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {

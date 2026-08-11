@@ -9,6 +9,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // 플러그인 등록은 반드시 super.onCreate 앞 — 웹뷰가 뜨기 전에 다리를 놔야 한다
         registerPlugin(AudioRoutePlugin.class);
+        // 알림을 한 번 거부한 사람을 설정 화면까지 데려다주는 문
+        registerPlugin(AppSettingsPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
