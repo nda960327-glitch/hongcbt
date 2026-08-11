@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 상담사 앱 = 소나무. 적응형 아이콘 배경은 캐릭터 배경 원과 같은 톤이어야
+     기기 마스크(원·스퀘어클)가 어떻게 잘라도 이질감이 없다. -->
+<resources>
+    <color name="ic_launcher_background">#E8F1E4</color>
+</resources>
