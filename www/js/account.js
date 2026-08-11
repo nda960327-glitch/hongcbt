@@ -137,6 +137,17 @@ window.Account = {
     });
   },
 
+  // 스토어 앱(Capacitor)인지. 앱이면 로그인 왕복을 딥링크로 받아야 한다 —
+  //  구글·카카오는 앱 안 웹뷰에서의 로그인을 막기 때문에 바깥 브라우저로 나갔다 와야 하는데,
+  //  그냥 https 주소로 돌아오면 브라우저에 로그인이 남고 앱은 계속 로그아웃 상태다.
+  _nativeScheme() {
+    try {
+      const C = window.Capacitor;
+      if (!C || !C.isNativePlatform || !C.isNativePlatform()) return '';
+      return (C.getAppId && C.getAppId()) || 'com.uroong.cbt';
+    } catch (e) { return ''; }
+  },
+
   login(provider) {
     const base = (window.Api && window.Api.base && window.Api.base()) || '';
     if (!base) {
@@ -145,7 +156,33 @@ window.Account = {
       if (window.UI) window.UI.alert('로그인 서버 주소를 불러오지 못했어요.\n앱을 새로고침한 뒤 다시 시도해주세요.');
       return;
     }
-    location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin);
+    const scheme = this._nativeScheme();
+    const back = scheme ? scheme + '://auth' : location.origin;
+    const url = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(back);
+    // 앱이면 시스템 브라우저로 열고, 로그인이 끝나면 딥링크로 앱에 되돌아온다
+    if (scheme && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser) {
+      window.Capacitor.Plugins.Browser.open({ url }).catch(() => { location.href = url; });
+      return;
+    }
+    location.href = url;
+  },
+
+  // 앱으로 되돌아온 딥링크(com.uroong.cbt://auth?auth=코드) 처리
+  initDeepLink() {
+    try {
+      const C = window.Capacitor;
+      if (!C || !C.isNativePlatform || !C.isNativePlatform() || !C.Plugins || !C.Plugins.App) return;
+      if (this._dlBound) return;
+      this._dlBound = true;
+      C.Plugins.App.addListener('appUrlOpen', (ev) => {
+        try {
+          const m = /[?&]auth=([\w-]+)/.exec(String(ev && ev.url) || '');
+          if (!m) return;
+          if (C.Plugins.Browser) C.Plugins.Browser.close().catch(() => {});
+          this._exchange(m[1]);
+        } catch (e) {}
+      });
+    } catch (e) {}
   },
 
   async _exchange(code) {

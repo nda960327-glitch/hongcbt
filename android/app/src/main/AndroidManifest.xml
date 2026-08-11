@@ -22,6 +22,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- 로그인 딥링크. 구글·카카오는 앱 안 웹뷰 로그인을 막아서 바깥
+                 브라우저로 나갔다 와야 하는데, 이 문이 없으면 로그인이 브라우저에
+                 남고 앱은 계속 로그아웃 상태가 된다. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/custom_url_scheme" />
+            </intent-filter>
+
         </activity>
 
         <provider
@@ -51,6 +61,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- 이어폰·블루투스로 자동 전환 -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- 상담사 매칭의 '내 위치' (가까운 순 정렬). 없으면 그 버튼만 안 된다 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- 마이크 없는 기기(일부 태블릿)에서도 설치는 되게 — 통화만 못 쓴다 -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

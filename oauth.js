@@ -91,9 +91,13 @@ const callbackUrl = (env, url, key) =>
 
 // 돌아갈 앱 주소. 아무 데나 돌려보내면 오픈 리디렉터가 된다 — 아는 곳만.
 function safeBack(env, want) {
+  const w = String(want || '').replace(/\/+$/, '');
+  // 스토어 앱은 딥링크로 돌아온다. https 로 돌려보내면 로그인이 브라우저에 남고
+  //  앱은 계속 로그아웃 상태가 된다 — 앱이 '안 되는' 것처럼 보이던 진짜 이유.
+  //  우리 앱의 스킴만 허용한다 (아무 스킴이나 열어주면 오픈 리디렉터가 된다).
+  if (/^com\.uroong\.(cbt|pro):\/\//.test(w)) return w;
   const allow = [env.APP_URL, env.PRO_URL, 'https://neurumind.com', 'https://www.neurumind.com']
     .filter(Boolean).map(x => String(x).replace(/\/+$/, ''));
-  const w = String(want || '').replace(/\/+$/, '');
   if (w && allow.some(a => w === a || w.startsWith(a + '/'))) return w;
   return allow[0] || 'https://neurumind.com';
 }
@@ -249,7 +253,9 @@ export async function handleOauth(request, env, cors, path, body, url) {
       .bind(handoff, userId, nowMs() + HANDOFF_TTL).run();
     await db.prepare('DELETE FROM oauth_handoff WHERE expires < ?').bind(nowMs()).run();
 
-    return Response.redirect(realBack + '/?auth=' + handoff, 302);
+    // 딥링크(com.uroong.cbt://auth)는 경로를 덧붙이면 안 된다 — 그대로 물음표만 붙인다
+    const isDeep = /^com\.uroong\.(cbt|pro):\/\//.test(realBack);
+    return Response.redirect(isDeep ? realBack + '?auth=' + handoff : realBack + '/?auth=' + handoff, 302);
   }
 
   // ── 3단계: 교환권 → 세션 ────────────────────────────────────────
