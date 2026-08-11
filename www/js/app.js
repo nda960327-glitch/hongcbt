@@ -336,7 +336,24 @@ window.App = {
     if (window.Sfx) window.Sfx.play('pop');
   },
 
+  // 스토어 앱(Capacitor)으로 실행 중인가 — 앱 안에서 '앱을 설치하세요'는 헛소리다
+  isNativeApp() {
+    try {
+      const C = window.Capacitor;
+      return !!(C && ((C.isNativePlatform && C.isNativePlatform()) || C.isNative));
+    } catch (e) { return false; }
+  },
+
   initPWA() {
+    // 이미 앱으로 보고 있으면 설치 유도는 전부 끈다 (배너·모달·안내 시트)
+    if (this.isNativeApp()) {
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.remove();
+      const modal = document.getElementById('global-install-modal');
+      if (modal) modal.remove();
+      return;
+    }
+
     window.addEventListener('beforeinstallprompt', (e) => {
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
