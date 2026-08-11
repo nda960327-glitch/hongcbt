@@ -1,5 +1,15 @@
 {
   "appId": "com.uroong.cbt",
   "appName": "우렁의사",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "url": "https://neurumind.com",
+    "androidScheme": "https",
+    "cleartext": false,
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true
+  }
 }

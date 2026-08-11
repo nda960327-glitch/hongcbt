@@ -38,4 +38,20 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 보이스톡: 마이크 없이는 통화 자체가 성립하지 않는다 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 수화기(귀에 대고)·스피커 전환. 웹에서는 불가능했던 그것 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- 통화·상담사 답장 알림 (안드로이드 13+ 는 런타임 동의가 필요하다) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 통화 중 화면을 꺼도 연결이 끊기지 않게 -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- 이어폰·블루투스로 자동 전환 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- 마이크 없는 기기(일부 태블릿)에서도 설치는 되게 — 통화만 못 쓴다 -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 </manifest>

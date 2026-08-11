@@ -148,9 +148,17 @@ window.CallTalk = {
     try {
       if ('wakeLock' in navigator) this._wl = await navigator.wakeLock.request('screen');
     } catch (e) {}
+    // 네이티브 앱이면 통화 모드로 전환 — 수화기로 나가고, 귀에 대면 화면이 꺼진다
+    try {
+      const nat = this._native();
+      if (nat) { this._spk = false; await nat.startCall({ speaker: false }).catch(() => {}); }
+    } catch (e) {}
   },
   _wakeUnlock() {
     try { if (this._wl) { this._wl.release(); this._wl = null; } } catch (e) {}
+    // 오디오 모드를 안 되돌리면 통화가 끝난 뒤에도 음악·알림 소리가 이상해진다
+    try { const nat = this._native(); if (nat) nat.endCall().catch(() => {}); } catch (e) {}
+    this._spk = false;
   },
 
   // 과금 시작 — 반드시 상담사가 받은 뒤에만 부른다.
@@ -263,7 +271,8 @@ window.CallTalk = {
   _renderHumanOverlay(c, prepaid) {
     const old = document.getElementById('call-overlay');
     if (old) old.remove();
-    const speakerable = 'setSinkId' in HTMLMediaElement.prototype; // 모바일 웹은 대부분 미지원 — 그러면 안 그린다
+    // 네이티브 앱이면 진짜 수화기/스피커 전환이 되고, 웹이면 대부분 불가라 버튼을 숨긴다
+    const speakerable = !!this._native() || ('setSinkId' in HTMLMediaElement.prototype);
     const btn = (id, label, svg) => `
       <div style="display: flex; flex-direction: column; align-items: center; gap: 0.35rem;">
         <button id="${id}" style="width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer;
@@ -286,7 +295,7 @@ window.CallTalk = {
         <div id="call-status" style="font-size: 0.94rem; color: rgba(255,255,255,0.7);">전화 거는 중…</div>
         <div id="call-clock" style="font-size: 1.35rem; font-weight: 700; margin-top: 0.35rem; font-variant-numeric: tabular-nums;">00:00</div>
         <p id="call-spent" style="margin: 0.7rem 0 0; font-size: 0.8rem; color: #f5c74e; font-weight: 700;">${prepaid ? '회기권(예약 30분) 이용 중 · 추가 과금 없음' : `연결 전 무료 · 연결 후 30초당 ${window.Marketplace.callRateFor(c).toLocaleString()}캐시`}</p>
-        <p style="margin: 0.5rem auto 0; max-width: 250px; font-size: 0.7rem; line-height: 1.5; color: rgba(255,255,255,0.5);">🔈 스피커로 들려요 · 조용한 곳이 아니면 <b>이어폰</b>을 끼면 훨씬 편해요</p>
+        <p id="call-audio-hint" style="margin: 0.5rem auto 0; max-width: 250px; font-size: 0.7rem; line-height: 1.5; color: rgba(255,255,255,0.5);">${this._native() ? '📞 귀에 대고 통화하세요 · 스피커는 아래 버튼으로' : '🔈 스피커로 들려요 · 조용한 곳이 아니면 이어폰을 끼면 훨씬 편해요'}</p>
       </div>
       <div style="flex: 1 1 auto;"></div>
       <div style="display: flex; align-items: flex-start; justify-content: center; gap: 2rem; margin-bottom: 1.4rem;">
@@ -431,15 +440,35 @@ window.CallTalk = {
     } catch (e) {}
   },
 
+  // === 스피커 ↔ 수화기 ===
+  //  네이티브(스토어 앱)에서는 진짜로 귀에 대고 통화할 수 있다.
+  //  웹에서는 브라우저가 라우팅을 안 열어줘서 스피커 고정이다 — 버튼도 숨긴다.
+  _native() {
+    try {
+      const p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AudioRoute;
+      return (p && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ? p : null;
+    } catch (e) { return null; }
+  },
+
   _spk: false,
   async toggleSpeaker() {
     try {
-      const el = window.RtcCall && window.RtcCall.remote;
-      if (!el || !el.setSinkId) return;
-      this._spk = !this._spk;
-      await el.setSinkId(this._spk ? 'default' : '').catch(() => {});
-      const b = document.getElementById('call-spk');
+      const nat = this._native();
+      if (nat) {
+        this._spk = !this._spk;
+        const r = await nat.setSpeaker({ on: this._spk }).catch(() => null);
+        if (r && typeof r.on === 'boolean') this._spk = r.on;
+      } else {
+        const el = window.RtcCall && window.RtcCall.remote;
+        if (!el || !el.setSinkId) return;
+        this._spk = !this._spk;
+        await el.setSinkId(this._spk ? 'default' : '').catch(() => {});
+      }
+      const b = document.getElementById('call-spk'), lb = document.getElementById('call-spk-lb');
       if (b) { b.style.background = this._spk ? '#ffffff' : 'rgba(255,255,255,0.2)'; b.style.color = this._spk ? '#1d2c24' : '#fff'; }
+      if (lb) lb.textContent = this._spk ? '스피커 켬' : '스피커';
+      const hint = document.getElementById('call-audio-hint');
+      if (hint) hint.textContent = this._spk ? '🔈 스피커로 들려요' : '📞 귀에 대고 통화하세요 · 스피커는 위 버튼으로';
     } catch (e) {}
   },
 

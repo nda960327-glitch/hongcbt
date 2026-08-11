@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>우렁의사 — 연결 대기 중</title>
+  <style>
+    /* 서버에 못 닿았을 때만 뜨는 화면(Capacitor errorPath).
+       앱이 하얗게 죽어 보이면 사용자는 앱이 고장 난 줄 안다. */
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: #faf5ee; color: #362f28;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom));
+      text-align: center; line-height: 1.7;
+    }
+    .box { max-width: 320px; }
+    .ico {
+      width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 1.1rem;
+      background: rgba(79, 138, 107, 0.12); display: flex; align-items: center; justify-content: center;
+    }
+    h1 { font-size: 1.15rem; margin-bottom: 0.5rem; }
+    p { font-size: 0.88rem; color: #7f7264; }
+    button {
+      margin-top: 1.4rem; width: 100%; padding: 0.85rem; border: none; border-radius: 12px;
+      background: #4f8a6b; color: #fff; font-size: 0.95rem; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+    }
+    .sub { margin-top: 0.9rem; font-size: 0.76rem; color: #a0937f; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="ico">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="#4f8a6b" stroke-width="1.8"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <line x1="12" y1="20" x2="12.01" y2="20"/>
+      </svg>
+    </div>
+    <h1>연결이 잠시 끊겼어요</h1>
+    <p>인터넷 연결을 확인하고 다시 시도해 주세요.<br>기록해 두신 내용은 그대로 있어요.</p>
+    <button onclick="location.replace('https://neurumind.com')">다시 연결하기</button>
+    <p class="sub">지금 많이 힘드시다면 기다리지 마세요<br>자살예방상담전화 <b>109</b> · 24시간 무료</p>
+  </div>
+</body>
+</html>
