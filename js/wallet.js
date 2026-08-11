@@ -4,6 +4,11 @@
 //  ※ 지금은 앱 내 모의 충전. 플레이스토어 인앱결제/PG 연동 지점은 charge() 하나다.
 // ============================================================================
 window.Wallet = {
+  // 공용 이스케이프 — 내역 desc 에 상담사 이름이 들어간다(booking.js 가 저장).
+  //  상담사가 삭제돼도 이 문자열은 피해자 기기에 남으므로(영구 XSS) 반드시 막는다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
   balance() {
     return (window.Storage && window.Storage._safeGet('cbt_cash', 0)) || 0;
   },
@@ -106,7 +111,7 @@ window.Wallet = {
           : this.history().map(h => `
             <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; background: var(--bg-tertiary); border-radius: 8px; padding: 0.45rem 0.6rem;">
               <div style="min-width: 0;">
-                <div style="font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${h.desc}</div>
+                <div style="font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this._esc(h.desc)}</div>
                 <div style="color: var(--text-muted); font-size: 0.68rem;">${new Date(h.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 잔액 ${h.balance.toLocaleString()}</div>
               </div>
               <strong style="flex-shrink: 0; color: ${h.type === 'spend' ? '#c96a5a' : 'var(--accent-primary)'};">${h.type === 'spend' ? '-' : '+'}${h.amount.toLocaleString()}</strong>

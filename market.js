@@ -114,6 +114,55 @@ function maskContacts(text) {
 // 운영자 마스터 코드 — 전체 열람. 시크릿으로만 준다.
 const isAdmin = (env, code) => !!env.ADMIN_CODE && code === env.ADMIN_CODE;
 
+// ── 상담사 ↔ 내담자 관계 ───────────────────────────────────────────────
+//  내담자에게는 계정이 없어서, 서버가 아는 '이 둘이 아는 사이다'의 근거는
+//  주고받은 대화·예약·통화뿐이다. 그 근거가 곧 경계선이다 —
+//  상담사가 아무 clientId 나 대면서 남의 상담 기록을 열어보지 못하게.
+//
+//  표가 아직 없는 배포(calls 가 없던 시절)에서도 죽지 않게 각각 감싼다.
+async function relatedPair(db, counselorId, clientId) {
+  if (!counselorId || !clientId) return false;
+  const one = async (sql) => {
+    try {
+      const r = await db.prepare(sql).bind(counselorId, clientId).first();
+      return !!r;
+    } catch (e) { return false; }
+  };
+  if (await one('SELECT 1 x FROM chat_msgs WHERE counselor_id = ? AND client_id = ? LIMIT 1')) return true;
+  if (await one('SELECT 1 x FROM bookings  WHERE counselor_id = ? AND client_id = ? LIMIT 1')) return true;
+  if (await one('SELECT 1 x FROM calls     WHERE counselor_id = ? AND client_id = ? LIMIT 1')) return true;
+  if (await one('SELECT 1 x FROM inbox     WHERE counselor_id = ? AND client_id = ? LIMIT 1')) return true;
+  return false;
+}
+
+// 실제로 '상담이 있었나' — 후기는 겪은 사람만 남길 수 있어야 한다.
+//  (예약: 시간이 지났거나 완료·확인된 것 · 통화: 실제로 붙은 것)
+async function hadSession(db, counselorId, clientId) {
+  if (!counselorId || !clientId) return false;
+  try {
+    const b = await db.prepare(
+      `SELECT 1 x FROM bookings WHERE counselor_id = ? AND client_id = ?
+         AND (status IN ('done','settled') OR COALESCE(confirm_at,0) > 0 OR COALESCE(done_at,0) > 0 OR when_ts <= ?) LIMIT 1`
+    ).bind(counselorId, clientId, nowMs()).first();
+    if (b) return true;
+  } catch (e) {
+    // done_at·confirm_at 이 없는 옛 스키마 — 예약만이라도 본다
+    try {
+      const b2 = await db.prepare(
+        'SELECT 1 x FROM bookings WHERE counselor_id = ? AND client_id = ? AND when_ts <= ? LIMIT 1'
+      ).bind(counselorId, clientId, nowMs()).first();
+      if (b2) return true;
+    } catch (e2) {}
+  }
+  try {
+    const c = await db.prepare(
+      'SELECT 1 x FROM calls WHERE counselor_id = ? AND client_id = ? AND connect_at > 0 LIMIT 1'
+    ).bind(counselorId, clientId).first();
+    if (c) return true;
+  } catch (e) {}
+  return false;
+}
+
 // ── 연락처 정규화 ──────────────────────────────────────────────────────
 //  이 번호는 정산·운영 연락용이고 내담자 응답에는 절대 넣지 않는다.
 //  그래서 검증은 '형식이 그럴듯한가'까지만 한다 — 대표번호·내선·해외번호를
@@ -467,25 +516,58 @@ export async function handleMarket(request, env, cors, path, ctx) {
   }
 
   if (path === '/bookings' && method === 'POST') {
-    const id = s(body.id, MAX.id) || rid('bk');
     const clientId = s(body.clientId, MAX.id);
-    if (!clientId || !body.counselorId) return json({ error: 'missing' }, 400, cors);
+    const counselorId = s(body.counselorId, MAX.id);
+    if (!clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
+
+    // 앱은 기기에서 만든 id('bk_…')를 그대로 보낸다. 그 id 로 취소·확인·동기화가
+    //  이뤄지므로 서버가 마음대로 바꾸면 그 예약은 앱에서 미아가 된다.
+    //  그래서 id 는 받되, '남의 예약을 덮어쓰는 도구'로는 절대 쓰지 못하게 한다.
+    //   · INSERT OR REPLACE 를 걷어낸다 — 그 한 줄이 done_at·confirm_at·settled_at·
+    //     refund 를 전부 기본값으로 되돌려, 이미 끝난 정산을 되살릴 수 있었다.
+    //   · 이미 있는 id 인데 주인이 다르면 서버가 새 id 를 발급한다.
+    let id = s(body.id, MAX.id).replace(/[^\w-]/g, '');
+    if (!id) id = rid('bk');
+    let dup = null;
+    try {
+      dup = await db.prepare('SELECT id, client_id FROM bookings WHERE id = ?').bind(id).first();
+    } catch (e) {}
+    if (dup && dup.client_id !== clientId) id = rid('bk');   // 남의 것과 부딪혔다 → 새 id
+    else if (dup) return json({ ok: true, id, already: true }, 200, cors);  // 재전송 — 그대로 둔다
+
+    // 상담료는 서버가 정한다. 클라이언트가 보낸 값을 그대로 믿으면
+    //  1원짜리 예약을 만들어 상담사 몫을 0 으로 만들 수 있다.
+    //  (마켓에 없는 상담사면 옛 흐름대로 보낸 값을 쓴다 — 예약 자체를 잃지 않게)
+    let price = num(body.price);
+    let cname = s(body.counselorName || body.name);
+    try {
+      const c = await db.prepare('SELECT name, price FROM counselors WHERE id = ?').bind(counselorId).first();
+      if (c) {
+        price = Math.max(0, num(c.price));
+        if (c.name) cname = s(c.name);
+      }
+    } catch (e) {}
+
     await db.prepare(
-      `INSERT OR REPLACE INTO bookings
+      `INSERT INTO bookings
        (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`
-    ).bind(id, s(body.counselorId, MAX.id), s(body.counselorName || body.name),
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON CONFLICT(id) DO NOTHING`
+    ).bind(id, counselorId, cname,
       clientId, s(body.clientName) || '익명',
-      num(body.whenTs), s(body.time, 120), num(body.price),
+      num(body.whenTs), s(body.time, 120), price,
       'confirmed', nowMs()).run();
-    return json({ ok: true, id }, 200, cors);
+    return json({ ok: true, id, price }, 200, cors);
   }
 
   // 취소(내담자) · 미진행(내담자) · 거절(상담사)
-  for (const [seg, status, byCounselor] of [
-    ['/bookings/cancel', 'cancelled', false],
-    ['/bookings/noshow', 'noshow', false],
-    ['/bookings/decline', 'declined', true]
+  for (const [seg, status, byCounselor, allow] of [
+    // allow = 이 길로 뒤집어도 되는 출발 상태.
+    //  취소는 아직 시작 전(confirmed)만, 미진행은 상담사가 완료를 눌렀더라도
+    //  받아야 한다 — 그게 내담자가 정산을 멈출 수 있는 유일한 길이라서.
+    ['/bookings/cancel', 'cancelled', false, "status = 'confirmed'"],
+    ['/bookings/noshow', 'noshow', false, "status IN ('confirmed','done')"],
+    ['/bookings/decline', 'declined', true, '']
   ]) {
     if (path === seg && method === 'POST') {
       const id = s(body.id, MAX.id);
@@ -496,7 +578,26 @@ export async function handleMarket(request, env, cors, path, ctx) {
         await db.prepare('UPDATE bookings SET status = ? WHERE id = ? AND counselor_id = ?')
           .bind(status, id, me.id).run();
       } else {
-        await db.prepare('UPDATE bookings SET status = ? WHERE id = ?').bind(status, id).run();
+        // 내담자 쪽. 예약 id 만 알면 누구나 남의 예약을 취소·미진행 처리할 수 있었다
+        //  (미진행은 상담사 정산을 그대로 날린다).
+        //   · clientId 를 보내는 앱에는 소유권을 강제한다.
+        //   · 아직 안 보내는 옛 앱을 위해, 최소한 '건드려도 되는 상태'로 좁힌다 —
+        //     이미 끝난(정산·환불·완료) 예약은 이 길로 뒤집을 수 없다.
+        const clientId = s(body.clientId, MAX.id);
+        const guard = allow + ' AND COALESCE(settled_at,0) = 0';
+        const sql = clientId
+          ? `UPDATE bookings SET status = ? WHERE id = ? AND client_id = ? AND ${guard}`
+          : `UPDATE bookings SET status = ? WHERE id = ? AND ${guard}`;
+        const args = clientId ? [status, id, clientId] : [status, id];
+        try {
+          await db.prepare(sql).bind(...args).run();
+        } catch (e) {
+          // settled_at·done_at 이 없는 옛 스키마 — 조건만 빼고 예전 흐름대로
+          const sql2 = clientId
+            ? 'UPDATE bookings SET status = ? WHERE id = ? AND client_id = ?'
+            : 'UPDATE bookings SET status = ? WHERE id = ?';
+          await db.prepare(sql2).bind(...args).run();
+        }
       }
       return json({ ok: true }, 200, cors);
     }
@@ -723,12 +824,27 @@ export async function handleMarket(request, env, cors, path, ctx) {
   if (path === '/inbox' && method === 'POST') {
     const text = s(body.text, MAX.text);
     const clientId = s(body.clientId, MAX.id);
-    if (!text || !clientId) return json({ error: 'missing' }, 400, cors);
+    const counselorId = s(body.counselorId, MAX.id);
+    if (!text || !clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
+    // 수신함은 '내가 동의하고 보낸 자료'가 쌓이는 곳이다. 전에는 아무나
+    //  아무 상담사에게, 아무 이름으로 밀어 넣을 수 있었다.
+    //   · 받는 사람은 실재하는 활동 중인 상담사여야 하고
+    //   · 이름은 클라이언트 말이 아니라 명부에서 읽고
+    //   · 아는 사이(예약·대화·통화)일 때만 받는다
+    let cname = '';
+    try {
+      const c = await db.prepare('SELECT name FROM counselors WHERE id = ? AND active = 1').bind(counselorId).first();
+      if (!c) return json({ error: 'no-counselor' }, 404, cors);
+      cname = s(c.name);
+    } catch (e) { cname = s(body.counselorName); }
+    if (!await relatedPair(db, counselorId, clientId)) {
+      return json({ error: '예약하거나 대화한 상담사에게만 보낼 수 있어요' }, 403, cors);
+    }
     const id = rid('ib');
     await db.prepare(
       `INSERT INTO inbox (id, counselor_id, counselor_name, booking_id, client_id, client_name, body, read_at, ts)
        VALUES (?,?,?,?,?,?,?,0,?)`
-    ).bind(id, s(body.counselorId, MAX.id), s(body.counselorName),
+    ).bind(id, counselorId, cname,
       s(body.bookingId, MAX.id), clientId, s(body.clientName) || '익명', text, nowMs()).run();
     return json({ ok: true, id }, 200, cors);
   }
@@ -761,13 +877,20 @@ export async function handleMarket(request, env, cors, path, ctx) {
 
   if (path === '/reviews' && method === 'POST') {
     const clientId = s(body.clientId, MAX.id);
+    const counselorId = s(body.counselorId, MAX.id);
     const rating = Math.max(1, Math.min(5, num(body.rating) || 5));
-    if (!clientId || !body.counselorId) return json({ error: 'missing' }, 400, cors);
+    if (!clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
+    // 별점은 상담사의 생계에 직접 닿는다. 겪은 사람만 남길 수 있어야 한다 —
+    //  지난 예약이나 실제로 붙은 통화가 있어야 통과한다. 안 그러면 누구든
+    //  루프 한 번으로 경쟁 상담사의 평점을 바닥으로 끌어내릴 수 있다.
+    if (!await hadSession(db, counselorId, clientId)) {
+      return json({ error: '상담을 받은 뒤에 후기를 남길 수 있어요' }, 403, cors);
+    }
     const id = rid('rv');
     await db.prepare(
       `INSERT INTO reviews (id, counselor_id, booking_id, client_id, client_name, rating, body, reply, reply_ts, ts)
        VALUES (?,?,?,?,?,?,?,NULL,0,?)`
-    ).bind(id, s(body.counselorId, MAX.id), s(body.bookingId, MAX.id),
+    ).bind(id, counselorId, s(body.bookingId, MAX.id),
       clientId, s(body.clientName) || '익명', rating, s(body.text, 600), nowMs()).run();
     return json({ ok: true, id }, 200, cors);
   }
@@ -785,11 +908,23 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (code || session) {
       const me = await whoami(db, cred);
       if (!me) return json({ error: 'bad-code' }, 403, cors);
+      const want = s(q('clientId'), MAX.id);
+      // 상담사가 특정 내담자를 지목하면, 그 내담자와 '아는 사이'일 때만 연다.
+      //  지목이 없으면 예전 그대로 자기 스레드 전체 (상담사 앱이 쓰는 길).
+      if (want) {
+        if (!await relatedPair(db, me.id, want)) return json({ error: 'forbidden' }, 403, cors);
+        const r0 = await db.prepare(
+          'SELECT * FROM chat_msgs WHERE counselor_id = ? AND client_id = ? ORDER BY ts ASC LIMIT 500'
+        ).bind(me.id, want).all();
+        return json({ items: (r0.results || []).map(rowMsg) }, 200, cors);
+      }
       const r = await db.prepare(
         'SELECT * FROM chat_msgs WHERE counselor_id = ? ORDER BY ts ASC LIMIT 500'
       ).bind(me.id).all();
       return json({ items: (r.results || []).map(rowMsg) }, 200, cors);
     }
+    // 내담자 본인 — 기기가 들고 있는 clientId 가 열쇠다.
+    //  (이 열쇠를 진짜 토큰으로 바꾸는 일은 별도 작업으로 남겨 둔다)
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
     const counselorId = s(q('counselorId'), MAX.id);
@@ -913,21 +1048,44 @@ export async function handleMarket(request, env, cors, path, ctx) {
     return json({ ok: true }, 200, cors);
   }
 
+  // 통화 회선 잠금(레거시). 지금 회선을 잡고 푸는 것은 /rtc/* 이고,
+  //  앱에서 이 두 경로를 부르는 곳은 '통화 끝 정리'와 상담사 콘솔의
+  //  [회선 수동 해제]뿐이다. 그런데 누구나 부를 수 있는 상태였다 —
+  //  start 는 남의 회선을 35분 잠그고(영업 방해), end 는 통화 중인 회선을
+  //  풀어 다른 전화가 끼어들게 했다.
   if (path === '/call/start' && method === 'POST') {
-    const counselorId = s(body.counselorId, MAX.id);
-    if (!counselorId) return json({ error: 'missing' }, 400, cors);
+    // 잠그는 건 본인만. (앱은 더 이상 이 경로를 쓰지 않는다 — /rtc/start 가 잠근다)
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
     await db.prepare('UPDATE counselors SET busy_until = ? WHERE id = ?')
-      .bind(nowMs() + CALL_LOCK_MS, counselorId).run();
+      .bind(nowMs() + CALL_LOCK_MS, me.id).run();
     await db.prepare('DELETE FROM call_queue WHERE counselor_id = ? AND client_id = ?')
-      .bind(counselorId, s(body.clientId, MAX.id)).run();
+      .bind(me.id, s(body.clientId, MAX.id)).run();
     return json({ ok: true }, 200, cors);
   }
 
   if (path === '/call/end' && method === 'POST') {
     const counselorId = s(body.counselorId, MAX.id);
     if (!counselorId) return json({ error: 'missing' }, 400, cors);
-    await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
-    return json({ ok: true }, 200, cors);
+    // 상담사 본인이면 무조건 푼다 (콘솔의 [회선 수동 해제] — 좀비 잠금 탈출구).
+    const me = (code || session) ? await whoami(db, cred) : null;
+    if (me && me.id === counselorId) {
+      await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
+      return json({ ok: true }, 200, cors);
+    }
+    // 내담자 앱이 통화를 끝내며 부르는 길. 아는 사이일 때만 받고,
+    //  살아 있는 통화가 남아 있으면 풀지 않는다(남의 통화를 끊는 셈이 된다).
+    const clientId = s(body.clientId, MAX.id);
+    if (!clientId || !await relatedPair(db, counselorId, clientId)) {
+      return json({ error: 'forbidden' }, 403, cors);
+    }
+    let alive = null;
+    try {
+      alive = await db.prepare('SELECT id FROM calls WHERE counselor_id = ? AND end_at = 0 LIMIT 1')
+        .bind(counselorId).first();
+    } catch (e) {}
+    if (!alive) await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
+    return json({ ok: true, kept: !!alive }, 200, cors);
   }
 
   // ── 운영 통계 ───────────────────────────────────────────────────────

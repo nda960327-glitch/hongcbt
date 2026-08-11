@@ -4,6 +4,11 @@
 //  완료하면 스트릭·뱃지에 집계되고, 주간 편지에도 반영된다.
 // ============================================================================
 window.Missions = {
+  // 공용 이스케이프 — & < > " ' 5자 전부. 상담사 숙제 본문이 그대로 innerHTML/
+  //  data-* 속성에 들어가므로 반드시 통과시킨다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
   POOL: [
     // 몸 움직이기
     { id: 'walk10',    icon: 'move', text: '10분만 밖을 걸어볼까? 목적지는 없어도 돼', cat: '움직임' },
@@ -460,7 +465,7 @@ ${recent}` }],
   rxHtml() {
     const rows = this.rxToday();
     if (!rows.length) return '';
-    const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const esc = this._esc;
     const name = (window.Storage._safeGet('cbt_user_name', '') || '').trim();
     const title = name ? esc(name) + '님을 위한 미션' : '나를 위한 미션';
     return `
@@ -476,10 +481,11 @@ ${recent}` }],
           const done = isPlanAct
             ? (window.CarePlan && window.CarePlan.isDone(r.planW, r.planI))
             : this.rxDone(r.text);
-          const arg = String(r.text).replace(/'/g, "\\'");
-          const toggleJs = isPlanAct
-            ? `window.CarePlan.toggle(${r.planW}, ${r.planI}); window.Missions.renderCard();`
-            : `window.Missions.rxToggle('${arg}', '${r.src}')`;
+          // 숙제 본문을 onclick 문자열에 심으면 따옴표·백슬래시로 벌어진다.
+          //  값은 data-* 로만 넘기고 실제 호출은 아래 위임 리스너에서 한다.
+          const toggleAttr = isPlanAct
+            ? `data-mi-act="plan-toggle" data-mi-w="${r.planW}" data-mi-i="${r.planI}"`
+            : `data-mi-act="rx-toggle" data-mi-text="${esc(r.text)}" data-mi-src="${esc(r.src)}"`;
           const route = this.routeFor(r.text);
           // 행 전체가 체크 토글 버튼이라 그 안에 버튼을 또 둘 수 없다 —
           //  겉을 div 로 바꾸고 토글과 '하러 가기'를 형제로 놓는다.
@@ -487,7 +493,7 @@ ${recent}` }],
           <div style="box-sizing: border-box; padding: 0.5rem 0.6rem; border-radius: 11px; margin-bottom: 0.3rem;
                       background: ${done ? 'color-mix(in srgb, var(--accent-primary) 12%, transparent)' : 'var(--bg-tertiary)'};
                       border: 1px solid ${done ? 'color-mix(in srgb, var(--accent-primary) 34%, transparent)' : 'var(--glass-border)'};">
-            <button onclick="${toggleJs}"
+            <button ${toggleAttr}
               style="all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.5rem; width: 100%; cursor: pointer;">
               <span style="flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center;
                            background: ${done ? 'var(--accent-primary)' : 'transparent'}; border: 1.5px solid ${done ? 'var(--accent-primary)' : 'var(--text-muted)'};">
@@ -505,7 +511,7 @@ ${recent}` }],
               </span>
             </button>
             ${route ? `
-            <button onclick="window.Missions.go('${arg}')" title="${esc(route.label)}"
+            <button data-mi-act="go" data-mi-text="${esc(r.text)}" title="${esc(route.label)}"
               style="all: unset; box-sizing: border-box; display: inline-flex; align-items: center; cursor: pointer;
                      margin: 0.4rem 0 0 1.65rem; padding: 0.2rem 0.6rem; border-radius: 999px;
                      font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);
@@ -531,7 +537,7 @@ ${recent}` }],
           <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('proud', 62) : ''}</span>
           <div style="flex: 1; min-width: 0;">
             <strong style="font-size: 0.92rem; color: var(--accent-primary); display: block;">퀘스트 완료!</strong>
-            <span style="font-size: 0.78rem; color: var(--text-muted);">${m.text}</span>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">${this._esc(m.text)}</span>
             <span style="display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem;">지금까지 ${total}개의 작은 승리를 모았어요</span>
           </div>
         </div>
@@ -548,11 +554,11 @@ ${recent}` }],
           <span style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent-primary) 10%, var(--bg-tertiary)); border: 1px solid var(--glass-border); line-height: 0;">${this.catIcon(m.cat, 22)}</span>
           <div style="flex: 1 1 0%; min-width: 0; padding-top: 0.1rem;">
             <span style="display: inline-block; font-size: 0.66rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 12%, transparent); padding: 0.1rem 0.5rem; border-radius: 999px;">${m.cat}</span>
-            <p style="margin: 0.3rem 0 0; font-size: 0.92rem; font-weight: 600; color: var(--text-primary); line-height: 1.5;">${m.text}</p>
+            <p style="margin: 0.3rem 0 0; font-size: 0.92rem; font-weight: 600; color: var(--text-primary); line-height: 1.5;">${this._esc(m.text)}</p>
           </div>
         </div>
         ${route ? `
-        <button onclick="window.Missions.go('${String(m.text).replace(/'/g, "\\'")}')"
+        <button data-mi-act="go" data-mi-text="${this._esc(m.text)}"
           style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; cursor: pointer;
                  margin-bottom: 0.5rem; padding: 0.42rem; border-radius: 10px;
                  font-size: 0.78rem; font-weight: 800; color: var(--accent-primary);
@@ -565,3 +571,18 @@ ${recent}` }],
     }
   }
 };
+
+// 퀘스트·숙제 버튼 위임 — 숙제 본문(상담사 작성)을 onclick 에 심으면
+//  따옴표 하나로 스크립트가 된다. data-* 로만 넘기고 여기서 호출한다.
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-mi-act]');
+  if (!el || !window.Missions) return;
+  const M = window.Missions;
+  const act = el.dataset.miAct;
+  if (act === 'go') M.go(el.dataset.miText || '');
+  else if (act === 'rx-toggle') M.rxToggle(el.dataset.miText || '', el.dataset.miSrc || '');
+  else if (act === 'plan-toggle') {
+    if (window.CarePlan) window.CarePlan.toggle(+el.dataset.miW, +el.dataset.miI);
+    M.renderCard();
+  }
+});

@@ -175,7 +175,7 @@ window.SafetyPlan = {
     if (box && step) box.innerHTML = this._rowsHtml(key, step);
   },
 
-  esc(t) { return String(t == null ? '' : t).replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m])); },
+  esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); },
 
   // --------------------------------------------------------------------------
   //  작성 화면
@@ -282,7 +282,7 @@ window.SafetyPlan = {
           ${s.type === 'people'
             ? this.list(s.key).filter(c => (c.tel || '').trim() || (c.name || '').trim()).map(c => (c.tel || '').trim()
               // 위기 순간엔 번호를 읽지 않는다 — 이름을 누르면 바로 걸린다
-              ? `<button onclick="window.SafetyPlan.call('${this.esc(c.tel)}')"
+              ? `<button data-sp-tel="${this.esc(c.tel)}"
                    style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.5rem; width: 100%; cursor: pointer;
                           margin-top: 0.3rem; padding: 0.7rem 0.8rem; border-radius: 12px;
                           background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
@@ -350,3 +350,12 @@ window.SafetyPlan = {
       + ' 본인이 고른 사람·장소라 훨씬 잘 작동합니다.';
   }
 };
+
+// 위기 화면 전화 버튼 위임 — 연락처(사용자 입력)를 onclick 에 심으면
+//  번호에 따옴표가 들어가면 버튼이 깨진다(위기 기능이라 치명적). data-* 로만
+//  넘기고 실제 발신은 여기서 한다.
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-sp-tel]');
+  if (!el || !window.SafetyPlan) return;
+  window.SafetyPlan.call(el.getAttribute('data-sp-tel') || '');
+});

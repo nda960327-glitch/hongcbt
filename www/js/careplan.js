@@ -502,7 +502,8 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
     }
     el.classList.remove('hidden');
 
-    const esc = t => String(t == null ? '' : t).replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+      c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const d = this.dayIndex();
     const wi = this.weekIndex();
     const w = this.currentWeek();
@@ -532,7 +533,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
  color: ${done ?'var(--text-muted)':'#6f97ab'};">${done ?'':'+2'+ (window.Icons ? window.Icons.svg('water', { size: 12 }) :'')}</span>
           </button>
           ${route ? `
-          <button onclick="window.Missions.go('${String(a).replace(/'/g, "\\'")}')" title="${esc(route.label)}"
+          <button data-mi-act="go" data-mi-text="${esc(a)}" title="${esc(route.label)}"
             style="all: unset; box-sizing: border-box; display: inline-flex; align-items: center; cursor: pointer;
                    margin: 0.4rem 0 0 1.7rem; padding: 0.2rem 0.6rem; border-radius: 999px;
                    font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);

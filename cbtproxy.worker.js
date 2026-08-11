@@ -36,13 +36,22 @@ export { ChatHub } from "./hub.js";
 //  이 Worker 는 인증이 없다. 주소가 앱 JS 안에 그대로 있으니 누구나 긁어서
 //  OpenAI 크레딧을 태울 수 있다. 공개 프록시는 발견되면 하루 만에 털린다.
 //  계정을 요구하는 건 '가입 없음' 원칙과 충돌하므로 세 겹으로 막는다.
+//
+//  주 방어선은 IP 다. clientId 는 요청 본문에 실려 오는 '자기 신고'라서
+//  공격자가 매 요청마다 새로 지어내면 그 카운터는 없는 것과 같다.
+//  IP 는 Cloudflare 가 붙여 주므로 위조할 수 없다 — 하루 총량과 분당 폭주를
+//  둘 다 IP 로 잡고, clientId 는 '정상 사용자에게 오늘은 그만'을 알리는
+//  부가 장치로만 남긴다.
 const LIMIT = {
+  ipMin: 90,      // 한 IP 1분 (사람이 앱을 아무리 빨리 눌러도 닿지 않는 선)
   ip: 600,        // 한 IP 하루 (가족·공용 와이파이·통신사 NAT 를 감안해 넉넉히)
   client: 400,    // 한 기기 하루 (앱의 HARD_DAILY 와 같은 선)
   all: 300000     // 전체 하루 — 마지막 안전판. 이걸 넘으면 뭔가 잘못된 것이다
 };
 
 const utcDay = () => new Date().toISOString().slice(0, 10);
+// 분 버킷 — usage 표를 그대로 쓴다(kind='ipm'). 야간 청소가 day 기준으로 걷어간다.
+const minuteKey = ip => ip + '|' + Math.floor(Date.now() / 60000).toString(36);
 
 // 세 카운터를 '한 번의 배치'로 올린다.
 //  처음에는 Promise.all 로 세 개를 동시에 던졌는데, D1 은 같은 연결에 동시 쓰기가
@@ -74,17 +83,24 @@ async function noteBlock(db, kind, key, n) {
 
 // 통과하면 null, 막아야 하면 이유를 돌려준다
 async function abuseCheck(request, env, body) {
-  if (!env.DB) return null;                    // DB 가 없으면 막지 않는다(서비스 우선)
+  if (!env.DB) return null;                    // DB 바인딩 자체가 없는 배포(로컬·프리뷰)는 예외
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const client = String((body && body.clientId) || '').slice(0, 64) || 'anon';
   try {
-    const [nAll, nIp, nClient] = await bumpAll(env.DB, [
-      ['all', 'total'], ['ip', ip], ['client', client]
+    const [nAll, nIp, nMin, nClient] = await bumpAll(env.DB, [
+      ['all', 'total'], ['ip', ip], ['ipm', minuteKey(ip)], ['client', client]
     ]);
-    if (nAll > LIMIT.all)       { await noteBlock(env.DB, 'all', 'total', nAll);   return 'all'; }
+    if (nMin > LIMIT.ipMin)     { await noteBlock(env.DB, 'ipm', ip, nMin);        return 'burst'; }
     if (nIp > LIMIT.ip)         { await noteBlock(env.DB, 'ip', ip, nIp);          return 'ip'; }
+    if (nAll > LIMIT.all)       { await noteBlock(env.DB, 'all', 'total', nAll);   return 'all'; }
     if (nClient > LIMIT.client) { await noteBlock(env.DB, 'client', client, nClient); return 'client'; }
-  } catch (e) { return null; }                 // 집계 실패로 서비스를 멈추지는 않는다
+  } catch (e) {
+    // 전에는 여기서 null(통과)을 돌려줬다. 그런데 카운터를 못 세는 상태는
+    //  곧 '아무 제한이 없는 상태'다 — 남용 트래픽이 D1 을 밀어 넘어뜨리면
+    //  그때부터 열쇠가 통째로 풀리는 셈이라, 공격자에게는 이게 더 쉬운 길이다.
+    //  세지 못하면 열지 않는다.
+    return 'error';
+  }
   return null;
 }
 
@@ -109,6 +125,11 @@ export default {
   },
 
   async fetch(request, env, ctx) {
+    // ALLOWED_ORIGIN 이 없으면 '*' 다. 여기를 한 도메인으로 조이면 앱이 깨진다 —
+    //  Capacitor 웹뷰는 Origin 이 없거나 https://localhost 로 오고, 웹은
+    //  neurumind.com·pro.neurumind.com·Pages 미리보기 주소가 섞여 있다.
+    //  조이려면 '허용 목록'(콤마로 여러 개 + Origin 없음 허용)으로 바꿔야 안전하다.
+    //  그래서 남용 방어는 CORS 가 아니라 아래 카운터(IP 기준)가 맡는다.
     const origin = env.ALLOWED_ORIGIN || "*";
     const cors = {
       "Access-Control-Allow-Origin": origin,
@@ -163,7 +184,13 @@ export default {
       const msg = blocked === 'client'
         ? "오늘은 여기까지 하고 쉬어가요. 내일 다시 만나요."
         : "지금 요청이 몰리고 있어요. 잠시 후 다시 시도해주세요.";
-      return json({ error: { message: msg, reason: blocked } }, 429, cors);
+      // 집계 자체가 안 되는 상황은 '내 잘못이 아니라 서버가 잠시 아픈 것' —
+      //  503 으로 알려야 앱이 재시도할 수 있고, 하루 한도를 쓴 것과 구분된다.
+      const st = blocked === 'error' ? 503 : 429;
+      return new Response(JSON.stringify({ error: { message: msg, reason: blocked } }), {
+        status: st,
+        headers: { ...cors, 'Content-Type': 'application/json', 'Retry-After': blocked === 'burst' ? '60' : '30' }
+      });
     }
 
     return path === "/tts" ? handleTts(body, env, cors) : handleChat(body, env, cors);

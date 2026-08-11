@@ -274,8 +274,15 @@ async function pushOne(env, db, row) {
 
 // kind 칸이 아직 없는 DB 에서도 죽지 않는다.
 //  스키마 적용(ALTER TABLE)은 사람이 하는 일이고, 배포는 그보다 먼저 나갈 수 있다.
-//  한 번 없다고 확인하면 그 인스턴스에서는 다시 물어보지 않는다.
+//  한 번 '칸이 없다'를 확인하면 그 인스턴스에서는 다시 물어보지 않는다.
+//
+//  단, 그 판정은 '컬럼이 없다'는 오류일 때만 내린다.
+//   전에는 어떤 오류든(D1 순간 장애·타임아웃) 곧바로 HAS_KIND=false 로 굳혀서,
+//   한 번 삐끗한 인스턴스는 그 뒤로 kind 를 영영 못 읽었다. kind 를 못 읽으면
+//   FCM 구독이 웹 구독으로 취급돼(전화 신호가 아니라 조용한 깨우기로 나가고,
+//   게다가 실패 카운트가 쌓여 구독이 지워진다) 앱 전화벨이 다시는 울리지 않는다.
 let HAS_KIND = null;
+const isNoColumn = e => /no such column|has no column|no column named/i.test(String((e && e.message) || e));
 async function subsOf(db, key) {
   if (HAS_KIND !== false) {
     try {
@@ -284,7 +291,10 @@ async function subsOf(db, key) {
       ).bind(key).all();
       HAS_KIND = true;
       return (r && r.results) || [];
-    } catch (e) { HAS_KIND = false; }
+    } catch (e) {
+      if (!isNoColumn(e)) return [];   // 일시 오류 — 이번 알림만 거른다. 판정은 그대로 둔다
+      HAS_KIND = false;
+    }
   }
   const r = await db.prepare(
     'SELECT endpoint, fail_count, counselor_id FROM push_subs WHERE counselor_id = ? LIMIT 12'

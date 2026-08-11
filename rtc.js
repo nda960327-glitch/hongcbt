@@ -22,6 +22,7 @@ import { resolveCounselor } from './auth.js';
 const SIGNAL_TTL = 10 * 60 * 1000;     // 신호는 10분이면 버린다
 const RING_TIMEOUT = 60 * 1000;        // 60초 안 받으면 부재중
 const MAX_CALL_MS = 90 * 60 * 1000;    // 90분이면 강제 종료(회선 잠김 방지)
+const C2C_RING_LOCK_MS = RING_TIMEOUT + 60 * 1000;   // 상담사 발신의 초기 회선 잠금(벨 동안만)
 
 const nowMs = () => Date.now();
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -101,6 +102,38 @@ function consultInfo(call, fin) {
   return { had: false, seconds: 0, charge: 0 };
 }
 
+// 지금 이 순간의 요금을 '다시 읽어서' 확인한다.
+//  endConsult 가 null 을 돌려주는 경우는 두 가지다 —
+//   (a) 애초에 상담이 없었다  (b) 반 박자 먼저 다른 요청이 마감했다.
+//  (b) 인데 손에 든 낡은 행으로 판단하면 charge 가 0 으로 나오고,
+//  그 0 이 방금 확정된 상담비를 덮어써서 상담사 몫이 통째로 사라진다.
+//  그래서 fin 이 없을 때는 DB 를 한 번 더 본다.
+async function settledInfo(db, call, fin) {
+  if (fin) return consultInfo(call, fin);
+  try {
+    const cur = await db.prepare(
+      'SELECT billed, consult_start, consult_end FROM calls WHERE id = ?'
+    ).bind(call.id).first();
+    if (cur) return consultInfo({ ...call, ...cur }, null);
+  } catch (e) {}
+  return consultInfo(call, null);
+}
+
+// 회선 잠금 해제. '내가 잠근 통화가 끝났을 때'만 푼다 —
+//  아직 살아 있는 다른 통화가 있으면 그 통화가 잠금의 주인이므로 건드리지 않는다.
+//  (전에는 무조건 0 으로 밀어서, 늦게 도착한 종료 요청 하나가 남의 통화 중인
+//   회선을 열어버렸다 — 통화 중인 상담사에게 새 전화가 걸리는 사고가 된다)
+async function releaseLine(db, counselorId, exceptCallId) {
+  if (!counselorId) return;
+  try {
+    const alive = await db.prepare(
+      'SELECT id FROM calls WHERE counselor_id = ? AND end_at = 0 AND id != ? LIMIT 1'
+    ).bind(counselorId, exceptCallId || '').first();
+    if (alive) return;
+    await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
+  } catch (e) {}
+}
+
 // 통화 기록 한 줄의 문구 — 상담이었나 그냥 통화였나를 글자로 구분한다.
 //  "음성 상담 3분 20초 · 1,400캐시" / "통화 3분 20초" (무료)
 function callLine(ms, info, tail) {
@@ -130,10 +163,13 @@ async function reapDeadCalls(db, env, ctx, counselorId) {
       // 통화 자체는 무료다. 열려 있던 상담 세션만 마지막 심박 시각으로 마감한다 —
       //  양쪽 앱이 죽은 뒤의 시간까지 청구하면 그건 없던 상담에 돈을 받는 것이다.
       const fin = await endConsult(db, r, upto);
-      const info = consultInfo(r, fin);
-      await db.prepare("UPDATE calls SET end_at = ?, end_by = 'dead', billed = ? WHERE id = ? AND end_at = 0")
+      const info = await settledInfo(db, r, fin);
+      // billed 는 절대 '내려쓰지' 않는다 — 이 행(r)은 조회 시점의 사본이라
+      //  그 사이 /rtc/consult/end 가 요금을 적었을 수 있다. MAX 로 덮어써야
+      //  방금 확정된 상담비가 0원으로 지워지지 않는다.
+      await db.prepare("UPDATE calls SET end_at = ?, end_by = 'dead', billed = MAX(COALESCE(billed, 0), ?) WHERE id = ? AND end_at = 0")
         .bind(t, info.charge, r.id).run();
-      await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(r.counselor_id).run();
+      await releaseLine(db, r.counselor_id, r.id);
       await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(r.room).run();
       await logCallToChat(db, env, ctx, r, callLine(ms, info, '(연결 끊김)'),
         r.dir === 'to-client' ? 'counselor' : 'client');
@@ -287,13 +323,20 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     //  모든 새 전화가 '통화 중'으로 튕긴다
     await reapDeadCalls(db, env, ctx, counselorId);
     try {
-      await db.prepare(
-        "UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE room = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
+      const to = await db.prepare(
+        "UPDATE calls SET end_at = ?, end_by = 'timeout', billed = MAX(COALESCE(billed, 0), 0) WHERE room = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
       ).bind(t, room, t - RING_TIMEOUT).run();
+      // 흘러간 벨을 닫았으면 그 통화가 잡고 있던 회선도 같이 푼다.
+      //  안 풀면 아무도 통화하지 않는데 잠금만 남아, 이 사람의 다음 전화가
+      //  전부 '통화 중'으로 튕긴다 (살아 있는 통화가 있으면 그대로 둔다).
+      if (to && to.meta && to.meta.changes > 0) await releaseLine(db, counselorId, '');
     } catch (e) {}
-    // 내가 이미 걸어둔 통화면 그걸 이어 쓴다 (중복 생성 방지)
+    // 내가 이미 걸어둔 통화면 그걸 이어 쓴다 (중복 생성 방지).
+    //  dir 을 거른다 — 상담사가 나에게 걸고 있는 중(to-client)이면 그 통화는
+    //  '내가 건 통화'가 아니다. 그걸 이어받으면 받는 쪽/거는 쪽이 뒤집혀
+    //  양쪽 다 offer 를 만들고 통화가 붙지 않는다.
     const mine = await db.prepare(
-      'SELECT * FROM calls WHERE room = ? AND end_at = 0 ORDER BY ring_at DESC LIMIT 1'
+      "SELECT * FROM calls WHERE room = ? AND end_at = 0 AND COALESCE(dir, '') != 'to-client' ORDER BY ring_at DESC LIMIT 1"
     ).bind(room).first();
     if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
     // 회선 잠금은 '조건부 UPDATE 한 방'으로 잡는다.
@@ -360,20 +403,49 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     // 좀비 정리: 예전에 걸다 만 통화(벨 시간 초과)가 남아 있으면 부재중으로 닫는다.
     //  안 닫으면 resumed 로 죽은 방을 계속 돌려줘서 새 전화가 영영 안 걸린다.
     try {
-      await db.prepare(
-        "UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE room = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
+      const to = await db.prepare(
+        "UPDATE calls SET end_at = ?, end_by = 'timeout', billed = MAX(COALESCE(billed, 0), 0) WHERE room = ? AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
       ).bind(t, room, t - RING_TIMEOUT).run();
-      await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(room).run();
+      if (to && to.meta && to.meta.changes > 0) await releaseLine(db, me.id, '');
     } catch (e) {}
+    // 살아 있는 내 발신이 있으면 그걸 이어 쓴다. 이 조회는 신호 청소보다
+    //  반드시 먼저다 — 전에는 DELETE 를 먼저 해서, 이미 붙어 통화 중인 방의
+    //  offer/answer/ICE 를 통째로 지우고 나서 그 통화를 resumed 로 돌려줬다.
+    //  (버튼을 두 번 누르면 진행 중인 통화가 벙어리가 되는 길이었다)
+    //  dir 을 거른다 — 내담자가 나에게 걸고 있는 통화는 '내 발신'이 아니다.
     const mine = await db.prepare(
-      'SELECT * FROM calls WHERE room = ? AND end_at = 0 ORDER BY ring_at DESC LIMIT 1'
+      "SELECT * FROM calls WHERE room = ? AND end_at = 0 AND dir = 'to-client' ORDER BY ring_at DESC LIMIT 1"
     ).bind(room).first();
     if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
+    // 회선 잠금 — 내담자 발신(/rtc/start)과 같은 자물쇠를 쓴다.
+    //  c2c 만 잠그지 않던 탓에, 상담사가 A 에게 거는 동안 B 의 전화가 들어와
+    //  한 사람이 두 통화에 걸리는 일이 가능했다. 조건부 UPDATE 한 방이라 원자적이다.
+    //
+    //  다만 여기서는 짧게 잠근다(벨 시간 + 1분). 상담사 발신을 치우는 청소부는
+    //   내담자 쪽 폴링인데, 그 폰이 꺼져 있으면 한참 뒤에나 돈다. 90분을 걸어두면
+    //   안 받은 전화 한 통이 상담사 회선을 90분 잠그는 일이 생긴다.
+    //   붙는 순간 /rtc/connected 가 90분으로 늘려준다.
+    const lock = await db.prepare(
+      'UPDATE counselors SET busy_until = ? WHERE id = ? AND (busy_until IS NULL OR busy_until <= ?)'
+    ).bind(t + C2C_RING_LOCK_MS, me.id, t).run();
+    if (!(lock && lock.meta && lock.meta.changes > 0)) {
+      return json({ error: 'busy', message: '지금 다른 통화가 진행 중이에요. 그 통화를 끝내고 다시 걸어주세요.' }, 409, cors);
+    }
     const id = rid('call');
     // 상담사 발신은 요금 0 — 내담자에게 과금할 수 없다
-    await db.prepare(
-      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,0,?,'to-client')"
-    ).bind(id, room, me.id, clientId, '', t).run();
+    try {
+      await db.prepare(
+        "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,0,?,'to-client')"
+      ).bind(id, room, me.id, clientId, '', t).run();
+    } catch (e) {
+      // 통화를 못 만들었으면 잠금을 들고 있을 이유가 없다
+      await releaseLine(db, me.id, '');
+      return json({ error: 'start-failed' }, 500, cors);
+    }
+    // 새 통화의 방은 깨끗해야 한다 — 지난 통화의 offer/ICE 가 남아 있으면
+    //  받는 쪽이 그걸 집어 엉뚱한 세션을 만든다. (살아 있는 통화를 이어 쓰는
+    //  위쪽 resumed 경로에서는 절대 지우지 않는다)
+    try { await db.prepare('DELETE FROM rtc_signals WHERE room = ? AND ts < ?').bind(room, t).run(); } catch (e) {}
     // 내담자 폰이 잠겨 있어도 상담사 이름을 띄우고 벨이 울린다
     const wake = notifyClient(env, clientId, { kind: 'invite', callId: id, peer: me.name || '상담사' }).catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
@@ -392,8 +464,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
         "SELECT id, room, counselor_id, client_id FROM calls WHERE client_id = ? AND dir = 'to-client' AND end_at = 0 AND connect_at = 0 AND ring_at <= ?"
       ).bind(cid, t - RING_TIMEOUT).all();
       for (const x of (stale.results || [])) {
-        await db.prepare("UPDATE calls SET end_at = ?, end_by = 'timeout', billed = 0 WHERE id = ?").bind(t, x.id).run();
+        await db.prepare("UPDATE calls SET end_at = ?, end_by = 'timeout', billed = MAX(COALESCE(billed, 0), 0) WHERE id = ?").bind(t, x.id).run();
         await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(x.room).run();
+        // 상담사 발신도 회선을 잠그므로, 안 받고 흘러간 전화는 잠금까지 풀어야 한다
+        await releaseLine(db, x.counselor_id, x.id);
         await logCallToChat(db, env, ctx, x, '부재중 전화 — 상담사님이 전화했었어요', 'counselor');
       }
     } catch (e) {}
@@ -452,7 +526,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
         await logCallToChat(db, env, ctx, x, '부재중 전화 (받지 않았어요)', 'client');
       }
       if ((stale.results || []).length) {
-        await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(counselorId).run();
+        // 살아 있는 통화가 남아 있으면 그 통화가 잠금의 주인이다 — 그대로 둔다
+        await releaseLine(db, counselorId, '');
       }
     } catch (e) {}
     const r = await db.prepare(
@@ -522,6 +597,13 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
     const r = await db.prepare('SELECT counselor_id, client_id, connect_at, rate, dir FROM calls WHERE id = ?').bind(id).first();
     if (r) {
+      // 붙었으니 회선 잠금을 통화 상한만큼 늘린다. 상담사 발신은 벨 동안만 짧게
+      //  잠가 두기 때문에(안 받은 전화가 회선을 오래 물지 않도록), 실제로 통화가
+      //  시작되면 여기서 제 길이로 바꿔줘야 통화 중에 잠금이 풀리지 않는다.
+      try {
+        await db.prepare('UPDATE counselors SET busy_until = ? WHERE id = ? AND busy_until < ?')
+          .bind(nowMs() + MAX_CALL_MS, r.counselor_id, nowMs() + MAX_CALL_MS).run();
+      } catch (e) {}
       pushCallState(env, ctx, r.counselor_id, r.client_id, 'connected', { callId: id });
       // 폰을 두 대 쓰는 사람이 있다 — 한 대로 받으면 나머지 한 대의 벨은 꺼져야 한다
       cancelCallPush(env, ctx, { id, dir: r.dir, counselor_id: r.counselor_id, client_id: r.client_id });
@@ -567,12 +649,17 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     // 통화는 무료다. 남아 있는 상담 세션이 있으면 여기서 자동 마감하고,
     //  그 세션의 요금만 청구한다 — 끊고 도망가도 상담비는 정확히 계산된다.
     const fin = await endConsult(db, r, t);
-    const info = consultInfo(r, fin);
+    // r 은 이 요청이 시작될 때의 사본이다. 그 사이 상담사가 [상담 완료]를 눌러
+    //  요금이 확정됐을 수 있는데, 낡은 사본으로 계산하면 0 원이 나온다.
+    //  그 0 을 그대로 쓰면 방금 확정된 상담비가 통째로 사라진다(상담사 몫 증발).
+    const info = await settledInfo(db, r, fin);
     const billed = info.charge;
     const by = s(body.by, 20) || 'client';
-    await db.prepare('UPDATE calls SET end_at = ?, end_by = ?, billed = ? WHERE id = ?')
+    // 요금은 올라가기만 한다 — 어느 요청이 먼저 도착하든 결과가 같아야 한다
+    await db.prepare('UPDATE calls SET end_at = ?, end_by = ?, billed = MAX(COALESCE(billed, 0), ?) WHERE id = ?')
       .bind(t, by, billed, id).run();
-    await db.prepare('UPDATE counselors SET busy_until = 0 WHERE id = ?').bind(r.counselor_id).run();
+    // 회선은 '이 통화가 잠금의 주인일 때'만 푼다 (다른 통화가 살아 있으면 그대로)
+    await releaseLine(db, r.counselor_id, id);
     await db.prepare('DELETE FROM rtc_signals WHERE room = ?').bind(r.room).run();
     // 상대 피어에게 '끝났다'를 시그널로도 심는다 — 거절·취소를 상대가
     //  1초 안에 안다 (폴링이 bye 를 집어간다). 이게 없으면 발신자는

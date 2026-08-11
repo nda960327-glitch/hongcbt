@@ -6,6 +6,10 @@
 // ============================================================================
 window.Mail = {
 
+  // 공용 이스케이프 — 편지 본문(사용자·AI 작성)이 미리보기·상세에 들어간다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
   STAMP_COIN: 40,
   STAMP_CASH: 300,
 
@@ -158,11 +162,11 @@ ${userText}` }],
             <button onclick="window.Mail.toggle('${m.id}')" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.55rem 0.7rem; cursor: pointer;">
  <span style="font-size: 0.95rem;">${m.dir ==='recv'?'':''}</span>
               <span style="flex: 1 1 0%; width: 0; min-width: 0; font-size: 0.78rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                ${m.dir === 'recv' ? '우렁이의 답장' : '내가 보낸 편지'} — ${(m.text || '').split('\n')[0].slice(0, 26)}
+                ${m.dir === 'recv' ? '우렁이의 답장' : '내가 보낸 편지'} — ${this._esc((m.text || '').split('\n')[0].slice(0, 26))}
               </span>
               <span style="font-size: 0.64rem; color: var(--text-muted); flex-shrink: 0;">${fmt(m.ts)}</span>
             </button>
-            <div id="mail-item-${m.id}" class="hidden" style="padding: 0 0.85rem 0.75rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap;">${(m.text || '').replace(/</g, '&lt;')}</div>
+            <div id="mail-item-${m.id}" class="hidden" style="padding: 0 0.85rem 0.75rem; font-size: 0.82rem; color: var(--text-secondary); line-height: 1.65; white-space: pre-wrap;">${this._esc(m.text || '')}</div>
           </div>`).join('')}`;
   }
 };

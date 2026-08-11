@@ -14,6 +14,19 @@ window.Admin = {
   code() { return sessionStorage.getItem('cbt_admin_code') || ''; },
   _setCode(v) { try { sessionStorage.setItem('cbt_admin_code', v || ''); } catch (e) {} },
 
+  // 공용 이스케이프 — & < > " ' 5자 전부 막는다(ops/js/app.js 의 esc 와 동일).
+  //  익명 입점 신청서 name·병원·자격 등 사람이 입력한 값이 그대로 innerHTML 에
+  //  들어가므로 반드시 이걸 통과시킨다. 홑따옴표까지 막아야 onclick/속성 탈출을 끊는다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
+  // 신청자·상담사가 넣은 사진 URL 은 스킴을 화이트리스트로 건다.
+  //  data:image/ 또는 https:// 로 시작할 때만 src 로 쓰고, 아니면 빈 값(→ 미표시).
+  _safePhoto(u) {
+    const s = String(u == null ? '' : u).trim();
+    return (/^data:image\//i.test(s) || /^https:\/\//i.test(s)) ? s : '';
+  },
+
   // js/api.js 가 못 실려 오면(배포 중 새로고침·순간 오프라인) window.Api 가 없다.
   //  전에는 그럴 때 버튼을 눌러도 조용히 아무 일도 안 일어나 '안 눌린다'로 보였다.
   //  이제 눈에 보이는 안내를 띄우고, 새로고침으로 복구할 길을 준다.
@@ -320,7 +333,7 @@ window.Admin = {
   renderSettleBox() {
     const el = document.getElementById('admin-settle-box');
     if (!el) return;
-    const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
+    const esc = this._esc;
     if (this._settle === null) { el.innerHTML = '<p style="font-size:0.78rem;color:var(--text-muted);margin:0;">불러오는 중…</p>'; return; }
     if (!this._settle.length) {
       el.innerHTML = '<p style="font-size:0.8rem;color:var(--text-muted);text-align:center;padding:0.9rem 0;margin:0;">지급할 건이 없어요.<br><span style="font-size:0.72rem;">상담사가 완료 처리하고 내담자가 확인하면 여기 올라옵니다.</span></p>';
@@ -347,7 +360,7 @@ window.Admin = {
                    : '계좌 미등록 — 상담사에게 등록을 요청하세요'}</p>
         ${rows.map(x => `
           <label style="display:flex; align-items:center; gap:0.5rem; padding:0.35rem 0; cursor:pointer;">
-            <input type="checkbox" ${this._pick[x.id] ? 'checked' : ''} onchange="window.Admin.togglePick('${x.id}')"
+            <input type="checkbox" ${this._pick[x.id] ? 'checked' : ''} data-adm-act="togglePick" data-adm-id="${esc(x.id)}"
               style="accent-color: var(--accent-primary); width:16px; height:16px;">
             <span style="flex:1; min-width:0; font-size:0.76rem; color:var(--text-secondary);">
               ${esc(x.clientName)} · ${esc(x.time)}
@@ -358,13 +371,13 @@ window.Admin = {
       </div>`;
     }).join('') + `
       <div style="display:flex; align-items:center; gap:0.4rem; margin-top:0.5rem; flex-wrap:wrap;">
-        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" onclick="window.Admin.pickAll(true)">전체 선택</button>
-        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" onclick="window.Admin.pickAll(false)">해제</button>
+        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" data-adm-act="pickAll" data-adm-on="1">전체 선택</button>
+        <button class="btn-secondary" style="width:auto; font-size:0.74rem; padding:0.35rem 0.7rem;" data-adm-act="pickAll" data-adm-on="0">해제</button>
         <span style="flex:1;"></span>
         <span style="font-size:0.78rem; color:var(--text-muted);">${picked.length}건 · <b style="color:var(--accent-primary);">${sum.toLocaleString()}캐시</b></span>
       </div>
       <button class="btn-primary" style="width:100%; margin-top:0.5rem; padding:0.55rem; font-size:0.84rem; ${picked.length ? '' : 'opacity:0.5; pointer-events:none;'}"
-        onclick="window.Admin.paySelected()">선택한 ${picked.length}건 지급 완료로 표시</button>
+        data-adm-act="paySelected">선택한 ${picked.length}건 지급 완료로 표시</button>
       <p style="margin:0.5rem 0 0; font-size:0.7rem; color:var(--text-muted); line-height:1.6;">
         실제 이체는 은행에서 따로 하세요. 여기서는 '보냈다'는 기록만 남깁니다.</p>`;
   },
@@ -382,7 +395,7 @@ window.Admin = {
   renderCounselorBox() {
     const el = document.getElementById('admin-counselor-box');
     if (!el) return;
-    const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
+    const esc = this._esc;
 
     if (this._cs === null) {
       el.innerHTML = '<p style="font-size: 0.78rem; color: var(--text-muted); margin: 0;">불러오는 중…</p>';
@@ -406,19 +419,19 @@ window.Admin = {
         <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.35rem;">
           <span style="flex: 1; min-width: 0; font-size: 0.74rem; color: ${c.email ? 'var(--text-secondary)' : '#c9a227'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${c.email ? esc(c.email) : '이메일 미등록 — 코드로만 접속 가능'}</span>
-          <button onclick="window.Admin.setEmail('${esc(c.id)}','${esc(c.name)}','${esc(c.email || '')}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">${c.email ? '변경' : '등록'}</button>
-          ${c.email ? `<button onclick="window.Admin.sendLink('${esc(c.id)}','${esc(c.name)}','${esc(c.email)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">링크 발송</button>` : ''}
+          <button data-adm-act="setEmail" data-adm-id="${esc(c.id)}" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">${c.email ? '변경' : '등록'}</button>
+          ${c.email ? `<button data-adm-act="sendLink" data-adm-id="${esc(c.id)}" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.25rem 0.4rem;">링크 발송</button>` : ''}
         </div>
         <div style="display: flex; align-items: center; gap: 0.35rem; margin-top: 0.35rem;">
           <code style="flex: 1; min-width: 0; font-size: 0.74rem; letter-spacing: 0.02em; color: var(--text-primary); background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 8px; padding: 0.35rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${shown ? esc(c.code) : '••••-••••-••••-••••'}</code>
-          <button onclick="window.Admin.peekCode('${esc(c.id)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0.3rem 0.45rem;">${shown ? '가리기' : '보기'}</button>
-          ${shown ? `<button onclick="window.Admin.copyCode('${esc(c.code)}')" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.3rem 0.45rem;">복사</button>` : ''}
+          <button data-adm-act="peekCode" data-adm-id="${esc(c.id)}" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); padding: 0.3rem 0.45rem;">${shown ? '가리기' : '보기'}</button>
+          ${shown ? `<button data-adm-act="copyCode" data-adm-id="${esc(c.id)}" style="all: unset; cursor: pointer; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); padding: 0.3rem 0.45rem;">복사</button>` : ''}
         </div>
         <div style="display: flex; gap: 0.3rem; margin-top: 0.5rem; flex-wrap: wrap;">
-          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" onclick="window.Admin.shareCounselor('${esc(c.id)}','${esc(c.name)}','${esc(c.code)}')">안내문</button>
-          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" onclick="window.Admin.rotateCounselor('${esc(c.id)}','${esc(c.name)}')">코드 재발급</button>
-          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem; ${on ? 'color: #c14a4a;' : 'color: var(--accent-primary);'}" onclick="window.Admin.toggleCounselor('${esc(c.id)}','${esc(c.name)}',${on ? 'false' : 'true'})">${on ? '정지' : '정지 해제'}</button>
-          <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a;" onclick="window.Admin.removeCounselor('${esc(c.id)}','${esc(c.name)}')">삭제</button>
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" data-adm-act="shareCounselor" data-adm-id="${esc(c.id)}">안내문</button>
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem;" data-adm-act="rotateCounselor" data-adm-id="${esc(c.id)}">코드 재발급</button>
+          <button class="btn-secondary" style="width: auto; flex: 1; min-width: 84px; font-size: 0.72rem; padding: 0.35rem; ${on ? 'color: #c14a4a;' : 'color: var(--accent-primary);'}" data-adm-act="toggleCounselor" data-adm-id="${esc(c.id)}" data-adm-on="${on ? '0' : '1'}">${on ? '정지' : '정지 해제'}</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a;" data-adm-act="removeCounselor" data-adm-id="${esc(c.id)}">삭제</button>
         </div>
       </div>`;
     }).join('');
@@ -429,7 +442,7 @@ window.Admin = {
     const appRow = a => `
       <div style="background: var(--bg-tertiary); border: 1px solid #f5c74e66; border-radius: 12px; padding: 0.75rem 0.85rem;">
         <div style="display: flex; align-items: center; gap: 0.5rem;">
-          ${a.photo ? `<img src="${esc(a.photo)}" alt="" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : ''}
+          ${this._safePhoto(a.photo) ? `<img src="${esc(this._safePhoto(a.photo))}" alt="" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0;">` : ''}
           <div style="flex: 1; min-width: 0;">
             <strong style="font-size: 0.86rem; color: var(--text-primary);">${esc(a.name)}</strong>
             <div style="font-size: 0.72rem; color: var(--text-muted);">${esc(a.license || '자격 미기재')}${a.career ? ' · 경력 ' + esc(a.career) + '년' : ''}</div>
@@ -445,8 +458,8 @@ window.Admin = {
           ${a.email ? esc(a.email) : '이메일 없음 — 승인해도 코드를 자동 발송할 수 없어요'}
         </div>
         <div style="display: flex; gap: 0.4rem; margin-top: 0.6rem;">
-          <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem;" onclick="window.Admin.approveApp('${esc(a.id)}')">승인하고 코드 발급</button>
-          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; color: #c14a4a;" onclick="window.Admin.rejectApp('${esc(a.id)}')">반려</button>
+          <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 0.45rem;" data-adm-act="approveApp" data-adm-id="${esc(a.id)}">승인하고 코드 발급</button>
+          <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; color: #c14a4a;" data-adm-act="rejectApp" data-adm-id="${esc(a.id)}">반려</button>
         </div>
       </div>`;
 
@@ -543,7 +556,7 @@ window.Admin = {
   reviewSection() {
     const reports = this._reports();
     const hidden = this._hidden();
-    const esc = t => String(t || '').replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const esc = this._esc;
     const open = reports.filter(r => r.status === 'open');
     const done = reports.filter(r => r.status !== 'open');
 
@@ -559,9 +572,9 @@ window.Admin = {
         <p style="margin: 0 0 0.5rem; font-size: 0.7rem; color: #c14a4a;">신고 사유: ${esc(r.reason)}</p>
         <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
           ${hidden[r.key]
-            ? `<button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" onclick="window.Admin.unhideReview('${r.key}')">복원</button>`
-            : `<button class="btn-primary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem; background: #c14a4a; border: none;" onclick="window.Admin.hideReview('${r.key}')">숨기기</button>
-               <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" onclick="window.Admin.dismissReport('${r.key}')">유지(반려)</button>`}
+            ? `<button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" data-adm-act="unhideReview" data-adm-key="${esc(r.key)}">복원</button>`
+            : `<button class="btn-primary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem; background: #c14a4a; border: none;" data-adm-act="hideReview" data-adm-key="${esc(r.key)}">숨기기</button>
+               <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.7rem;" data-adm-act="dismissReport" data-adm-key="${esc(r.key)}">유지(반려)</button>`}
         </div>
       </div>`;
 
@@ -716,10 +729,10 @@ window.Admin = {
             return '<div style="display: flex; flex-direction: column; gap: 0.5rem;">' + packs.map(([bid, p]) => `
               <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem;">
                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                  <strong style="flex: 1; font-size: 0.84rem; color: var(--text-primary);">→ ${p.counselor || '상담사'} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.72rem;">${new Date(p.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 전달</span></strong>
+                  <strong style="flex: 1; font-size: 0.84rem; color: var(--text-primary);">→ ${this._esc(p.counselor || '상담사')} <span style="font-weight: 500; color: var(--text-muted); font-size: 0.72rem;">${new Date(p.ts).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 전달</span></strong>
                   <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.3rem 0.6rem;" onclick="const b = this.closest('div').parentElement.querySelector('.pack-body'); b.classList.toggle('hidden'); this.textContent = b.classList.contains('hidden') ? '열람' : '접기';">열람</button>
                 </div>
-                <div class="pack-body hidden" style="margin-top: 0.55rem; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line; border-top: 1px dashed var(--glass-border); padding-top: 0.55rem; max-height: 300px; overflow-y: auto;">${(p.text || '(원문 미보관 — 구버전 전달)').replace(/</g, '&lt;')}</div>
+                <div class="pack-body hidden" style="margin-top: 0.55rem; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.6; white-space: pre-line; border-top: 1px dashed var(--glass-border); padding-top: 0.55rem; max-height: 300px; overflow-y: auto;">${this._esc(p.text || '(원문 미보관 — 구버전 전달)')}</div>
               </div>`).join('') + '</div>';
           })()}
         </div>
@@ -737,10 +750,10 @@ window.Admin = {
             ${customs.map(c => `
               <div style="display: flex; align-items: center; gap: 0.6rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; opacity: 0.75;">
                 <div style="flex: 1; min-width: 0;">
-                  <strong style="font-size: 0.86rem; color: var(--text-primary);">${c.name}</strong>
-                  <div style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital} · 30분 ${(c.price || 0).toLocaleString()}원</div>
+                  <strong style="font-size: 0.86rem; color: var(--text-primary);">${this._esc(c.name)}</strong>
+                  <div style="font-size: 0.72rem; color: var(--text-muted);">${this._esc(c.hospital)} · 30분 ${(c.price || 0).toLocaleString()}원</div>
                 </div>
-                <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" onclick="window.Admin.delist('${c.id}')">이 기기에서 삭제</button>
+                <button class="btn-secondary" style="width: auto; font-size: 0.72rem; padding: 0.35rem 0.6rem; color: #c14a4a; flex-shrink: 0;" data-adm-act="delist" data-adm-id="${this._esc(c.id)}">이 기기에서 삭제</button>
               </div>`).join('')}
           </div>
         </div>` : ''}
@@ -791,3 +804,37 @@ window.Admin = {
     }).catch(() => {});
   }
 };
+
+// ── 운영자 콘솔 이벤트 위임 ────────────────────────────────────────────
+//  버튼 HTML 에 이름·코드·이메일을 심으면 따옴표 하나로 onclick 이 벌어진다
+//  (익명 입점 신청서 name 이 승인 카드에 그대로 뜨므로 실제 주입 경로였다).
+//  이제 버튼에는 data-adm-act/id/key 만 두고, 실제 값은 서버 목록(_cs 등)에서
+//  되찾아 메서드에 넘긴다 — 사용자 문자열이 코드 위치에 절대 닿지 않는다.
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-adm-act]');
+  if (!el) return;
+  const A = window.Admin;
+  if (!A) return;
+  const act = el.dataset.admAct;
+  const id = el.dataset.admId || '';
+  const c = (A._cs || []).find(x => x.id === id);
+  switch (act) {
+    case 'setEmail':       if (c) A.setEmail(c.id, c.name, c.email || ''); break;
+    case 'sendLink':       if (c) A.sendLink(c.id, c.name, c.email || ''); break;
+    case 'peekCode':       A.peekCode(id); break;
+    case 'copyCode':       if (c) A.copyCode(c.code); break;
+    case 'shareCounselor': if (c) A.shareCounselor(c.id, c.name, c.code); break;
+    case 'rotateCounselor':if (c) A.rotateCounselor(c.id, c.name); break;
+    case 'toggleCounselor':if (c) A.toggleCounselor(c.id, c.name, el.dataset.admOn === '1'); break;
+    case 'removeCounselor':if (c) A.removeCounselor(c.id, c.name); break;
+    case 'approveApp':     A.approveApp(id); break;
+    case 'rejectApp':      A.rejectApp(id); break;
+    case 'togglePick':     A.togglePick(id); break;
+    case 'pickAll':        A.pickAll(el.dataset.admOn === '1'); break;
+    case 'paySelected':    A.paySelected(); break;
+    case 'delist':         A.delist(id); break;
+    case 'hideReview':     A.hideReview(el.dataset.admKey || ''); break;
+    case 'unhideReview':   A.unhideReview(el.dataset.admKey || ''); break;
+    case 'dismissReport':  A.dismissReport(el.dataset.admKey || ''); break;
+  }
+});

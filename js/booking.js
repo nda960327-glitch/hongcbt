@@ -4,6 +4,10 @@
 //  실서비스에서는 slotsFor()가 상담사 가능시간 API 응답으로 교체된다.
 // ============================================================================
 window.Booking = {
+  // 공용 이스케이프 — 상담사 이름·병원이 예약 모달에 그대로 들어간다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
   currentCounselorId: null,
   calYear: 0,
   calMonth: 0, // 0-11
@@ -68,8 +72,8 @@ window.Booking = {
     details.innerHTML = `
       <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap;">
         <div style="min-width: 0;">
-          <strong style="font-size: 1.02rem; color: var(--text-primary);">${counselor.name}</strong>
-          <div style="color: var(--text-muted); font-size: 0.78rem;">${counselor.hospital}</div>
+          <strong style="font-size: 1.02rem; color: var(--text-primary);">${this._esc(counselor.name)}</strong>
+          <div style="color: var(--text-muted); font-size: 0.78rem;">${this._esc(counselor.hospital)}</div>
         </div>
         <strong style="color: var(--accent-primary); white-space: nowrap;">30분 · ${counselor.price.toLocaleString()}캐시</strong>
       </div>

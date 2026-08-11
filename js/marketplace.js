@@ -3,6 +3,18 @@
   userLng: 126.9780,
   hasGps: false,
 
+  // 공용 이스케이프 — & < > " ' 5자 전부. 상담사가 프로 앱에서 자유 입력한
+  //  이름·병원·소개·태그·후기가 그대로 innerHTML 에 들어가므로 반드시 통과시킨다.
+  _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+
+  // 상담사 사진 URL 은 스킴 화이트리스트 — data:image/ 또는 https:// 만 허용.
+  //  그 밖(javascript: 등)은 빈 값으로 떨어뜨려 기본 아바타가 뜨게 한다.
+  _safePhoto(u) {
+    const s = String(u == null ? '' : u).trim();
+    return (/^data:image\//i.test(s) || /^https:\/\//i.test(s)) ? s : '';
+  },
+
   // 시연용 가짜 상담사 5명(c1~c5)이 여기 박혀 있었다.
   //  실제 상담사가 서버에 들어오기 전까지 화면을 채우는 용도였는데,
   //  이제 신청·승인이 서버로 도니 진짜와 섞이면 안 된다. 내담자가
@@ -231,18 +243,18 @@
           style="all: unset; position: absolute; top: 0.7rem; right: 0.8rem; cursor: pointer; font-size: 1.1rem; padding: 0.15rem; line-height: 1; line-height: 0;">${window.Icons ? window.Icons.svg(this.isFav(c.id) ? 'favOn' : 'favOff', { size: 20, line: this.isFav(c.id) ? '#C98A93' : '#B7A88F' }) : ''}</button>
         <div class="cc2-top">
           <div class="cc2-ava">
-            ${c.photo ? `<img src="${c.photo}" alt="${c.name}">` : (window.Icons ? window.Icons.art.avatar(c.avatar, 56) : '')}
+            ${this._safePhoto(c.photo) ? `<img src="${this._esc(this._safePhoto(c.photo))}" alt="${this._esc(c.name)}">` : (window.Icons ? window.Icons.art.avatar(c.avatar, 56) : '')}
             <span class="cc2-dot ${st}"></span>
           </div>
           <div class="cc2-info">
-            <div class="cc2-name">${c.name}${c.isNew ? ' <span class="cc2-new">NEW</span>' : ''}</div>
-            <div class="cc2-hosp">${c.hospital}</div>
+            <div class="cc2-name">${this._esc(c.name)}${c.isNew ? ' <span class="cc2-new">NEW</span>' : ''}</div>
+            <div class="cc2-hosp">${this._esc(c.hospital)}</div>
             <div class="cc2-meta">
               <span role="button" onclick="event.stopPropagation(); window.Marketplace.openReviews('${c.id}')" style="cursor: pointer; text-decoration: underline; text-decoration-color: var(--glass-border); text-underline-offset: 3px;">${window.Icons ? window.Icons.svg('star', { size: 13 }) : ''} <b>${c.rating}</b> (${c.reviews})</span>
               ${c.distance == null ? '' : `<span>${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''} ${c.distance}km</span>`}
               <span class="cc2-st ${st}">${st === 'avail' ? '● 상담 가능' : st === 'busy' ? '● 통화 중' : '● 부재중'}</span>
             </div>
-            <div class="cc2-tags">${(c.tags || []).slice(0, 3).map(t => `<span class="cc2-tag">${t}</span>`).join('')}</div>
+            <div class="cc2-tags">${(c.tags || []).slice(0, 3).map(t => `<span class="cc2-tag">${this._esc(t)}</span>`).join('')}</div>
           </div>
         </div>
         <div class="cc2-duo" onclick="event.stopPropagation()">
@@ -371,7 +383,7 @@
     else if (this._revSort === 'low') list = [...list].sort((a, b) => a.rating - b.rating);
     else list = [...list].sort((a, b) => b.ts - a.ts);
 
-    const esc = t => String(t || '').replace(/[<>&]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[m]));
+    const esc = this._esc;
     // 작성자는 익명 처리 — 앞 한 글자만 남기고 가린다
     const anon = (name, isMine) => {
       if (isMine) return '나';
@@ -430,7 +442,7 @@
                 <span style="font-size: 0.66rem; color: var(--text-muted);">${ago(r.ts)}</span>
               </div>
               <div style="display: flex; justify-content: flex-end; margin-top: 0.3rem;">
-                ${r.isMine ? '' : `<button onclick="window.Marketplace.reportReview(\'${c.id}\', \'${this.reviewKey(c.id, r)}\')" style="all: unset; cursor: pointer; font-size: 0.66rem; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px;">신고</button>`}
+                ${r.isMine ? '' : `<button data-mk-act="report" data-mk-cid="${esc(c.id)}" data-mk-key="${esc(this.reviewKey(c.id, r))}" style="all: unset; cursor: pointer; font-size: 0.66rem; color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px;">신고</button>`}
               </div>
               <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.65;">${esc(r.text)}</p>
             </div>`).join('')
@@ -578,14 +590,14 @@
     content.innerHTML = `
       <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
         <div class="counselor-avatar counselor-avatar--lg">
-          ${counselor.photo ? `<img src="${counselor.photo}" alt="${counselor.name}" style="width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">` : (window.Icons ? window.Icons.art.avatar(counselor.avatar, 96) : '')}
+          ${this._safePhoto(counselor.photo) ? `<img src="${this._esc(this._safePhoto(counselor.photo))}" alt="${this._esc(counselor.name)}" style="width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">` : (window.Icons ? window.Icons.art.avatar(counselor.avatar, 96) : '')}
         </div>
         <div>
-          <h2 style="margin: 0;">${counselor.name}</h2>
-          <p class="meta-line" style="color: var(--text-muted); font-size: 0.9rem; margin: 0.3rem 0;">${window.Icons ? window.Icons.svg('hospital', { size: 15 }) : ''}${counselor.hospital}</p>
+          <h2 style="margin: 0;">${this._esc(counselor.name)}</h2>
+          <p class="meta-line" style="color: var(--text-muted); font-size: 0.9rem; margin: 0.3rem 0;">${window.Icons ? window.Icons.svg('hospital', { size: 15 }) : ''}${this._esc(counselor.hospital)}</p>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.4rem 0;">
  ${dist == null
-   ? (counselor.addr ? `<span style="background: color-mix(in srgb, var(--accent-primary) 12%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;">${counselor.addr}</span>` : '')
+   ? (counselor.addr ? `<span style="background: color-mix(in srgb, var(--accent-primary) 12%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;">${this._esc(counselor.addr)}</span>` : '')
    : `<span style="background: color-mix(in srgb, var(--accent-primary) 15%, transparent); color: var(--accent-primary); font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px;"> 내 위치에서 ${dist} km</span>`}
           </div>
           <div style="display: flex; gap: 0.4rem; align-items: center; margin: 0.5rem 0;">
@@ -599,7 +611,7 @@
       <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
         <h4 style="margin: 0 0 0.5rem 0; color: var(--accent-primary);" class="card-head">${window.Icons ? window.Icons.svg('pin',{size:16}):''}주요 이력 및 병원 위치</h4>
         <ul style="font-size: 0.85rem; padding-left: 1.2rem; margin: 0; line-height: 1.6;">
-          ${counselor.career.map(c => `<li>${c}</li>`).join('')}
+          ${counselor.career.map(c => `<li>${this._esc(c)}</li>`).join('')}
         </ul>
       </div>
 
@@ -614,10 +626,10 @@
           ${this.pickHighlights(this.allReviews(counselor), 2).map(r => `
             <div style="background: var(--bg-tertiary); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border);">
               <div style="display: flex; justify-content: space-between; margin-bottom: 0.3rem;">
-                <span style="font-weight: bold; font-size: 0.85rem;">${r.author}</span>
+                <span style="font-weight: bold; font-size: 0.85rem;">${this._esc(r.author)}</span>
                 ${window.Icons ? window.Icons.stars(r.rating,14) : ''}
               </div>
-              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">"${r.text}"</p>
+              <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">"${this._esc(r.text)}"</p>
             </div>
           `).join('')}
         </div>
@@ -642,3 +654,14 @@
     if (modal) modal.classList.add('hidden');
   }
 };
+
+// 후기 신고 버튼 위임 — reviewKey 는 작성자 이름·본문 앞부분을 담으므로
+//  onclick 문자열에 심으면 따옴표 하나로 벌어진다. data-* 로만 넘기고
+//  실제 호출은 여기서 한다(값이 코드 위치에 닿지 않는다).
+document.addEventListener('click', function (e) {
+  const el = e.target.closest('[data-mk-act]');
+  if (!el || !window.Marketplace) return;
+  if (el.dataset.mkAct === 'report') {
+    window.Marketplace.reportReview(el.dataset.mkCid || '', el.dataset.mkKey || '');
+  }
+});

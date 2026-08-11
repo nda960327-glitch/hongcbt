@@ -870,7 +870,8 @@ window.App = {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   },
 
   // === 말풍선 길게 누르기 → 액션 시트 ===
@@ -2092,8 +2093,8 @@ ${memory || '(없음)'}`;
           <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
           <span style="font-size: 0.78rem; color: var(--text-muted);">${b.price.toLocaleString()}캐시 결제</span>
         </div>
-        <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
-        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
+        <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${this._escHtml(b.name)}</h4>
+        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${this._escHtml(b.hospital)}</p>
         <div style="margin-top: 0.7rem; font-size: 0.9rem; font-weight: bold; color: var(--text-primary);">
           <span class="h-ico" data-icon="calendar" data-icon-size="17"></span>${b.time}
         </div>
@@ -2125,7 +2126,7 @@ ${memory || '(없음)'}`;
               <span style="background: ${paid ? 'var(--accent-primary)' : 'var(--text-muted)'}; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">${paid ? '음성 상담' : '통화'}</span>
               <span style="font-size: 0.78rem; color: var(--text-muted);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}${l.count > 1 ? ' · 통화 ' + l.count + '회' : ''} · ${mm ? mm + '분 ' : ''}${ss}초${l.spent ? ' · ' + Number(l.spent).toLocaleString() + '캐시' : paid ? '' : ' · 무료'}</span>
             </div>
-            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${String(l.name || '상담사').replace(/</g, '&lt;')}</h4>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${this._escHtml(l.name || '상담사')}</h4>
             <div style="margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
               ${rv
                 ? `<span style="font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">${rv.rating}.0 리뷰 작성 완료</span>`
@@ -2149,8 +2150,8 @@ ${memory || '(없음)'}`;
                 : '<span style="background: var(--text-muted); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">상담 완료</span>'}
               <span style="font-size: 0.78rem; color: var(--text-muted);">${b.time}</span>
             </div>
-            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${b.name}</h4>
-            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${b.hospital}</p>
+            <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${this._escHtml(b.name)}</h4>
+            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${this._escHtml(b.hospital)}</p>
             ${(() => {
               // 상담사가 완료 처리했는데 아직 확인하지 않았다면, 이게 가장 먼저 보여야 한다.
               //  확인해야 상담사에게 정산이 나가고, 3일 뒤엔 자동 확정된다.
@@ -2190,7 +2191,7 @@ ${memory || '(없음)'}`;
  :`<button class="btn-primary"style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;"onclick="window.App.writeReview('${b.id}')"> 리뷰 남기기</button>`}
               <button class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.8rem;" onclick="window.App.switchTab('counselors')">다시 예약</button>
             </div>
- ${(() => { const rep = (window.Storage._safeGet('cbt_review_replies', {}) || {})[b.id]; return rep ?`<p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--text-secondary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border-radius: 8px; padding: 0.5rem 0.7rem;"><b>${b.name}</b>의 답글: ${rep.text.replace(/</g,'&lt;')}</p>`:''; })()}
+ ${(() => { const rep = (window.Storage._safeGet('cbt_review_replies', {}) || {})[b.id]; return rep ?`<p style="margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--text-secondary); background: color-mix(in srgb, var(--accent-primary) 8%, transparent); border-radius: 8px; padding: 0.5rem 0.7rem;"><b>${this._escHtml(b.name)}</b>의 답글: ${this._escHtml(rep.text)}</p>`:''; })()}
           </div>`;
         }).join(''));
     }
@@ -2214,7 +2215,7 @@ ${memory || '(없음)'}`;
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 400px; max-height: 84vh; overflow-y: auto;">
  <h2 style="margin-top: 0;"> 상담 자료 보내기</h2>
-        <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 0.9rem;"><b>${b.name}</b> 상담사에게 전달할 자료를 골라주세요.<br>동의한 항목만 요약본에 담깁니다.</p>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0 0 0.9rem;"><b>${this._escHtml(b.name)}</b> 상담사에게 전달할 자료를 골라주세요.<br>동의한 항목만 요약본에 담깁니다.</p>
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
           <label style="display: flex; align-items: center; gap: 0.55rem; padding: 0.7rem 0.85rem; background: var(--bg-tertiary); border-radius: 10px; cursor: pointer; font-size: 0.85rem; color: var(--text-primary);">
             <input type="checkbox" id="sp-records" checked style="accent-color: var(--accent-primary); width: 17px; height: 17px;" ${records.length ? '' : 'disabled'}>
@@ -2243,7 +2244,7 @@ ${memory || '(없음)'}`;
                     background: var(--bg-tertiary); border: 1px solid var(--glass-border);">
           <p style="margin: 0 0 0.4rem; font-size: 0.75rem; font-weight: 800; color: var(--text-primary);">보내면 이렇게 됩니다</p>
           <ul style="margin: 0; padding-left: 1rem; font-size: 0.72rem; line-height: 1.7; color: var(--text-secondary);">
-            <li>고른 항목의 <b>요약본</b>이 <b>${b.name}</b> 상담사의 수신함으로 전송됩니다.</li>
+            <li>고른 항목의 <b>요약본</b>이 <b>${this._escHtml(b.name)}</b> 상담사의 수신함으로 전송됩니다.</li>
             <li>대화 원문과 일기 전문은 보내지 않습니다.</li>
             <li>전송된 자료는 상담사가 열람하며, 삭제를 원하면
                 <span style="color: var(--text-primary);">nda960327@gmail.com</span> 으로 요청할 수 있습니다.</li>
@@ -2456,7 +2457,7 @@ ${memory || '(없음)'}`;
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 340px; text-align: center;">
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('think', 90) : ''}</span>
-        <h2 style="margin: 0.6rem 0 0.3rem; font-size: 1.05rem;">${target.name}님과의 상담,<br>잘 진행되었나요?</h2>
+        <h2 style="margin: 0.6rem 0 0.3rem; font-size: 1.05rem;">${this._escHtml(target.name)}님과의 상담,<br>잘 진행되었나요?</h2>
         <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 1rem;">[${target.time}] 예약 확인이에요.</p>
         <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.App.resolveNoshow('${target.id}', 'done')">네, 잘 마쳤어요</button>
         <button class="btn-secondary" style="width: 100%; margin-bottom: 0.5rem; color: #c14a4a;" onclick="window.App.resolveNoshow('${target.id}', 'noshow')">상담이 진행되지 않았어요</button>
@@ -3591,7 +3592,12 @@ ${body}
     const ov = document.createElement('div');
     ov.id = 'report-send-overlay';
     ov.className = 'modal-overlay';
-    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.addEventListener('click', e => {
+      if (e.target === ov) { ov.remove(); return; }
+      // 상담사 이름을 onclick 에 심으면 따옴표 하나로 벌어진다 — data-* 로만 넘긴다
+      const pick = e.target.closest('[data-report-cid]');
+      if (pick) { ov.remove(); window.App._deliverReportTo(pick.dataset.reportCid, pick.dataset.reportCname); }
+    });
     ov.innerHTML = `
       <div class="modal-content glass-card" style="max-width: 360px;">
  <h2 style="margin: 0 0 0.3rem; font-size: 1.1rem;"> 리포트 보내기</h2>
@@ -3599,11 +3605,11 @@ ${body}
         <div style="display: flex; flex-direction: column; gap: 0.5rem;">
           ${cands.map(c => `
             <button style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.7rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); cursor: pointer;"
-              onclick="document.getElementById('report-send-overlay').remove(); window.App._deliverReportTo('${c.id}', ${JSON.stringify(c.name).replace(/"/g, '&quot;')})">
+              data-report-cid="${this._escHtml(c.id)}" data-report-cname="${this._escHtml(c.name)}">
  <span style="flex-shrink: 0; line-height: 0;">${window.Icons ? window.Icons.svg('counselor', { size: 22 }) :''}</span>
               <span style="flex: 1; min-width: 0;">
-                <strong style="display: block; font-size: 0.88rem; color: var(--text-primary);">${c.name}</strong>
-                <span style="font-size: 0.72rem; color: var(--text-muted);">${c.hospital || ''} ${c.upcoming ? '· 예약 예정' : '· 지난 상담'}</span>
+                <strong style="display: block; font-size: 0.88rem; color: var(--text-primary);">${this._escHtml(c.name)}</strong>
+                <span style="font-size: 0.72rem; color: var(--text-muted);">${this._escHtml(c.hospital || '')} ${c.upcoming ? '· 예약 예정' : '· 지난 상담'}</span>
               </span>
               <span style="color: var(--accent-primary); font-weight: 800;">›</span>
             </button>`).join('')}
@@ -3665,7 +3671,7 @@ ${body}
       <div class="modal-content glass-card" style="max-width: 340px; width: 100%;">
         <h2 style="margin: 0 0 0.2rem; font-size: 1.05rem;">상담은 어떠셨나요?</h2>
         <p style="margin: 0 0 1rem; font-size: 0.78rem; color: var(--text-muted);">
-          ${(b.name || '상담사').replace(/</g, '&lt;')} · ${b.timeLabel || ''}</p>
+          ${this._escHtml(b.name || '상담사')} · ${this._escHtml(b.timeLabel || '')}</p>
 
         <div id="rv-stars" style="display: flex; justify-content: center; gap: 0.35rem; margin-bottom: 0.35rem;">
           ${[1, 2, 3, 4, 5].map(n => `
@@ -3814,8 +3820,8 @@ ${body}
       <div style="background: var(--bg-tertiary); border: 1px dashed var(--glass-border); border-radius: 10px; padding: 0.7rem 0.9rem; margin-top: 0.6rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.4rem;">
           <div style="min-width: 0;">
-            <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${a.name}</strong>
-            <div style="font-size: 0.72rem; color: var(--text-muted);">${a.hospital} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
+            <strong style="font-size: 0.85rem; color: var(--text-primary);">상담사 등록 신청 — ${this._escHtml(a.name)}</strong>
+            <div style="font-size: 0.72rem; color: var(--text-muted);">${this._escHtml(a.hospital)} · ${new Date(a.ts).toLocaleDateString('ko-KR')}</div>
           </div>
           ${chip}
         </div>
@@ -4467,8 +4473,8 @@ ${body}
       <div style="display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
  <button id="hchat-close"style="background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-primary); padding: 0.2rem 0.4rem;"></button>
         <div style="flex: 1; min-width: 0;">
-          <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${c.name}</strong>
-          <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${c.hospital}</span>
+          <strong style="font-size: 0.95rem; color: var(--text-primary); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${this._escHtml(c.name)}</strong>
+          <span style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${this._escHtml(c.hospital)}</span>
         </div>
  <button id="hchat-share" title="내 기록을 상담사에게 공유" style="background: none; border: 1px solid var(--glass-border); border-radius: 999px; font-size: 0.73rem; font-weight: 700; padding: 0.4rem 0.7rem; cursor: pointer; color: var(--text-secondary); flex-shrink: 0;">기록 공유</button>
  <button id="hchat-call"class="btn-primary"style="width: auto; font-size: 0.75rem; padding: 0.4rem 0.7rem; flex-shrink: 0;"> 통화</button>
@@ -4487,7 +4493,7 @@ ${body}
       const box = document.getElementById('hchat-msgs');
       msgs = window.Storage._safeGet(key, []) || [];
       box.innerHTML = msgs.map(m => {
-        if (m.role === 'sys') return `<div style="align-self: center; background: var(--bg-tertiary); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.78rem; color: var(--text-secondary); white-space: pre-line; max-width: 90%;">${m.text}</div>`;
+        if (m.role === 'sys') return `<div style="align-self: center; background: var(--bg-tertiary); border-radius: 10px; padding: 0.6rem 0.9rem; font-size: 0.78rem; color: var(--text-secondary); white-space: pre-line; max-width: 90%;">${this._escHtml(m.text)}</div>`;
         // 숙제 카드 — "숙제를 냈어요" 말풍선, 누르면 무슨 숙제인지 상세가 열린다
         if (m.role === 'them' && /^\[숙제:/.test(m.text || '')) {
           const hm = m.text.match(/^\[숙제:([^\]]+)\]\s*([\s\S]*)$/) || [];
@@ -4498,7 +4504,7 @@ ${body}
                    border: 1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent);">
             <div style="padding: 0.45rem 0.85rem; background: color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)); display: flex; align-items: center; gap: 0.4rem;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-              <b style="font-size: 0.78rem; color: var(--accent-primary);">${c.name}님이 숙제를 냈어요</b>
+              <b style="font-size: 0.78rem; color: var(--accent-primary);">${this._escHtml(c.name)}님이 숙제를 냈어요</b>
             </div>
             <div style="padding: 0.55rem 0.85rem; background: var(--bg-secondary);">
               <span style="font-size: 0.86rem; font-weight: 700; color: var(--text-primary); line-height: 1.5;">${this._escHtml(hwText)}</span>
@@ -4522,7 +4528,7 @@ ${body}
           </div>`;
         }
         const mine = m.role === 'me';
-        return `<div style="align-self: ${mine ? 'flex-end' : 'flex-start'}; background: ${mine ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${mine ? '#fff' : 'var(--text-primary)'}; border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.55rem 0.85rem; font-size: 0.88rem; max-width: 78%; white-space: pre-line;">${(m.text || '').replace(/</g, '&lt;')}${!mine ? `<span style="display: block; font-size: 0.64rem; color: var(--text-muted); margin-top: 0.2rem;">${c.name}</span>` : ''}</div>`;
+        return `<div style="align-self: ${mine ? 'flex-end' : 'flex-start'}; background: ${mine ? 'var(--accent-primary)' : 'var(--bg-secondary)'}; color: ${mine ? '#fff' : 'var(--text-primary)'}; border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.55rem 0.85rem; font-size: 0.88rem; max-width: 78%; white-space: pre-line;">${this._escHtml(m.text || '')}${!mine ? `<span style="display: block; font-size: 0.64rem; color: var(--text-muted); margin-top: 0.2rem;">${this._escHtml(c.name)}</span>` : ''}</div>`;
       }).join('');
       box.scrollTop = box.scrollHeight;
       this.markChatRead(c.id); // 여기까지 봤다 — 채팅함의 빨간 점이 꺼진다
