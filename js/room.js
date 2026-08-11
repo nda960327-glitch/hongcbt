@@ -382,14 +382,17 @@ window.Room = {
     const uid = 'rm' + Math.floor(Math.random() * 1e6);
     // 배회 폭·속도를 매번 다르게 (같은 움직임 반복 방지)
     const far = 42 + Math.floor(Math.random() * 46);
-    const roam = Math.random() < 0.5;   // 활발해도 절반은 제자리에서 논다
+    // 사용자가 우렁이를 직접 옮겨둔 자리가 있으면 배회하지 않고 그 자리에 머문다
+    const pos = this._pos();
+    const hasPos = !!(pos && (Math.abs(pos.x) > 0.002 || Math.abs(pos.y) > 0.002));
+    const roam = !hasPos && Math.random() < 0.5;   // 활발해도 절반은 제자리에서 논다
     const dur = (16 + Math.random() * 10).toFixed(1);   // 대부분 제자리, 가끔 한 바퀴
     const idle = this._idle || this.pickIdle();
     const snail = window.Stickers
       ? window.Stickers.svgDressed(idle.skin || null, idle.s, 118)
       : '';
     return `
-      <div style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
+      <div id="wr-stage" style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
         <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
           <defs>
             <linearGradient id="${uid}-wallsh" x1="0" y1="0" x2="0" y2="1">
@@ -427,8 +430,10 @@ window.Room = {
           <path d="M0 0 h46 q-30 24 -46 66z" fill="#000" opacity="0.05"/>
           <path d="M320 0 h-46 q30 24 46 66z" fill="#000" opacity="0.05"/>
         </svg>
-        <div style="position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); width: 30%; line-height: 0;">
-          <div class="${idle.active && roam ? 'wr-wander' : ''}" style="width: 100%; ${idle.active && roam ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-stand">${snail}</div></div>
+        <div id="wr-snail" class="wr-snail" role="button" tabindex="0" aria-label="우렁이 — 만지거나 옮겨보세요" style="position: absolute; left: 50%; bottom: 8%; width: 30%; line-height: 0;">
+          <div class="wr-move">
+            <div class="${idle.active && roam ? 'wr-wander' : ''}" style="width: 100%; ${idle.active && roam ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-squish"><div class="wr-stand">${snail}</div></div></div>
+          </div>
         </div>
         <div style="position: absolute; left: 50%; top: 5%; transform: translateX(-50%); max-width: 88%; font-size: 0.76rem; font-weight: 700; color: #4a4038; background: rgba(255, 252, 245, 0.88); border: 1px solid rgba(74, 64, 56, 0.18); padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
           ${idle.cap}
@@ -498,5 +503,178 @@ window.Room = {
         </p>
       </div>
       ${window.Game ? window.Game.careBar() : ''}`;
+
+    // 우렁이를 만지고 옮길 수 있게 — 방을 다시 그릴 때마다 새 캐릭터에 붙인다
+    this._mountSnail();
+  },
+
+  // ==========================================================================
+  //  우렁이 터치·롱프레스·드래그  (cbt_uroong_pos 에 위치 저장)
+  //   · 탭        → 통통 튀는 반응 + 효과음 + 가끔 말풍선
+  //   · 롱프레스   → 말랑하게 찌그러짐 (누르는 동안 유지, 떼면 탱글 복원)
+  //   · 드래그(8px+)→ 방 안에서 위치 이동, 놓으면 저장 (경계 clamp)
+  //   · 더블탭     → 원래 자리로 복귀
+  // ==========================================================================
+  _SAYS: ['아야!', '간지러워~', '또 눌렀네', '히힛', '왜 자꾸 만져~', '어? 불렀어?', '말랑말랑'],
+  _curDx: 0, _curDy: 0, _lastTap: 0, _reacting: false,
+
+  _pos() {
+    try {
+      const p = this._S() && this._S()._safeGet('cbt_uroong_pos', null);
+      if (p && typeof p === 'object' && typeof p.x === 'number' && typeof p.y === 'number') return p;
+    } catch (e) {}
+    return { x: 0, y: 0 };
+  },
+  _savePos(x, y) {
+    try { this._S() && this._S()._safeSet('cbt_uroong_pos', { x, y }); } catch (e) {}
+  },
+
+  // 저장 좌표(무대 대비 분수) → 이동 한계. 우렁이 상자가 방 밖으로 안 나가게.
+  _bounds(sr, nr) {
+    const w = nr.width, h = nr.height;
+    const halfFree = Math.max(0, sr.width / 2 - w / 2);
+    return {
+      minX: -halfFree, maxX: halfFree,
+      minY: Math.min(0, h - sr.height * 0.92),   // 위로 (천장까지)
+      maxY: sr.height * 0.08                       // 아래로 (바닥까지)
+    };
+  },
+
+  _mountSnail() {
+    const snail = document.getElementById('wr-snail');
+    if (!snail || snail.dataset.wrBound) return;   // 새 캐릭터에만 한 번 바인딩
+    snail.dataset.wrBound = '1';
+    const stage = document.getElementById('wr-stage');
+    const squish = snail.querySelector('.wr-squish');
+    if (!stage || !squish) return;
+    const reduce = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    // 저장된 위치 반영 (분수 → px, 현재 무대 크기 기준으로 다시 clamp)
+    const applyPos = () => {
+      const sr = stage.getBoundingClientRect();
+      const nr = snail.getBoundingClientRect();
+      if (!sr.width || !nr.width) return;
+      const p = this._pos();
+      const b = this._bounds(sr, nr);
+      let dx = Math.max(b.minX, Math.min(b.maxX, p.x * sr.width));
+      let dy = Math.max(b.minY, Math.min(b.maxY, p.y * sr.height));
+      snail.style.setProperty('--wr-dx', dx + 'px');
+      snail.style.setProperty('--wr-dy', dy + 'px');
+      this._curDx = dx; this._curDy = dy;
+    };
+    applyPos();                      // 레이아웃이 이미 잡혔으면 즉시
+    requestAnimationFrame(applyPos); // 아직이면 다음 프레임에 (0폭 방어)
+
+    let g = null;
+
+    const onDown = (e) => {
+      if (e.button != null && e.button !== 0) return;   // 좌클릭·터치·펜만
+      const sr = stage.getBoundingClientRect();
+      const nr = snail.getBoundingClientRect();
+      g = {
+        id: e.pointerId, sx: e.clientX, sy: e.clientY, t: Date.now(),
+        baseDx: this._curDx || 0, baseDy: this._curDy || 0,
+        bounds: this._bounds(sr, nr), mode: null, lp: null
+      };
+      try { snail.setPointerCapture(e.pointerId); } catch (_) {}
+      // 400ms 유지 → 찌그러짐
+      g.lp = setTimeout(() => {
+        if (!g || g.mode) return;
+        g.mode = 'squish';
+        squish.classList.remove('is-tapped', 'is-release');
+        squish.classList.add('is-squishing');
+        if (window.Sfx) window.Sfx.hit('squish');
+      }, 400);
+      e.preventDefault();
+    };
+
+    const onMove = (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
+      if (g.mode !== 'drag' && (dx * dx + dy * dy) > 64) {   // 8px 넘으면 드래그
+        g.mode = 'drag';
+        clearTimeout(g.lp);
+        squish.classList.remove('is-squishing', 'is-tapped', 'is-release');
+        snail.classList.add('wr-dragging');
+      }
+      if (g.mode === 'drag') {
+        const b = g.bounds;
+        const nx = Math.max(b.minX, Math.min(b.maxX, g.baseDx + dx));
+        const ny = Math.max(b.minY, Math.min(b.maxY, g.baseDy + dy));
+        snail.style.setProperty('--wr-dx', nx + 'px');
+        snail.style.setProperty('--wr-dy', ny + 'px');
+        this._curDx = nx; this._curDy = ny;
+        e.preventDefault();
+      }
+    };
+
+    const onUp = (e) => {
+      if (!g || e.pointerId !== g.id) return;
+      clearTimeout(g.lp);
+      try { snail.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (g.mode === 'drag') {
+        snail.classList.remove('wr-dragging');
+        const sr = stage.getBoundingClientRect();
+        this._savePos((this._curDx || 0) / (sr.width || 1), (this._curDy || 0) / (sr.height || 1));
+        if (window.Sfx) window.Sfx.hit('place');   // 착지
+      } else if (g.mode === 'squish') {
+        squish.classList.remove('is-squishing');
+        if (!reduce) {
+          squish.classList.add('is-release');
+          setTimeout(() => squish.classList.remove('is-release'), 520);
+        }
+      } else {
+        // 짧게 뗌 → 탭. 320ms 안에 두 번이면 원위치 복귀.
+        const now = Date.now();
+        if (this._lastTap && now - this._lastTap < 320) {
+          this._lastTap = 0;
+          this._resetPos(snail, stage);
+        } else {
+          this._lastTap = now;
+          this._tapReact(snail, squish);
+        }
+      }
+      g = null;
+    };
+
+    snail.addEventListener('pointerdown', onDown);
+    snail.addEventListener('pointermove', onMove);
+    snail.addEventListener('pointerup', onUp);
+    snail.addEventListener('pointercancel', onUp);
+    snail.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._tapReact(snail, squish); }
+    });
+  },
+
+  _tapReact(snail, squish) {
+    if (this._reacting) return;                    // 연타 디바운스
+    this._reacting = true;
+    setTimeout(() => { this._reacting = false; }, 420);
+    squish.classList.remove('is-squishing', 'is-release', 'is-tapped');
+    void squish.offsetWidth;                        // 애니메이션 재시작
+    squish.classList.add('is-tapped');
+    setTimeout(() => squish.classList.remove('is-tapped'), 440);
+    if (window.Sfx) window.Sfx.hit('poke');
+    if (Math.random() < 0.55) this._say(snail);
+  },
+
+  _say(snail) {
+    const move = snail.querySelector('.wr-move');
+    if (!move) return;
+    const old = move.querySelector('.wr-say');
+    if (old) old.remove();
+    const b = document.createElement('div');
+    b.className = 'wr-say';
+    b.textContent = this._SAYS[Math.floor(Math.random() * this._SAYS.length)];
+    move.appendChild(b);
+    setTimeout(() => { if (b.parentNode) b.remove(); }, 1350);
+  },
+
+  _resetPos(snail, stage) {
+    this._curDx = 0; this._curDy = 0;
+    this._savePos(0, 0);
+    snail.style.setProperty('--wr-dx', '0px');
+    snail.style.setProperty('--wr-dy', '0px');
+    if (window.Sfx) window.Sfx.hit('appear');
   }
 };

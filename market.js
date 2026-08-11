@@ -163,6 +163,76 @@ async function hadSession(db, counselorId, clientId) {
   return false;
 }
 
+// ── 내담자 소유 증명 (clientKey / TOFU) ────────────────────────────────
+//  내담자에게는 계정이 없다. 기기가 만든 clientId 가 곧 열쇠였는데,
+//  그 값은 상담사 화면 등에 노출돼 IDOR(?clientId=남 → 남의 상담 대화)로
+//  이어졌다. 그래서 서버가 clientId 를 HMAC 서명한 clientKey 를 발급하고,
+//  개인정보가 실제로 나가는 읽기 경로에서 그 서명을 함께 요구한다.
+//
+//  clientKey 는 clientId 의 '결정적 함수'라 서버가 언제든 재계산할 수 있다 —
+//  그래서 어디에도 저장하지 않는다. clients 표는 '누가 먼저 claim 해서 주인이
+//  됐는가(TOFU: Trust On First Use)'만 기록하고, 재발급을 거부하는 게 핵심이다.
+//
+//  SIGN_SECRET 이 런타임에 없으면(로컬·설정 전) 기능 전체를 조용히 우회한다.
+//  서버 설정 전에도, 표가 아직 없어도 앱이 정상 동작해야 한다.
+const _enc = new TextEncoder();
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf)))
+  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+// 서명 비밀. 새 시크릿을 요구하지 않는다 — 서버만 아는 기존 값을 재사용한다.
+const signSecret = env => (env && (env.SYNC_KEY || env.ADMIN_CODE)) || '';
+
+let _ckKey = null, _ckSecret = null;
+async function ckKey(env) {
+  const secret = signSecret(env);
+  if (!secret) return null;
+  if (_ckKey && _ckSecret === secret) return _ckKey;
+  _ckSecret = secret;
+  _ckKey = await crypto.subtle.importKey(
+    'raw', _enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  return _ckKey;
+}
+
+// clientKey = base64url( HMAC_SHA256(secret, 'ck:'+clientId) 앞 24바이트 ) → 32자
+async function clientKeyFor(env, clientId) {
+  const k = await ckKey(env);
+  if (!k || !clientId) return '';
+  const sig = await crypto.subtle.sign('HMAC', k, _enc.encode('ck:' + String(clientId)));
+  return b64u(new Uint8Array(sig).slice(0, 24));
+}
+
+// 상수시간 비교 — 타이밍으로 한 글자씩 맞혀 나가지 못하게
+function ctEq(a, b) {
+  a = String(a || ''); b = String(b || '');
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+// 이 clientId 가 이미 주인이 정해졌나 (표가 없으면 '아니오' — 유예)
+async function isClaimed(db, clientId) {
+  if (!clientId) return false;
+  try {
+    const r = await db.prepare('SELECT 1 x FROM clients WHERE id = ? LIMIT 1').bind(clientId).first();
+    return !!r;
+  } catch (e) { return false; }
+}
+
+// 민감 읽기 경로의 문지기. 반환:
+//   'ok'   — 올바른 clientKey 이거나, 기능이 꺼져 있음(우회)
+//   'pass' — clientKey 는 없지만 아직 claim 안 된 clientId → 옛 앱 유예 통과
+//   'deny' — claim 된 clientId 인데 clientKey 가 없거나 틀림 → 차단
+async function verifyClient(env, clientId, clientKey) {
+  if (!signSecret(env)) return 'ok';        // 시크릿 없음 → 전체 우회
+  if (!clientId) return 'ok';               // clientId 없으면 각 라우트가 알아서 빈 목록
+  const want = await clientKeyFor(env, clientId);
+  if (clientKey && want && ctEq(clientKey, want)) return 'ok';
+  // 키가 없거나 틀리다 — claim 여부로 갈린다 (TOFU 유예)
+  return (await isClaimed(env.DB, clientId)) ? 'deny' : 'pass';
+}
+
 // ── 연락처 정규화 ──────────────────────────────────────────────────────
 //  이 번호는 정산·운영 연락용이고 내담자 응답에는 절대 넣지 않는다.
 //  그래서 검증은 '형식이 그럴듯한가'까지만 한다 — 대표번호·내선·해외번호를
@@ -251,6 +321,40 @@ export async function handleMarket(request, env, cors, path, ctx) {
       ).bind(cid, plan, until, nowMs()).run();
     } catch (e) {}
     return json({ ok: true }, 200, cors);
+  }
+
+  // ── 내담자 소유 확정 (TOFU) ─────────────────────────────────────────
+  //  앱이 부팅할 때 자기 clientId 로 한 번 부른다.
+  //    · 아직 아무도 claim 안 한 clientId → clientKey 를 발급하고 소유를 못 박는다.
+  //    · 이미 주인이 있으면 → 재발급을 거부한다({already:true}). 이게 보안의 핵심 —
+  //      공격자가 나중에 같은 clientId 를 대도 열쇠를 얻지 못한다.
+  //  정당 기기는 공격자보다 먼저 앱을 열 확률이 압도적이라 실무적으로 안전하다.
+  //  기존 수천 명은 clients 표가 비어 있으니 앱을 열면 자연히 자기 것을 claim 한다.
+  if (path === '/client/claim' && method === 'POST') {
+    const cid = s(body.clientId, MAX.id).replace(/[^\w-]/g, '');
+    if (!cid) return json({ error: 'missing' }, 400, cors);
+    // 시크릿이 없으면(로컬·설정 전) 기능 자체가 꺼진 것 — 무해하게 통과시킨다.
+    if (!signSecret(env)) return json({ ok: true, disabled: true }, 200, cors);
+    const key = await clientKeyFor(env, cid);
+    let claimed = false, hasTable = true;
+    try {
+      const r = await db.prepare('SELECT 1 x FROM clients WHERE id = ?').bind(cid).first();
+      claimed = !!r;
+    } catch (e) {
+      // 표가 아직 없다(SQL 미적용) — 소유를 기록할 수 없으니 발급만 하고 유예를 잇는다.
+      hasTable = false;
+    }
+    if (hasTable && claimed) {
+      // 이미 주인이 있다. 열쇠를 다시 주지 않는다 — 정당 기기라면 이미 저장돼 있다.
+      return json({ ok: true, already: true }, 200, cors);
+    }
+    if (hasTable) {
+      try {
+        await db.prepare('INSERT OR IGNORE INTO clients (id, claimed_at) VALUES (?, ?)')
+          .bind(cid, nowMs()).run();
+      } catch (e) {}
+    }
+    return json({ ok: true, clientKey: key }, 200, cors);
   }
 
   // ── 우렁 캐시 충전 (토스페이먼츠) ───────────────────────────────────
@@ -376,6 +480,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     // ③ 내 충전 내역 — 기기(clientId)가 곧 열쇠다 (내담자는 계정이 없다)
     if (path === '/pay/history' && method === 'GET') {
       if (!cid) return json({ items: [] }, 200, cors);
+      if (await verifyClient(env, cid, s(q('clientKey') || body.clientKey, 64)) === 'deny')
+        return json({ error: 'forbidden' }, 403, cors);
       try {
         const r = await db.prepare(
           `SELECT id, amount, cash, status, method, created, paid_at FROM orders
@@ -509,6 +615,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     const r = await db.prepare(
       'SELECT * FROM bookings WHERE client_id = ? ORDER BY when_ts DESC LIMIT 100'
     ).bind(cid).all();
@@ -791,6 +899,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     const r = await db.prepare(
       'SELECT * FROM homework WHERE client_id = ? ORDER BY assigned_at DESC LIMIT 50').bind(cid).all();
     return json({ items: (r.results || []).map(rowHw) }, 200, cors);
@@ -869,6 +979,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     const r = await db.prepare(
       'SELECT * FROM reviews WHERE client_id = ? AND reply IS NOT NULL ORDER BY ts DESC LIMIT 50'
     ).bind(cid).all();
@@ -923,10 +1035,12 @@ export async function handleMarket(request, env, cors, path, ctx) {
       ).bind(me.id).all();
       return json({ items: (r.results || []).map(rowMsg) }, 200, cors);
     }
-    // 내담자 본인 — 기기가 들고 있는 clientId 가 열쇠다.
-    //  (이 열쇠를 진짜 토큰으로 바꾸는 일은 별도 작업으로 남겨 둔다)
+    // 내담자 본인 — 기기가 들고 있는 clientId 가 열쇠다. 이제 clientKey 로 소유를
+    //  증명한다: claim 된 clientId 는 올바른 clientKey 없이는 대화가 나가지 않는다.
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     const counselorId = s(q('counselorId'), MAX.id);
     const stmt = counselorId
       ? db.prepare('SELECT * FROM chat_msgs WHERE client_id = ? AND counselor_id = ? ORDER BY ts ASC LIMIT 300').bind(cid, counselorId)

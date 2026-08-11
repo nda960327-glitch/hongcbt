@@ -219,6 +219,12 @@ window.App = {
     this._initNativeBack();
     if (window.AppLock) window.AppLock.init();
 
+    // 내담자 소유 증명(clientKey): 먼저 Api.f 를 감싸 두고(이후 모든 요청에 자동
+    //  동봉), 서버에 소유를 못 박아 열쇠를 받아 둔다. 네트워크는 비동기라 첫 실행
+    //  때는 열쇠가 잠깐 없지만, 새 clientId 는 아직 claim 전이라 서버가 유예한다.
+    this._installClientKeyGuard();
+    this._claimClient();
+
     // 4.5 Theme toggle
     this.initTheme();
     const btnTheme = document.getElementById('btn-theme');
@@ -1546,6 +1552,70 @@ window.App = {
       window.Storage._safeSet('cbt_client_id', id);
     }
     return id;
+  },
+
+  // === 내담자 소유 증명 (clientKey / TOFU) ===
+  //  clientId 는 그동안 계정 없는 내담자의 유일한 열쇠였는데, 그 값이 상담사
+  //  화면 등에 노출돼 남이 ?clientId=X 로 X인 척 조회하는 IDOR 로 이어졌다.
+  //  이제 서버가 clientId 를 서명한 clientKey 를 발급하고, 개인 상담 데이터가
+  //  나가는 읽기 경로에서 그 서명을 함께 요구한다.
+  clientKey() {
+    try { return window.Storage._safeGet('cbt_client_key', '') || ''; } catch (e) { return ''; }
+  },
+
+  // 부팅 때 한 번 — 내 clientId 의 소유를 서버에 못 박고 clientKey 를 받아 둔다.
+  //  이미 열쇠가 있으면 건너뛴다. 서버가 이미 주인이 있다고 하면({already})
+  //  열쇠를 안 주는데, 그건 이 기기가 먼저 열지 못한 드문 경우다.
+  async _claimClient() {
+    try {
+      if (this.clientKey()) return;                 // 이미 받아 둠
+      const id = this.clientId();
+      if (!id) return;
+      const d = await window.Api.json('/api/client/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: id })
+      });
+      if (d && d.clientKey) window.Storage._safeSet('cbt_client_key', d.clientKey);
+    } catch (e) {}
+  },
+
+  // clientId 를 실어 보내는 모든 요청에 clientKey 도 자동으로 함께 보낸다.
+  //  Api.f 한 곳만 감싸서, 라우트별로 빠뜨리지 않게 한다. clientKey 를 아직
+  //  안 받는 라우트에는 무해하게 붙는다(서버가 무시). 옛 앱(열쇠 없음)은
+  //  그대로 동작하고, 열쇠가 생긴 뒤에는 자동으로 보호된다.
+  _installClientKeyGuard() {
+    if (!window.Api || window.Api._ckWrapped) return;
+    const self = this;
+    const origF = window.Api.f.bind(window.Api);
+    window.Api.f = function (path, opts) {
+      try {
+        const key = self.clientKey();
+        const id = self.clientId();
+        if (key && id) {
+          const encId = encodeURIComponent(id);
+          // 1) 쿼리스트링에 내 clientId 가 있으면 clientKey 도 붙인다
+          if (typeof path === 'string'
+              && path.indexOf('clientId=' + encId) !== -1
+              && path.indexOf('clientKey=') === -1) {
+            path += (path.indexOf('?') === -1 ? '?' : '&')
+                 + 'clientKey=' + encodeURIComponent(key);
+          }
+          // 2) POST 바디(JSON)의 clientId 가 나면, clientKey 도 넣는다
+          if (opts && typeof opts.body === 'string' && opts.body.indexOf(id) !== -1) {
+            try {
+              const o = JSON.parse(opts.body);
+              if (o && o.clientId === id && o.clientKey == null) {
+                o.clientKey = key;
+                opts = Object.assign({}, opts, { body: JSON.stringify(o) });
+              }
+            } catch (e) {}
+          }
+        }
+      } catch (e) {}
+      return origF(path, opts);
+    };
+    window.Api._ckWrapped = true;
   },
 
   // === 스티커 팝 — 우렁이가 화면 가운데 폴짝 나타났다 사라지는 리액션 ===

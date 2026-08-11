@@ -125,14 +125,32 @@ export default {
   },
 
   async fetch(request, env, ctx) {
-    // ALLOWED_ORIGIN 이 없으면 '*' 다. 여기를 한 도메인으로 조이면 앱이 깨진다 —
-    //  Capacitor 웹뷰는 Origin 이 없거나 https://localhost 로 오고, 웹은
-    //  neurumind.com·pro.neurumind.com·Pages 미리보기 주소가 섞여 있다.
-    //  조이려면 '허용 목록'(콤마로 여러 개 + Origin 없음 허용)으로 바꿔야 안전하다.
-    //  그래서 남용 방어는 CORS 가 아니라 아래 카운터(IP 기준)가 맡는다.
-    const origin = env.ALLOWED_ORIGIN || "*";
+    // CORS — '*' 대신 허용 목록으로 좁힌다. 단 앱을 깨뜨리면 안 되므로:
+    //   · Origin 이 없는 요청(Capacitor 네이티브 웹뷰·서버-서버)은 그대로 허용한다.
+    //     브라우저가 아닌 요청이라 CORS 가 애초에 의미가 없고, 막으면 앱이 죽는다.
+    //   · 우리 도메인·Pages 미리보기(*.pages.dev)·localhost 만 echo 한다.
+    //   · env.ALLOWED_ORIGIN(콤마 구분)이 있으면 목록에 더한다.
+    //  CORS 는 브라우저에서 Origin 을 위조 못한다는 것뿐이라 근본 방어가 아니다 —
+    //  curl 남용은 아래 IP 카운터가 막는다. 여기서는 '웹에서 남의 사이트가
+    //  내 워커를 함부로 부르는' 크로스사이트만 차단한다.
+    const reqOrigin = request.headers.get("Origin") || "";
+    const ALLOW_ORIGINS = [
+      "https://neurumind.com", "https://www.neurumind.com",
+      "https://pro.neurumind.com", "https://ops.neurumind.com",
+      "https://neurumind.pages.dev", "https://neurumind-pro.pages.dev",
+      "https://neurumind-ops.pages.dev",
+      ...String(env.ALLOWED_ORIGIN || "").split(",").map(s => s.trim()).filter(Boolean),
+    ];
+    const originOk = !reqOrigin                                   // 네이티브·서버 요청 (Origin 없음)
+      || ALLOW_ORIGINS.includes(reqOrigin)                        // 우리 도메인
+      || /^https:\/\/[a-z0-9-]+\.neurumind-?(pro|ops)?\.pages\.dev$/.test(reqOrigin)  // Pages 미리보기 해시
+      || /^https?:\/\/localhost(:\d+)?$/.test(reqOrigin)          // 개발·일부 웹뷰
+      || /^https:\/\/localhost$/.test(reqOrigin);
+    // 허용되면 그 Origin 을 그대로 echo(자격증명 없는 API 라 * 대신 정확히),
+    //  Origin 이 없으면 * (네이티브는 CORS 검사를 안 하므로 무해).
+    const allowOrigin = reqOrigin ? (originOk ? reqOrigin : "https://neurumind.com") : "*";
     const cors = {
-      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Origin": allowOrigin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
       "Vary": "Origin",

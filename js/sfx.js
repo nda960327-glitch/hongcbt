@@ -3,7 +3,7 @@
 //  사용: window.Sfx.play('water' | 'plant' | 'ripe' | 'harvest' | 'coin' |
 //                        'buy' | 'equip' | 'place' | 'nav' | 'shield' | 'denied' |
 //                        'send' | 'recv' | 'pop' | 'close' | 'appear' | 'mood' |
-//                        'save' | 'toast' | 'levelup')
+//                        'save' | 'toast' | 'levelup' | 'poke' | 'squish')
 // ============================================================================
 window.Sfx = {
   _ctx: null,
@@ -75,7 +75,7 @@ window.Sfx = {
       mood: 14, save: 18, buy: [10, 40, 10], coin: [10, 40, 10],
       levelup: [22, 60, 22, 60, 45], appear: [14, 40, 14], harvest: [18, 50, 18],
       ripe: [12, 45, 12], shield: [16, 50, 16], equip: 12, place: 16,
-      denied: [40, 55, 40]
+      denied: [40, 55, 40], poke: 10, squish: [8, 30, 8]
     };
     if (H[name] !== undefined) this.buzz(H[name]);
   },
@@ -180,6 +180,16 @@ window.Sfx = {
 
       case 'denied':   // 안 돼요 부-
         this.tone(220, 0.16, { type: 'square', vol: 0.05, slide: 180 });
+        break;
+
+      // ── 우렁이 만지기 ─────────────────────────────────────────────────
+      case 'poke':     // 콕 찌르기 — 말랑 뾰옹
+        this.tone(520, 0.07, { slide: 780, vol: 0.06, type: 'triangle' });
+        this.tone(880, 0.06, { delay: 0.05, vol: 0.035, type: 'sine' });
+        break;
+      case 'squish':   // 롱프레스 찌그러짐 — 낮게 눌리는 말랑 소리
+        this.tone(360, 0.16, { slide: 150, vol: 0.08, type: 'triangle' });
+        this.noise(0.09, { freq: 500, q: 0.8, vol: 0.04 });
         break;
     }
   }
