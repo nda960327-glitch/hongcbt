@@ -1455,6 +1455,8 @@ async function answerCall() {
       $('call-clock').textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
     }
     if (type === 'remote-hangup') closeCall();
+    if (type === 'audio-blocked') $('call-st').textContent = '🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요';
+    if (type === 'audio-ok') $('call-st').textContent = '통화 중';
     if (type === 'error') $('call-st').textContent = d.message || '연결 실패';
   };
   await window.RtcCall.answer({ room: CUR_CALL.room, callId: CUR_CALL.id });
@@ -1488,6 +1490,8 @@ async function callClient(clientId, clientName) {
       $('call-clock').textContent = String(Math.floor(sec / 60)).padStart(2, '0') + ':' + String(sec % 60).padStart(2, '0');
     }
     if (type === 'remote-hangup') closeCall();
+    if (type === 'audio-blocked') $('call-st').textContent = '🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요';
+    if (type === 'audio-ok') $('call-st').textContent = '통화 중';
     if (type === 'error') { $('call-st').textContent = d.message || '연결 실패'; }
   };
   const auth = {};

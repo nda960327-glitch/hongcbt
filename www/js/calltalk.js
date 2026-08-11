@@ -205,6 +205,8 @@ window.CallTalk = {
         const ck = document.getElementById('call-clock');
         if (ck) ck.style.color = 'rgba(255,255,255,0.45)';
       }
+      if (type === 'audio-blocked') this._setStatus('🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요');
+      if (type === 'audio-ok') this._setStatus('통화 중');
       if (type === 'stable') {
         this._setStatus('통화 중');
         const ck = document.getElementById('call-clock');
@@ -389,6 +391,8 @@ window.CallTalk = {
       if (type === 'connected') { this._setStatus('통화 중'); this._startHumanBilling(); }
       if (type === 'unstable') this._setStatus('연결이 불안정합니다… 다시 잇는 중');
       if (type === 'stable') this._setStatus('통화 중');
+      if (type === 'audio-blocked') this._setStatus('🔇 소리가 막혔어요 — 화면을 한 번 탭해주세요');
+      if (type === 'audio-ok') this._setStatus('통화 중');
       if (type === 'remote-hangup') this.end('상담사가 통화를 종료했어요');
       if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
     };

@@ -2027,8 +2027,23 @@ ${memory || '(없음)'}`;
     // 예약 시간이 지났으면 '상담 완료', 취소된 건 지난 내역으로 분류
     const upcoming = bookings.filter(b => b.status !== 'cancelled' && (!b.whenTs || b.whenTs > now));
     const past = bookings.filter(b => b.status === 'cancelled' || (b.whenTs && b.whenTs <= now));
-    // 바로상담(예약 없는 통화)도 상담 내역이다 — 몇 분 상담했는지까지 남는다
-    const callLogs = (window.Storage._safeGet('cbt_call_logs', []) || []).filter(l => l.result === 'done');
+    // 바로상담(예약 없는 통화)도 상담 내역이다 — 단, '상담'이라 부를 만한 것만.
+    //  1분 미만(불발·재시도)은 내역에 올리지 않고(채팅방 부재중 칩이 이미 있다),
+    //  같은 상담사와 같은 날 여러 번 통화한 건 한 카드로 합친다.
+    const rawCalls = (window.Storage._safeGet('cbt_call_logs', []) || [])
+      .filter(l => l.result === 'done' && (l.secs || 0) >= 60);
+    const callGroups = {};
+    rawCalls.forEach(l => {
+      const day = new Date(l.ts).toLocaleDateString('sv-CA');
+      const k = l.counselorId + '|' + day;
+      if (!callGroups[k]) callGroups[k] = { counselorId: l.counselorId, name: l.name, day, ts: l.ts, count: 0, secs: 0, spent: 0 };
+      const g = callGroups[k];
+      g.count++;
+      g.secs += l.secs || 0;
+      g.spent += Number(l.spent) || 0;
+      g.ts = Math.max(g.ts, l.ts); // 리뷰 열쇠는 그날의 마지막 통화
+    });
+    const callLogs = Object.values(callGroups).sort((a, b) => b.ts - a.ts);
 
     if (bookings.length === 0 && callLogs.length === 0) {
       upEl.innerHTML = `
@@ -2065,7 +2080,7 @@ ${memory || '(없음)'}`;
       || `<p style="margin: 0.8rem 0 0; font-size: 0.82rem; color: var(--text-muted); text-align: center;">예정된 상담이 없어요. 지난 상담은 [전체 내역 보기]에서 확인하세요.</p>`;
 
     if (pastEl) {
-      // 바로상담 통화 카드 — 날짜·통화 시간·쓴 캐시 + 리뷰
+      // 바로상담 통화 카드 — 하루 단위로 합쳐진 요약 + 리뷰
       const callHtml = callLogs.map(l => {
         const key = 'call_' + l.ts;
         const rv = reviews[key];
@@ -2074,7 +2089,7 @@ ${memory || '(없음)'}`;
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 1rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
               <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">바로상담 통화</span>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} · ${mm ? mm + '분 ' : ''}${ss}초 상담${l.spent ? ' · ' + Number(l.spent).toLocaleString() + '캐시' : ''}</span>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">${new Date(l.ts).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}${l.count > 1 ? ' · 통화 ' + l.count + '회' : ''} · ${mm ? mm + '분 ' : ''}${ss}초${l.spent ? ' · ' + Number(l.spent).toLocaleString() + '캐시' : ''}</span>
             </div>
             <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${String(l.name || '상담사').replace(/</g, '&lt;')}</h4>
             <div style="margin-top: 0.6rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">

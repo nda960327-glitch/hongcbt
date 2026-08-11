@@ -68,7 +68,17 @@
           this.remote.autoplay = true;
         }
         this.remote.srcObject = e.streams[0];
-        this.remote.play().catch(() => {});
+        // 자동재생이 막히면 '한쪽만 안 들리는' 통화가 된다 — 조용히 삼키지 않는다.
+        //  다음 터치 한 번으로 살려내고, 화면에도 알린다.
+        this.remote.play().then(() => this._diag('audio-play', 'ok')).catch(() => {
+          this._diag('audio-play-fail', 'autoplay-blocked');
+          this._emit('audio-blocked', {});
+          const once = () => {
+            document.removeEventListener('pointerdown', once);
+            if (this.remote) this.remote.play().then(() => { this._diag('audio-play', 'recovered'); this._emit('audio-ok', {}); }).catch(() => {});
+          };
+          document.addEventListener('pointerdown', once);
+        });
       };
       pc.onicecandidate = e => {
         if (e.candidate) this._send('ice', JSON.stringify(e.candidate));
