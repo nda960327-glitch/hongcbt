@@ -3055,7 +3055,8 @@ ${memory || '(없음)'}`;
         const last = real[real.length - 1];
         const c = window.Marketplace ? window.Marketplace.getCounselor(cid) : null;
         const unread = real.some(m => m.role === 'them' && (m.ts || 0) > (read[cid] || 0));
-        return { cid, name: (c && c.name) || '상담사', hospital: (c && c.hospital) || '', last, unread };
+        // gone: 서버 명부에 더 이상 없는 상담사(운영자가 삭제) — 방은 남기되 표시해준다
+        return { cid, name: (c && c.name) || '상담사', hospital: (c && c.hospital) || '', last, unread, gone: !c };
       })
       .filter(Boolean)
       .sort((a, b) => (b.last.ts || 0) - (a.last.ts || 0));
@@ -3066,6 +3067,18 @@ ${memory || '(없음)'}`;
     read[cid] = Date.now();
     window.Storage._safeSet('cbt_hchat_read', read);
     this.renderChatInbox();
+  },
+
+  // 채팅방 나가기 — 기록은 이 폰에만 있으므로 지우면 끝이다.
+  //  상담사 쪽 화면의 기록은 상담사 것이라 건드리지 않는다(카톡 '나가기'와 같은 규칙).
+  leaveChat(cid) {
+    if (!confirm('이 채팅방을 나갈까요?\n대화 기록이 이 폰에서 지워지고 되돌릴 수 없어요.')) return;
+    try { localStorage.removeItem('cbt_hchat_' + cid); } catch (e) {}
+    const read = window.Storage._safeGet('cbt_hchat_read', {}) || {};
+    delete read[cid];
+    window.Storage._safeSet('cbt_hchat_read', read);
+    this.renderChatInbox();
+    this.showRecordToast('채팅방을 나갔어요');
   },
 
   renderChatInbox() {
@@ -3083,8 +3096,8 @@ ${memory || '(없음)'}`;
     box.innerHTML = `
       <p style="margin: 0 0 0.45rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted);">내 상담 채팅</p>
       ${threads.map(t => `
-        <button onclick="window.App.openHumanChat('${t.cid.replace(/[^\w-]/g, '')}')"
-          style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.65rem; width: 100%; cursor: pointer;
+        <div onclick="window.App.openHumanChat('${t.cid.replace(/[^\w-]/g, '')}')"
+          style="box-sizing: border-box; display: flex; align-items: center; gap: 0.65rem; width: 100%; cursor: pointer;
                  padding: 0.6rem 0.7rem; border-radius: 13px; margin-bottom: 0.4rem;
                  background: var(--bg-secondary); border: 1px solid ${t.unread ? 'color-mix(in srgb, var(--accent-primary) 45%, transparent)' : 'var(--glass-border)'};">
           <span style="flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
@@ -3095,13 +3108,19 @@ ${memory || '(없음)'}`;
           <span style="flex: 1; min-width: 0;">
             <span style="display: flex; align-items: baseline; gap: 0.4rem;">
               <b style="font-size: 0.88rem; color: var(--text-primary);">${this._escHtml(t.name)}</b>
+              ${t.gone ? '<span style="flex-shrink: 0; font-size: 0.62rem; font-weight: 700; color: var(--text-muted); background: var(--bg-tertiary); padding: 0.08rem 0.4rem; border-radius: 999px;">종료된 상담사</span>' : ''}
               <span style="margin-left: auto; flex-shrink: 0; font-size: 0.68rem; color: var(--text-muted);">${rel(t.last.ts)}</span>
             </span>
             <span style="display: block; font-size: 0.78rem; color: ${t.unread ? 'var(--text-primary)' : 'var(--text-muted)'}; font-weight: ${t.unread ? '700' : '500'};
                          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ${this._escHtml(t.last.role === 'call' ? '📞 ' + t.last.text : String(t.last.text || '').replace(/^\[숙제:[^\]]*\]\s*/, '📝 숙제: '))}</span>
           </span>
-        </button>`).join('')}
+          <button onclick="event.stopPropagation(); window.App.leaveChat('${t.cid.replace(/[^\w-]/g, '')}')"
+            aria-label="채팅방 나가기"
+            style="all: unset; box-sizing: border-box; flex-shrink: 0; width: 30px; height: 30px; display: inline-flex;
+                   align-items: center; justify-content: center; cursor: pointer; border-radius: 50%;
+                   color: var(--text-muted); font-size: 0.95rem; font-weight: 700;">✕</button>
+        </div>`).join('')}
       <div style="height: 0.5rem;"></div>`;
   },
 

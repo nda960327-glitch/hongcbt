@@ -283,7 +283,7 @@ window.Assess = {
         <div style="display:flex;align-items:center;gap:0.4rem;">
           <span style="line-height:0;color:var(--accent-primary);">${window.Icons ? window.Icons.svg('search', { size: 18 }) : ''}</span>
           <strong style="font-size:0.92rem;color:var(--text-primary);">AI 마음 리포트</strong>
-          <span style="margin-left:auto;font-size:0.68rem;font-weight:800;color:#c9a227;background:color-mix(in srgb, #c9a227 14%, transparent);padding:0.15rem 0.5rem;border-radius:999px;">30,000캐시</span>
+          <span style="font-size:0.68rem;font-weight:800;color:#c9a227;background:color-mix(in srgb, #c9a227 14%, transparent);padding:0.15rem 0.5rem;border-radius:999px;">30,000캐시</span>
         </div>
         <p style="margin:0.35rem 0 0;font-size:0.78rem;line-height:1.6;color:var(--text-secondary);">
           내 기록을 정밀 분석해 <b>2주 케어플랜</b>을 처방하고, <b>나의 변화</b>를 채워요.
