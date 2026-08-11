@@ -37,6 +37,42 @@ function json(data, status, cors) {
 // 방 이름은 서버가 정한다. 클라이언트가 마음대로 정하면 남의 통화에 낄 수 있다.
 const roomOf = (counselorId, clientId) => 'r_' + counselorId + '__' + clientId;
 
+// ── 방 토큰 (통화 시그널링 인증) ─────────────────────────────────────────
+//  room 조합(r_+counselorId+__+clientId)만 알면 — counselorId 는 공개,
+//  clientId 는 상담사에게 노출 — SDP/ICE 를 훔쳐보거나(도청) answer 를
+//  주입(가로채기)하거나 남의 통화를 /rtc/end 로 끊을 수 있었다.
+//  통화 당사자만 통화 생성 응답으로 rtoken 을 받는다 — HMAC(시크릿, room) 의
+//  앞 일부다. 서버가 언제든 재계산하므로 저장하지 않는다. 제3자는 room 을
+//  알아도 시크릿이 없어 토큰을 만들 수 없다. 시크릿은 clientId 작업이 쓴 것과
+//  동일하게 SYNC_KEY(없으면 ADMIN_CODE)를 재사용한다.
+const signSecret = env => (env && (env.SYNC_KEY || env.ADMIN_CODE)) || '';
+
+async function roomToken(env, room) {
+  const secret = signSecret(env);
+  if (!secret || !room) return '';           // 시크릿 없으면(로컬) 발급 건너뜀
+  try {
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sig = await crypto.subtle.sign('HMAC', key, enc.encode('rtc:' + room));
+    const b = new Uint8Array(sig);
+    let hex = '';
+    for (let i = 0; i < b.length; i++) hex += b[i].toString(16).padStart(2, '0');
+    return hex.slice(0, 32);                  // 앞 128비트 — 위조 불가로 충분
+  } catch (e) { return ''; }
+}
+
+// 하위호환 유예: 토큰을 안 내면 통과(옛 기기·진행 중이던 통화 보호),
+//  냈는데 틀리면 거부. 시크릿이 없으면(로컬) 전면 우회 — 서버 설정 전에도
+//  통화가 정상이어야 한다. 강제 차단은 새 앱 보급 뒤 별도.
+async function rtokenOk(env, room, provided) {
+  if (!signSecret(env)) return true;         // 로컬·미설정 — 검증 우회
+  if (!provided) return true;                // 유예 — 토큰 안 내면 옛 경로로 통과
+  const expect = await roomToken(env, room);
+  if (!expect) return true;                  // 발급 불가 상황 — 유예
+  return provided === expect;
+}
+
 // 30초 단위 올림. 1초를 써도 30초 요금 — 통화 요금의 관행이고,
 //  화면에도 그렇게 적어 둔다.
 function billFor(rate, ms) {
@@ -319,6 +355,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
     const room = roomOf(counselorId, clientId);
     const t = nowMs();
+    // 통화 당사자만 받는 방 토큰 — 이후 signal/poll/end/connected 에 실려 온다
+    const rtoken = await roomToken(env, room);
     // 죽은 통화·흘러간 벨을 먼저 걷어낸다 — 안 걷으면 회선이 잠긴 채 남아
     //  모든 새 전화가 '통화 중'으로 튕긴다
     await reapDeadCalls(db, env, ctx, counselorId);
@@ -338,7 +376,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const mine = await db.prepare(
       "SELECT * FROM calls WHERE room = ? AND end_at = 0 AND COALESCE(dir, '') != 'to-client' ORDER BY ring_at DESC LIMIT 1"
     ).bind(room).first();
-    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
+    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true, rtoken }, 200, cors);
     // 회선 잠금은 '조건부 UPDATE 한 방'으로 잡는다.
     //  전에는 busy_until 을 읽고 → 판단하고 → 쓰는 3단계였는데,
     //  두 사람이 동시에 걸면 둘 다 '비어 있다'를 읽고 둘 다 통과한다.
@@ -377,7 +415,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     // 열려 있는 앱에는 웹소켓으로 즉시 — 3초 폴링보다 벨이 훨씬 빨리 울린다
     pushCallState(env, ctx, counselorId, clientId, 'ringing', { callId: id, room });
 
-    return json({ ok: true, room, callId: id }, 200, cors);
+    return json({ ok: true, room, callId: id, rtoken }, 200, cors);
   }
 
   // ── 상담사가 내담자에게 건다 ─────────────────────────────────────────
@@ -399,6 +437,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
 
     const room = roomOf(me.id, clientId);
     const t = nowMs();
+    const rtoken = await roomToken(env, room);   // 통화 당사자만 받는 방 토큰
     await reapDeadCalls(db, env, ctx, me.id);
     // 좀비 정리: 예전에 걸다 만 통화(벨 시간 초과)가 남아 있으면 부재중으로 닫는다.
     //  안 닫으면 resumed 로 죽은 방을 계속 돌려줘서 새 전화가 영영 안 걸린다.
@@ -416,7 +455,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const mine = await db.prepare(
       "SELECT * FROM calls WHERE room = ? AND end_at = 0 AND dir = 'to-client' ORDER BY ring_at DESC LIMIT 1"
     ).bind(room).first();
-    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true }, 200, cors);
+    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true, rtoken }, 200, cors);
     // 회선 잠금 — 내담자 발신(/rtc/start)과 같은 자물쇠를 쓴다.
     //  c2c 만 잠그지 않던 탓에, 상담사가 A 에게 거는 동안 B 의 전화가 들어와
     //  한 사람이 두 통화에 걸리는 일이 가능했다. 조건부 UPDATE 한 방이라 원자적이다.
@@ -450,7 +489,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const wake = notifyClient(env, clientId, { kind: 'invite', callId: id, peer: me.name || '상담사' }).catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(wake); else await wake;
     pushCallState(env, ctx, me.id, clientId, 'ringing', { callId: id, room, from: 'counselor', counselorName: me.name });
-    return json({ ok: true, room, callId: id }, 200, cors);
+    return json({ ok: true, room, callId: id, rtoken }, 200, cors);
   }
 
   // ── 내담자에게 걸려온 전화가 있나 (앱을 켰을 때·푸시로 깨어났을 때 확인) ──
@@ -475,7 +514,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       "SELECT c.*, k.name AS cname FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id WHERE c.client_id = ? AND c.dir = 'to-client' AND c.end_at = 0 AND c.connect_at = 0 AND c.ring_at > ? ORDER BY c.ring_at DESC LIMIT 1"
     ).bind(cid, t - RING_TIMEOUT).first();
     if (!r) return json({ call: null }, 200, cors);
-    return json({ call: { id: r.id, room: r.room, counselorId: r.counselor_id, counselorName: r.cname || '상담사', ringAt: r.ring_at } }, 200, cors);
+    return json({ call: { id: r.id, room: r.room, counselorId: r.counselor_id, counselorName: r.cname || '상담사', ringAt: r.ring_at, rtoken: await roomToken(env, r.room) } }, 200, cors);
   }
 
   // ── 내가 걸던·하던 통화가 남아 있나 (상담사 복귀용) ──────────────────
@@ -535,7 +574,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     ).bind(counselorId, t - RING_TIMEOUT).first();
     if (!r) return json({ call: null }, 200, cors);
     return json({
-      call: { id: r.id, room: r.room, clientId: r.client_id, bookingId: r.booking_id, ringAt: r.ring_at }
+      call: { id: r.id, room: r.room, clientId: r.client_id, bookingId: r.booking_id, ringAt: r.ring_at, rtoken: await roomToken(env, r.room) }
     }, 200, cors);
   }
 
@@ -571,6 +610,9 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const as = body.as === 'counselor' ? 'counselor' : (body.as === 'client' ? 'client' : '');
     const pre = await db.prepare('SELECT room, dir, connect_at, end_at FROM calls WHERE id = ?').bind(id).first();
     if (!pre) return json({ ok: false, error: 'not-found' }, 404, cors);
+    // 토큰을 냈으면 반드시 맞아야 한다(안 내면 유예 통과). 위조 answer 를 심고
+    //  붙었다고 신고해 남의 통화를 가로채는 길을 막는다.
+    if (!(await rtokenOk(env, pre.room, s(body.rtoken, 80)))) return json({ ok: false, error: 'bad-rtoken' }, 403, cors);
     const answerer = pre.dir === 'to-client' ? 'client' : 'counselor';
 
     if (as && as === answerer) {
@@ -608,7 +650,9 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       // 폰을 두 대 쓰는 사람이 있다 — 한 대로 받으면 나머지 한 대의 벨은 꺼져야 한다
       cancelCallPush(env, ctx, { id, dir: r.dir, counselor_id: r.counselor_id, client_id: r.client_id });
     }
-    return json({ ok: true, connectAt: r ? r.connect_at : 0, rate: r ? r.rate : 0 }, 200, cors);
+    // 받는 쪽은 answer() 때 토큰을 못 받았을 수 있다(수신 조회를 앱이 대신 함).
+    //  붙는 순간 여기서 rtoken 을 돌려줘, 이후 poll/end 가 토큰을 달고 오게 한다.
+    return json({ ok: true, connectAt: r ? r.connect_at : 0, rate: r ? r.rate : 0, rtoken: await roomToken(env, pre.room) }, 200, cors);
   }
 
   // ── 상태 조회 (과금·화면 동기화 + 심박) ──────────────────────────────
@@ -633,6 +677,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const id = s(body.callId, 80);
     const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
+    // 토큰을 냈는데 틀리면 거부 — 남의 통화를 /rtc/end 로 끊는 공격을 막는다.
+    //  안 내면 유예 통과: pagehide 비콘·타 기기 종료·옛 앱이 토큰 없이 불러도
+    //  통화가 정상 종료돼 회선이 잠기지 않는다. (reap 은 HTTP 를 안 타 무관)
+    if (!(await rtokenOk(env, r.room, s(body.rtoken, 80)))) return json({ error: 'bad-rtoken' }, 403, cors);
     // 이미 끝난 통화도 요금은 그대로 돌려준다 — 늦게 도착한 앱이
     //  '얼마가 나갔는지'를 여기서 알아내 지갑을 맞춘다(멱등)
     if (r.end_at) {
@@ -864,6 +912,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     if (!room || !['offer', 'answer', 'ice', 'bye', 'ring'].includes(kind)) {
       return json({ error: 'bad-signal' }, 400, cors);
     }
+    // 토큰을 냈으면 반드시 맞아야 한다(안 내면 유예). SDP/ICE 도청·answer 주입 차단.
+    if (!(await rtokenOk(env, room, s(body.rtoken, 80)))) return json({ error: 'bad-rtoken' }, 403, cors);
     await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
       .bind(room, sender, kind, String(body.payload || '').slice(0, 20000), nowMs()).run();
     return json({ ok: true }, 200, cors);
@@ -874,6 +924,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const me = q('as') === 'counselor' ? 'counselor' : 'client';
     const since = Number(q('since')) || 0;
     if (!room) return json({ items: [], seq: since }, 200, cors);
+    // 토큰을 냈으면 반드시 맞아야 한다(안 내면 유예). SDP/ICE 훔쳐보기 차단.
+    if (!(await rtokenOk(env, room, q('rtoken')))) return json({ items: [], seq: since, error: 'bad-rtoken' }, 403, cors);
     const r = await db.prepare(
       'SELECT seq, sender, kind, payload FROM rtc_signals WHERE room = ? AND seq > ? AND sender != ? ORDER BY seq ASC LIMIT 60'
     ).bind(room, since, me).all();

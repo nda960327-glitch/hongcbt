@@ -19,6 +19,10 @@
     room: '', callId: '', role: 'client',
     seq: 0, pollTimer: null, tickTimer: null,
     connectAt: 0, rate: 0, onEvent: null,
+    // 방 토큰 — 통화 생성/수신 응답에서 받아 보관, signal/poll/end/connected 에 함께 보낸다.
+    //  통화 당사자만 이 토큰을 받으므로 제3자의 도청·가로채기·강제 종료를 막는다.
+    //  없으면(옛 서버·미설정) 안 보내고, 서버가 유예로 통과시킨다.
+    _rtoken: '',
 
     _emit(type, data) { try { this.onEvent && this.onEvent(type, data || {}); } catch (e) {} },
 
@@ -113,6 +117,8 @@
           }
           this.connectAt = (r && r.connectAt) || Date.now();
           this.rate = (r && r.rate) || 0;
+          // 받는 쪽은 answer() 때 토큰이 없었을 수 있다 — 붙는 순간 받아 채운다
+          if (r && r.rtoken) this._rtoken = r.rtoken;
           this._emit('connected', { rate: this.rate });
           this._startTick();
           this._startAudioWatch();
@@ -207,14 +213,14 @@
     _send(kind, payload) {
       return API().f('/api/rtc/signal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room: this.room, sender: this.role, kind, payload })
+        body: JSON.stringify({ room: this.room, sender: this.role, kind, payload, rtoken: this._rtoken })
       }).catch(() => {});
     },
 
     _startPoll() {
       clearInterval(this.pollTimer);
       this.pollTimer = setInterval(async () => {
-        const d = await API().json(`/api/rtc/poll?room=${encodeURIComponent(this.room)}&as=${this.role}&since=${this.seq}`);
+        const d = await API().json(`/api/rtc/poll?room=${encodeURIComponent(this.room)}&as=${this.role}&since=${this.seq}${this._rtoken ? '&rtoken=' + encodeURIComponent(this._rtoken) : ''}`);
         if (!d || !d.items) return;
         this.seq = d.seq || this.seq;
         for (const m of d.items) {
@@ -295,6 +301,8 @@
       }
       this._diag('call-start-ok', started.callId + (started.resumed ? ' resumed' : ''));
       this.room = started.room; this.callId = started.callId; this.seq = 0;
+      this._rtoken = started.rtoken || '';   // 이 통화의 방 토큰
+
       this.stream = await this._mic();
       if (!this.stream) { this._diag('mic-fail', ''); return false; }
       this._diag('mic-ok', '');
@@ -309,8 +317,11 @@
     },
 
     // ── 받는다 (기본: 상담사. 내담자가 받을 땐 as: 'client') ──────────────
-    async answer({ room, callId, as }) {
+    async answer({ room, callId, as, rtoken }) {
       this.room = room; this.callId = callId; this.role = as || 'counselor'; this.seq = 0;
+      // 수신 조회(/rtc/incoming·incoming-client)가 준 토큰을 넘겨받으면 보관한다.
+      //  못 받아도(현재 앱) 서버가 유예로 통과시키고, 붙는 순간 connected 응답이 채운다.
+      this._rtoken = rtoken || '';
       this._diag('answer-try', callId);
       this.stream = await this._mic();
       if (!this.stream) { this._diag('answer-mic-fail', ''); return false; }
@@ -332,7 +343,7 @@
       try { this.stream && this.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
       if (this.remote) { try { this.remote.srcObject = null; } catch (e) {} }
       this.pc = null; this.stream = null; this.connectAt = 0;
-      this.callId = ''; this.room = '';
+      this.callId = ''; this.room = ''; this._rtoken = '';
     },
 
     async hangup(by, skipSignal) {
@@ -347,7 +358,7 @@
       if (this.callId) {
         res = await API().json('/api/rtc/end', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callId: this.callId, by: by || this.role })
+          body: JSON.stringify({ callId: this.callId, by: by || this.role, rtoken: this._rtoken })
         });
       }
       this.pc = null; this.stream = null; this.connectAt = 0;
@@ -355,7 +366,7 @@
       //  잡는데, 이 줄 아래에서 callId 가 지워지면 그 열쇠가 사라진다.
       const info = Object.assign({ callId: this.callId }, res || {});
       this._emit('ended', info);
-      this.callId = ''; this.room = '';
+      this.callId = ''; this.room = ''; this._rtoken = '';
       return info;
     }
   };
@@ -369,7 +380,7 @@
       const base = (window.Api && window.Api.base && window.Api.base()) || window.RTC_API_BASE || '';
       navigator.sendBeacon(
         base + '/api/rtc/end',
-        new Blob([JSON.stringify({ callId: rc.callId, by: rc.role || 'client' })], { type: 'application/json' })
+        new Blob([JSON.stringify({ callId: rc.callId, by: rc.role || 'client', rtoken: rc._rtoken || '' })], { type: 'application/json' })
       );
     } catch (e) {}
   });
