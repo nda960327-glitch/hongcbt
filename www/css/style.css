@@ -536,6 +536,9 @@ p { color: var(--text-secondary); }
   scrollbar-width: none;
   background: linear-gradient(to top, var(--bg-primary) 78%, transparent);
 }
+/* 버튼이 하나도 없으면 통째로 숨긴다 — 안 그러면 패딩+배경만 남아 말풍선 위에 흰 띠가 뜬다
+   (:empty 는 초기 마크업의 주석·공백 때문에 안 맞아서 :has 로 판정) */
+.quick-replies:not(:has(.quick-reply-btn)) { display: none; }
 .quick-replies::-webkit-scrollbar { display: none; }
 .quick-reply-btn {
   white-space: nowrap;
