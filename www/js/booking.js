@@ -231,13 +231,41 @@ window.Booking = {
           clientName: window.Storage._safeGet('cbt_user_name', '') || '익명',
           time: formattedDate, whenTs: booking.whenTs, price: counselor.price
         })
-      }).catch(() => {});
+      }).then(res => {
+        // 구독이 끊긴 상담사는 서버가 신규 예약을 막는다(409 sub_expired).
+        //  우리가 보고 있는 목록은 조금 전에 받아온 것이라, 그 사이 만료된 분이
+        //  카드에 남아 있을 수 있다. 여기서 조용히 넘어가면 캐시는 빠져나갔는데
+        //  상담사 화면에는 예약이 없어서, 내담자만 오지 않을 상담을 기다리게 된다.
+        if (!res || res.status !== 409) return;
+        return res.json().catch(() => ({})).then(err => {
+          if (err && err.error === 'sub_expired') this._undoBooking(booking, counselor);
+        });
+      }).catch(() => {});   // 네트워크가 끊긴 것뿐이면 예약은 기기에 남겨 둔다
     } catch (e) {}
 
-    window.UI.alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
+    // 되돌릴 때 이 창이 닫히기를 기다린다 — 안내 두 장이 겹쳐 뜨면 아무도 못 읽는다
+    this._payAlert = window.UI.alert(`결제가 완료되었습니다! (-${counselor.price.toLocaleString()}캐시)\n\n${counselor.name}님과의 상담이 [${formattedDate}]에 예약되었습니다.\n\n마이페이지에서 확인하세요.`);
 
     this.closeModal();
     if (window.App && window.App.renderMyBookings) window.App.renderMyBookings();
     document.querySelector('[data-tab="mypage"]').click();
+  },
+
+  // 서버가 예약을 받지 않았을 때 되돌린다.
+  //  기기에 적어 둔 예약을 지우고 캐시를 전액 돌려준다 — 돈이 걸린 일이라
+  //  '나중에 운영자가 확인해서'로 미룰 수 없다.
+  _undoBooking(booking, counselor) {
+    Promise.resolve(this._payAlert).catch(() => {}).then(() => {
+      const left = (window.Storage._safeGet('cbt_bookings', []) || []).filter(b => b && b.id !== booking.id);
+      window.Storage._safeSet('cbt_bookings', left);
+      if (window.Wallet) window.Wallet.refund(booking.price, `${counselor.name} 상담 예약 취소`);
+      if (window.App && window.App.renderMyBookings) window.App.renderMyBookings();
+      // 목록은 굳이 다시 받지 않는다 — 새로고침 효과음·토스트가 사과 문구와 겹친다.
+      //  만료된 상담사는 서버가 걸러 주므로 다음 갱신 때 카드에서 조용히 사라진다.
+      window.UI.alert({
+        title: '지금은 예약을 받을 수 없어요',
+        body: `${counselor.name} 선생님은 현재 상담을 받지 않고 있어요.\n\n결제하신 ${booking.price.toLocaleString()}캐시는 전액 돌려드렸습니다. 다른 선생님을 찾아봐 주세요.`
+      });
+    });
   }
 };

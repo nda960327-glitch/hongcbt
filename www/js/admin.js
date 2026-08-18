@@ -686,11 +686,15 @@ window.Admin = {
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
             <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
-            상담사 <b style="color: var(--text-primary);">70%</b> · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">27%</b> (기관 수수료는 플랫폼 몫에서 별도 협의)<br>
+            상담사 <b style="color: var(--text-primary);">97%</b> · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">0%</b> — 상담료에서는 가져가지 않습니다<br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
-              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 70 · PG 3 · 플랫폼 27)
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 97 · PG 3 · 플랫폼 0)
+            </div>
+            <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
+              <b style="color: var(--text-primary);">상담사 구독 (플랫폼 주 수익)</b><br>
+              월 <b style="color: var(--accent-primary);">99,000원</b> · 등록 승인 후 첫 1개월 무료 — 구독이 끊기면 매칭 목록에서 내려갑니다
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>

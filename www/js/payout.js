@@ -7,17 +7,29 @@
 //  결제는 인앱이 아니라 외부 PG 로 받는다.
 //   · 앱 내에서만 쓰이는 것(구독·캐시)은 스토어 인앱 결제 의무 대상이지만,
 //     실제 사람이 제공하는 상담은 오프라인 서비스라 외부 결제가 가능하다.
-//   · 인앱으로 받으면 수수료 15% 가 붙어 플랫폼 몫(27%)이 크게 깎인다.
+//   · 상담료에서 우리가 가져가는 몫이 0 이 된 뒤에도 이 원칙은 그대로다 —
+//     인앱으로 받으면 상담사에게 갈 돈에서 15% 가 먼저 잘려 나간다.
 // ============================================================================
 window.Payout = {
   // 합이 100 이어야 한다. 바꿀 때 이 주석도 같이 고칠 것.
   //  2026-08-11 개편: 기관 몫은 배분에서 뺐다 — 기관 협의 수수료는 플랫폼 몫에서
   //  나중에 따로 떼어주는 방식이 정산 관리가 훨씬 단순하다.
+  //  2026-08-18 개편: 분배 폐지, 상담사 구독제(월 99,000원 · 첫 달 무료) 전환.
+  //  상담료는 PG 3% 를 제외한 전액이 상담사 몫이고, 플랫폼은 상담료에서
+  //  한 푼도 가져가지 않는다. 우리 수익은 상담사 구독료 하나뿐이다.
+  //  (market.js 의 SPLIT · PRO_SUB_PRICE 와 반드시 같은 값이어야 한다)
   SPLIT: {
-    counselor: 70,   // 상담을 실제로 하는 사람
-    hospital: 0,     // (배분 종료 — 기관 수수료는 플랫폼 몫에서 별도 협의)
-    pg: 3,           // 결제대행 수수료
-    platform: 27     // 우렁의사 — 매칭·기록·리포트·정산 운영
+    counselor: 97,   // 상담을 실제로 하는 사람 — 실비(PG)를 뺀 전액
+    hospital: 0,     // (배분 종료 — 기관 수수료는 상담사·기관 사이의 문제다)
+    pg: 3,           // 결제대행 수수료 (실비)
+    platform: 0      // 우렁의사 — 상담료에서는 받지 않는다. 수익은 구독료.
+  },
+
+  // 상담사 구독 — 플랫폼의 유일한 상담 관련 수익원.
+  //  market.js 의 PRO_SUB_PRICE · PRO_SUB_FREE_DAYS 와 같은 값이어야 한다.
+  PRO_SUB: {
+    PRICE: 99000,    // 월 구독료 (원)
+    FREE_DAYS: 30    // 등록 승인 후 무료 기간
   },
 
   LABEL: {
@@ -35,15 +47,19 @@ window.Payout = {
     return s.counselor + s.hospital + s.pg + s.platform;
   },
 
-  // 상담료를 실제 금액으로 쪼갠다. 반올림 오차는 플랫폼 몫에서 흡수한다.
-  //  (상담사·기관에게 1원이라도 덜 주는 일이 없게)
+  // 상담료를 실제 금액으로 쪼갠다. 반올림 오차는 상담사가 흡수한다 —
+  //  실비 몫들만 반올림하고 상담사가 나머지 전부를 가져간다.
+  //  (플랫폼 몫이 0 이 된 뒤로는 상담사 몫까지 따로 반올림하면 1,650원 같은
+  //   금액에서 합이 총액을 넘어 platform 이 -1원으로 떨어진다)
+  //  계산식은 market.js payoutOf 와 한 글자도 다르면 안 된다 — 화면에 뜬 금액과
+  //  실제로 입금되는 금액이 갈라지면 그 차이는 전부 문의로 돌아온다.
   breakdown(price) {
     const p = Math.max(0, Math.round(Number(price) || 0));
     const s = this.SPLIT;
-    const counselor = Math.round(p * s.counselor / 100);
     const hospital = Math.round(p * s.hospital / 100);
     const pg = Math.round(p * s.pg / 100);
-    const platform = p - counselor - hospital - pg;
+    const platform = Math.round(p * s.platform / 100);
+    const counselor = Math.max(0, p - hospital - pg - platform);
     return { total: p, counselor, hospital, pg, platform };
   },
 
@@ -72,10 +88,18 @@ window.Payout = {
         ${row(this.LABEL.counselor, s.counselor, b.counselor, true)}
         ${s.hospital > 0 ? row(this.LABEL.hospital, s.hospital, b.hospital) : ''}
         ${row(this.LABEL.pg, s.pg, b.pg)}
-        ${row(this.LABEL.platform, s.platform, b.platform)}
+        ${s.platform > 0 ? row(this.LABEL.platform, s.platform, b.platform) : ''}
         <p style="margin: 0.55rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
+          ${s.platform > 0 ? '' : `우렁의사는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
+          ${this.won(b.pg)}은 카드사·PG 로 나가는 실비입니다.<br>`}
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.
         </p>
+        ${s.platform > 0 ? '' : `
+        <p style="margin: 0.5rem 0 0; padding-top: 0.5rem; border-top: 1px dashed var(--glass-border);
+                  font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
+          대신 상담사 <b style="color: var(--text-primary);">월 구독료 ${this.won(this.PRO_SUB.PRICE)}</b>으로 운영해요.
+          등록이 승인되면 <b style="color: var(--accent-primary);">첫 ${Math.round(this.PRO_SUB.FREE_DAYS / 30)}개월은 무료</b>입니다.
+        </p>`}
       </div>`;
   },
 

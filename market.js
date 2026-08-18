@@ -22,6 +22,16 @@ const MAX = { text: 4000, name: 40, id: 64 };
 const CALL_LOCK_MS = 35 * 60 * 1000;      // 통화 잠금 자동 해제
 const KEEP_MS = 180 * 86400000;            // 180일 지난 기록은 정리 대상
 
+// ── 상담사 구독 (2026-08-18 수익 구조 개편) ────────────────────────────
+//  플랫폼은 상담료에서 한 푼도 가져가지 않는다 (아래 SPLIT.platform = 0).
+//  대신 상담사가 월 구독료를 낸다 — 이게 플랫폼의 유일한 수익이다.
+//  등록 승인 직후 첫 PRO_SUB_FREE_DAYS 일은 무료로 얹어 준다.
+//  스키마는 schema-prosub.sql 참고.
+const PRO_SUB_PRICE = 99000;                        // 월 구독료(원)
+const PRO_SUB_FREE_DAYS = 30;                       // 승인 후 무료 기간(일)
+const PRO_SUB_MONTH_MS = 30 * 86400000;             // 1개월 = 30일로 센다
+const PRO_SUB_FREE_MS = PRO_SUB_FREE_DAYS * 86400000;
+
 const s = (v, n) => String(v == null ? '' : v).slice(0, n || MAX.name);
 const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const nowMs = () => Date.now();
@@ -286,6 +296,25 @@ function fireGeocode(ctx, db, id, addr) {
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
 }
 
+// ── 구독 게이트 ────────────────────────────────────────────────────────
+//  구독이 끊긴 상담사에게는 '새로 들어오는 일'만 막는다 — 명부 노출·신규 예약·
+//  바로상담 수신. 이미 확정된 예약·정산·로그인은 건드리지 않는다.
+//
+//  막히는 쪽으로 실수하지 않는 게 중요하다. 그래서 애매하면 전부 '살아 있다':
+//   · sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용) → 통과.
+//     여기서 막으면 마이그레이션 순서 하나 때문에 상담사 전원이 사라진다.
+//   · 마켓에 없는 상담사 → 통과. 없는 사람을 걸러내는 건 각 경로의 몫이고,
+//     여기서 막으면 옛 흐름(마켓 밖 상담사 예약)까지 같이 끊긴다.
+async function subActive(db, counselorId) {
+  if (!counselorId) return true;
+  try {
+    const r = await db.prepare('SELECT sub_until FROM counselors WHERE id = ?')
+      .bind(counselorId).first();
+    if (!r || r.sub_until == null) return true;
+    return Number(r.sub_until) > nowMs();
+  } catch (e) { return true; }
+}
+
 // ---------------------------------------------------------------------------
 export async function handleMarket(request, env, cors, path, ctx) {
   const db = env.DB;
@@ -512,6 +541,15 @@ export async function handleMarket(request, env, cors, path, ctx) {
 
   // 앱 내 음성통화 — 시그널링·과금
   if (path.startsWith('/rtc/')) {
+    // 바로상담 걸기(내담자 → 상담사)는 '새로 들어오는 일'이다. 구독이 끊겼으면
+    //  여기서 끊는다. rtc.js 를 고치지 않고 이 관문에서 거르는 이유는,
+    //  통화 로직 한가운데에 결제 조건을 심으면 나중에 둘 다 못 읽게 되기 때문이다.
+    //  상담사가 자기 내담자에게 거는 /rtc/start-c2c 는 막지 않는다 —
+    //  이미 맺어진 관계의 마무리까지 끊는 건 게이트의 일이 아니다.
+    if (path === '/rtc/start' && method === 'POST' &&
+        !await subActive(db, s(body.counselorId, MAX.id))) {
+      return json({ error: 'sub_expired', message: '지금은 이 선생님과 연결할 수 없어요.' }, 409, cors);
+    }
     const r = await handleRtc(request, env, cors, path, body, url, ctx);
     if (r) return r;
   }
@@ -540,12 +578,24 @@ export async function handleMarket(request, env, cors, path, ctx) {
   //  앱이 결국 기기 안의 사본(cbt_custom_counselors)을 썼다.
   //  그래서 A 폰에서 승인한 상담사가 B 폰에는 없었다. 카드에 필요한 걸 다 준다.
   //  전화번호는 주지 않는다 — 앱 안에서 통화하므로 번호가 오갈 이유가 없다.
+  //  구독이 끊긴 상담사는 여기서 빠진다 (2026-08-18 개편). 정지(active=0)와는
+  //   다르다 — 로그인도 기존 예약 처리도 그대로 되고, '새 내담자에게 보이는 것'만 멈춘다.
   if (path === '/counselors' && method === 'GET') {
-    const r = await db.prepare(
-      `SELECT id, name, hospital, addr, addr_detail, intro, tags, price, call_rate, license,
-              photo, lat, lng, available, busy_until
-         FROM counselors WHERE active = 1 ORDER BY created DESC`
-    ).all();
+    const COLS = `id, name, hospital, addr, addr_detail, intro, tags, price, call_rate, license,
+              photo, lat, lng, available, busy_until`;
+    let r;
+    try {
+      r = await db.prepare(
+        `SELECT ${COLS} FROM counselors
+          WHERE active = 1 AND COALESCE(sub_until, 0) > ? ORDER BY created DESC`
+      ).bind(nowMs()).all();
+    } catch (e) {
+      // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용). 예전 흐름 그대로 —
+      //  여기서 빈 목록을 돌려주면 매칭 탭이 통째로 비어 앱이 망가진 것처럼 보인다.
+      r = await db.prepare(
+        `SELECT ${COLS} FROM counselors WHERE active = 1 ORDER BY created DESC`
+      ).all();
+    }
     return json({
       items: (r.results || []).map(c => ({
         id: c.id, name: c.name, hospital: c.hospital || '',
@@ -648,13 +698,38 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  (마켓에 없는 상담사면 옛 흐름대로 보낸 값을 쓴다 — 예약 자체를 잃지 않게)
     let price = num(body.price);
     let cname = s(body.counselorName || body.name);
+    let expired = false;
     try {
-      const c = await db.prepare('SELECT name, price FROM counselors WHERE id = ?').bind(counselorId).first();
+      const c = await db.prepare('SELECT name, price, sub_until FROM counselors WHERE id = ?')
+        .bind(counselorId).first();
       if (c) {
         price = Math.max(0, num(c.price));
         if (c.name) cname = s(c.name);
+        // 구독이 끊긴 상담사는 새 예약을 받지 못한다 (2026-08-18 개편).
+        //  이미 잡힌 예약의 완료·확인·정산은 이 길을 지나지 않으므로 그대로 돌아간다.
+        //  sub_until 이 null 인 옛 행은 막지 않는다 — 마이그레이션 전 상태다.
+        if (c.sub_until != null && Number(c.sub_until) <= nowMs()) expired = true;
       }
-    } catch (e) {}
+    } catch (e) {
+      // sub_until 칸이 없는 옛 스키마 — 칸을 빼고 다시 물어 예전 흐름 그대로 간다.
+      //  가격을 못 읽으면 클라이언트가 보낸 값이 그대로 들어가므로 조용히 넘기면 안 된다.
+      try {
+        const c = await db.prepare('SELECT name, price FROM counselors WHERE id = ?')
+          .bind(counselorId).first();
+        if (c) {
+          price = Math.max(0, num(c.price));
+          if (c.name) cname = s(c.name);
+        }
+      } catch (e2) {}
+    }
+    if (expired) {
+      // 상담사 사정을 내담자에게 그대로 옮기지 않는다. 앱은 error 코드로 분기하고
+      //  사람에게는 '지금은 안 된다'만 보여주면 된다.
+      return json({
+        error: 'sub_expired',
+        message: '지금은 이 선생님께 예약할 수 없어요. 다른 선생님을 찾아볼까요?'
+      }, 409, cors);
+    }
 
     await db.prepare(
       `INSERT INTO bookings
@@ -1235,7 +1310,26 @@ export async function handleMarket(request, env, cors, path, ctx) {
       WHERE m.sender = 'client'`).first() || {};
 
     const gross = r.gross || 0;
-    const SPLIT = { counselor: 70, hospital: 0, pg: 3, platform: 27 };  // js/payout.js 와 같은 값
+    // 분배 비율은 아래 payoutOf 와 같은 상수를 쓴다. 전에는 여기에 리터럴을
+    //  한 벌 더 적어 뒀는데, 개편 때 한쪽만 고치면 콘솔 숫자가 조용히 거짓말을 한다.
+
+    // 상담사 구독 현황 — 개편 후 플랫폼의 유일한 수익원이다.
+    //  큰 SELECT 에 끼워 넣지 않는다: sub_until 칸이 없는 배포에서 그 한 줄 때문에
+    //  /stats 전체가 죽으면 운영자 콘솔이 통째로 빈 화면이 된다.
+    let proSub = { active: 0, expired: 0, price: PRO_SUB_PRICE, monthly: 0, known: false };
+    try {
+      const ps = await db.prepare(
+        `SELECT (SELECT COUNT(*) FROM counselors WHERE active = 1 AND COALESCE(sub_until,0) >  ?) AS a,
+                (SELECT COUNT(*) FROM counselors WHERE active = 1 AND COALESCE(sub_until,0) <= ?) AS e`
+      ).bind(t, t).first() || {};
+      proSub = {
+        active: ps.a || 0, expired: ps.e || 0,
+        price: PRO_SUB_PRICE,
+        monthly: (ps.a || 0) * PRO_SUB_PRICE,   // 월 예상 구독 수익(원). 플레이 수수료 15% 차감 전
+        known: true
+      };
+    } catch (e) { /* schema-prosub.sql 미적용 — known:false 로 화면이 '아직 없음'을 알아본다 */ }
+
     return json({
       // 앱의 운영자 콘솔이 기대하는 모양 그대로 (여기가 어긋나면 화면이 빈칸이 된다)
       uniqueClients: Math.max(r.clientsA || 0, r.clientsB || 0),
@@ -1256,6 +1350,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
         pg: Math.round(gross * SPLIT.pg / 100),
         split: SPLIT
       },
+      proSub,
       // 메일 발송 설정 상태는 운영자만 본다 (로그인 응답에 담으면 가입 여부가 샌다)
       mailReady: !!env.RESEND_API_KEY,
       counselorsWithoutEmail: r.noMail || 0
@@ -1301,10 +1396,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (!me) return json({ error: 'bad-code' }, 403, cors);
 
     if (method === 'GET') {
-      const c = await db.prepare(
-        `SELECT id,name,hospital,email,tel,addr,addr_detail,intro,tags,price,call_rate,license,
-                photo,lat,lng,geo_at,slots,offdays,bank,bank_no,bank_holder,available,updated
-           FROM counselors WHERE id = ?`).bind(me.id).first();
+      const COLS = `id,name,hospital,email,tel,addr,addr_detail,intro,tags,price,call_rate,license,
+                photo,lat,lng,geo_at,slots,offdays,bank,bank_no,bank_holder,available,updated`;
+      // 구독 상태는 상담사 앱이 매번 알아야 한다 — 만료되면 새 내담자에게 안 보이는데,
+      //  본인만 그 사실을 모르는 상황이 제일 나쁘다.
+      let c = null;
+      try {
+        c = await db.prepare(
+          `SELECT ${COLS},sub_until,sub_started FROM counselors WHERE id = ?`).bind(me.id).first();
+      } catch (e) {
+        // schema-prosub.sql 미적용 — 구독 칸 없이. 앱은 subActive 가 없으면 안 그린다.
+        c = await db.prepare(`SELECT ${COLS} FROM counselors WHERE id = ?`).bind(me.id).first();
+      }
       return json({ ok: true, me: rowProfile(c) }, 200, cors);
     }
 
@@ -1369,6 +1472,28 @@ export async function handleMarket(request, env, cors, path, ctx) {
       }
       return json({ ok: true }, 200, cors);
     }
+  }
+
+  // ── 상담사 구독 결제 확인 (자리만 잡아 둔다) ────────────────────────
+  //  앱 안의 [구독하기] 가 부를 자리다. 실제 결제는 Google Play 인앱 구독이고,
+  //  그 영수증은 반드시 서버가 검증해야 한다 — 앱이 보내온 토큰을 그대로 믿고
+  //  sub_until 을 늘리면, 아무 문자열이나 보내서 구독을 공짜로 얻을 수 있다.
+  //
+  //  TODO(Play Billing): purchaseToken 을 Google Play Developer API 로 검증한다.
+  //    purchases.subscriptionsv2.get(packageName, token)
+  //      → lineItems[].expiryTime 을 그대로 counselors.sub_until 에 쓴다
+  //        (우리가 '한 달'을 계산하지 않는다. 만료 시각의 진실은 구글에 있다)
+  //      → pro_sub_orders 에 method:'play', amount:PRO_SUB_PRICE 로 남긴다
+  //      → 같은 토큰 재사용을 막는다 (pro_sub_orders.id 를 토큰 해시로)
+  //    검증이 붙기 전까지는 운영자 수동 연장(/admin/counselors/sub)이 유일한 통로다.
+  if (path === '/pro/sub/confirm' && method === 'POST') {
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    if (!s(body.purchaseToken, 512)) return json({ error: 'missing' }, 400, cors);
+    return json({
+      error: 'not-implemented',
+      message: '앱 내 구독 결제는 준비 중이에요. 운영팀에 문의해주세요.'
+    }, 501, cors);
   }
 
   // 예약 가능 시간 — 요일별 시간대 + 특정 날짜 휴무
@@ -1492,14 +1617,36 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  있으므로 같은 검사를 통과한 것만 옮긴다(거부 대신 조용히 비운다 —
     //  사진 하나 때문에 승인 자체가 막히면 안 된다).
     const apPhoto = checkPhoto(a.photo);
-    await db.prepare(
-      `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created,
-                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated)
-       VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(cid, a.name, a.hospital, a.email || null, newCode, nowMs(),
+    // 첫 달은 무료다 (2026-08-18 개편). 승인 시각에 30일을 얹어 두면
+    //  상담사는 결제 안내를 받기 전부터 바로 일할 수 있다.
+    const t0 = nowMs();
+    const subUntil = t0 + PRO_SUB_FREE_MS;
+    const COLS = `id, name, hospital, email, code, available, busy_until, active, created,
+                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated`;
+    const args = [cid, a.name, a.hospital, a.email || null, newCode, t0,
       telClean(a.tel), a.addr, a.intro, a.tags, a.price, a.license,
       apPhoto.ok ? apPhoto.photo : '',
-      a.bank, a.bank_no, a.bank_holder, nowMs()).run();
+      a.bank, a.bank_no, a.bank_holder, t0];
+    try {
+      await db.prepare(
+        `INSERT INTO counselors (${COLS}, sub_until, sub_started)
+         VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(...args, subUntil, t0).run();
+    } catch (e) {
+      // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용).
+      //  구독 칸 하나 때문에 승인 자체가 막히면 안 된다 — 예전 모양으로 넣는다.
+      //  (마이그레이션 UPDATE 가 나중에 유예 기간을 채워 준다)
+      await db.prepare(
+        `INSERT INTO counselors (${COLS}) VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(...args).run();
+    }
+    // 무료로 준 달도 기록에 남긴다 — '공짜로 준 달'과 '돈 받은 달'을 못 나누면
+    //  나중에 구독 매출 집계가 거짓말을 한다. 표가 없어도 승인은 계속된다.
+    try {
+      await db.prepare(
+        'INSERT INTO pro_sub_orders (id, counselor_id, amount, months, method, memo, created) VALUES (?,?,?,?,?,?,?)'
+      ).bind(rid('ps'), cid, 0, 1, 'free', '등록 승인 첫 달 무료', t0).run();
+    } catch (e) {}
     await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
       .bind(cid, nowMs(), id).run();
     // 승인되자마자 매칭 카드에 뜨는 사람이다. 좌표를 지금 구해 둬야
@@ -1532,14 +1679,22 @@ export async function handleMarket(request, env, cors, path, ctx) {
       // 연락처·주소는 운영자에게만 준다 — 정산 문의와 서류 발송에 매번 필요한데
       //  지금까지는 D1 을 직접 열어야 알 수 있었다. 사진은 일부러 빼고 '있다/없다'만
       //  보낸다(70KB × 500명 = 35MB. 목록 하나 때문에 콘솔이 안 뜬다).
-      const r = await db.prepare(
-        `SELECT c.id, c.name, c.hospital, c.email, c.code, c.available, c.busy_until, c.active, c.created,
+      // sub_until 은 운영자가 [1개월 연장]을 누를지 판단하는 근거다.
+      //  칸이 없는 배포에서도 목록 자체는 떠야 하므로 두 벌로 나눠 시도한다.
+      const BASE = `c.id, c.name, c.hospital, c.email, c.code, c.available, c.busy_until, c.active, c.created,
                 c.tel, c.addr, c.addr_detail, c.lat, c.lng, c.geo_at,
                 CASE WHEN LENGTH(COALESCE(c.photo, '')) > 0 THEN 1 ELSE 0 END AS has_photo,
-                (SELECT COUNT(*) FROM push_subs p WHERE p.counselor_id = c.id) AS subs
-           FROM counselors c ORDER BY c.created DESC LIMIT 500`
-      ).all();
-      return json({ items: r.results || [] }, 200, cors);
+                (SELECT COUNT(*) FROM push_subs p WHERE p.counselor_id = c.id) AS subs`;
+      let r;
+      try {
+        r = await db.prepare(
+          `SELECT ${BASE}, c.sub_until, c.sub_started
+             FROM counselors c ORDER BY c.created DESC LIMIT 500`).all();
+      } catch (e) {
+        r = await db.prepare(
+          `SELECT ${BASE} FROM counselors c ORDER BY c.created DESC LIMIT 500`).all();
+      }
+      return json({ items: r.results || [], subPrice: PRO_SUB_PRICE, now: nowMs() }, 200, cors);
     }
 
     // 연락처·주소 대리 수정. 상담사가 프로 앱을 아직 못 쓰는 동안
@@ -1596,10 +1751,28 @@ export async function handleMarket(request, env, cors, path, ctx) {
         if (de) return json({ error: '이미 쓰이는 이메일입니다' }, 409, cors);
       }
       const newCode = makeCode();
-      await db.prepare(
-        `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created)
-         VALUES (?,?,?,?,?,0,0,1,?)`
-      ).bind(id, name, s(body.hospital, 120), email || null, newCode, nowMs()).run();
+      // 운영자가 직접 넣는 상담사도 승인과 같은 조건이다 — 첫 달 무료.
+      //  여기만 sub_until 을 안 주면 만든 즉시 명부에서 안 보이는 상담사가 생긴다.
+      const t0 = nowMs();
+      const cargs = [id, name, s(body.hospital, 120), email || null, newCode, t0];
+      try {
+        await db.prepare(
+          `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created,
+                                   sub_until, sub_started)
+           VALUES (?,?,?,?,?,0,0,1,?,?,?)`
+        ).bind(...cargs, t0 + PRO_SUB_FREE_MS, t0).run();
+      } catch (e) {
+        // schema-prosub.sql 미적용 배포 — 예전 모양으로 넣는다
+        await db.prepare(
+          `INSERT INTO counselors (id, name, hospital, email, code, available, busy_until, active, created)
+           VALUES (?,?,?,?,?,0,0,1,?)`
+        ).bind(...cargs).run();
+      }
+      try {
+        await db.prepare(
+          'INSERT INTO pro_sub_orders (id, counselor_id, amount, months, method, memo, created) VALUES (?,?,?,?,?,?,?)'
+        ).bind(rid('ps'), id, 0, 1, 'free', '운영자 등록 첫 달 무료', t0).run();
+      } catch (e) {}
       let mailed = null;
       if (email) mailed = await sendCodeMail(env, db, email, name, newCode, env.APP_URL);
       return json({ ok: true, id, name, email, code: newCode, mailed: mailed ? mailed.sent : null }, 200, cors);
@@ -1618,6 +1791,47 @@ export async function handleMarket(request, env, cors, path, ctx) {
       await db.prepare('UPDATE counselors SET email = ? WHERE id = ?').bind(email, id).run();
       await db.prepare('DELETE FROM sessions WHERE counselor_id = ?').bind(id).run();
       return json({ ok: true, email }, 200, cors);
+    }
+
+    // 구독 수동 연장. 실결제(Play Billing) 가 붙기 전까지는 이게 유일한 연장 통로다.
+    //  이어붙이기 규칙: max(지금, 기존 만료) + months개월.
+    //   · 아직 남아 있으면 그 뒤에 붙인다 (일찍 낸 사람이 손해 보면 안 된다)
+    //   · 이미 끊겼으면 오늘부터 센다 (끊긴 기간까지 돈 받을 이유가 없다)
+    if (path === '/admin/counselors/sub' && method === 'POST') {
+      const id = s(body.id, MAX.id);
+      if (!id) return json({ error: 'id 필요' }, 400, cors);
+      // 손이 미끄러져 100개월이 들어가는 일을 막는다 (되돌리려면 DB 를 직접 열어야 한다)
+      const months = Math.max(1, Math.min(24, Math.round(num(body.months) || 1)));
+      const t = nowMs();
+      let cur;
+      try {
+        cur = await db.prepare('SELECT id, name, sub_until, sub_started FROM counselors WHERE id = ?')
+          .bind(id).first();
+      } catch (e) {
+        // 칸이 없으면 연장할 자리도 없다. 무엇을 해야 하는지 그대로 알려준다.
+        return json({ error: 'schema-prosub.sql 을 먼저 적용해주세요 (sub_until 칸 없음)' }, 500, cors);
+      }
+      if (!cur) return json({ error: 'not-found' }, 404, cors);
+
+      const until = Math.max(t, Number(cur.sub_until || 0)) + months * PRO_SUB_MONTH_MS;
+      const started = Number(cur.sub_started || 0) || t;
+      await db.prepare('UPDATE counselors SET sub_until = ?, sub_started = ? WHERE id = ?')
+        .bind(until, started, id).run();
+
+      // 연장 기록. 남기지 못해도 연장 자체는 되돌리지 않는다 —
+      //  운영자는 이미 입금을 확인하고 눌렀고, 여기서 실패로 돌려주면 두 번 누른다.
+      let logged = true;
+      try {
+        await db.prepare(
+          'INSERT INTO pro_sub_orders (id, counselor_id, amount, months, method, memo, created) VALUES (?,?,?,?,?,?,?)'
+        ).bind(rid('ps'), id, PRO_SUB_PRICE * months, months, 'admin', s(body.memo, 200), t).run();
+      } catch (e) { logged = false; }
+
+      return json({
+        ok: true, id, name: cur.name || '', months,
+        subUntil: until, sub_until: until, subStarted: started,
+        amount: PRO_SUB_PRICE * months, logged
+      }, 200, cors);
     }
 
     if (path === '/admin/counselors/rotate' && method === 'POST') {
@@ -2038,15 +2252,22 @@ function maskAcct(n) {
 }
 
 // 정산 배분. js/payout.js 의 SPLIT 과 같은 값이어야 한다.
-//  반올림 오차는 플랫폼이 흡수한다 — 상담사 몫이 1원이라도 줄면 안 된다.
 //  기관 몫은 2026-08-11 부로 배분 종료 (기관 수수료는 플랫폼 몫에서 별도 협의).
-const SPLIT = { counselor: 70, hospital: 0, pg: 3, platform: 27 };
+//  2026-08-18 개편: 플랫폼 분배 폐지. 상담료는 PG 수수료 3% 만 빼고 전액 상담사 몫이고,
+//   플랫폼 수익은 상담사 구독료(PRO_SUB_PRICE)로 옮겼다.
+//   ※ 비율은 정산 '시점'에 계산된다. 아직 정산 안 된 예약은 자동으로 새 비율을 탄다.
+//
+//  반올림 오차는 상담사가 흡수한다 — 실비 몫들만 반올림하고 상담사가 나머지 전부를
+//   가져간다. 예전처럼 상담사 몫까지 따로 반올림하면 platform 이 0 인 지금은
+//   1,650원 같은 금액에서 합이 총액을 넘어 platform 이 -1원이 된다.
+const SPLIT = { counselor: 97, hospital: 0, pg: 3, platform: 0 };
 function payoutOf(price) {
   const p = Math.max(0, Math.round(price || 0));
-  const counselor = Math.round(p * SPLIT.counselor / 100);
   const hospital  = Math.round(p * SPLIT.hospital / 100);
   const pg        = Math.round(p * SPLIT.pg / 100);
-  return { gross: p, counselor, hospital, pg, platform: p - counselor - hospital - pg, split: SPLIT };
+  const platform  = Math.round(p * SPLIT.platform / 100);
+  const counselor = Math.max(0, p - hospital - pg - platform);
+  return { gross: p, counselor, hospital, pg, platform, split: SPLIT };
 }
 
 // 신청서. 계좌는 운영자에게도 마스킹해서만 보낸다 —
@@ -2085,6 +2306,17 @@ function rowProfile(c) {
     price: c.price || 0, callRate: c.call_rate || 0,
     slots: safeJson(c.slots, {}), offdays: safeJson(c.offdays, []),
     available: !!c.available, updated: c.updated || 0,
+    // 구독 (2026-08-18 개편). 만료돼도 앱을 잠그지 않는다 — 기존 예약 처리와
+    //  정산 확인은 계속 돼야 한다. 화면은 이 두 값으로 안내 배너만 그린다.
+    //  칸이 없는 배포에서는 sub_until 이 undefined → 0 / subActive:true 로,
+    //  '만료됐다'는 빨간 배너가 잘못 뜨는 일이 없게 한다.
+    //  이 파일의 다른 칸은 camelCase 인데 sub_until 을 같이 내보내는 건,
+    //  프로 앱이 스펙에 적힌 이름 그대로 읽어도 빈칸이 되지 않게 하려는 것이다.
+    subUntil: Number(c.sub_until || 0),
+    sub_until: Number(c.sub_until || 0),
+    subStarted: Number(c.sub_started || 0),
+    subActive: c.sub_until == null ? true : Number(c.sub_until) > Date.now(),
+    subPrice: PRO_SUB_PRICE,
     payout: c.bank_no
       ? { bank: c.bank || '', holder: c.bank_holder || '', masked: maskAcct(c.bank_no), set: true }
       : { set: false }

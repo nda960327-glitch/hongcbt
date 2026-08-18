@@ -788,6 +788,7 @@ function renderHome() {
       <div class="sub">${heroSub}</div>
     </div>
     ${notiCard}
+    ${subBanner()}
     <div class="stats">
       <div class="stat c-warn" data-act="tab" data-tab="chat">
         <div class="ic">${ico.chat}</div>
@@ -1360,6 +1361,98 @@ function renderBookings() {
 }
 
 // ============================================================================
+//  구독 — 상담료가 아니라 구독료로 운영한다
+//
+//  2026-08-18 개편으로 우렁의사는 상담료에서 한 푼도 가져가지 않는다.
+//  대신 상담사가 월 구독료를 낸다(등록 승인 후 첫 달 무료).
+//  구독이 끊기면 새 내담자에게 노출되지 않는다 — 이건 상담사에게 가장 중요한
+//  사실인데, 조용히 예약만 줄어들면 그 이유를 영원히 알 수 없다.
+//  그래서 만료가 가까워지면 정산 탭과 홈에서 먼저 말을 건다.
+//
+//  앱 전체를 잠그지는 않는다. 이미 잡힌 예약을 처리하고 정산을 확인하는 것은
+//  돈이 걸린 일이라, 구독이 끊겼다고 막으면 그 피해는 내담자에게 간다.
+// ============================================================================
+const PRO_SUB_PRICE = 99000;   // js/payout.js 의 PRO_SUB.PRICE · market.js 와 같은 값이어야 한다
+const SUB_WARN_DAYS = 14;      // 남은 날이 이 안쪽이면 미리 알린다
+
+// 옛 워커는 sub_until 을 아예 내려주지 않는다. 그때 '만료됐다'고 겁주면 거짓말이므로
+//  모르면 아무 말도 하지 않는다(null).
+function subInfo() {
+  if (!ME) return null;
+  const until = Number(ME.sub_until || 0);
+  if (!until) return null;
+  const left = Math.ceil((until - Date.now()) / 86400000);
+  const active = ME.subActive === undefined ? left > 0 : !!ME.subActive;
+  return { until, left, active, soon: active && left <= SUB_WARN_DAYS };
+}
+
+const subDay = ts => new Date(ts).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+function subCard() {
+  const s = subInfo();
+  if (!s) return '';
+  const payBtn = label =>
+    `<button class="btn sm" style="margin-top:0.7rem;" data-act="sub-pay">${label}</button>`;
+
+  if (!s.active) {
+    return `
+    <div class="card" style="border:1.5px solid var(--danger);">
+      <div class="row" style="gap:0.4rem;">
+        <strong class="grow" style="font-size:0.95rem; color:var(--danger);">구독이 만료됐어요</strong>
+        <span class="chip bad">만료</span>
+      </div>
+      <p class="muted" style="margin:0.35rem 0 0;">
+        ${subDay(s.until)}에 끝났어요. <b style="color:var(--danger);">지금은 새 내담자에게 노출되지 않습니다.</b><br>
+        이미 잡힌 예약과 정산은 그대로 진행되니 안심하세요.</p>
+      ${payBtn('구독하기 · 월 ' + won(PRO_SUB_PRICE) + '원')}
+    </div>`;
+  }
+  if (s.soon) {
+    return `
+    <div class="card" style="border:1.5px solid var(--warn);">
+      <div class="row" style="gap:0.4rem;">
+        <strong class="grow" style="font-size:0.95rem;">구독이 곧 끝나요</strong>
+        <span class="chip new">D-${Math.max(0, s.left)}</span>
+      </div>
+      <p class="muted" style="margin:0.35rem 0 0;">
+        ${subDay(s.until)}까지예요. 끝나면 매칭 목록에서 내려가 새 예약이 들어오지 않아요.</p>
+      ${payBtn('지금 연장하기 · 월 ' + won(PRO_SUB_PRICE) + '원')}
+    </div>`;
+  }
+  return `
+    <div class="card">
+      <div class="row" style="gap:0.4rem;">
+        <strong class="grow" style="font-size:0.95rem;">구독 이용 중</strong>
+        <span class="chip ok">${s.left}일 남음</span>
+      </div>
+      <p class="muted" style="margin:0.35rem 0 0;">
+        ${subDay(s.until)}까지 이용하실 수 있어요. 매칭 목록에 정상적으로 노출되고 있습니다.<br>
+        상담료는 결제 수수료 3%만 빼고 전액 선생님 몫이에요.</p>
+    </div>`;
+}
+
+// 홈에는 급한 것만 — 정상 구독 중일 때는 아무 말도 하지 않는다.
+const subBanner = () => {
+  const s = subInfo();
+  return (s && (!s.active || s.soon)) ? subCard() : '';
+};
+
+// TODO(Play Billing): 구글 플레이 정기결제를 붙이면 여기서 구매 흐름을 띄우고
+//  결제 토큰을 POST /api/pro/sub/confirm 으로 보내 서버가 영수증을 검증하게 한다.
+//  그전까지는 운영팀이 ops 콘솔에서 수동으로 연장한다.
+function openSubPay() {
+  const s = subInfo();
+  alert(
+    '구독 안내\n\n' +
+    '월 ' + won(PRO_SUB_PRICE) + '원 (등록 승인 후 첫 1개월 무료)\n' +
+    (s ? (s.active ? '지금 구독은 ' + subDay(s.until) + '까지예요.\n' : '지금은 만료 상태예요.\n') : '') +
+    '\n앱 내 결제는 준비 중이에요.\n' +
+    '운영팀에 연락 주시면 바로 연장해드립니다.\n' +
+    '(우렁의사 운영팀 nda960327@gmail.com)'
+  );
+}
+
+// ============================================================================
 //  ④ 정산
 // ============================================================================
 function renderMoney() {
@@ -1372,11 +1465,13 @@ function renderMoney() {
   const monthSum = month.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
 
-  // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 70%).
-  //  market.js payoutOf 와 같은 값이어야 한다. 여기가 빠져 있어서
-  //  통화로 번 돈이 상담사 화면에는 아예 보이지 않았다.
+  // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 97%).
+  //  계산식은 market.js payoutOf 와 같아야 한다: PG 3% 만 반올림하고 상담사가
+  //  나머지 전부를 가져간다 (반올림 잔돈은 상담사 몫).
+  //  (프로 앱에는 payout.js 를 싣지 않으므로 여기서는 숫자를 직접 적는다 —
+  //   비율을 고칠 때 이 줄을 같이 고치지 않으면 화면 금액이 실제 입금과 갈라진다)
   const calls = (D.calls || []).slice().sort((a, b) => b.at - a.at);
-  const share = n => Math.round(Math.max(0, n || 0) * 70 / 100);
+  const share = n => { const p = Math.max(0, Math.round(n || 0)); return p - Math.round(p * 3 / 100); };
   const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
   const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
   const callPaid = calls.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
@@ -1403,6 +1498,8 @@ function renderMoney() {
     : diff > 0 ? `지난달보다 <b style="color:var(--accent)">+${won(diff)}캐시</b>`
     : diff < 0 ? `지난달보다 <b style="color:var(--warn)">${won(diff)}캐시</b>`
     : '지난달과 같아요';
+
+  const subBox = subCard();
 
   const chartCard = `<div class="card">
       <div class="row" style="margin-bottom:0.5rem;">
@@ -1457,9 +1554,10 @@ function renderMoney() {
         <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.6rem;">상담사 70% · 결제 수수료 3% · 플랫폼 27%</p>
+      <p class="muted" style="margin-top:0.6rem;">상담사 97% · 결제 수수료 3% — 플랫폼은 상담료에서 가져가지 않습니다</p>
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
+    ${subBox ? `<div class="sec-title">구독</div>${subBox}` : ''}
     <div class="sec-title">수입 흐름</div>
     ${chartCard}
     <div class="sec-title">계좌</div>
@@ -2455,6 +2553,7 @@ const ACT = {
   },
   // 이미 거부한 뒤의 복구 수단 — 팝업이 다시 뜨지 않으므로 설정 화면으로 데려간다
   'noti-settings': async () => { await guideToNotifSettings(); },
+  'sub-pay': openSubPay,
 
   presence: async (el) => {
     const on = el.dataset.on === '1';

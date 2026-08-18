@@ -556,13 +556,51 @@ function chartsSection() {
     </div>`;
 }
 
+// ── 상담사 구독 ──────────────────────────────────────────────────────
+//  2026-08-18 개편: 상담료 분배는 없앴다. 플랫폼 수익은 상담사 구독료 하나뿐이다.
+//  그래서 '지금 몇 명이 구독 중인가'가 곧 이 서비스의 매출이다.
+//  값은 js/payout.js 의 PRO_SUB · market.js 의 PRO_SUB_PRICE 와 같아야 한다.
+const PRO_SUB_PRICE = 99000;
+const SUB_WARN_DAYS = 14;              // 이 안쪽으로 남았으면 미리 챙긴다
+const DAY = 86400000;
+
+// 옛 워커는 목록에 sub_until 을 담아 주지 않는다. 그때 '구독 0명'이라고 적으면
+//  거짓말이 된다 — 모르는 것은 모른다고(null) 말하고 화면에서 빼 버린다.
+function subStat() {
+  const list = D.cs || [];
+  if (!list.length || list.every(c => c.sub_until === undefined)) return null;
+  const now = Date.now();
+  const until = c => Number(c.sub_until || 0);
+  const active = list.filter(c => until(c) > now);
+  return {
+    total: list.length,
+    active: active.length,
+    soon: active.filter(c => until(c) - now <= SUB_WARN_DAYS * DAY).length,
+    expired: list.length - active.length,
+    mrr: active.length * PRO_SUB_PRICE
+  };
+}
+
+// 남은 날짜를 사람 말로. 만료된 쪽은 '지났다'는 사실이 먼저 보여야 한다.
+function subLeft(until) {
+  const u = Number(until || 0);
+  if (!u) return null;
+  const days = Math.ceil((u - Date.now()) / DAY);
+  return { until: u, days, active: days > 0, soon: days > 0 && days <= SUB_WARN_DAYS };
+}
+const subDay = ts => {
+  const d = new Date(ts);
+  return `${d.getFullYear()}.${pad2(d.getMonth() + 1)}.${pad2(d.getDate())}`;
+};
+
 // ── ① 대시보드 ───────────────────────────────────────────────────────
 function viewDash() {
   if (D.stats === undefined) return loading;
   if (!D.stats) return failed;
   const d = D.stats;
-  const rev = d.revenue || { gross: 0, split: { counselor: 70, hospital: 0, pg: 3, platform: 27 } };
-  const sp = rev.split || { counselor: 70, hospital: 0, pg: 3, platform: 27 };
+  const rev = d.revenue || { gross: 0, split: { counselor: 97, hospital: 0, pg: 3, platform: 0 } };
+  const sp = rev.split || { counselor: 97, hospital: 0, pg: 3, platform: 0 };
+  const ss = subStat();
   const pending = (D.apps || []).filter(a => a.status === 'pending').length;
   const settleN = (D.settle || []).length;
   const settleSum = (D.settle || []).reduce((a, x) => a + ((x.payout && x.payout.counselor) || 0), 0);
@@ -594,6 +632,9 @@ function viewDash() {
       ${tile('누적 이용자', won(d.uniqueClients), '서버에 기록을 남긴 기기 수')}
       ${tile('구독 중', won(d.subs ? d.subs.active : 0), d.subs ? `체험 중 ${won(d.subs.trial)}명 · 앱이 하루 1회 자진 신고한 집계` : '집계 준비 중', d.subs && d.subs.active > 0)}
       ${tile('입점 상담사', won(d.counselors), d.counselorsWithoutEmail ? `이메일 미등록 ${d.counselorsWithoutEmail}` : '전원 이메일 등록됨')}
+      ${ss ? tile('구독 수익(월)', won(ss.mrr) + '<span class="u" style="font-size:0.7rem;">원</span>',
+          `구독 중 ${ss.active}명${ss.soon ? ` · 14일 내 만료 ${ss.soon}명` : ''}${ss.expired ? ` · 만료 ${ss.expired}명` : ''}`,
+          ss.active > 0) : ''}
       ${tile('예약', won(d.bookings.total), `예정 ${won(d.bookings.upcoming)} · 완료 ${won(d.bookings.done)} · 취소 ${won(d.bookings.cancelled)}`)}
       ${tile('채팅 스레드', won(d.chat.threads), `답장 대기 ${won(d.chat.awaiting)}`)}
       ${tile('상담 자료', won(d.inbox.total), `안 읽음 ${won(d.inbox.unread)}`)}
@@ -612,23 +653,29 @@ function viewDash() {
           <b style="font-size: 1.5rem;">${won(rev.gross)}<span class="u" style="font-size:0.7rem;">캐시</span></b>
         </div>
         <div style="text-align: right;">
-          <div class="muted">플랫폼 몫 ${sp.platform}%</div>
-          <b style="font-size: 1.5rem; color: var(--accent);">${won(rev.platform)}</b>
+          <div class="muted">상담사 지급액 ${sp.counselor}%</div>
+          <b style="font-size: 1.5rem; color: var(--accent);">${won(rev.counselor)}</b>
         </div>
       </div>
       <div class="splitbar">
         <i style="width:${sp.counselor}%; background:#4f8a6b;"></i>
         ${sp.hospital > 0 ? `<i style="width:${sp.hospital}%; background:#8fb8a0;"></i>` : ''}
         <i style="width:${sp.pg}%; background:#d9cbb4;"></i>
-        <i style="width:${sp.platform}%; background:#b98a1a;"></i>
+        ${sp.platform > 0 ? `<i style="width:${sp.platform}%; background:#b98a1a;"></i>` : ''}
       </div>
       <div class="splitlegend">
         <span><i style="background:#4f8a6b;"></i>상담사 ${sp.counselor}% · <b>${won(rev.counselor)}</b></span>
         ${sp.hospital > 0 ? `<span><i style="background:#8fb8a0;"></i>기관 ${sp.hospital}% · <b>${won(rev.hospital)}</b></span>` : ''}
         <span><i style="background:#d9cbb4;"></i>PG ${sp.pg}% · <b>${won(rev.pg)}</b></span>
-        <span><i style="background:#b98a1a;"></i>플랫폼 ${sp.platform}% · <b>${won(rev.platform)}</b></span>
+        ${sp.platform > 0 ? `<span><i style="background:#b98a1a;"></i>플랫폼 ${sp.platform}% · <b>${won(rev.platform)}</b></span>`
+          : '<span><i style="background:#b98a1a;"></i>플랫폼 0% · <b>상담료에서 안 받음</b></span>'}
       </div>
       <p class="muted" style="margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.6rem;">
+        <b>플랫폼 수익 = 상담사 구독</b> — 월 ${won(PRO_SUB_PRICE)}원, 등록 승인 후 첫 1개월 무료.
+        구글 인앱결제로 받으면 수수료 15%를 뗀 <b>${won(PRO_SUB_PRICE * 0.85)}원</b>이 실수령입니다.
+        구독이 끊긴 상담사는 매칭 목록에서 자동으로 내려갑니다(기존 예약·정산은 그대로).<br>
+        ${ss ? `지금 구독 중 <b>${ss.active}명</b> · 월 예상 <b>${won(ss.mrr)}원</b>${ss.expired ? ` · 만료 ${ss.expired}명` : ''}<br>` : ''}
+        <b>상담료</b> — PG ${sp.pg}%는 카드사·결제대행 실비이고, 나머지 ${sp.counselor}%는 전액 상담사 몫입니다.<br>
         <b>바로상담(캐시·30초당)</b> — 요금 = 예약 상담료 ÷60 × 1.25 (즉시성 프리미엄). 배분율은 예약 상담과 같습니다.<br>
         <b>AI 구독·캐시(인앱결제)</b> — 구글 수수료 15% 선차감 후 순액 기준. 구독 9,900원 → 순입금 8,415원(전액 플랫폼, API 원가 차감).</p>
     </div>
@@ -751,6 +798,10 @@ function viewCounselors() {
     //  주소는 적혀 있는데 거리가 안 나온다는 문의가 실제로 들어오므로,
     //  운영자가 그 이유(좌표 없음)를 한눈에 보게 적어 둔다.
     const geo = !!(Number(c.lat) && Number(c.lng));
+    // 구독. undefined = 옛 워커라 값 자체가 없음 · null = 0(기록 없음, 만료로 본다).
+    //  구독이 끊기면 매칭 목록에서 내려가므로, 운영자가 정지 여부만큼 자주 봐야 하는 값이다.
+    const sub = c.sub_until === undefined ? undefined : subLeft(c.sub_until);
+    const subDead = sub !== undefined && (!sub || !sub.active);
     return `
     <div class="card" ${on ? '' : 'style="opacity: 0.72; border-color: rgba(207,107,96,0.35);"'}>
       <div class="row wrap">
@@ -760,9 +811,19 @@ function viewCounselors() {
           <span class="muted"> ${esc(c.hospital || '')}</span>
           <div class="muted mono">${esc(c.id)} · 등록 ${fmtDate(c.created)}</div>
         </div>
+        ${subDead ? '<span class="chip bad">구독 만료</span>' : ''}
         ${!on ? '<span class="chip bad">정지됨</span>'
           : busyNow ? '<span class="chip new">통화 중</span>'
           : c.available ? '<span class="chip ok">수신 중</span>' : '<span class="chip off">부재중</span>'}
+      </div>
+
+      <div class="row" style="margin-top: 0.6rem;">
+        <span class="grow muted" style="${subDead ? 'color: var(--danger);' : (sub && sub.soon) ? 'color: var(--gold);' : ''}">
+          ${sub === undefined ? '구독 정보를 알 수 없어요 (워커 배포 필요)'
+            : !sub ? '구독 기록 없음 — 매칭 목록에 노출되지 않아요'
+            : sub.active ? `구독 ~${subDay(sub.until)}까지 · ${sub.days}일 남음${sub.soon ? ' (곧 만료)' : ''}`
+            : `구독 만료 ${subDay(sub.until)} — 매칭 목록에 노출되지 않아요`}</span>
+        <button class="btn ${subDead ? 'soft' : 'ghost'} sm" data-act="sub-ext" data-id="${esc(c.id)}">1개월 연장</button>
       </div>
 
       <div class="row" style="margin-top: 0.6rem;">
@@ -816,10 +877,25 @@ function viewCounselors() {
 
   const off = D.cs.filter(c => !c.active).length;
   const noMail = D.cs.filter(c => !c.email).length;
+  const ss = subStat();
 
   return `
     <div class="sec-title">등록된 상담사
-      <span class="right muted">전체 ${D.cs.length}명 · 정지 ${off}명 · 이메일 미등록 ${noMail}명</span></div>
+      <span class="right muted">전체 ${D.cs.length}명 · 정지 ${off}명 · 이메일 미등록 ${noMail}명${
+        ss ? ` · <b style="color: ${ss.expired ? 'var(--danger)' : 'inherit'};">구독 만료 ${ss.expired}명</b>` : ''}</span></div>
+    ${ss ? `<div class="card" style="margin-bottom: 0.7rem;">
+      <div class="row wrap">
+        <div class="grow">
+          <b style="font-size: 0.9rem;">구독 현황</b>
+          <div class="muted">구독 중 ${ss.active}명 · 14일 내 만료 ${ss.soon}명 · 만료 ${ss.expired}명
+            — 만료된 상담사는 매칭 목록에서 자동으로 내려갑니다(기존 예약·정산·로그인은 그대로).</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="muted">월 예상 구독 수익</div>
+          <b style="font-size: 1.2rem; color: var(--accent);">${won(ss.mrr)}<span class="u" style="font-size:0.7rem;">원</span></b>
+        </div>
+      </div>
+    </div>` : ''}
     <div class="row" style="margin-bottom: 0.7rem;">
       <input id="cs-q" type="text" placeholder="이름 · 병원 · 이메일 · 연락처 · 주소 · ID 로 찾기" autocomplete="off">
     </div>
@@ -1621,6 +1697,33 @@ async function toggleActive(id, on, btn) {
   loadCounselors();
 }
 
+// 구독 연장. 결제는 아직 앱 밖에서 이뤄진다(입금 확인·계좌이체) —
+//  이 버튼은 '돈을 받았으니 기간을 늘린다'는 운영자의 기록일 뿐이다.
+//  Play Billing 이 붙기 전까지는 이게 유일한 연장 수단이므로 없으면 안 된다.
+async function extendSub(id, btn) {
+  const c = csOf(id); if (!c) return;
+  const sub = subLeft(c.sub_until);
+  const base = sub && sub.active ? sub.until : Date.now();
+  const ok = await confirmBox({
+    title: `${c.name} 선생님 구독을 1개월 연장할까요?`,
+    body: (sub && sub.active
+        ? `지금은 ${subDay(sub.until)}까지입니다.`
+        : '지금은 만료 상태입니다(매칭 목록에서 내려가 있어요).') +
+      `\n연장하면 ${subDay(base + 30 * DAY)}까지가 됩니다.\n\n` +
+      `결제(월 ${won(PRO_SUB_PRICE)}원) 확인은 따로 하세요 — 이 버튼은 기간만 늘립니다.`,
+    okLabel: '1개월 연장'
+  });
+  if (!ok) return;
+  const r = await busy(btn, '연장 중…', () => adminPost('/api/admin/counselors/sub', { id, months: 1 }));
+  if (!r || !r.ok) {
+    alertBox('연장하지 못했어요',
+      (r && r.error) || '워커에 POST /api/admin/counselors/sub 가 배포되어 있는지 확인해주세요.');
+    return;
+  }
+  toast(r.subUntil ? `${subDay(r.subUntil)}까지 연장했어요` : '구독을 1개월 연장했어요');
+  loadCounselors();
+}
+
 async function setEmail(id, btn) {
   const c = csOf(id); if (!c) return;
   const v = await promptBox({
@@ -1895,6 +1998,7 @@ document.addEventListener('click', e => {
   if (act === 'share') { const c = csOf(id); if (c) shareText(c.name, c.code); return; }
   if (act === 'rotate') { rotate(id, el); return; }
   if (act === 'toggle') { toggleActive(id, el.dataset.on === '1', el); return; }
+  if (act === 'sub-ext') { extendSub(id, el); return; }
   if (act === 'email') { setEmail(id, el); return; }
   if (act === 'cs-tel') { setTel(id, el); return; }
   if (act === 'cs-addr') { setAddr(id, el); return; }
