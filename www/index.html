@@ -123,47 +123,9 @@
         <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
 
-      <!-- ========== 오늘 ========== -->
-      <div class="home-sec"><h3>오늘</h3></div>
-
-      <!-- 원탭 기분 체크인 -->
-      <div class="glass-card home-card">
-        <p class="home-card__t">지금 마음은 어때요?</p>
-        <div id="quick-mood-row" class="home-mood" data-mood-row>
- <button class="home-mood__btn"data-emo="기쁨"onclick="window.App.quickMood(5,'기쁨','')">
-            <span data-sticker="joy" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">기쁨</span>
-          </button>
- <button class="home-mood__btn"data-emo="편안"onclick="window.App.quickMood(4,'편안','')">
-            <span data-sticker="empathy" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">편안</span>
-          </button>
- <button class="home-mood__btn"data-emo="보통"onclick="window.App.quickMood(3,'보통','')">
-            <span data-sticker="blank" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">보통</span>
-          </button>
- <button class="home-mood__btn"data-emo="불안"onclick="window.App.quickMood(2,'불안','')">
-            <span data-sticker="surprise" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">불안/불편</span>
-          </button>
- <button class="home-mood__btn"data-emo="우울"onclick="window.App.quickMood(1.5,'우울','')">
-            <span data-sticker="sad" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">우울/고통</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 오늘의 마음가짐·오늘의 우렁 카드는 뺐다 (2026-08-11 사장님 지시 — 홈이 번잡해서).
-           렌더 함수(App.renderIntentCard·Cards.render)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
-
-      <!-- 오늘의 우렁 미션 (행동활성화) -->
-      <div class="glass-card home-card">
-        <div class="home-card__head">
-          <p class="home-card__t" data-ic="quest" data-ic-size="15">오늘의 우렁 미션</p>
-          <span class="home-card__hint">몸이 움직이면 마음이 따라와요</span>
-        </div>
-        <div id="mission-card-body" data-mission-card></div>
-      </div>
+      <!-- 오늘의 마음가짐·오늘의 우렁 카드(2026-08-11)에 이어 기분 체크인·우렁 미션 카드도 뺐다
+           (2026-09-01 사장님 지시 — 홈이 번잡해서). 체크인·퀘스트는 대시보드(우렁이 세계)에서 계속 된다.
+           렌더 함수(Missions.renderCard 등)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
       <div id="night-card" class="hidden" style="margin: 0 1.25rem 0.7rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">

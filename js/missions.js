@@ -326,7 +326,7 @@ ${recent}` }],
     { rx: /호흡/, label: '호흡 가이드 열기',
       act: () => window.Calm && window.Calm.startBreath('box') },
     { rx: /체크인/, label: '체크인 하러 가기',
-      act: () => { if (window.App) window.App.switchTab('home'); setTimeout(() => window.Missions._pulseMoodRow(), 240); } },
+      act: () => { if (window.App) window.App.switchTab('dashboard'); setTimeout(() => window.Game && window.Game.openCheckin(), 240); } },
     { rx: /사고 ?기록|기록지|근거를 한 줄/, label: '사고 기록 열기',
       act: () => window.App && window.App.switchTab('record') },
     { rx: /있었던 일|해낸 일|하루.*정리|한 줄 (쓰|적)/, label: '하루 정리 열기',
@@ -338,19 +338,6 @@ ${recent}` }],
     { rx: /마음 안정|안정 도구/, label: '안정 도구 열기',
       act: () => window.Calm && window.Calm.openMenu() }
   ],
-
-  // 기분 행은 홈에 그냥 놓여 있어서, 탭만 바꾸면 어디를 눌러야 할지 모른다 — 잠깐 짚어준다
-  _pulseMoodRow() {
-    const row = document.getElementById('quick-mood-row');
-    if (!row) return;
-    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
-    const prev = row.getAttribute('style') || '';
-    row.style.transition = 'box-shadow 0.35s ease';
-    row.style.borderRadius = '16px';
-    row.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent-primary) 55%, transparent)';
-    setTimeout(() => { row.style.boxShadow = '0 0 0 0 transparent'; }, 1200);
-    setTimeout(() => { row.setAttribute('style', prev); }, 1700);
-  },
 
   routeFor(text) {
     const t = String(text == null ? '' : text);
