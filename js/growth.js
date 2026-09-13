@@ -53,7 +53,7 @@ window.Growth = {
     let shields = this.shields();
     if (shields <= 0) return;
     const days = window.Storage._safeGet('cbt_active_days', []) || [];
-    const todayStr = new Date().toLocaleDateString('sv-CA');
+    const todayStr = window.Storage.dayKey();
     const prevDays = [...days].sort().filter(d => d < todayStr);
     if (!prevDays.length) return;
     const last = new Date(prevDays[prevDays.length - 1] + 'T00:00:00');
@@ -233,10 +233,10 @@ window.Growth = {
   // ==========================================================================
   //  야간 루틴 — "오늘 하루 정리" (저녁 8시~새벽 2시에 홈에서 권유)
   // ==========================================================================
-  // '밤'의 소속 날짜: 새벽(~06시)에 쓴 정리는 전날 밤으로 친다.
-  // 새벽 1시에 정리해도 그날 저녁 8시에 카드가 또 뜨지 않도록.
+  // '밤'의 소속 날짜: 새벽에 쓴 정리는 전날 밤으로 친다.
+  // 새벽 1시에 정리해도 그날 저녁 8시에 카드가 또 뜨지 않도록. 경계(새벽 5시)는 Storage.dayKey 와 공유.
   _nightKey(ts) {
-    return new Date((ts || Date.now()) - 6 * 3600 * 1000).toLocaleDateString('sv-CA');
+    return window.Storage.dayKey(ts);
   },
 
   maybeShowNightCard() {
@@ -288,9 +288,9 @@ window.Growth = {
     if (!text) { window.UI.alert('한 줄이라도 적어볼까요?'); return; }
     const journal = window.Storage._safeGet('cbt_night_journal', []) || [];
     // 오늘 체크인이 있으면 그 기분을 일기의 날씨로
-    const today = new Date().toLocaleDateString('sv-CA');
+    const today = window.Storage.dayKey();
     const todayMood = (window.Storage._safeGet('cbt_mood_log', []) || [])
-      .filter(m => new Date(m.ts).toLocaleDateString('sv-CA') === today).pop() || null;
+      .filter(m => window.Storage.dayKey(m.ts) === today).pop() || null;
     const ts = Date.now();
     journal.unshift({ ts, free: true, mood: todayMood ? { emo: todayMood.emo } : null, moment: text, note: '' });
     window.Storage._safeSet('cbt_night_journal', journal.slice(0, 120));

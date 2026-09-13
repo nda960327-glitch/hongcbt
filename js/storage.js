@@ -44,6 +44,18 @@
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
   },
 
+  // === 하루의 경계 ===
+  // 앱의 '오늘'은 자정이 아니라 새벽 5시에 시작한다.
+  //  새벽 1시의 체크인·미션은 아직 '어젯밤'이다 — 자정에 끊으면 늦게 자는 사람은
+  //  잠들기도 전에 새 하루가 시작돼 스트릭·오늘 할 일·체크인 표시가 서로 어긋난다.
+  //  '오늘'을 따지는 곳은 전부 이 함수를 쓴다. (예약·파일명처럼 달력 날짜가 맞는 곳은 예외)
+  DAY_START_HOUR: 5,
+
+  dayKey(ts) {
+    const t = ts instanceof Date ? ts.getTime() : (ts == null ? Date.now() : Number(new Date(ts)));
+    return new Date(t - this.DAY_START_HOUR * 3600000).toLocaleDateString('sv-CA');
+  },
+
   // === Pro Mode & API Key (전체 100% 무료 무제한) ===
   getProMode() {
     return true;
@@ -312,8 +324,8 @@
     activeDays.sort((a, b) => new Date(b + 'T00:00:00').getTime() - new Date(a + 'T00:00:00').getTime());
 
     let streak = 0;
-    let currentDate = new Date();
-    currentDate.setHours(0, 0, 0, 0);
+    // '오늘'도 활동일 키와 같은 기준(새벽 5시 경계)으로 잡아야 새벽에 스트릭이 안 끊긴다
+    let currentDate = new Date(this.dayKey() + 'T00:00:00');
 
     // Check if active today
     const lastActiveDate = new Date(activeDays[0] + 'T00:00:00');
@@ -350,7 +362,7 @@
   
   markDayActive() {
     const activeDays = this._safeGet('cbt_active_days', []);
-    const todayStr = new Date().toLocaleDateString('sv-CA');
+    const todayStr = this.dayKey();
     
     if (!activeDays.includes(todayStr)) {
       activeDays.push(todayStr);

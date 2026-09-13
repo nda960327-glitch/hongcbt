@@ -5,8 +5,9 @@
 // ============================================================================
 window.Weekly = {
   // 이번 주의 키: 그 주 월요일 날짜 (sv-CA = YYYY-MM-DD)
+  //  월요일 새벽 1시는 아직 일요일 밤이다 — 하루 경계(Storage.dayKey)를 따른다
   weekKey(d) {
-    const dt = new Date(d || Date.now());
+    const dt = new Date(window.Storage.dayKey(d) + 'T00:00:00');
     const day = (dt.getDay() + 6) % 7; // 월=0 … 일=6
     dt.setDate(dt.getDate() - day);
     return dt.toLocaleDateString('sv-CA');
@@ -16,12 +17,12 @@ window.Weekly = {
     return window.Storage._safeGet('cbt_weekly_letters', []) || [];
   },
 
-  // 다음 주 월요일 0시까지 남은 시간 (주 1회 제한 안내용)
+  // 다음 주 월요일 새벽 5시(하루 경계)까지 남은 시간 (주 1회 제한 안내용)
   nextLetterAt() {
-    const dt = new Date();
+    const dt = new Date(window.Storage.dayKey() + 'T00:00:00');
     const day = (dt.getDay() + 6) % 7;
     dt.setDate(dt.getDate() - day + 7);
-    dt.setHours(0, 0, 0, 0);
+    dt.setHours(window.Storage.DAY_START_HOUR, 0, 0, 0);
     return dt.getTime();
   },
 

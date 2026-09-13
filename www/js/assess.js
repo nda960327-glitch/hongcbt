@@ -114,9 +114,9 @@ window.Assess = {
     const nights = S._safeGet('cbt_night_journal', []) || [];
 
     const days = new Set();
-    userMsgs.forEach(m => { if (m.ts) days.add(new Date(m.ts).toLocaleDateString('sv-CA')); });
-    moods.forEach(m => days.add(new Date(m.ts).toLocaleDateString('sv-CA')));
-    nights.forEach(n => days.add(new Date(n.ts).toLocaleDateString('sv-CA')));
+    userMsgs.forEach(m => { if (m.ts) days.add(S.dayKey(m.ts)); });
+    moods.forEach(m => days.add(S.dayKey(m.ts)));
+    nights.forEach(n => days.add(S.dayKey(n.ts)));
 
     const allTs = [...userMsgs.map(m => m.ts), ...moods.map(m => m.ts)].filter(Boolean);
     const spanDays = allTs.length ? Math.max(1, Math.round((Math.max(...allTs) - Math.min(...allTs)) / 86400000) + 1) : 0;
@@ -316,7 +316,7 @@ window.Assess = {
     // 일자별 평균 기분 (최근 21일)
     const byDay = {};
     moods.forEach(m => {
-      const k = new Date(m.ts).toLocaleDateString('sv-CA');
+      const k = window.Storage.dayKey(m.ts);
       const v = m.v ?? m.value ?? m.score;
       if (v == null) return;
       (byDay[k] = byDay[k] || []).push(v);

@@ -146,7 +146,7 @@
     const el = document.getElementById('care-footprint');
     if (!el) return;
     const S = window.Storage;
-    const dayKey = ts => new Date(ts).toLocaleDateString('sv-CA');
+    const dayKey = ts => S.dayKey(ts);
 
     // 최근 7일 각 날의 '돌봄 행동' 수집 (체크인·하루정리·미션·사고기록·호흡은 카운터라 제외)
     const events = {};
@@ -158,8 +158,8 @@
 
     const week = [];
     for (let i = 6; i >= 0; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i);
-      const k = d.toLocaleDateString('sv-CA');
+      const k = S.dayKey(Date.now() - i * 86400000);
+      const d = new Date(k + 'T00:00:00');
       week.push({ k, dow: d.toLocaleDateString('ko-KR', { weekday: 'short' }), n: (events[k] || []).length, today: i === 0 });
     }
     const weekTotal = week.reduce((s, d) => s + d.n, 0);
@@ -247,7 +247,7 @@
     const log = (window.Storage && window.Storage._safeGet('cbt_mood_log', [])) || [];
     const byDay = {};
     log.forEach(e => {
-      const k = new Date(e.ts).toLocaleDateString('sv-CA');
+      const k = window.Storage.dayKey(e.ts);
       (byDay[k] = byDay[k] || []).push(e.v || 3);
     });
 
@@ -255,7 +255,7 @@
  const emoFor = v => v >= 4.3 ?'': v >= 3.5 ?'': v >= 2.6 ?'': v >= 1.9 ?'':'';
     const firstDow = new Date(y, m, 1).getDay(); // 0=일
     const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const todayStr = new Date().toLocaleDateString('sv-CA');
+    const todayStr = window.Storage.dayKey();
 
     let cells = '';
     for (let i = 0; i < firstDow; i++) cells += '<div></div>';
@@ -315,7 +315,7 @@
     window.Storage._safeSet('cbt_mission_log', log);
     // 오늘 미션을 지운 거라면 홈 카드의 '완료' 상태도 되돌린다 (다시 도전 가능)
     const s = window.Storage._safeGet('cbt_daily_mission', null);
-    if (s && s.done && new Date(ts).toLocaleDateString('sv-CA') === s.date) {
+    if (s && s.done && window.Storage.dayKey(ts) === s.date) {
       s.done = false;
       delete s.ts;
       window.Storage._safeSet('cbt_daily_mission', s);
@@ -1098,7 +1098,7 @@ ${recent}`;
         const hasMsg = messages.some(m => {
           if (!m.timestamp) return false;
           const mDate = typeof m.timestamp === 'number' ? new Date(m.timestamp) : new Date(m.timestamp);
-          return mDate.toLocaleDateString('sv-CA') === dateStr;
+          return window.Storage.dayKey(mDate) === dateStr;
         });
         if (hasMsg) score = 3;
       }

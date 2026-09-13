@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 174;</script>
+  <script>window.APP_BUILD = 176;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=174">
+  <link rel="stylesheet" href="css/style.css?v=176">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -123,9 +123,51 @@
         <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
 
-      <!-- 오늘의 마음가짐·오늘의 우렁 카드(2026-08-11)에 이어 기분 체크인·우렁 미션 카드도 뺐다
-           (2026-09-01 사장님 지시 — 홈이 번잡해서). 체크인·퀘스트는 대시보드(우렁이 세계)에서 계속 된다.
-           렌더 함수(Missions.renderCard 등)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
+      <!-- ========== 오늘 ========== -->
+      <div class="home-sec"><h3>오늘</h3></div>
+
+      <!-- 원탭 기분 체크인 — 오늘 체크했으면 같은 카드가 7일 추이로 바뀐다 (App.renderMoodCard) -->
+      <div class="glass-card home-card" id="home-mood-card">
+        <div id="home-mood-pick">
+        <p class="home-card__t">지금 마음은 어때요? <button id="home-mood-back" class="mood-trend__re hidden" onclick="window.App.showMoodTrend()">추이 보기 ›</button></p>
+        <div id="quick-mood-row" class="home-mood" data-mood-row>
+ <button class="home-mood__btn"data-emo="기쁨"onclick="window.App.quickMood(5,'기쁨','')">
+            <span data-sticker="joy" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">기쁨</span>
+          </button>
+ <button class="home-mood__btn"data-emo="편안"onclick="window.App.quickMood(4,'편안','')">
+            <span data-sticker="empathy" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">편안</span>
+          </button>
+ <button class="home-mood__btn"data-emo="보통"onclick="window.App.quickMood(3,'보통','')">
+            <span data-sticker="blank" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">보통</span>
+          </button>
+ <button class="home-mood__btn"data-emo="불안"onclick="window.App.quickMood(2,'불안','')">
+            <span data-sticker="surprise" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">불안/불편</span>
+          </button>
+ <button class="home-mood__btn"data-emo="우울"onclick="window.App.quickMood(1.5,'우울','')">
+            <span data-sticker="sad" data-sticker-size="46"></span>
+            <span class="home-mood__lbl">우울/고통</span>
+          </button>
+        </div>
+        </div>
+        <div id="home-mood-trend" class="hidden"></div>
+      </div>
+
+      <!-- 오늘의 마음가짐·오늘의 우렁 카드는 뺐다 (2026-08-11 사장님 지시 — 홈이 번잡해서).
+           렌더 함수(App.renderIntentCard·Cards.render)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
+
+      <!-- 오늘 할 일 — 체크인·오늘의 미션·케어플랜 할 일을 체크리스트 한 장에 (Missions.renderTodo).
+           '퀘스트 더 받기'·'맞춤 숙제 받기'는 홈에서 빼고 대시보드 › 퀘스트 탭에만 둔다. -->
+      <div class="glass-card home-card">
+        <div class="home-card__head">
+          <p class="home-card__t" data-ic="quest" data-ic-size="15">오늘 할 일</p>
+          <span class="home-card__hint" id="todo-progress"></span>
+        </div>
+        <div id="todo-card-body" data-todo-card></div>
+      </div>
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
       <div id="night-card" class="hidden" style="margin: 0 1.25rem 0.7rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
@@ -1392,58 +1434,58 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=174"></script>
-  <script defer src="js/storage.js?v=174"></script>
-  <script defer src="js/inbox.js?v=174"></script>
-  <script defer src="js/cards.js?v=174"></script>
-  <script defer src="js/chatviz.js?v=174"></script>
-  <script defer src="js/memory-vault.js?v=174"></script>
-  <script defer src="js/personas.js?v=174"></script>
-  <script defer src="js/stickers.js?v=174"></script>
-  <script defer src="js/ui.js?v=174"></script>
-  <script defer src="js/api.js?v=174"></script>
-  <script defer src="js/rtccall.js?v=174"></script>
-  <script defer src="js/prolink.js?v=174"></script>
-  <script defer src="js/account.js?v=174"></script>
-  <script defer src="js/freshness.js?v=174"></script>
-  <script defer src="js/i18n.js?v=174"></script>
-  <script defer src="js/wallet.js?v=174"></script>
-  <script defer src="js/pay.js?v=174"></script>
-  <script defer src="js/subscription.js?v=174"></script>
-  <script defer src="js/calltalk.js?v=174"></script>
-  <script defer src="js/calm.js?v=174"></script>
-  <script defer src="js/voice.js?v=174"></script>
-  <script defer src="js/llm.js?v=174"></script>
-  <script defer src="js/chatbot.js?v=174"></script>
-  <script defer src="js/marketplace.js?v=174"></script>
-  <script defer src="js/booking.js?v=174"></script>
-  <script defer src="js/thought-record.js?v=174"></script>
-  <script defer src="js/growth.js?v=174"></script>
-  <script defer src="js/missions.js?v=174"></script>
-  <script defer src="js/weekly.js?v=174"></script>
-  <script defer src="js/sleep.js?v=174"></script>
-  <script defer src="js/onboard.js?v=174"></script>
-  <script defer src="js/stickershop.js?v=174"></script>
-  <script defer src="js/applock.js?v=174"></script>
-  <script defer src="js/safety.js?v=174"></script>
-  <script defer src="js/admin.js?v=174"></script>
-  <script defer src="js/dashboard.js?v=174"></script>
-  <script defer src="js/learn.js?v=174"></script>
-  <script defer src="js/sfx.js?v=174"></script>
-  <script defer src="js/mail.js?v=174"></script>
-  <script defer src="js/payout.js?v=174"></script>
-  <script defer src="js/careplan.js?v=174"></script>
-  <script defer src="js/goals.js?v=174"></script>
-  <script defer src="js/progress.js?v=174"></script>
-  <script defer src="js/safetyplan.js?v=174"></script>
-  <script defer src="js/homework.js?v=174"></script>
-  <script defer src="js/assess-charts.js?v=174"></script>
-  <script defer src="js/assess.js?v=174"></script>
-  <script defer src="js/game.js?v=174"></script>
-  <script defer src="js/room.js?v=174"></script>
-  <script defer src="js/farm.js?v=174"></script>
-  <script defer src="js/closet.js?v=174"></script>
-  <script defer src="js/app.js?v=174"></script>
+  <script defer src="js/icons.js?v=176"></script>
+  <script defer src="js/storage.js?v=176"></script>
+  <script defer src="js/inbox.js?v=176"></script>
+  <script defer src="js/cards.js?v=176"></script>
+  <script defer src="js/chatviz.js?v=176"></script>
+  <script defer src="js/memory-vault.js?v=176"></script>
+  <script defer src="js/personas.js?v=176"></script>
+  <script defer src="js/stickers.js?v=176"></script>
+  <script defer src="js/ui.js?v=176"></script>
+  <script defer src="js/api.js?v=176"></script>
+  <script defer src="js/rtccall.js?v=176"></script>
+  <script defer src="js/prolink.js?v=176"></script>
+  <script defer src="js/account.js?v=176"></script>
+  <script defer src="js/freshness.js?v=176"></script>
+  <script defer src="js/i18n.js?v=176"></script>
+  <script defer src="js/wallet.js?v=176"></script>
+  <script defer src="js/pay.js?v=176"></script>
+  <script defer src="js/subscription.js?v=176"></script>
+  <script defer src="js/calltalk.js?v=176"></script>
+  <script defer src="js/calm.js?v=176"></script>
+  <script defer src="js/voice.js?v=176"></script>
+  <script defer src="js/llm.js?v=176"></script>
+  <script defer src="js/chatbot.js?v=176"></script>
+  <script defer src="js/marketplace.js?v=176"></script>
+  <script defer src="js/booking.js?v=176"></script>
+  <script defer src="js/thought-record.js?v=176"></script>
+  <script defer src="js/growth.js?v=176"></script>
+  <script defer src="js/missions.js?v=176"></script>
+  <script defer src="js/weekly.js?v=176"></script>
+  <script defer src="js/sleep.js?v=176"></script>
+  <script defer src="js/onboard.js?v=176"></script>
+  <script defer src="js/stickershop.js?v=176"></script>
+  <script defer src="js/applock.js?v=176"></script>
+  <script defer src="js/safety.js?v=176"></script>
+  <script defer src="js/admin.js?v=176"></script>
+  <script defer src="js/dashboard.js?v=176"></script>
+  <script defer src="js/learn.js?v=176"></script>
+  <script defer src="js/sfx.js?v=176"></script>
+  <script defer src="js/mail.js?v=176"></script>
+  <script defer src="js/payout.js?v=176"></script>
+  <script defer src="js/careplan.js?v=176"></script>
+  <script defer src="js/goals.js?v=176"></script>
+  <script defer src="js/progress.js?v=176"></script>
+  <script defer src="js/safetyplan.js?v=176"></script>
+  <script defer src="js/homework.js?v=176"></script>
+  <script defer src="js/assess-charts.js?v=176"></script>
+  <script defer src="js/assess.js?v=176"></script>
+  <script defer src="js/game.js?v=176"></script>
+  <script defer src="js/room.js?v=176"></script>
+  <script defer src="js/farm.js?v=176"></script>
+  <script defer src="js/closet.js?v=176"></script>
+  <script defer src="js/app.js?v=176"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

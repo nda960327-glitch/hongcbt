@@ -285,6 +285,7 @@ window.App = {
     if (window.Learn) window.Learn.init();
     if (window.Growth) window.Growth.init();
     if (window.Missions) window.Missions.renderCard();
+    this.renderMoodCard();
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
     if (window.Safety) window.Safety.renderRow();
@@ -467,6 +468,7 @@ window.App = {
     if (tabName === 'home' && window.Missions) {
       window.Missions.renderCard();
     }
+    if (tabName === 'home') this.renderMoodCard();
     if (tabName === 'home') {
       this.hydrateInlineIcons(document.getElementById('tab-home'));
       this.renderHomeGreeting();
@@ -1856,6 +1858,7 @@ window.App = {
       this._crisisFollowupTick();  // 힘든 밤 다음 날, 우렁이가 먼저 안부를 묻는다
       this._subsPingTick();        // 하루 한 번, 구독 상태를 집계 서버에 알린다
       this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
+      this.renderMoodCard();
       if (window.Cards) window.Cards.render();
       const slots = this._todayCheckinSlots();
       if (!slots.length) return;
@@ -1916,7 +1919,7 @@ window.App = {
   todayIntent() {
     const s = window.Storage._safeGet('cbt_day_intent', null);
     if (!s || !s.text) return null;
-    return s.date === new Date().toLocaleDateString('sv-CA') ? s : null;
+    return s.date === window.Storage.dayKey() ? s : null;
   },
 
   async openIntent() {
@@ -1928,7 +1931,7 @@ window.App = {
     const text = String(t).trim().slice(0, 60);
     if (!text) return;
     const first = !cur;
-    window.Storage._safeSet('cbt_day_intent', { date: new Date().toLocaleDateString('sv-CA'), text });
+    window.Storage._safeSet('cbt_day_intent', { date: window.Storage.dayKey(), text });
     this.renderIntentCard();
     if (first && window.Farm && window.Farm.addWater) window.Farm.addWater(2, '오늘의 마음가짐');
     if (window.Sfx) window.Sfx.play('pop');
@@ -2000,7 +2003,7 @@ window.App = {
     if (!window.Storage) return;
     const h = new Date().getHours();
     if (h < 7 || h >= 11) return;
-    const today = new Date().toLocaleDateString('sv-CA');
+    const today = window.Storage.dayKey();
     if (window.Storage._safeGet('cbt_morning_notif_date', '') === today) return;
     if (this.todayIntent()) return;
     window.Storage._safeSet('cbt_morning_notif_date', today);
@@ -2012,7 +2015,7 @@ window.App = {
     const now = new Date();
     const h = now.getHours();
     if (h < 21) return; // 21:00~23:59 만
-    const today = now.toLocaleDateString('sv-CA');
+    const today = window.Storage.dayKey(now);
     if (window.Storage._safeGet('cbt_action_checkin_date', '') === today) return;
 
     // 상담사 숙제가 밀려 있으면 그게 최우선이다 —
@@ -2054,7 +2057,7 @@ window.App = {
 
     // 오늘 하루 정리를 이미 했으면 굳이 부르지 않는다
     const doneToday = (window.Storage._safeGet('cbt_night_journal', []) || [])
-      .some(j => j && j.ts && new Date(j.ts).toLocaleDateString('sv-CA') === today);
+      .some(j => j && j.ts && window.Storage.dayKey(j.ts) === today);
     if (doneToday) return;
 
     window.Storage._safeSet('cbt_action_checkin_date', today);
@@ -2461,7 +2464,7 @@ ${memory || '(없음)'}`;
     const h = new Date().getHours();
     const name = window.Storage._safeGet('cbt_user_name', '');
     const who = name ? `${name} 님` : '당신';
-    const today = new Date().toLocaleDateString('sv-CA');
+    const today = window.Storage.dayKey();
 
     // 시간대별 기본 인사 + 스티커
     let hello, sticker;
@@ -2471,9 +2474,9 @@ ${memory || '(없음)'}`;
  else { hello =`고요한 밤이에요, ${who}`; sticker ='sleepy'; }
 
     // 오늘 상태를 읽고 '다음 한 걸음' 제안 (우선순위)
-    const checkedIn = (window.Storage._safeGet('cbt_mood_log', []) || []).some(m => new Date(m.ts).toLocaleDateString('sv-CA') === today);
+    const checkedIn = (window.Storage._safeGet('cbt_mood_log', []) || []).some(m => window.Storage.dayKey(m.ts) === today);
     const mission = window.Missions ? window.Missions.todayMission() : null;
-    const nightDone = (window.Storage._safeGet('cbt_night_journal', []) || []).some(j => new Date(j.ts).toLocaleDateString('sv-CA') === today);
+    const nightDone = (window.Storage._safeGet('cbt_night_journal', []) || []).some(j => window.Storage.dayKey(j.ts) === today);
     const streak = window.Storage.getStreak ? window.Storage.getStreak() : 0;
 
     let sub, action;
@@ -3388,6 +3391,9 @@ ${memory || '(없음)'}`;
       const rb = document.querySelector(`[data-mood-row] button[data-emo="${emo}"]`);
       if (rb) rb.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
       if (window.Dashboard) window.Dashboard.renderTodayMoodChart();
+      this._moodRecheck = false;
+      this.renderMoodCard();
+      if (window.Missions) window.Missions.renderTodo();
       return;
     }
     // 우렁이 반응 토스트
@@ -3409,12 +3415,127 @@ ${memory || '(없음)'}`;
     const btn = document.querySelector(`[data-mood-row] button[data-emo="${emo}"]`);
     if (btn) btn.style.background = 'color-mix(in srgb, var(--accent-primary) 18%, transparent)';
     if (window.Dashboard) { window.Dashboard.renderTodayMoodChart(); }
+    this._moodRecheck = false;
+    this.renderMoodCard();
+    if (window.Missions) window.Missions.renderTodo();
     // 힘든 감정이면 안정 도구 권유
     if (v <= 2 && window.Calm && Math.random() < 0.7) {
       setTimeout(async () => {
         if (await window.UI.confirm('마음이 힘든 것 같아요.\n우렁이와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
       }, 900);
     }
+  },
+
+  // ==========================================================================
+  //  홈 기분 카드 — 오늘 체크인이 있으면 표정 버튼 대신 7일 추이를 보여준다.
+  //  홈은 '오늘의 스냅샷'까지만, 깊이 보기는 대시보드 감정 캘린더가 맡는다.
+  //  (대시보드와 홈이 같은 걸 두 번 보여준다는 지적에서 나온 분업)
+  // ==========================================================================
+  _moodRecheck: false,
+
+  renderMoodCard() {
+    const pick = document.getElementById('home-mood-pick');
+    const trend = document.getElementById('home-mood-trend');
+    if (!pick || !trend) return;
+    const S = window.Storage;
+    const log = (S._safeGet('cbt_mood_log', []) || []).filter(m => m && m.ts && typeof m.v === 'number');
+    const today = S.dayKey();
+    const todayLog = log.filter(m => S.dayKey(m.ts) === today);
+    const back = document.getElementById('home-mood-back');
+
+    if (!todayLog.length || this._moodRecheck) {
+      pick.classList.remove('hidden');
+      trend.classList.add('hidden');
+      trend.innerHTML = '';
+      if (back) back.classList.toggle('hidden', !todayLog.length);
+      return;
+    }
+
+    // 최근 7일, 하루 경계(새벽 5시) 기준으로 묶는다
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const key = S.dayKey(Date.now() - i * 86400000);
+      const vals = log.filter(m => S.dayKey(m.ts) === key).map(m => m.v);
+      days.push({
+        key, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+        dow: i === 0 ? '오늘' : new Date(key + 'T00:00:00').toLocaleDateString('ko-KR', { weekday: 'short' })
+      });
+    }
+    const todayAvg = days[6].avg;
+    const prev = days.slice(0, 6).filter(d => d.avg != null);
+    const prevAvg = prev.length ? prev.reduce((a, d) => a + d.avg, 0) / prev.length : null;
+    const line = prevAvg == null
+      ? '이번 주 첫 기록이에요 — 내일부터 흐름이 보여요'
+      : todayAvg - prevAvg >= 0.5 ? '이번 주 평균보다 조금 가벼운 날이에요'
+      : todayAvg - prevAvg <= -0.5 ? '이번 주 평균보다 조금 무거운 날이에요'
+      : '이번 주와 비슷한 결의 하루예요';
+    const emo = todayLog[todayLog.length - 1].emo || '';
+    const colorFor = v => v >= 4.3 ? '#4f8a6b' : v >= 3.5 ? '#8fbf7f' : v >= 2.6 ? '#e0c36b' : v >= 1.9 ? '#dd9a62' : '#cf6b60';
+
+    // 스파크라인: 기록 없는 날은 선을 끊는다 (없는 날을 이어 그리면 없는 기분을 지어내는 셈)
+    const W = 300, X0 = 16, X1 = 284, Y0 = 10, Y1 = 58;
+    const x = i => X0 + i * ((X1 - X0) / 6);
+    const y = v => Y1 - ((v - 1) / 4) * (Y1 - Y0);
+    let segs = '', dots = '', labels = '';
+    let run = [];
+    const flush = () => {
+      if (run.length >= 2) segs += `<polyline points="${run.map(p => `${p.x},${p.y}`).join(' ')}" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>`;
+      run = [];
+    };
+    days.forEach((d, i) => {
+      const px = x(i).toFixed(1);
+      labels += `<text x="${px}" y="74" text-anchor="middle" font-size="9" font-weight="${i === 6 ? 800 : 600}" fill="${i === 6 ? 'var(--accent-primary)' : 'var(--text-muted)'}">${d.dow}</text>`;
+      if (d.avg == null) { flush(); dots += `<circle cx="${px}" cy="${Y1}" r="1.6" fill="var(--text-muted)" opacity="0.4"/>`; return; }
+      const py = y(d.avg).toFixed(1);
+      run.push({ x: px, y: py });
+      dots += i === 6
+        ? `<circle cx="${px}" cy="${py}" r="6" fill="${colorFor(d.avg)}" stroke="var(--bg-secondary)" stroke-width="2"/>`
+        : `<circle cx="${px}" cy="${py}" r="3" fill="${colorFor(d.avg)}"/>`;
+    });
+    flush();
+
+    trend.innerHTML = `
+      <button class="mood-trend" onclick="window.App.openMoodCalendar()" title="감정 캘린더에서 자세히 보기">
+        <span class="mood-trend__head">
+          <span class="mood-trend__now">오늘 마음 · <b>${String(emo).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))}</b></span>
+          <span class="mood-trend__more">7일 흐름 · 캘린더 ›</span>
+        </span>
+        <svg viewBox="0 0 ${W} 80" aria-label="최근 7일 기분 추이">
+          <line x1="${X0}" y1="${y(3)}" x2="${X1}" y2="${y(3)}" stroke="var(--glass-border)" stroke-dasharray="3 4"/>
+          ${segs}${dots}${labels}
+        </svg>
+        <span class="mood-trend__line">${line}</span>
+      </button>
+      <div class="mood-trend__foot">
+        <button class="mood-trend__re" onclick="window.App.recheckMood()">다시 체크</button>
+      </div>`;
+    pick.classList.add('hidden');
+    trend.classList.remove('hidden');
+  },
+
+  recheckMood() {
+    this._moodRecheck = true;
+    this.renderMoodCard();
+    if (window.Missions && window.Missions._pulseMoodRow) window.Missions._pulseMoodRow();
+  },
+
+  showMoodTrend() {
+    this._moodRecheck = false;
+    this.renderMoodCard();
+  },
+
+  // 홈 추이 카드 → 대시보드 › 서재 › 감정 캘린더
+  openMoodCalendar() {
+    this.switchTab('dashboard');
+    setTimeout(() => {
+      if (window.Game) window.Game.show('letter', true);
+      const body = document.getElementById('lib-calendar');
+      const btn = document.querySelector('button[onclick*="lib-calendar"]');
+      if (body && body.classList.contains('hidden')) this.toggleLib('lib-calendar', btn);
+      if (window.Dashboard && window.Dashboard.renderMoodCalendar) window.Dashboard.renderMoodCalendar();
+      const cal = document.getElementById('mood-calendar');
+      if (cal) { try { cal.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }
+    }, 80);
   },
 
   // === 대화 검색 ===

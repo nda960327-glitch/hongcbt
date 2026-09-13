@@ -316,8 +316,8 @@ window.Farm = {
   // --------------------------------------------------------------------------
   weather() {
     const moods = this._S()._safeGet('cbt_mood_log', []) || [];
-    const today = new Date().toLocaleDateString('sv-CA');
-    const vals = moods.filter(x => new Date(x.ts).toLocaleDateString('sv-CA') === today)
+    const today = this._S().dayKey();
+    const vals = moods.filter(x => this._S().dayKey(x.ts) === today)
       .map(x => x.v ?? x.value ?? 3).filter(v => v != null);
     if (!vals.length) return 'mild';
     const avg = vals.reduce((a, b) => a + b, 0) / vals.length;

@@ -72,8 +72,9 @@ window.Missions = {
     { id: 'onething',  icon: 'mind', text: '미뤄둔 일 중 제일 작은 것 하나만 5분 해보기', cat: '마음' }
   ],
 
+  // 새벽 5시 전은 아직 '어제' — 경계는 Storage.dayKey 한 곳에서 정한다
   _today() {
-    return new Date().toLocaleDateString('sv-CA');
+    return window.Storage.dayKey();
   },
 
   state() {
@@ -509,8 +510,76 @@ ${recent}` }],
       </div>`;
   },
 
+  // --------------------------------------------------------------------------
+  //  홈 '오늘 할 일' — 체크인·오늘의 미션·처방 미션을 체크리스트 한 장으로.
+  //  홈은 '오늘 뭘 하면 되는지'만 보여준다. '더 받기'·'맞춤 숙제'처럼 고르는
+  //  버튼은 대시보드 퀘스트 탭(renderCard)에만 둔다 — 카드가 셋으로 갈라져
+  //  뭘 눌러야 하는지 모르겠다는 게 이 카드를 만든 이유다.
+  // --------------------------------------------------------------------------
+  TODO_MAX_RX: 2,
+
+  renderTodo() {
+    const targets = [...document.querySelectorAll('[data-todo-card]')];
+    if (!targets.length) return;
+    const S = window.Storage, esc = this._esc;
+    const today = this._today();
+    const water = n => '+' + n + (window.Icons ? window.Icons.svg('water', { size: 12 }) : '');
+    const rows = [];
+
+    const checkedIn = (S._safeGet('cbt_mood_log', []) || []).some(m => m && m.ts && S.dayKey(m.ts) === today);
+    rows.push({ text: '지금 마음 체크인', sub: checkedIn ? '' : '위 카드에서 표정 하나를 눌러요', done: checkedIn,
+      attr: 'data-mi-act="todo-checkin"', reward: 2 });
+
+    const m = this.todayMission();
+    if (m && m.text) {
+      rows.push({ text: m.text, sub: m.cat || '', done: !!m.done, attr: 'data-mi-act="todo-mission"', reward: 3,
+        route: this.routeFor(m.text), reroll: !m.done });
+    }
+
+    const rx = this.rxToday();
+    rx.slice(0, this.TODO_MAX_RX).forEach(r => {
+      const isPlanAct = r.src === 'planact';
+      const done = isPlanAct
+        ? !!(window.CarePlan && window.CarePlan.isDone(r.planW, r.planI))
+        : this.rxDone(r.text);
+      rows.push({
+        text: r.text, done, reward: 2, route: this.routeFor(r.text),
+        sub: r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '케어플랜',
+        attr: isPlanAct
+          ? `data-mi-act="plan-toggle" data-mi-w="${r.planW}" data-mi-i="${r.planI}"`
+          : `data-mi-act="rx-toggle" data-mi-text="${esc(r.text)}" data-mi-src="${esc(r.src)}"`
+      });
+    });
+    const hidden = Math.max(0, rx.length - this.TODO_MAX_RX);
+
+    const doneN = rows.filter(r => r.done).length;
+    const prog = document.getElementById('todo-progress');
+    if (prog) prog.textContent = doneN === rows.length ? '오늘 할 일 다 했어요' : `${doneN}/${rows.length}`;
+
+    const check = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9.5 18 20 6.5"/></svg>';
+    const html = rows.map(r => `
+      <div class="todo-row${r.done ? ' is-done' : ''}">
+        <button class="todo-row__main" ${r.attr}>
+          <span class="todo-row__box">${r.done ? check : ''}</span>
+          <span class="todo-row__body">
+            <span class="todo-row__t">${esc(r.text)}</span>
+            ${r.sub ? `<span class="todo-row__s">${esc(r.sub)}</span>` : ''}
+          </span>
+          <span class="todo-row__r">${r.done ? '✓' : water(r.reward)}</span>
+        </button>
+        ${!r.done && (r.route || r.reroll) ? `
+        <div class="todo-row__acts">
+          ${r.route ? `<button class="todo-chip" data-mi-act="go" data-mi-text="${esc(r.text)}">${esc(r.route.label)} ›</button>` : ''}
+          ${r.reroll ? `<button class="todo-chip todo-chip--ghost" data-mi-act="todo-reroll">다른 미션</button>` : ''}
+        </div>` : ''}
+      </div>`).join('')
+      + `<button class="todo-more" data-mi-act="todo-more">${hidden ? `할 일 ${hidden}개 더 · ` : ''}퀘스트 더 받기·맞춤 숙제는 대시보드에서 ›</button>`;
+    targets.forEach(t => { t.innerHTML = html; });
+  },
+
   renderCard() {
-    // 홈 카드와 대시보드(우렁이 세계) 퀘스트 칸 양쪽에 같은 내용을 그린다
+    this.renderTodo();
+    // 대시보드(우렁이 세계) 퀘스트 칸 — 고르고 더 받는 버튼까지 전부 있는 판
     const targets = [...document.querySelectorAll('[data-mission-card]')];
     if (!targets.length) return;
     const el = { set innerHTML(v) { targets.forEach(t => { t.innerHTML = v; }); } };
@@ -571,5 +640,12 @@ document.addEventListener('click', function (e) {
   else if (act === 'plan-toggle') {
     if (window.CarePlan) window.CarePlan.toggle(+el.dataset.miW, +el.dataset.miI);
     M.renderCard();
+  }
+  else if (act === 'todo-mission') { const s = M.state(); if (!s || !s.done) M.complete(); }
+  else if (act === 'todo-reroll') M.reroll();
+  else if (act === 'todo-checkin') M._pulseMoodRow();
+  else if (act === 'todo-more') {
+    if (window.App) window.App.switchTab('dashboard');
+    setTimeout(() => { if (window.Game) window.Game.show('quest'); }, 60);
   }
 });

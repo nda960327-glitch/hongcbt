@@ -1344,6 +1344,47 @@ textarea:focus { border-color: var(--accent-primary); }
   white-space: nowrap;
 }
 
+/* 기분 카드 — 체크인 뒤엔 같은 자리에 7일 추이 */
+.mood-trend { all: unset; box-sizing: border-box; display: block; width: 100%; cursor: pointer; border-radius: 12px; }
+.mood-trend:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.mood-trend__head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.2rem; }
+.mood-trend__now { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); }
+.mood-trend__now b { color: var(--accent-primary); }
+.mood-trend__more { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.mood-trend svg { display: block; width: 100%; height: auto; }
+.mood-trend__line { display: block; margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--text-secondary); }
+.mood-trend__foot { display: flex; justify-content: flex-end; margin-top: 0.35rem; }
+.mood-trend__re {
+  all: unset; cursor: pointer; font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);
+  padding: 0.18rem 0.55rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, transparent);
+}
+#home-mood-back { margin-left: auto; }
+
+/* 오늘 할 일 — 체크리스트 (홈) */
+.todo-row { border: 1px solid var(--glass-border); border-radius: 12px; background: var(--bg-tertiary); padding: 0.45rem 0.6rem; margin-bottom: 0.35rem; }
+.todo-row.is-done { background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent); }
+.todo-row__main { all: unset; box-sizing: border-box; display: flex; align-items: flex-start; gap: 0.55rem; width: 100%; cursor: pointer; }
+.todo-row__main:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; border-radius: 8px; }
+.todo-row__box { flex-shrink: 0; width: 18px; height: 18px; margin-top: 2px; border-radius: 6px; border: 1.5px solid var(--text-muted); display: inline-flex; align-items: center; justify-content: center; }
+.is-done .todo-row__box { background: var(--accent-primary); border-color: var(--accent-primary); }
+.todo-row__body { flex: 1 1 0%; min-width: 0; }
+.todo-row__t { display: block; font-size: 0.84rem; font-weight: 700; line-height: 1.45; color: var(--text-primary); }
+.is-done .todo-row__t { color: var(--text-muted); text-decoration: line-through; }
+.todo-row__s { display: block; margin-top: 0.08rem; font-size: 0.68rem; color: var(--text-muted); }
+.todo-row__r { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; gap: 0.1rem; font-size: 0.68rem; font-weight: 800; color: #6f97ab; white-space: nowrap; }
+.is-done .todo-row__r { color: var(--text-muted); }
+.todo-row__acts { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.35rem 0 0 1.7rem; }
+.todo-chip {
+  all: unset; box-sizing: border-box; cursor: pointer; padding: 0.18rem 0.6rem; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 800; color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+.todo-chip--ghost { color: var(--text-muted); background: transparent; border-color: var(--glass-border); }
+.todo-more { all: unset; cursor: pointer; display: block; width: 100%; text-align: right; margin-top: 0.15rem; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); }
+
 /* 상담 시작하기 — AI / 전문 상담사 2열 */
 .home-start { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin: 0 1.25rem; }
 .home-start__card {
