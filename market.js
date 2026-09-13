@@ -386,7 +386,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     return json({ ok: true, clientKey: key }, 200, cors);
   }
 
-  // ── 우렁 캐시 충전 (토스페이먼츠) ───────────────────────────────────
+  // ── 느루 캐시 충전 (토스페이먼츠) ───────────────────────────────────
   //  왜 서버가 끼어드나: 결제는 '클라이언트가 성공했다고 말하는 것'으로 끝나면
   //  안 된다. 브라우저 콘솔에서 fetch 한 줄만 흉내 내면 캐시가 무한히 생긴다.
   //  그래서 두 단계로 나눈다.
@@ -433,7 +433,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       }
       return json({
         ok: true, orderId, amount, cash,
-        orderName: '우렁 캐시 ' + comma(cash)
+        orderName: '느루 캐시 ' + comma(cash)
       }, 200, cors);
     }
 

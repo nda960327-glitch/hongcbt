@@ -1,6 +1,6 @@
 // ============================================================================
 //  행동 미션 — CBT 행동활성화(Behavioral Activation)
-//  우렁이가 매일 아주 작은 숙제 하나를 준다. 몸이 움직이면 마음이 따라온다.
+//  느루가 매일 아주 작은 숙제 하나를 준다. 몸이 움직이면 마음이 따라온다.
 //  완료하면 스트릭·뱃지에 집계되고, 주간 편지에도 반영된다.
 // ============================================================================
 window.Missions = {
@@ -138,7 +138,7 @@ window.Missions = {
       const avg = this._recentMoodAvg();
       const res = await window.LLM._chatCompletion({
         model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
-        messages: [{ role: 'user', content: `당신은 상담사 '우렁이'입니다. 이 사람을 위한 '오늘의 아주 작은 행동 미션' 1개를 만드세요.
+        messages: [{ role: 'user', content: `당신은 상담사 '느루'입니다. 이 사람을 위한 '오늘의 아주 작은 행동 미션' 1개를 만드세요.
 [장기기억]\n${memory}\n[온보딩 고민] ${concerns || '(없음)'}\n[최근 3일 기분 평균] ${avg ? avg.toFixed(1) + '/5' : '기록 없음'}
 
 규칙:
@@ -187,14 +187,14 @@ window.Missions = {
       } else {
         const pick = this._pickWeighted();
         s = { date: this._today(), id: pick.id, done: false, rerolled: false };
-        setTimeout(() => this._personalizeWithAI(), 800); // 우렁이가 더 좋은 미션을 떠올리면 교체
+        setTimeout(() => this._personalizeWithAI(), 800); // 느루가 더 좋은 미션을 떠올리면 교체
       }
       window.Storage._safeSet('cbt_daily_mission', s);
     }
     if (s.custom) {
       return {
         id: s.id, icon: s.custom.icon, emoji: s.custom.emoji, text: s.custom.text,
-        cat: s.rx ? (s.rx.src === 'hw' ? '상담사 숙제' : '나의 케어플랜') : '우렁이 맞춤',
+        cat: s.rx ? (s.rx.src === 'hw' ? '상담사 숙제' : '나의 케어플랜') : '느루 맞춤',
         why: s.rx ? s.rx.why : '', custom: true, done: s.done, rerolled: s.rerolled
       };
     }
@@ -222,7 +222,7 @@ window.Missions = {
     }
     this.renderCard();
     if (window.App && window.App.showRecordToast) {
-      // 시스템 이모지는 쓰지 않는다 — 우렁이의 표정은 전용 스티커로만 표현한다
+      // 시스템 이모지는 쓰지 않는다 — 느루의 표정은 전용 스티커로만 표현한다
     const cheers = ['우와, 해냈다!', '역시 당신이야!', '몸이 움직이면 마음이 따라와요', '오늘의 작은 승리 +1'];
       window.App.showRecordToast(`${cheers[Math.floor(Math.random() * cheers.length)]}`);
     }
@@ -250,12 +250,12 @@ window.Missions = {
     this.renderCard();
   },
 
-  // 우렁이 맞춤 숙제 — 최근 대화·장기기억을 읽고 이 사람에게 진짜 필요한 행동 하나
+  // 느루 맞춤 숙제 — 최근 대화·장기기억을 읽고 이 사람에게 진짜 필요한 행동 하나
   async aiQuest() {
     const s = this.state();
     if (s && s.done && (s.bonus || 0) >= 3) { if (window.App) window.App.showRecordToast('오늘 퀘스트는 여기까지! 내일 또 받아요'); return; }
     if (!window.LLM) return;
-    if (window.App) window.App.showRecordToast('우렁이가 딱 맞는 숙제를 고르는 중…');
+    if (window.App) window.App.showRecordToast('느루가 딱 맞는 숙제를 고르는 중…');
     try {
       const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
       const recent = (window.Storage.getMessages() || []).slice(-16).map(x => `${x.role === 'user' ? '내담자' : '상담사'}: ${x.text}`).join('\n');
@@ -290,7 +290,7 @@ ${recent}` }],
         custom: { emoji: j.emoji || '🐌', text: j.text }
       });
       if (window.Sfx) window.Sfx.hit('ripe');
-      if (window.App) { window.App.showRecordToast('우렁이의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
+      if (window.App) { window.App.showRecordToast('느루의 맞춤 숙제가 도착했어요!'); window.App.stickerPop('teacher', 1500); }
       this.renderCard();
     } catch (e) {
       if (window.App) window.App.showRecordToast('숙제를 가져오지 못했어요 — 잠시 후 다시 시도해주세요');
@@ -327,7 +327,7 @@ ${recent}` }],
     { rx: /호흡/, label: '호흡 가이드 열기',
       act: () => window.Calm && window.Calm.startBreath('box') },
     { rx: /체크인/, label: '체크인 하러 가기',
-      act: () => { if (window.App) window.App.switchTab('dashboard'); setTimeout(() => window.Game && window.Game.openCheckin(), 240); } },
+      act: () => { if (window.App) window.App.switchTab('home'); setTimeout(() => window.Missions._pulseMoodRow(), 240); } },
     { rx: /사고 ?기록|기록지|근거를 한 줄/, label: '사고 기록 열기',
       act: () => window.App && window.App.switchTab('record') },
     { rx: /있었던 일|해낸 일|하루.*정리|한 줄 (쓰|적)/, label: '하루 정리 열기',
@@ -339,6 +339,19 @@ ${recent}` }],
     { rx: /마음 안정|안정 도구/, label: '안정 도구 열기',
       act: () => window.Calm && window.Calm.openMenu() }
   ],
+
+  // 기분 행은 홈에 그냥 놓여 있어서, 탭만 바꾸면 어디를 눌러야 할지 모른다 — 잠깐 짚어준다
+  _pulseMoodRow() {
+    const row = document.getElementById('quick-mood-row');
+    if (!row) return;
+    try { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+    const prev = row.getAttribute('style') || '';
+    row.style.transition = 'box-shadow 0.35s ease';
+    row.style.borderRadius = '16px';
+    row.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--accent-primary) 55%, transparent)';
+    setTimeout(() => { row.style.boxShadow = '0 0 0 0 transparent'; }, 1200);
+    setTimeout(() => { row.setAttribute('style', prev); }, 1700);
+  },
 
   routeFor(text) {
     const t = String(text == null ? '' : text);
@@ -354,7 +367,7 @@ ${recent}` }],
   },
 
   // 카테고리별 손그림 아이콘 (이모지 대신 톤 통일)
-  CAT_ICO: { '움직임': 'move', '마음': 'mind', '돌봄': 'care', '연결': 'link', '즐거움': 'joy', '우렁이 맞춤': 'sprout' },
+  CAT_ICO: { '움직임': 'move', '마음': 'mind', '돌봄': 'care', '연결': 'link', '즐거움': 'joy', '느루 맞춤': 'sprout' },
 
   catIcon(cat, size) {
     const n = this.CAT_ICO[cat] || 'quest';
@@ -579,7 +592,7 @@ ${recent}` }],
 
   renderCard() {
     this.renderTodo();
-    // 대시보드(우렁이 세계) 퀘스트 칸 — 고르고 더 받는 버튼까지 전부 있는 판
+    // 대시보드(느루 세계) 퀘스트 칸 — 고르고 더 받는 버튼까지 전부 있는 판
     const targets = [...document.querySelectorAll('[data-mission-card]')];
     if (!targets.length) return;
     const el = { set innerHTML(v) { targets.forEach(t => { t.innerHTML = v; }); } };
@@ -601,7 +614,7 @@ ${recent}` }],
           ${bonus < 3
             ? `<button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.more()">퀘스트 더 받기 (${bonus}/3)</button>`
             : `<span style="flex: 1; text-align: center; font-size: 0.72rem; color: var(--text-muted); padding: 0.5rem 0;">오늘의 보너스 퀘스트를 다 했어요! 내일 또 만나요</span>`}
-          <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 우렁이가 숙제를 내줘요">맞춤 숙제 받기</button>
+          <button class="btn-secondary" style="flex: 1; font-size: 0.78rem; padding: 0.5rem;" onclick="window.Missions.aiQuest()" title="최근 대화를 바탕으로 느루가 숙제를 내줘요">맞춤 숙제 받기</button>
         </div>${this.rxHtml()}`;
     } else {
       const route = this.routeFor(m.text);

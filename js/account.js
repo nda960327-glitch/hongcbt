@@ -36,7 +36,7 @@ window.Account = {
   // 사람에게 보여줄 설명. '무엇이 올라가나요'에 답할 수 없으면 신뢰받지 못한다.
   SCOPE_TEXT: {
     올라감: [
-      ['우렁이의 기억', '대화 내용이 아니라, 우렁이가 간추린 요약이에요'],
+      ['느루의 기억', '대화 내용이 아니라, 느루가 간추린 요약이에요'],
       ['마음 리포트와 검사 결과', '점수 변화 그래프도 함께'],
       ['레벨·뱃지·옷·방·농장', '키운 것들이 사라지지 않게'],
       ['목표·안전계획·숙제·미션', '진행 상황 그대로'],
@@ -44,7 +44,7 @@ window.Account = {
       ['상담 예약과 후기', '']
     ],
     안올라감: [
-      ['대화 원문', '우렁이와 나눈 이야기는 이 기기에만 있어요'],
+      ['대화 원문', '느루와 나눈 이야기는 이 기기에만 있어요'],
       ['생각기록', '직접 쓰신 글은 올리지 않아요'],
       ['밤편지 초안', ''],
       ['전화번호·잠금 PIN', '']
@@ -414,7 +414,7 @@ window.Account = {
       <div style="padding:0.9rem 1rem 1rem;">
         <b style="display:block; font-size:0.88rem; color:var(--text-primary);">로그인하면 폰을 바꿔도 이어져요</b>
         <span style="display:block; font-size:0.74rem; color:var(--text-muted); line-height:1.55; margin-top:0.2rem;">
-          리포트·레벨·우렁이의 기억이 따라와요.
+          리포트·레벨·느루의 기억이 따라와요.
           <b style="color:var(--text-secondary);">대화 내용은 올라가지 않아요.</b></span>
         <div style="display:flex; flex-direction:column; gap:0.4rem; margin-top:0.7rem;">
           ${this.providers.map(p => `

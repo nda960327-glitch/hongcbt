@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>우렁의사 챗봇 설계 문서</title>
+<title>느루 챗봇 설계 문서</title>
 <style>
   :root{--ink:#2b2620;--sub:#6b6357;--mut:#968d7e;--line:#e3dacb;--bg:#fffdf9;
         --g:#4f8a6b;--gL:#e8f1eb;--o:#c57c54;--r:#c96a5a;--rL:#faeeec;--y:#c9a227;--v:#7b6fa8;--b:#6f97ab}
@@ -46,12 +46,12 @@
 </style></head>
 <body>
 
-<h1>우렁의사 AI 챗봇 설계 문서</h1>
+<h1>느루 AI 챗봇 설계 문서</h1>
 <p class="lede">이 챗봇이 왜 다른지, 어떤 명령을 넣었는지, 무엇이 아직 부족한지</p>
 <p class="meta">2026년 8월 · 대화 모델 gpt-4o · 기억 정리 모델 gpt-4o · 최근 대화 30턴을 프롬프트에 주입</p>
 
 <div class="card good">
-<p style="margin:0"><b>한 줄 요약</b> — 일반 상담 AI는 “들어주고 공감”에서 멈춥니다. 우렁의사는 <b>왜곡인지 현실인지 먼저 가르고</b>, 현실이면 <b>생각이 아니라 상황을 바꾸라고 말합니다</b>. 그리고 그 판단을 <b>사람마다 누적된 사례 기록</b> 위에서 내립니다.</p>
+<p style="margin:0"><b>한 줄 요약</b> — 일반 상담 AI는 “들어주고 공감”에서 멈춥니다. 느루는 <b>왜곡인지 현실인지 먼저 가르고</b>, 현실이면 <b>생각이 아니라 상황을 바꾸라고 말합니다</b>. 그리고 그 판단을 <b>사람마다 누적된 사례 기록</b> 위에서 내립니다.</p>
 </div>
 
 <!-- ══════════════════════════════════════ -->
@@ -59,7 +59,7 @@
 <p class="sub">ChatGPT에 “상담해줘”라고 하는 것과의 실제 차이</p>
 
 <table>
-<tr><th>항목</th><th>일반 AI · 보통의 상담 챗봇</th><th>우렁의사</th></tr>
+<tr><th>항목</th><th>일반 AI · 보통의 상담 챗봇</th><th>느루</th></tr>
 <tr><td class="k">판단</td><td>공감·타당화에 수렴. 의견을 잘 안 냄</td><td><b>의견 표명 트리거</b>가 명시됨 — 착취·반복 손해·자기파괴 신호에선 반드시 입장을 밝힘</td></tr>
 <tr><td class="k">인지왜곡</td><td>부정적 생각 = 왜곡으로 간주하고 교정 시도</td><td><b>근거 유무를 먼저 가름</b>. 근거가 있으면 왜곡이 아니라 관찰 → 상황 변경(경계·거리두기)으로</td></tr>
 <tr><td class="k">기억</td><td>세션 단위. 대화창 닫으면 소실</td><td>매 대화 후 <b>사례 기록을 비동기 갱신</b>. 이름·관계·반복 주제·효과적이던 접근·둘만의 농담까지 축적</td></tr>
@@ -110,7 +110,7 @@
 
 <table>
 <tr><th>상담사</th><th>기법</th><th>이럴 때</th><th>상담 코스</th></tr>
-<tr><td class="k">🐌 우렁의사</td><td>통합</td><td>일상 대화·처음 시작</td><td>—</td></tr>
+<tr><td class="k">🐌 느루</td><td>통합</td><td>일상 대화·처음 시작</td><td>—</td></tr>
 <tr><td class="k">☀️ 햇님</td><td>CBT</td><td>“다 내 잘못이야” 생각이 안 떠날 때</td><td><b>햇살 상담</b> 6단계</td></tr>
 <tr><td class="k">🌙 달님</td><td>공감·수용 경청</td><td>감정을 그냥 쏟아내고 싶을 때</td><td><b>달빛 상담</b> 6단계</td></tr>
 <tr><td class="k">🌲 소나무</td><td>ACT+MBCT</td><td>같은 생각을 곱씹어 잠이 안 올 때</td><td><b>솔숲 상담</b> 6단계</td></tr>
@@ -134,7 +134,7 @@
 <h3>시스템 마커 <span class="tag v">모델이 출력, 사용자에겐 안 보임</span></h3>
 <table>
 <tr><td class="k"><code>|||</code></td><td>말풍선 분할. 한 말풍선 = 한 문장이 기본</td></tr>
-<tr><td class="k"><code>[스티커:공감]</code></td><td>우렁이 감정 스티커를 말풍선으로 삽입 (40여 종)</td></tr>
+<tr><td class="k"><code>[스티커:공감]</code></td><td>느루 감정 스티커를 말풍선으로 삽입 (40여 종)</td></tr>
 <tr><td class="k"><code>[이동:dashboard]</code></td><td>답장 1.8초 뒤 해당 탭으로 실제 이동</td></tr>
 <tr><td class="k"><code>[세션끝]</code></td><td>세션 종료 → 사고기록 자동 추출 + 다음 세션 경계 설정</td></tr>
 <tr><td class="k"><code>위험감지</code></td><td>안전 안내 배너 + 위기 상담 번호 노출</td></tr>
@@ -145,7 +145,7 @@
 <li><b>장기기억 갱신</b> — 매 대화 후 비동기. 기본정보·관계·반복 주제·인지 패턴·<b>사례 개념화 가설</b>·<b>현실 문제(왜곡 아님)</b>·효과적이던 접근·다음에 물어볼 것을 500단어로 압축</li>
 <li><b>사고기록 자동 생성</b> — 세션 종료 시, 또는 사용자 발화가 8개 쌓이면 조용히 추출 (잡담이면 자체 판단으로 걸러냄)</li>
 <li><b>맞춤 숙제</b> — 최근 대화를 읽고 오늘 30분 안에 할 수 있는 행동 과제를 처방</li>
-<li><b>주간 편지·우편함 답장</b> — 우렁이 말투(우로로록·우덩우덩)로 작성</li>
+<li><b>주간 편지·우편함 답장</b> — 느루 말투(뇨로로롱·느적느적)로 작성</li>
 </ul>
 
 <!-- ══════════════════════════════════════ -->
@@ -197,7 +197,7 @@
 <p style="font-size:12.5px;color:var(--mut);line-height:1.7">
 이 문서는 <code>js/llm.js</code>(CORE_PROMPT·APP_GUIDE), <code>js/personas.js</code>(상담사 4인·상담 코스),
 <code>js/missions.js</code>(맞춤 숙제), <code>js/weekly.js</code>·<code>js/mail.js</code>(편지)의 실제 구현을 근거로 작성했습니다.<br>
-우렁의사는 의료기기가 아니며, 이 챗봇은 진단·처방을 제공하지 않습니다. 위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.
+느루는 의료기기가 아니며, 이 챗봇은 진단·처방을 제공하지 않습니다. 위기 시 자살예방상담 <b>1393</b>, 정신건강상담 <b>1577-0199</b>.
 </p>
 
 </body></html>

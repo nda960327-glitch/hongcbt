@@ -227,7 +227,7 @@
         ${none ? `
         <p style="font-size: 0.88rem; margin: 0; color: var(--text-primary); font-weight: 700;">아직 상담사가 준비 중이에요</p>
         <p style="font-size: 0.78rem; margin: 0.4rem 0 0; line-height: 1.6;">자격을 확인한 선생님들만 모시고 있어요.<br>준비되는 대로 여기에서 만나실 수 있어요.</p>
-        <p style="font-size: 0.76rem; margin: 0.9rem 0 0;">그동안은 우렁이와 이야기하며 마음을 정리해보세요.</p>`
+        <p style="font-size: 0.76rem; margin: 0.9rem 0 0;">그동안은 느루와 이야기하며 마음을 정리해보세요.</p>`
         : `
         <p style="font-size: 0.88rem; margin: 0;">${this._query ? `'${this._query.replace(/[<>&"']/g, '')}' 검색 결과가 없어요` : '조건에 맞는 상담사가 없어요'}</p>
         <p style="font-size: 0.76rem; margin: 0.3rem 0 0;">검색어나 필터를 바꿔보세요</p>`}

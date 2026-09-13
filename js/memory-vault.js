@@ -1,6 +1,6 @@
 // ============================================================================
 //  기억 금고 (Memory Vault)
-//  우렁의사가 쌓아온 장기기억·대화·기록 전체를 하나의 암호화 파일로 내보내고
+//  느루가 쌓아온 장기기억·대화·기록 전체를 하나의 암호화 파일로 내보내고
 //  다시 불러오는 모듈. 파일을 열어봐도 내용을 읽을 수 없도록 자체 규칙으로
 //  암호화(XOR 롤링 키 + Base64 이중 인코딩)한다.
 // ============================================================================
@@ -43,13 +43,13 @@ window.MemoryVault = {
 
   decrypt(payload) {
     const body = payload.replace(/\s+/g, "");
-    if (!body.startsWith(this._MAGIC)) throw new Error("우렁의사 기억 파일이 아닙니다.");
+    if (!body.startsWith(this._MAGIC)) throw new Error("느루 기억 파일이 아닙니다.");
     const b64 = body.slice(this._MAGIC.length);
     const bytes = this._xor(this._fromBase64(b64));
     return new TextDecoder().decode(bytes);
   },
 
-  // --- 내보내기: 우렁의사의 모든 기억을 봉인해 다운로드 ---
+  // --- 내보내기: 느루의 모든 기억을 봉인해 다운로드 ---
   exportEncrypted() {
     if (window.Sfx) window.Sfx.play('save');
     if (!window.Storage) return;
@@ -91,7 +91,7 @@ window.MemoryVault = {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `우렁의사_기억_${dateStr}.wrmem`;
+    a.download = `느루_기억_${dateStr}.wrmem`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -106,7 +106,7 @@ window.MemoryVault = {
     try {
       data = JSON.parse(this.decrypt(text));
     } catch (e) {
-      window.UI.alert("기억 파일을 읽을 수 없습니다. 우렁의사에서 내려받은 파일이 맞는지 확인해주세요.");
+      window.UI.alert("기억 파일을 읽을 수 없습니다. 느루에서 내려받은 파일이 맞는지 확인해주세요.");
       return false;
     }
     if (!data || data.version !== 1) {
@@ -139,7 +139,7 @@ window.MemoryVault = {
     if (Array.isArray(data.favs)) window.Storage._safeSet("cbt_favs", data.favs);
     if (data.stickerPacks) window.Storage._safeSet("cbt_sticker_packs", data.stickerPacks);
     if (data.fontScale) window.Storage._safeSet("cbt_font_scale", data.fontScale);
-    window.UI.alert("우렁의사의 기억이 복원되었습니다. 화면을 새로고침합니다.");
+    window.UI.alert("느루의 기억이 복원되었습니다. 화면을 새로고침합니다.");
     location.reload();
     return true;
   }

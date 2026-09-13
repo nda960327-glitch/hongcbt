@@ -465,7 +465,7 @@ window.ThoughtRecord = {
   },
 
   // ==========================================================================
-  //  손으로 쓰는 사고기록 위저드 — 한 화면 한 질문, 우렁이가 CBT 순서대로 안내
+  //  손으로 쓰는 사고기록 위저드 — 한 화면 한 질문, 느루가 CBT 순서대로 안내
   //  (기존 한 장짜리 폼은 showForm으로 유지 — 위저드 1단계에서 전환 가능)
   // ==========================================================================
   EMOTION_PRESETS: ['불안', '우울', '분노', '짜증', '수치심', '죄책감', '외로움', '서운함', '무기력', '긴장'],
@@ -703,7 +703,7 @@ window.ThoughtRecord = {
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.25rem; text-align: center;">친구가 같은 생각을 한다면,<br>뭐라고 말해줄래요?</h2>
         <p style="font-size: 0.83rem; color: var(--text-muted); text-align: center; margin: 0 0 1rem; line-height: 1.55;">나에게도 그 다정함을 돌려주세요.<br>조금 더 균형 잡힌 생각을 적어봐요.</p>
         <textarea id="trw-input" rows="4" placeholder="예: 한 번 조용히 넘어갔다고 내 의견이 별로라는 증거는 아니야" style="width: 100%; box-sizing: border-box; padding: 0.9rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: none; font-size: 0.95rem; line-height: 1.6;">${esc(w.alternative)}</textarea>
- <button id="trw-hint"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.65rem; margin-top: 0.6rem; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent); color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer;"> 우렁이에게 힌트 받기</button>
+ <button id="trw-hint"style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.65rem; margin-top: 0.6rem; border-radius: 12px; border: 1.5px dashed color-mix(in srgb, var(--accent-primary) 45%, transparent); color: var(--accent-primary); font-size: 0.85rem; font-weight: 700; cursor: pointer;"> 느루에게 힌트 받기</button>
         <div id="trw-hint-box" class="hidden" style="margin-top: 0.6rem; padding: 0.85rem 1rem; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 20%, transparent); font-size: 0.85rem; line-height: 1.6;"></div>
         ${this._wizNav(4, '다음 ›')}`, 5);
       this._wizBindBack(4, () => { w.alternative = document.getElementById('trw-input').value; });
@@ -756,14 +756,14 @@ window.ThoughtRecord = {
     const box = document.getElementById('trw-hint-box');
     if (!btn || !box) return;
     btn.style.pointerEvents = 'none';
- btn.textContent ='우렁이가 생각 중…';
+ btn.textContent ='느루가 생각 중…';
     let hint = '이렇게 스스로에게 물어보세요:\n· 이 생각이 100% 사실이라는 증거는 뭘까?\n· 반대되는 증거는 하나도 없을까?\n· 가장 친한 친구가 이 생각을 말했다면 나는 뭐라고 답할까?';
     try {
       if (window.LLM) {
         const distLabels = w.distortions.map(id => (this.distortions.find(d => d.id === id) || {}).label).filter(Boolean).join(', ');
         const res = await window.LLM._chatCompletion({
           model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
-          messages: [{ role: 'user', content: `당신은 다정한 CBT 상담사 '우렁이'입니다. 사용자가 사고기록지를 쓰는 중입니다.\n상황: ${w.situation}\n자동적 사고: ${w.thought}\n감정: ${w.emotions.map(e => `${e.name} ${e.intensity}%`).join(', ')}\n${distLabels ? `사용자가 고른 인지왜곡: ${distLabels}\n` : ''}\n이 생각을 다시 바라보게 돕는 (1) 소크라테스식 질문 1개와 (2) 균형 잡힌 대안적 사고 예시 1문장을 제시하세요. 반말 없이 부드럽게, 60자 내외 두 줄로. 머리기호 없이 줄바꿈으로만 구분해 출력.` }],
+          messages: [{ role: 'user', content: `당신은 다정한 CBT 상담사 '느루'입니다. 사용자가 사고기록지를 쓰는 중입니다.\n상황: ${w.situation}\n자동적 사고: ${w.thought}\n감정: ${w.emotions.map(e => `${e.name} ${e.intensity}%`).join(', ')}\n${distLabels ? `사용자가 고른 인지왜곡: ${distLabels}\n` : ''}\n이 생각을 다시 바라보게 돕는 (1) 소크라테스식 질문 1개와 (2) 균형 잡힌 대안적 사고 예시 1문장을 제시하세요. 반말 없이 부드럽게, 60자 내외 두 줄로. 머리기호 없이 줄바꿈으로만 구분해 출력.` }],
           temperature: 0.7,
           max_tokens: 160
         });

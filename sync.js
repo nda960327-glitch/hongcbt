@@ -6,7 +6,7 @@
 //  올리지 않는 것: 대화 원문. 한 줄도.
 //
 //  대화는 이 앱에서 가장 사적인 것이고, 서버에 두면 언젠가 새거나
-//  영장으로 열린다. 기기에만 두면 그럴 일이 없다. 대신 '우렁이가 기억하는
+//  영장으로 열린다. 기기에만 두면 그럴 일이 없다. 대신 '느루가 기억하는
 //  요약'만 올려서, 새 폰에서도 나를 알아보게 한다.
 //
 //  흰 목록은 클라이언트(js/sync.js)와 여기 두 곳에 있다. 같은 목록을
@@ -26,7 +26,7 @@ const ALLOW = new Set([
   // 설정
   'cbt_lang', 'cbt_font_scale', 'cbt_sound_on', 'cbt_haptic_on',
   'cbt_tts_enabled', 'cbt_tts_gender', 'cbt_checkin_mode', 'cbt_checkin_times',
-  // 장기기억 — 대화 원문이 아니라 우렁이가 간추린 요약
+  // 장기기억 — 대화 원문이 아니라 느루가 간추린 요약
   'cbt_user_memory',
   // 마음 리포트와 검사
   'cbt_my_reports', 'cbt_latest_summary_report', 'cbt_assessments',

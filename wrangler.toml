@@ -27,7 +27,7 @@ compatibility_date = "2024-11-01"
 VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY8jlRxxLREM1rnDp_qUvI9uc"
 VAPID_SUBJECT = "mailto:help@neurumind.com"
 
-# 상담사 앱(우렁의사 프로)의 주소. 메일에 넣는 로그인 링크가 여기로 간다.
+# 상담사 앱(느루 프로)의 주소. 메일에 넣는 로그인 링크가 여기로 간다.
 #  Pages 프로젝트는 neurumind-pro, 커스텀 도메인은 pro.neurumind.com.
 PRO_URL = "https://pro.neurumind.com"
 

@@ -1,7 +1,7 @@
 // ============================================================================
 //  구독 — 7일 무료 체험 후: 무료 플랜(챗봇 하루 30회) / 구독(무제한 + 보이스톡)
 //  · 가격 미정: 아래 PRICE 숫자 하나만 바꾸면 앱 전체(문구·결제)에 반영된다.
-//  · 결제는 우렁 캐시로 처리 (플레이스토어 구독 연동 지점은 subscribe() 하나)
+//  · 결제는 느루 캐시로 처리 (플레이스토어 구독 연동 지점은 subscribe() 하나)
 //  · 챗봇: 체험·구독 중 무제한, 그 외 하루 10회 무료
 //  · 보이스톡(AI 전화): 체험·구독 전용
 // ============================================================================
@@ -44,7 +44,7 @@ window.Subscription = {
       window.Storage._safeSet('cbt_sub_nudged', today);
       setTimeout(() => {
         if (window.App && window.App.showRecordToast) window.App.showRecordToast('⏳ ' + msg);
-        if (window.App && window.App.notify) window.App.notify('우렁의사', msg);
+        if (window.App && window.App.notify) window.App.notify('느루', msg);
       }, 2500);
     }
   },
@@ -114,7 +114,7 @@ window.Subscription = {
       const n = this.todayTurns();
       // 아주 많이 쓴 날 — 막지는 않되 한 번은 알린다
       if (n === this.SOFT_DAILY && window.App && window.App.showRecordToast) {
-        window.App.showRecordToast('오늘 이야기 많이 나눴네요. 우렁이는 계속 여기 있어요');
+        window.App.showRecordToast('오늘 이야기 많이 나눴네요. 느루는 계속 여기 있어요');
       }
       if (n >= this.HARD_DAILY) {
         window.UI && window.UI.alert({
@@ -144,7 +144,7 @@ window.Subscription = {
 
   // 구독 결제 — 실서비스에서는 이 함수가 Google Play 구독 결제 호출로 바뀐다
   subscribe() {
-    if (!window.Wallet || !window.Wallet.spend(this.PRICE, '우렁의사 월 구독')) {
+    if (!window.Wallet || !window.Wallet.spend(this.PRICE, '느루 월 구독')) {
       window.UI.alert(`캐시가 부족해요. (월 구독 ${this.PRICE.toLocaleString()}원)\n마이페이지에서 충전 후 다시 시도해주세요.`);
       const m = document.getElementById('sub-paywall-modal');
       if (m) m.classList.add('hidden');
@@ -155,7 +155,7 @@ window.Subscription = {
     window.Storage._safeSet('cbt_sub_until', base + 30 * 86400000);
     const m = document.getElementById('sub-paywall-modal');
     if (m) m.classList.add('hidden');
- window.UI.alert(`구독이 시작되었습니다! \n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
+ window.UI.alert(`구독이 시작되었습니다! \n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n느루와의 대화가 계속됩니다.`);
     this.renderCard();
     this.renderBadge();
   },
@@ -173,7 +173,7 @@ window.Subscription = {
     if (title && desc) {
       if (kind === 'call') {
         title.textContent = '보이스톡은 구독 전용이에요';
-        desc.innerHTML = '우렁이와 목소리로 나누는 통화는<br>구독하면 바로 이용할 수 있어요.';
+        desc.innerHTML = '느루와 목소리로 나누는 통화는<br>구독하면 바로 이용할 수 있어요.';
       } else if (kind === 'chat') {
         title.textContent = `오늘 무료 대화 ${this.FREE_DAILY_CHATS}회를 다 썼어요`;
         desc.innerHTML = `내일이 되면 다시 ${this.FREE_DAILY_CHATS}회가 채워져요.<br>구독하면 횟수 걱정 없이 계속 이야기할 수 있어요.`;

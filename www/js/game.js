@@ -1,5 +1,5 @@
 // ============================================================================
-//  우렁이 세계 — 대시보드의 통합 게임 컨테이너
+//  느루 세계 — 대시보드의 통합 게임 컨테이너
 //  방·농장·옷장·퀘스트·훈장·서재를 한 화면 안에서 오간다.
 //  각 화면의 실제 내용은 기존 모듈(Room/Farm/Closet/Missions/Growth/Dashboard/
 //  Weekly)이 그리고, Game은 HUD·내비게이션·화면 전환만 맡는다.
@@ -58,7 +58,7 @@ window.Game = {
       if (window.Growth) window.Growth.renderBadgeCard();
       this.renderShieldShop();
     }
-    // 나의 우렁이(레벨)는 방 계열 화면에서만 — 농장·퀘스트·서재에선 숨긴다
+    // 나의 느루(레벨)는 방 계열 화면에서만 — 농장·퀘스트·서재에선 숨긴다
     const snailPanel = document.getElementById('my-snail-panel');
     const showSnail = (view === 'room' || view === 'closet' || view === 'medal');
     if (snailPanel) snailPanel.style.display = showSnail ? '' : 'none';
@@ -193,7 +193,7 @@ window.Game = {
       <div style="display: flex; gap: 0.35rem;">
         ${money('water', '물', water, '물 — 돌봄으로 모아요', "window.Game.show('farm')", '#6f97ab')}
         ${money('coin', '코인', coins.toLocaleString(), '씨앗코인 — 농장 수확', "window.Game.show('farm')", 'var(--accent-primary)')}
-        ${money('cash', '캐시', cash.toLocaleString(), '우렁 캐시 — 마이페이지 충전', "window.App.switchTab('mypage')", '#c9a227')}
+        ${money('cash', '캐시', cash.toLocaleString(), '느루 캐시 — 마이페이지 충전', "window.App.switchTab('mypage')", '#c9a227')}
       </div>`;
   },
 

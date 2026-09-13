@@ -1,6 +1,6 @@
 // ============================================================================
-//  우렁이 옷장 — 우렁이에게 옷을 입힌다
-//  · 아이템은 밭에서 거둔 씨앗코인(농장 화폐) 또는 우렁 캐시(현질)로 산다
+//  느루 옷장 — 느루에게 옷을 입힌다
+//  · 아이템은 밭에서 거둔 씨앗코인(농장 화폐) 또는 느루 캐시(현질)로 산다
 //  · 일부는 퀘스트(미션·레벨·뱃지) 보상으로만 얻는다
 //  · 착용한 아이템은 stickers.js 의 _base() 에서 몸 위에 겹쳐 그려진다
 //
@@ -20,13 +20,13 @@ window.Closet = {
   // --------------------------------------------------------------------------
   //  아이템 목록
   //   price  : 씨앗코인 가격 (밭에서 수확해 모은다)
-  //   cash   : 우렁 캐시 가격 (현질 — 이게 있으면 프리미엄)
+  //   cash   : 느루 캐시 가격 (현질 — 이게 있으면 프리미엄)
   //   quest  : 퀘스트 전용 (돈으로 못 삼). 획득 조건 설명
   // --------------------------------------------------------------------------
   ITEMS: [
     // ── 모자 ──────────────────────────────────────────────────────────────
     {
-      id: 'straw', slot: 'hat', name: '밀짚모자', desc: '농부 우렁이의 기본 장비', price: 65,
+      id: 'straw', slot: 'hat', name: '밀짚모자', desc: '농부 느루의 기본 장비', price: 65,
       svg: () => `
         <g>
           <path d="M32 50 q38 12 76 0 q-6 -9 -18 -11 q-2 -12 -20 -12 q-18 0 -20 12 q-12 2 -18 11z"
@@ -45,7 +45,7 @@ window.Closet = {
         </g>`
     },
     {
-      id: 'beanie', slot: 'hat', name: '털모자', desc: '겨울 우렁이', price: 120,
+      id: 'beanie', slot: 'hat', name: '털모자', desc: '겨울 느루', price: 120,
       svg: () => `
         <g>
           <path d="M36 51 q34 10 68 0 q2 -25 -34 -25 q-36 0 -34 25z" fill="#C57C7C" stroke="#8E5050" stroke-width="3" stroke-linejoin="round"/>
@@ -123,7 +123,7 @@ window.Closet = {
         </g>`
     },
     {
-      id: 'halo', slot: 'hat', name: '천사 고리', desc: '착한 우렁이 한정', cash: 1500,
+      id: 'halo', slot: 'hat', name: '천사 고리', desc: '착한 느루 한정', cash: 1500,
       svg: () => `
         <g>
           <ellipse cx="70" cy="28" rx="20" ry="7" fill="none" stroke="#F2D06B" stroke-width="5"/>
@@ -188,7 +188,7 @@ window.Closet = {
  window.App.showRecordToast(`옷장에'${it.name}'도착! ${reason ||''}`.trim());
       window.App.stickerPop('gift', 1600);
     }
-    if (window.App && window.App.notify) window.App.notify('우렁이 옷장', `'${it.name}'을(를) 얻었어요!`);
+    if (window.App && window.App.notify) window.App.notify('느루 옷장', `'${it.name}'을(를) 얻었어요!`);
     this.render();
     return true;
   },
@@ -206,7 +206,7 @@ window.Closet = {
 
     if (it.cash) {
       if (!window.Wallet || window.Wallet.balance() < it.cash) {
-        window.UI.alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+        window.UI.alert(`느루 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
         return;
       }
       if (!await window.UI.confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
@@ -270,7 +270,7 @@ window.Closet = {
   },
 
   // --------------------------------------------------------------------------
-  //  탈의실 씬 — 거울 앞에서 입어보고 멋진 척하는 우렁이
+  //  탈의실 씬 — 거울 앞에서 입어보고 멋진 척하는 느루
   // --------------------------------------------------------------------------
   _shopOpen: false,
 
@@ -294,7 +294,7 @@ window.Closet = {
     const snail = window.Stickers ? window.Stickers.svgDressed(null, pose.s, 92) : '';
     return `
       <div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.7rem;">
-        <svg viewBox="0 0 320 200" width="100%" style="display: block;" role="img" aria-label="우렁이 탈의실">
+        <svg viewBox="0 0 320 200" width="100%" style="display: block;" role="img" aria-label="느루 탈의실">
           <rect width="320" height="200" fill="#EFE4D2"/>
           <rect y="152" width="320" height="48" fill="#C9A278"/>
           <path d="M0 152 H320" stroke="#B08B63" stroke-width="3"/>

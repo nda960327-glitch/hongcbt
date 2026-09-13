@@ -592,7 +592,7 @@ window.Assess = {
         ${m.bars.map(bar).join('')}
         <p style="margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
           ${canGen ? '충분한 데이터예요. 정밀 분석이 가능합니다.'
-                   : `아직 ${m.total}%예요. 리포트는 <b>${this.MIN_TOTAL}% 이상</b>일 때만 만들어요 — 얕은 데이터로 만든 리포트는 당신을 오해하게 하니까요.<br>표준 자가검진(필수)을 하고, 우렁이와 대화하고, 매일 체크인·기록을 쌓으면 채워집니다.`}
+                   : `아직 ${m.total}%예요. 리포트는 <b>${this.MIN_TOTAL}% 이상</b>일 때만 만들어요 — 얕은 데이터로 만든 리포트는 당신을 오해하게 하니까요.<br>표준 자가검진(필수)을 하고, 느루와 대화하고, 매일 체크인·기록을 쌓으면 채워집니다.`}
         </p>
       </div>
 
@@ -644,7 +644,7 @@ window.Assess = {
           </div>
         </div>
         <p style="margin: 0.6rem 0 0.75rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
-          점수만으로는 보이지 않는 것까지 — 우렁이가 최근 대화의 결을 함께 읽고
+          점수만으로는 보이지 않는 것까지 — 느루가 최근 대화의 결을 함께 읽고
           <b style="color: var(--text-primary);">지금 마음 상태와 다음 한 걸음</b>을 정리해드려요.
           상담사에게 그대로 보낼 수도 있어요.</p>
         <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
@@ -866,7 +866,7 @@ window.Assess = {
     const j = r.json || {};
     if (!await window.UI.confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
     const lines = [
-      '[우렁의사 AI 마음 리포트 · 참고용 — 진단 아님]',
+      '[느루 AI 마음 리포트 · 참고용 — 진단 아님]',
       r.date,
       j.headline ? '— ' + String(j.headline).replace(/\*\*/g, '') : '',
       (j.standard || []).map(x => `${x.name}: ${x.score}/${x.max} (${x.band})`).join(' · '),
@@ -913,7 +913,7 @@ window.Assess = {
       .replace(/color-mix\(in srgb, #4f8a6b 12%, transparent\)/g, '#e4efe8')
       .replace(/color-mix\(in srgb, #c57c54 8%, transparent\)/g, '#f8efe9');
     return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>우렁의사 AI 마음 리포트 — ${r.date}</title>
+<title>느루 AI 마음 리포트 — ${r.date}</title>
 <style>
 body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fffdf9;color:#2b2620;max-width:720px;margin:0 auto;padding:30px 24px;line-height:1.75;font-size:15px}
 h1{font-size:22px;margin:0 0 2px;letter-spacing:-0.02em}
@@ -923,10 +923,10 @@ section{break-inside:avoid}
 b{font-weight:800}
 @media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
 </style></head><body>
-<h1> 우렁의사 AI 마음 리포트</h1>
+<h1> 느루 AI 마음 리포트</h1>
 <p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 109 / 1577-0199</p>
 <div class="box">${inner}</div>
-<p style="font-size:11px;color:#8a8073">이 리포트는 우렁의사 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
+<p style="font-size:11px;color:#8a8073">이 리포트는 느루 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
 </body></html>`;
   },
 
@@ -936,7 +936,7 @@ b{font-weight:800}
     const blob = new Blob([this._docHtml(r)], { type: 'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `우렁의사_AI마음리포트_${new Date().toLocaleDateString('sv-CA')}.html`;
+    a.download = `느루_AI마음리포트_${new Date().toLocaleDateString('sv-CA')}.html`;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);

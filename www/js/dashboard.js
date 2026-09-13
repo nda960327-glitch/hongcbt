@@ -197,7 +197,7 @@
     ];
     const streak = S.getStreak() || 0;
 
-    // 우렁이의 응원 한 줄 (데이터 기반)
+    // 느루의 응원 한 줄 (데이터 기반)
     let cheer;
     if (weekTotal === 0) cheer = '이번 주 첫 돌봄을 시작해볼까요? 체크인 한 번이면 씨앗이 심어져요.';
     else if (weekTotal < 5) cheer = `이번 주 나를 ${weekTotal}번 돌봤어요. 씨앗이 움트고 있어요.`;
@@ -606,7 +606,7 @@ ${recent}`;
   },
 
   async deleteReport(id) {
-    if (!await window.UI.confirm('이 리포트를 삭제할까요?\n(이야기 자체는 우렁이의 기억에 그대로 남아있어요)')) return;
+    if (!await window.UI.confirm('이 리포트를 삭제할까요?\n(이야기 자체는 느루의 기억에 그대로 남아있어요)')) return;
     const reports = this.getMyReports().filter(r => r.id !== id);
     window.Storage._safeSet('cbt_my_reports', reports);
     this.renderMyReports();
@@ -725,7 +725,7 @@ ${recent}`;
  const text = card.innerText.replace(/ 요약 복사하기| 상담사에게 전달 공유/g,'').trim();
     if (navigator.share) {
       navigator.share({
-        title: '[우렁의사] AI 상담 요약 리포트',
+        title: '[느루] AI 상담 요약 리포트',
         text: text
       }).catch(() => {});
     } else {
@@ -822,7 +822,7 @@ ${recent}`;
     const first = shown[0], last = shown[shown.length - 1];
     let summary;
  if (last.v - first.v >= 1) summary ='아래에서 위로, 마음이 올라온 하루예요';
- else if (first.v - last.v >= 1) summary ='마음이 조금 가라앉았네요. 우렁이가 곁에 있을게요';
+ else if (first.v - last.v >= 1) summary ='마음이 조금 가라앉았네요. 느루가 곁에 있을게요';
  else if (last.v >= 3.5) summary ='오늘은 대체로 편안하게 흘러갔어요';
  else summary ='오늘은 마음이 묵직한 편이었어요. 잘 버텨냈어요';
 

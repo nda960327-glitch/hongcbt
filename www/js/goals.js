@@ -130,7 +130,7 @@ window.Goals = {
           <button onclick="window.Goals.promptAdd()" class="head-chip" style="margin-left: auto;">+ 추가</button>
         </div>
         <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">
-          적어두면 우렁이가 기억하고 대화에서 짚어줘요.
+          적어두면 느루가 기억하고 대화에서 짚어줘요.
         </p>
         ${open.length ? open.map(row).join('') : `
           <p style="margin: 0.2rem 0 0.4rem; font-size: 0.79rem; color: var(--text-muted); line-height: 1.55;">

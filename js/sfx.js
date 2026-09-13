@@ -151,7 +151,7 @@ window.Sfx = {
       case 'close':    // 닫힘 — 반대로 내려앉는 톡
         this.tone(520, 0.08, { slide: 300, vol: 0.05, type: 'triangle' });
         break;
-      case 'appear':   // 큰 우렁이가 폴짝 튀어나올 때 — 뾰용 + 반짝
+      case 'appear':   // 큰 느루가 폴짝 튀어나올 때 — 뾰용 + 반짝
         this.tone(330, 0.16, { slide: 880, vol: 0.085, type: 'triangle' });
         this.tone(1319, 0.09, { delay: 0.15, vol: 0.045 });
         this.tone(1760, 0.14, { delay: 0.21, vol: 0.035 });
@@ -182,7 +182,7 @@ window.Sfx = {
         this.tone(220, 0.16, { type: 'square', vol: 0.05, slide: 180 });
         break;
 
-      // ── 우렁이 만지기 ─────────────────────────────────────────────────
+      // ── 느루 만지기 ─────────────────────────────────────────────────
       case 'poke':     // 콕 찌르기 — 말랑 뾰옹
         this.tone(520, 0.07, { slide: 780, vol: 0.06, type: 'triangle' });
         this.tone(880, 0.06, { delay: 0.05, vol: 0.035, type: 'sine' });

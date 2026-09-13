@@ -1,5 +1,5 @@
 /* ============================================================
-   우렁의사의 마음챙김 CBT — "따뜻한 힐링" 디자인 시스템
+   느루의 마음챙김 CBT — "따뜻한 힐링" 디자인 시스템
    세이지 그린 + 테라코타 파스텔 · 부드러운 카드 · 넉넉한 여백
    ============================================================ */
 
@@ -10,7 +10,7 @@
    그래서 어떤 한국어 덩어리든 min-content 폭이 '한 글자'가 된다.
    flex 안에서 자리가 모자라면 그 한 글자까지 줄어들 수 있고,
    실제로 '새 버전이 준비됐어요' 가 폭 15px · 9줄로 세로로 떨어졌다.
-   '우렁의사'가 '우렁의 / 사'로, '현재 활성 상담사'가 '상담 / 사'로
+   '느루'가 '느루의 / 사'로, '현재 활성 상담사'가 '상담 / 사'로
    갈라진 것도 전부 같은 이유다.
 
    keep-all 은 영어처럼 '띄어쓰기에서만' 끊게 한다. 그러면 min-content 가
@@ -1080,7 +1080,7 @@ textarea:focus { border-color: var(--accent-primary); }
 .dc-brief { font-size: 0.74rem; color: var(--text-muted); margin: 0 0 0.5rem; line-height: 1.4; }
 .dc-more { font-size: 0.72rem; font-weight: 800; }
 
-/* 우렁 선생님 처방 (상세 모달) */
+/* 느루 선생님 처방 (상세 모달) */
 .detail-woorung { display: flex; align-items: flex-start; gap: 0.6rem; margin-top: 1rem; }
 .detail-woorung__bubble {
   flex: 1; background: var(--bg-tertiary); border: 1px solid var(--glass-border);
@@ -1745,7 +1745,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .cc-price { flex-direction: row !important; justify-content: space-between; align-items: baseline; }
 
 /* ============================================================
-   우렁이 세계 — 게임 컨테이너
+   느루 세계 — 게임 컨테이너
    ============================================================ */
 #game-stage { min-height: 280px; }
 .game-view-tip { font-size: 0.74rem; color: var(--text-muted); margin: 0 0 0.8rem; line-height: 1.5; }
@@ -1901,7 +1901,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .dashboard-grid > .dash-card { border-radius: var(--radius-lg); }
 #tab-dashboard .my-group { box-shadow: var(--shadow-sm); }
 
-/* 우렁이 배회 — 활발한 포즈일 때만 방 안을 오간다 */
+/* 느루 배회 — 활발한 포즈일 때만 방 안을 오간다 */
 .wr-wander { will-change: transform; }
 /* 걷다가 오래 쉬는 리듬 — 전체의 1/3만 이동하고 나머지는 제자리 */
 @keyframes wr-stroll {
@@ -1944,7 +1944,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 /* 걷는 동안 살짝 통통 — 그림자는 함께 눌린다 */
 .wr-wander .wr-stand { animation: wr-bob 1.3s ease-in-out infinite; }
 
-/* ── 우렁이 만지기 — 탭 반응·롱프레스 찌그러짐·드래그 이동 ─────────────── */
+/* ── 느루 만지기 — 탭 반응·롱프레스 찌그러짐·드래그 이동 ─────────────── */
 .wr-snail {
   touch-action: none; cursor: grab; z-index: 3;
   -webkit-user-select: none; user-select: none;
@@ -1976,7 +1976,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .wr-snail.wr-dragging .wr-wander { animation-play-state: paused !important; }
 .wr-snail.wr-dragging .wr-stand  { animation-play-state: paused !important; }
 .wr-snail.wr-dragging .wr-squish { transform: scale(1.06); }
-/* 우렁이 한마디 말풍선 */
+/* 느루 한마디 말풍선 */
 .wr-say {
   position: absolute; left: 50%; bottom: 100%; margin-bottom: 8px;
   transform: translateX(-50%);
@@ -2122,7 +2122,7 @@ body.kb-open .chat-messages { padding-bottom: 4.4rem; }
 .head-chip svg { flex-shrink: 0; }
 
 /* ============================================================
-   상담사별 채팅방 — 우렁의사 초록 / 햇님 주황 / 달님 보라 / 소나무 진초록
+   상담사별 채팅방 — 느루 초록 / 햇님 주황 / 달님 보라 / 소나무 진초록
    --chat-accent 는 updatePersonaBar() 가 #tab-chat 에 꽂아준다
    /* 상담사별 채팅방 */
    ============================================================ */

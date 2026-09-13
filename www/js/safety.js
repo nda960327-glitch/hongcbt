@@ -123,7 +123,7 @@ window.Safety = {
         </div>
         <div style="display: flex; flex-direction: column; gap: 0.7rem;">
  ${sec('','지금 바로 해볼 수 있는 것', p.calm)}
- <button class="btn-primary"style="width: 100%;"onclick="document.getElementById('safety-view').remove(); window.Calm && window.Calm.startBreath('478');"> 우렁이와 1분 호흡부터</button>
+ <button class="btn-primary"style="width: 100%;"onclick="document.getElementById('safety-view').remove(); window.Calm && window.Calm.startBreath('478');"> 느루와 1분 호흡부터</button>
           ${(p.people || []).length ? `
             <div style="background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; padding: 1rem 1.1rem;">
  <strong style="font-size: 0.85rem; color: var(--accent-primary);"> 연락해도 되는 사람</strong>

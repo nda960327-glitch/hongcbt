@@ -29,6 +29,24 @@ window.App = {
       }
     })();
 
+    // 리브랜딩(우렁의사→느루) 전에 저장된 상담사 발화·주간 편지의 이름을 한 번만 바꾼다.
+    //  안 바꾸면 첫 인사가 영원히 "우렁의사예요"로 남고, 모델도 대화 이력에서 옛 이름을 읽어 헷갈린다.
+    try {
+      if (!window.Storage._safeGet('cbt_rename_neuru', false)) {
+        const MAP = [['우로로록', '뇨로로롱'], ['우로록', '뇨롱'], ['우렁우렁', '느루느루'], ['우덩우덩', '느적느적'], ['우렁의사', '느루'], ['우렁이', '느루'], ['우렁', '느루']];
+        const fix = t => MAP.reduce((s, [a, b]) => s.split(a).join(b), String(t));
+        const msgs = window.Storage.getMessages() || [];
+        let touched = false;
+        msgs.forEach(m => { if (m && m.role === 'bot' && /우렁/.test(m.text || '')) { m.text = fix(m.text); touched = true; } });
+        if (touched) window.Storage._safeSet('cbt_messages', msgs);
+        const letters = window.Storage._safeGet('cbt_weekly_letters', []) || [];
+        let lt = false;
+        letters.forEach(l => { if (l && /우렁/.test(l.text || '')) { l.text = fix(l.text); lt = true; } });
+        if (lt) window.Storage._safeSet('cbt_weekly_letters', letters);
+        window.Storage._safeSet('cbt_rename_neuru', true);
+      }
+    } catch (e) {}
+
     // 1. Check first visit
     if (window.Storage.isFirstVisit()) {
       this.showDisclaimerModal();
@@ -92,7 +110,7 @@ window.App = {
     if (btnMemExport) {
       btnMemExport.addEventListener('click', () => {
         if (window.MemoryVault && window.MemoryVault.exportEncrypted()) {
-          window.UI.alert('우렁의사의 기억이 봉인된 파일로 저장되었습니다.');
+          window.UI.alert('느루의 기억이 봉인된 파일로 저장되었습니다.');
         }
       });
     }
@@ -116,7 +134,7 @@ window.App = {
       this._savePersonaDontAsk();
       const m = document.getElementById('persona-modal');
       if (m) m.classList.add('hidden');
-      // 한 번도 안 골랐는데 닫으면 우렁의사를 기본으로 확정 (다시 강제로 띄우지 않기 위해)
+      // 한 번도 안 골랐는데 닫으면 느루를 기본으로 확정 (다시 강제로 띄우지 않기 위해)
       if (window.Personas && !window.Personas.hasChosen()) {
         window.Personas.setActive('woorung');
         this.renderPersonaBar();
@@ -124,7 +142,7 @@ window.App = {
       }
     });
     
-    // 4.24 오래 자리를 비웠다 돌아오면 — 우렁이가 기다리고 있었다
+    // 4.24 오래 자리를 비웠다 돌아오면 — 느루가 기다리고 있었다
     try {
       const lastV = window.Storage._safeGet('cbt_last_visit', 0) || 0;
       const gapH = lastV ? (Date.now() - lastV) / 3600000 : 0;
@@ -132,12 +150,12 @@ window.App = {
       if (gapH >= 48) {
         setTimeout(() => {
           this.stickerPop('waiting', 2400);
- this.showRecordToast(`우렁이가 ${Math.floor(gapH / 24)}일 동안 문 앞에서 기다렸대요`);
+ this.showRecordToast(`느루가 ${Math.floor(gapH / 24)}일 동안 문 앞에서 기다렸대요`);
         }, 1200);
       }
     } catch (e) {}
 
-    // 4.25 우렁이 스티커 하이드레이션 (빈 화면·설치 팝업 등 data-sticker 요소)
+    // 4.25 느루 스티커 하이드레이션 (빈 화면·설치 팝업 등 data-sticker 요소)
     if (window.Stickers) {
       document.querySelectorAll('[data-sticker]').forEach(el => {
         el.innerHTML = window.Stickers.svg(
@@ -201,7 +219,7 @@ window.App = {
     this.initCheckins();
     // 4.46 알림을 눌러서 들어왔을 때 그 기능으로 데려다준다
     this._initNotifRouting();
-    // 4.47 오늘의 마음가짐 카드 + 오늘의 우렁 카드
+    // 4.47 오늘의 마음가짐 카드 + 오늘의 느루 카드
     this.renderIntentCard();
     if (window.Cards) window.Cards.render();
     // 4.48 내담자도 카톡처럼: 앱이 꺼져 있어도 답장·숙제가 닿는 웹푸시 + 상시 실시간
@@ -332,7 +350,7 @@ window.App = {
         <div style="width: 38px; height: 4px; border-radius: 2px; background: var(--glass-border); margin: 0 auto 0.9rem;"></div>
         <div style="text-align: center; margin-bottom: 0.7rem;">
           <span data-sticker="hero" data-sticker-size="72" style="line-height: 0; display: inline-block;"></span>
-          <h3 style="margin: 0.4rem 0 0.15rem; font-size: 1.05rem; color: var(--text-primary);">홈 화면에 우렁의사 추가하기</h3>
+          <h3 style="margin: 0.4rem 0 0.15rem; font-size: 1.05rem; color: var(--text-primary);">홈 화면에 느루 추가하기</h3>
           <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted);">${isIOS ? 'iPhone은 사파리에서만 추가할 수 있어요' : '30초면 끝나요'}</p>
         </div>
         ${steps.map(([n, t, path]) => `
@@ -394,7 +412,7 @@ window.App = {
 
         const globalModal = document.getElementById('global-install-modal');
         if (globalModal) globalModal.classList.add('hidden');
-        if (outcome === 'accepted') this.showRecordToast('설치 완료! 홈 화면에서 우렁이를 만나요');
+        if (outcome === 'accepted') this.showRecordToast('설치 완료! 홈 화면에서 느루를 만나요');
       } else {
         this.showInstallGuide();
       }
@@ -502,7 +520,7 @@ window.App = {
       if (window.Assess && window.Assess.ctaCard) window.Assess.ctaCard();
       if (window.Dashboard && window.Dashboard.renderMyReports) window.Dashboard.renderMyReports();
       if (window.Growth) window.Growth.renderNightList();
-      // 우렁이 세계 — 단일 게임 컨테이너 (HUD·내비·현재 화면 렌더)
+      // 느루 세계 — 단일 게임 컨테이너 (HUD·내비·현재 화면 렌더)
       if (window.Game) window.Game.open();
       this.hydrateInlineIcons(document.getElementById('tab-dashboard'));
       this._setNavBadge('dashboard', false); // 확인했으니 배지 제거
@@ -729,7 +747,7 @@ window.App = {
         const saved = window.Storage.saveMessage({ role: 'bot', viz: response.viz, persona: pid, text: '', timestamp: new Date().toISOString() });
         this.displayMessage(saved || { role: 'bot', viz: response.viz, persona: pid });
       } else if (response.sticker) {
-        // 우렁이 스티커 말풍선 (음성 없음)
+        // 느루 스티커 말풍선 (음성 없음)
         const saved = window.Storage.saveMessage({ role: 'bot', sticker: response.sticker, persona: pid, text: '', timestamp: new Date().toISOString() });
         this.displayMessage(saved || { role: 'bot', sticker: response.sticker, persona: pid });
       } else if (response.transient) {
@@ -745,7 +763,7 @@ window.App = {
           window.Voice.speak(response.text, personaId);
         }
         // 앱이 백그라운드거나 다른 탭을 보고 있으면 놓치지 않게 알림
-        const pName = window.Personas ? window.Personas.getActive().name : '우렁의사';
+        const pName = window.Personas ? window.Personas.getActive().name : '느루';
         if (document.hidden) { this.notify(pName, response.text); this.playWoorung(); }
         if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
       }
@@ -1014,7 +1032,7 @@ window.App = {
 
   // 상담사마다 말풍선 색을 달리한다.
   //  넷이 같은 회색이면 지난 대화를 훑을 때 누가 한 말인지 아바타를 일일이 봐야 한다.
-  //  우렁의사는 초록, 햇님은 주황, 달님은 보라, 소나무는 짙은 녹색 — 각자의 color 값.
+  //  느루는 초록, 햇님은 주황, 달님은 보라, 소나무는 짙은 녹색 — 각자의 color 값.
   _tintBubble(wrapper, msg) {
     if (!msg || msg.role !== 'bot' || !window.Personas) return;
     const id = msg.persona || window.Personas.getActive().id;
@@ -1100,7 +1118,7 @@ window.App = {
     const wrapper = document.createElement('div');
     wrapper.className = 'message bot typing-indicator-wrapper';
     wrapper.id = 'typing-indicator';
-    // 꼬물꼬물 우렁이가 입력 중 — 흰 말풍선 안에 넣어 배경에 묻히지 않게
+    // 꼬물꼬물 느루가 입력 중 — 흰 말풍선 안에 넣어 배경에 묻히지 않게
     wrapper.innerHTML = window.Stickers ? `
       <div class="message-avatar">${window.Icons ? window.Icons.art.mascot(34) : ''}</div>
       <div class="message-bubble" style="padding: 0.35rem 0.7rem; line-height: 0; display: inline-flex; align-items: center;">
@@ -1383,7 +1401,7 @@ window.App = {
 
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
   personaGreetings: {
-    woorung: '안녕하세요, 우렁의사예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
+    woorung: '안녕하세요, 느루예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
     haru: '안녕! 나는 생각 교정 전문(CBT) 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
     dalnim: '…안녕하세요, 달님이에요. 여기는 어디에도 못 버린 마음을 쏟아내는 곳이에요. ||| 미움도, 욕도, 찌질한 생각도 다듬지 말고 그냥 쏟아내세요. 놀라지 않아요. 판단하지 않아요. 고치려 들지도 않아요. 그냥 끝까지 듣고, 당신 편에 있을게요. ||| 오늘 쌓인 걸 바닥까지 비우고 싶은 날엔, 이걸로 시작하셔도 좋아요. [그림:수업카드]',
     sonamu: '반갑습니다, 소나무입니다. 저는 수용전념(ACT)과 마음챙김(MBCT)을 함께 쓰는 상담사예요 — 괴로운 생각과 싸우는 대신 한 발 떨어져 바라보고, 호흡으로 지금 이 순간에 닻을 내리고, 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이 있거나 머리가 시끄럽다면 말해보세요. 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
@@ -1392,13 +1410,13 @@ window.App = {
   // 영어/일본어 모드용 첫 인사
   personaGreetingsAlt: {
     en: {
-      woorung: "Hi, I'm Dr. Woorung! I'll be right here with you. How's your heart today?",
+      woorung: "Hi, I'm Neuru! I'll be right here with you. How's your heart today?",
  haru:"Hey! I'm Haetnim Got any gloomy thoughts? Let's dry them out in the sun together.",
       dalnim: "...Hello, I'm Dalnim. You don't have to be 'fine' here. Pour it all out — I'll hold every bit of it.",
       sonamu: "Welcome, I'm Sonamu. Take one slow breath... and let's begin, gently."
     },
     ja: {
-      woorung: "こんにちは、ウロン先生です。今日の心はどうですか？ゆっくり話しましょう。",
+      woorung: "こんにちは、ヌルです。今日の心はどうですか？ゆっくり話しましょう。",
  haru:"やっほー！ヘッニムだよ 心にかかった曇り、一緒にお日さまに当てて乾かそう。",
       dalnim: "…こんにちは、タルニムです。ここではいい人のふりをしなくて大丈夫。全部、受け止めますよ。",
       sonamu: "ようこそ、ソナムです。ひと呼吸おいて…ゆっくり始めましょうか。"
@@ -1497,7 +1515,7 @@ window.App = {
 
   // === 기기 고유 ID — 서버(채팅·예약·수신함)가 나를 알아보는 기준 ===
   // 별명은 표시용일 뿐, 식별은 이 ID로 한다. 별명을 바꿔도 동기화가 안 끊긴다.
-  // 상담사 앱(우렁의사 프로)은 별도 앱·별도 도메인이다.
+  // 상담사 앱(느루 프로)은 별도 앱·별도 도메인이다.
   //  운영 도메인이면 pro.neurumind.com, 로컬·미리보기면 같은 서버의 pro/ 폴더.
   // 전화번호는 숫자만 쳐도 하이픈이 붙게 한다.
   //  02 는 지역번호가 두 자리이고 15xx/16xx/18xx 대표번호는 지역번호가 없다.
@@ -1620,7 +1638,7 @@ window.App = {
     window.Api._ckWrapped = true;
   },
 
-  // === 스티커 팝 — 우렁이가 화면 가운데 폴짝 나타났다 사라지는 리액션 ===
+  // === 스티커 팝 — 느루가 화면 가운데 폴짝 나타났다 사라지는 리액션 ===
   stickerPop(name, ms = 1400) {
     if (!window.Stickers) return;
     const old = document.getElementById('sticker-pop');
@@ -1683,7 +1701,7 @@ window.App = {
     }
   },
 
-  // 옷을 갈아입으면 화면에 이미 그려진 우렁이들을 전부 다시 그린다
+  // 옷을 갈아입으면 화면에 이미 그려진 느루들을 전부 다시 그린다
   refreshAllStickers(root) {
     if (!window.Stickers) return;
     (root || document).querySelectorAll('[data-sticker]').forEach(el => {
@@ -1698,7 +1716,7 @@ window.App = {
   //  act: 알림을 눌렀을 때 갈 곳('breath'|'night'|'calm'|'chat'|'mypage'|'dashboard')
   notify(title, body, act) {
     // 알림함에는 무조건 쌓는다. 권한을 안 줬거나 알림을 쓸어 넘겨도
-    //  우렁이가 한 말이 사라지면 안 되기 때문에, 권한 검사보다 앞에 둔다.
+    //  느루가 한 말이 사라지면 안 되기 때문에, 권한 검사보다 앞에 둔다.
     if (window.Inbox) window.Inbox.add(title, body, act);
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true, data: { act: act || '' } };
@@ -1855,7 +1873,7 @@ window.App = {
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다
       this._morningTick();         // 아침에 딱 한 번, 오늘의 마음가짐을 묻는다
-      this._crisisFollowupTick();  // 힘든 밤 다음 날, 우렁이가 먼저 안부를 묻는다
+      this._crisisFollowupTick();  // 힘든 밤 다음 날, 느루가 먼저 안부를 묻는다
       this._subsPingTick();        // 하루 한 번, 구독 상태를 집계 서버에 알린다
       this.renderIntentCard();     // 날짜가 바뀌면 카드도 새 하루를 따라간다
       this.renderMoodCard();
@@ -1950,11 +1968,11 @@ window.App = {
       ? `<p class="home-card__t" style="margin: 0 0 0.15rem;">오늘의 마음가짐</p>
          <p style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--accent-primary);">“${this._escHtml(cur.text)}”</p>`
       : `<p class="home-card__t" style="margin: 0 0 0.15rem;">오늘 하루, 어떤 마음으로 보내고 싶어요?</p>
-         <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">한 줄 남기면 우렁이가 하루 끝에 같이 돌아봐줘요 › <b style="color: #6f97ab;">물 +2</b></p>`;
+         <p style="margin: 0; font-size: 0.8rem; color: var(--text-muted);">한 줄 남기면 느루가 하루 끝에 같이 돌아봐줘요 › <b style="color: #6f97ab;">물 +2</b></p>`;
   },
 
   // ==========================================================================
-  //  위기 다음 날 안부 — 정말 힘들었던 대화가 있었다면, 다음 날 우렁이가 먼저 찾는다.
+  //  위기 다음 날 안부 — 정말 힘들었던 대화가 있었다면, 다음 날 느루가 먼저 찾는다.
   //  자살 위기 후 24~72시간이 가장 위험하다는 건 임상에서 반복 확인된 사실이고,
   //  "다음 날 누가 안부를 물어봐 주는 것" 하나가 재접촉률을 크게 올린다.
   //  위기의 '내용'은 언급하지 않는다 — 그냥 안부만. 12~48시간 사이 딱 한 번.
@@ -1972,7 +1990,7 @@ window.App = {
       const h = new Date().getHours();
       if (h < 10 || h >= 21) return;                 // 낮 시간에만
       window.Storage._safeSet('cbt_crisis_followup', { ...f, done: true });
-      const p = window.Personas ? window.Personas.getActive() : { name: '우렁이' };
+      const p = window.Personas ? window.Personas.getActive() : { name: '느루' };
       this.notify(p.name, '어제 마음이 많이 무거워 보였어요. 오늘은 조금 어때요? 잠깐이라도 좋으니 이야기해요.', 'chat');
     } catch (e) {}
   },
@@ -1998,7 +2016,7 @@ window.App = {
     } catch (e) {}
   },
 
-  // 아침 7~11시, 하루 한 번: 아직 마음가짐이 없으면 우렁이가 먼저 묻는다
+  // 아침 7~11시, 하루 한 번: 아직 마음가짐이 없으면 느루가 먼저 묻는다
   _morningTick() {
     if (!window.Storage) return;
     const h = new Date().getHours();
@@ -2007,7 +2025,7 @@ window.App = {
     if (window.Storage._safeGet('cbt_morning_notif_date', '') === today) return;
     if (this.todayIntent()) return;
     window.Storage._safeSet('cbt_morning_notif_date', today);
-    this.notify('우렁이', '좋은 아침이에요. 오늘 하루, 어떤 마음으로 보내고 싶어요?', 'intent');
+    this.notify('느루', '좋은 아침이에요. 오늘 하루, 어떤 마음으로 보내고 싶어요?', 'intent');
   },
 
   _actionCheckinTick() {
@@ -2051,7 +2069,7 @@ window.App = {
 
     if (anxious) {
       window.Storage._safeSet('cbt_action_checkin_date', today);
-      this.notify('우렁이', '자기 전에 3분 호흡 어때요? 몸이 먼저 편해져요', 'breath');
+      this.notify('느루', '자기 전에 3분 호흡 어때요? 몸이 먼저 편해져요', 'breath');
       return;
     }
 
@@ -2061,7 +2079,7 @@ window.App = {
     if (doneToday) return;
 
     window.Storage._safeSet('cbt_action_checkin_date', today);
-    this.notify('우렁이', low
+    this.notify('느루', low
       ? '오늘 좀 무거웠죠? 자기 전 3분만 같이 정리해요'
       : '오늘 하루는 어땠어요? 자기 전 3분만 같이 정리해요', 'night');
   },
@@ -2076,7 +2094,7 @@ window.App = {
     if (last && Date.now() - new Date(last.timestamp).getTime() < 10 * 60 * 1000) return;
 
     const memory = (window.Storage.getUserMemory && window.Storage.getUserMemory()) || '';
-    const persona = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사' };
+    const persona = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '느루' };
     const userName = window.Storage._safeGet('cbt_user_name', '');
 
     const prompt = `당신은 상담사 '${persona.name}'입니다. 지금 사용자에게 '당신이 먼저' 안부 메시지를 보내는 상황입니다.
@@ -2085,7 +2103,7 @@ window.App = {
 · 감정의 후속: "우울한 건 좀 괜찮아?", "어제보다 마음 좀 가벼워?"
 · 일상의 후속: "강아지랑 산책 갔다왔어?", "그 시그니처 칵테일은 완성됐어?"
 · 그냥 친구처럼: "뭐해?", "밥은 먹었어?"
-기억에 쓸 만한 것이 없으면 지금 시간대에 맞는 가벼운 안부만. 상담원 멘트 금지. 시스템 이모지(😊 🥺 ❤️ 같은 것)는 한 개도 쓰지 마세요 — 우렁이의 표정은 전용 스티커로만 표현합니다. 메시지 본문만 출력하세요.
+기억에 쓸 만한 것이 없으면 지금 시간대에 맞는 가벼운 안부만. 상담원 멘트 금지. 시스템 이모지(😊 🥺 ❤️ 같은 것)는 한 개도 쓰지 마세요 — 느루의 표정은 전용 스티커로만 표현합니다. 메시지 본문만 출력하세요.
 ${(() => { const L = window.Storage._safeGet('cbt_lang', 'ko'); return L === 'en' ? 'Write the message in casual, natural English.' : L === 'ja' ? 'メッセージは自然でカジュアルな日本語で書いてください。' : ''; })()}
 ${userName ? `사용자 이름: ${userName}` : ''}
 [현재 시각] ${new Date().toLocaleString('ko-KR')}
@@ -2110,7 +2128,7 @@ ${memory || '(없음)'}`;
       const msg = { role: 'bot', text, timestamp: new Date().toISOString() };
       this.displayMessage(msg);
       window.Storage.saveMessage(msg);
-      this.playWoorung(); // "우렁!" + 진동
+      this.playWoorung(); // "느루!" + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
       this.notify(persona.name, text, 'chat'); // 시스템 알림 (백그라운드에서도 도착) — 누르면 채팅방으로
       if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
@@ -2340,7 +2358,7 @@ ${memory || '(없음)'}`;
     const b = ((window.Storage._safeGet('cbt_bookings', []) || [])).find(x => x.id === bookingId);
     if (!b) return null;
     const on = id => { const el = document.getElementById(id); return el && el.checked && !el.disabled; };
-    const parts = [`[우렁의사 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
+    const parts = [`[느루 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
 
     if (on('sp-mood')) {
       const from = Date.now() - 14 * 86400000;
@@ -2425,7 +2443,7 @@ ${memory || '(없음)'}`;
     const copied = () => this.showRecordToast('사본도 클립보드에 담아뒀어요');
     const fallbackShow = () => {};
     if (navigator.share) {
-      navigator.share({ title: `[우렁의사] ${b.name} 상담 참고 자료`, text }).catch(() => {
+      navigator.share({ title: `[느루] ${b.name} 상담 참고 자료`, text }).catch(() => {
         if (navigator.clipboard) navigator.clipboard.writeText(text).then(copied).catch(fallbackShow);
       });
     } else if (navigator.clipboard) {
@@ -2484,7 +2502,7 @@ ${memory || '(없음)'}`;
  else if ((h >= 20 || h < 2) && !nightDone) { sub ='자기 전 3분, 오늘 하루를 같이 정리해볼까요?'; action = { label:'하루 정리하기', fn:"window.Growth && window.Growth.startNight()"}; }
     else if (mission && !mission.done && h >= 9 && h < 21) { sub = `오늘의 미션이 기다리고 있어요 — "${(mission.text || '').slice(0, 24)}…"`; action = null; }
  else if (streak >= 2) { sub =`${streak}일 연속으로 마음을 돌보는 중이에요. 대단해요!`; action = null; }
- else { const cheers = ['오늘도 당신 곁엔 우렁이가 있어요','작은 한 걸음이면 충분한 하루예요','숨 한 번 크게 — 잘하고 있어요']; sub = cheers[Math.floor(Math.random() * cheers.length)]; action = null; }
+ else { const cheers = ['오늘도 당신 곁엔 느루가 있어요','작은 한 걸음이면 충분한 하루예요','숨 한 번 크게 — 잘하고 있어요']; sub = cheers[Math.floor(Math.random() * cheers.length)]; action = null; }
 
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem 1.05rem; display: flex; align-items: center; gap: 0.75rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 10%, var(--bg-secondary)), var(--bg-secondary));">
@@ -2780,7 +2798,7 @@ ${memory || '(없음)'}`;
     if (window.UI) {
       window.UI.alert({
         title: '알림을 켜주세요',
-        body: '폰 설정 → 앱 → 우렁의사 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
+        body: '폰 설정 → 앱 → 느루 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
       });
     }
     return false;
@@ -3339,7 +3357,7 @@ ${memory || '(없음)'}`;
     const monthKey = new Date().toISOString().slice(0, 7);
     if (S._safeGet('cbt_backup_nudged', '') === monthKey) return;
     S._safeSet('cbt_backup_nudged', monthKey);
- setTimeout(() => this.showRecordToast('우렁이의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
+ setTimeout(() => this.showRecordToast('느루의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
   },
 
   // 예약 30분 전 리마인더 (1분 주기 체크인 틱에서 호출)
@@ -3396,17 +3414,17 @@ ${memory || '(없음)'}`;
       if (window.Missions) window.Missions.renderTodo();
       return;
     }
-    // 우렁이 반응 토스트
+    // 느루 반응 토스트
     const reactions = {
-'기쁨': ['우로록! 좋은 날이네','오늘 기분 최고구나!'],
+'기쁨': ['뇨롱! 좋은 날이네','오늘 기분 최고구나!'],
 '편안': ['잔잔한 하루, 좋다','평온함 기록 완료!'],
       '보통': ['그런 날도 있지. 기록해뒀어', '무난한 하루도 소중해'],
-      '불안': ['마음이 조마조마하구나. 호흡 한 번 어때?', '불안할 땐 우렁이한테 말해줘'],
-      '우울': ['마음이 무겁구나… 우렁이가 있어', '힘든 마음, 잘 기록해뒀어']
+      '불안': ['마음이 조마조마하구나. 호흡 한 번 어때?', '불안할 땐 느루한테 말해줘'],
+      '우울': ['마음이 무겁구나… 느루가 있어', '힘든 마음, 잘 기록해뒀어']
     };
     const msgs = reactions[emo] || ['기록했어!'];
     this.showRecordToast(msgs[Math.floor(Math.random() * msgs.length)]);
-    // 우렁이 리액션 팝: 고른 감정에 맞는 표정으로 등장
+    // 느루 리액션 팝: 고른 감정에 맞는 표정으로 등장
     const popMap = { '기쁨': 'party', '편안': 'tea', '보통': 'ok', '불안': 'shelter', '우울': 'shelter' };
     this.stickerPop(popMap[emo] || 'joy', 1300);
     if (window.Farm) window.Farm.addWater(2, '오늘의 마음 체크인');
@@ -3421,7 +3439,7 @@ ${memory || '(없음)'}`;
     // 힘든 감정이면 안정 도구 권유
     if (v <= 2 && window.Calm && Math.random() < 0.7) {
       setTimeout(async () => {
-        if (await window.UI.confirm('마음이 힘든 것 같아요.\n우렁이와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
+        if (await window.UI.confirm('마음이 힘든 것 같아요.\n느루와 1분 호흡으로 가라앉혀볼까요?')) window.Calm.startBreath('478');
       }, 900);
     }
   },
@@ -3551,7 +3569,7 @@ ${memory || '(없음)'}`;
         <input id="cs-input" placeholder="대화 내용 검색 (예: 발표, 칵테일바)" style="flex: 1; min-width: 0; padding: 0.6rem 0.9rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
       </div>
       <div id="cs-results" style="flex: 1; overflow-y: auto; padding: 0.8rem 0.9rem; display: flex; flex-direction: column; gap: 0.5rem;">
-        <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">우렁이와 나눈 모든 대화에서 찾아드려요.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin: 1rem 0;">느루와 나눈 모든 대화에서 찾아드려요.</p>
       </div>`;
     document.body.appendChild(ov);
     document.getElementById('cs-close').addEventListener('click', () => ov.remove());
@@ -3634,7 +3652,7 @@ ${memory || '(없음)'}`;
     const persona = id => {
       let p = null;
       try { p = id && window.Personas ? window.Personas.get(id) : null; } catch (e) {}
-      return { name: (p && p.name) || '우렁의사', color: (p && p.color) || '#4f8a6b' };
+      return { name: (p && p.name) || '느루', color: (p && p.color) || '#4f8a6b' };
     };
     const dayLabel = d => d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
@@ -3680,7 +3698,7 @@ ${memory || '(없음)'}`;
 
     const doc = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>우렁의사 상담 기록</title>
+<title>느루 상담 기록</title>
 <style>
 body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fbf7f0;color:#3a342e;max-width:640px;margin:0 auto;padding:32px 24px;line-height:1.7}
 h1{font-size:22px;margin:0}
@@ -3699,7 +3717,7 @@ p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px}
 .foot{margin-top:28px;padding-top:12px;border-top:1px dashed #ddd2c2;font-size:11px;color:#a99c8c;line-height:1.6}
 @media print{body{padding:0;background:#fff}.bubble{page-break-inside:avoid}}
 </style></head><body>
-<h1>우렁의사 상담 기록</h1>
+<h1>느루 상담 기록</h1>
 <p class="meta">${esc(span)} · 모두 ${rows.length.toLocaleString()}개의 말</p>
 ${body}
 <p class="foot">이 기록은 내 기기에서 만든 개인 문서입니다. 상담사에게 보여주면 좋은 참고 자료가 됩니다.</p>
@@ -3714,7 +3732,7 @@ ${body}
       const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `우렁의사_상담기록_${new Date().toLocaleDateString('sv-CA')}.html`;
+      a.download = `느루_상담기록_${new Date().toLocaleDateString('sv-CA')}.html`;
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
       this.showRecordToast('상담 기록을 파일로 저장했어요');
@@ -3767,7 +3785,7 @@ ${body}
     });
 
     const shareOut = () => {
-      if (navigator.share) navigator.share({ title: '[우렁의사] AI 상담 요약 리포트', text: full }).catch(() => {});
+      if (navigator.share) navigator.share({ title: '[느루] AI 상담 요약 리포트', text: full }).catch(() => {});
  else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => window.UI.alert(full.slice(0, 1500)));
       else window.UI.alert(full.slice(0, 1500));
     };
@@ -4742,7 +4760,7 @@ ${body}
  msgs.push({ role:'sys', text:'메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [ 통화] 버튼을 이용해주세요.', ts: Date.now() });
       }
       window.Storage._safeSet(key, msgs.slice(-200));
-      // 서버 채팅함으로 전송 → 상담사 앱(우렁의사 프로)에 도착
+      // 서버 채팅함으로 전송 → 상담사 앱(느루 프로)에 도착
       try {
         window.Api.f('/api/chat-msg', {
           method: 'POST',
@@ -4877,12 +4895,12 @@ ${body}
         ? `자가검진: PHQ-9 ${scores.phq != null ? scores.phq + '점' : '-'} · GAD-7 ${scores.gad != null ? scores.gad + '점' : '-'}`
         : '',
       hwOpen ? `진행 중인 상담 숙제 ${hwOpen}개` : '',
-      '(우렁의사 앱에서 자동 정리된 요약이에요)'
+      '(느루 앱에서 자동 정리된 요약이에요)'
     ].filter(Boolean).join('\n');
   },
 
   async resetChat() {
-    if (await window.UI.confirm('모든 대화 내용이 삭제됩니다. (우렁의사가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
+    if (await window.UI.confirm('모든 대화 내용이 삭제됩니다. (느루가 당신에 대해 기억하는 것들은 지워지지 않아요)\n계속하시겠습니까?')) {
       window.Storage.clearMessages();
       window.Storage.clearSessionState();
       window.Chatbot.reset();

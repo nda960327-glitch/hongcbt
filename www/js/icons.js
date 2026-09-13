@@ -14,7 +14,7 @@
 
   /* ---- 라인 아이콘 (24x24, currentColor stroke, 색 상속) ---- */
   // ==========================================================================
-  //  손그림 아이콘 (WR) — 우렁이 스티커와 같은 결로 직접 그린 세트.
+  //  손그림 아이콘 (WR) — 느루 스티커와 같은 결로 직접 그린 세트.
   //  · 외곽선은 따뜻한 갈색, 면은 파스텔. 선은 굵고 끝은 둥글다.
   //  · 완벽한 도형 대신 살짝 눌리고 기울어진 곡선을 쓴다.
   //  viewBox 24x24 고정. stroke 는 svg() 가 공통으로 입힌다.
@@ -207,10 +207,10 @@
      ============================================================ */
   const ART = {};
 
-  // 브랜드 마스코트: 우렁의사 — 청진기를 두른 다정한 달팽이
+  // 브랜드 마스코트: 느루 — 청진기를 두른 다정한 달팽이
   ART.mascot = function (s) {
     s = s || 96;
-    return '<svg viewBox="0 0 120 120" width="' + s + '" height="' + s + '" aria-label="우렁의사" role="img">' +
+    return '<svg viewBox="0 0 120 120" width="' + s + '" height="' + s + '" aria-label="느루" role="img">' +
       '<defs>' +
       '<linearGradient id="mShell" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + P.clayL + '"/><stop offset="1" stop-color="' + P.clay + '"/></linearGradient>' +
       '<linearGradient id="mBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + P.sageX + '"/><stop offset="1" stop-color="' + P.sageL + '"/></linearGradient>' +

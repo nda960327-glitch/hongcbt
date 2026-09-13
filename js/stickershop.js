@@ -1,6 +1,6 @@
 // ============================================================================
-//  이모티콘 상점 — 우렁이 스티커 팩을 캐시로 구매해 채팅에서 직접 보낸다.
-//  라포 형성(우렁이가 스티커에 반응) + 캐시 사용처(수익화)를 동시에.
+//  이모티콘 상점 — 느루 스티커 팩을 캐시로 구매해 채팅에서 직접 보낸다.
+//  라포 형성(느루가 스티커에 반응) + 캐시 사용처(수익화)를 동시에.
 // ============================================================================
 window.StickerShop = {
   PACKS: [
@@ -17,7 +17,7 @@ window.StickerShop = {
       desc: '배고픔·티타임·춤… 소소한 하루 공유용',
       stickers: ['hungry', 'run', 'cold', 'hot', 'sing', 'dance', 'tea', 'party'] },
  { id:'special', name:'스페셜 팩',  price: 2500,
-      desc: '히어로·탐정·선물… 우렁이의 특별한 모습들',
+      desc: '히어로·탐정·선물… 느루의 특별한 모습들',
       stickers: ['hero', 'detective', 'gift', 'muscle', 'write', 'aha', 'peek', 'love', 'proud', 'surprise'] },
  { id:'haru_pack', name:'햇님 팩',  price: 2000, skin:'haru',
       desc: '햇살 캐릭터 햇님의 표정 모음',
@@ -146,7 +146,7 @@ window.StickerShop = {
       </div>`;
   },
 
-  // 스티커 전송 → 우렁이가 반응 (일반 메시지와 같은 파이프라인)
+  // 스티커 전송 → 느루가 반응 (일반 메시지와 같은 파이프라인)
   send(name, skin) {
     if (window.Subscription && !window.Subscription.guardChat()) return;
     const App = window.App;
@@ -165,7 +165,7 @@ window.StickerShop = {
     }
     if (window.Sfx) window.Sfx.play('send');
     App.displayMessage({ role: 'user', sticker: name, stickerSkin: skin || '' });
-    // 히스토리에는 텍스트로 남겨 우렁이(LLM)가 알아보게 한다
+    // 히스토리에는 텍스트로 남겨 느루(LLM)가 알아보게 한다
     window.Storage.saveMessage({ role: 'user', sticker: name, stickerSkin: skin || '', text: `('${label}' 이모티콘을 보냈다)`, timestamp: new Date().toISOString() });
     if (window.Growth) window.Growth.checkAwards();
 

@@ -22,7 +22,7 @@ window.Payout = {
     counselor: 97,   // 상담을 실제로 하는 사람 — 실비(PG)를 뺀 전액
     hospital: 0,     // (배분 종료 — 기관 수수료는 상담사·기관 사이의 문제다)
     pg: 3,           // 결제대행 수수료 (실비)
-    platform: 0      // 우렁의사 — 상담료에서는 받지 않는다. 수익은 구독료.
+    platform: 0      // 느루 — 상담료에서는 받지 않는다. 수익은 구독료.
   },
 
   // 상담사 구독 — 플랫폼의 유일한 상담 관련 수익원.
@@ -36,7 +36,7 @@ window.Payout = {
     counselor: '상담사',
     hospital: '소속 기관',
     pg: '결제 수수료',
-    platform: '우렁의사'
+    platform: '느루'
   },
 
   // 정산 주기 — 상담 완료일 기준
@@ -90,7 +90,7 @@ window.Payout = {
         ${row(this.LABEL.pg, s.pg, b.pg)}
         ${s.platform > 0 ? row(this.LABEL.platform, s.platform, b.platform) : ''}
         <p style="margin: 0.55rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
-          ${s.platform > 0 ? '' : `우렁의사는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
+          ${s.platform > 0 ? '' : `느루는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
           ${this.won(b.pg)}은 카드사·PG 로 나가는 실비입니다.<br>`}
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.
         </p>

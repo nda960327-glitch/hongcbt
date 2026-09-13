@@ -1,5 +1,5 @@
 // ============================================================================
-//  우렁이 스티커 v2 — "하찮고 뚱뚱한" 치이카와st 굿즈용
+//  느루 스티커 v2 — "하찮고 뚱뚱한" 치이카와st 굿즈용
 //  앱에 내장된 SVG 이모티콘. 네트워크·AI 토큰 불필요, 전부 CSS 애니메이션.
 //  사용: window.Stickers.svg('joy', 96)
 // ============================================================================
@@ -17,7 +17,7 @@ window.Stickers = {
     watering: '물주기', shelter: '비피하기', harvesting: '수확', farming: '씨뿌리기', waiting: '기다림' },
 
   // ==========================================================================
-  //  캐릭터 스킨 — 같은 포즈를 우렁이·햇님·달님·소나무 몸으로 그린다
+  //  캐릭터 스킨 — 같은 포즈를 느루·햇님·달님·소나무 몸으로 그린다
   // ==========================================================================
   SKINS: {
     woorung: {
@@ -89,7 +89,7 @@ window.Stickers = {
   _outfit: false,
   _skin() { return this.SKINS[this._skinId] || this.SKINS.woorung; },
 
-  // 옷을 입은 우렁이 — 방 화면과 탈의실 전용
+  // 옷을 입은 느루 — 방 화면과 탈의실 전용
   svgDressed(charId, name, size = 96) {
     const prev = this._outfit;
     this._outfit = true;
@@ -108,11 +108,11 @@ window.Stickers = {
     return out;
   },
 
-  // 채팅 타이핑 인디케이터: 꼬물꼬물 미니 우렁이 + 점 세 개
+  // 채팅 타이핑 인디케이터: 꼬물꼬물 미니 느루 + 점 세 개
   typing(size = 44) {
     const p = 'wr2-typing';
     return `
-<svg width="${Math.round(size * 1.9)}" height="${size}" viewBox="0 0 130 68" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="우렁이가 입력 중">
+<svg width="${Math.round(size * 1.9)}" height="${size}" viewBox="0 0 130 68" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="느루가 입력 중">
   <style>
     .${p}-b{animation:${p}-wig 1s ease-in-out infinite;transform-origin:34px 52px}
     .${p}-d1{animation:${p}-bob 1.1s ease-in-out infinite}
@@ -139,7 +139,7 @@ window.Stickers = {
   },
 
   // 공통 몸통: 옆으로 퍼진 찹쌀떡 몸(손그림 울퉁불퉁 외곽) + 스킨별 장식
-  // (우렁이=껍질·헤드미러 / 햇님=햇살 / 달님=초승달 / 소나무=솔가지)
+  // (느루=껍질·헤드미러 / 햇님=햇살 / 달님=초승달 / 소나무=솔가지)
   _base(prefix, face = '', armRUp = false) {
     const sk = this._skin();
     const armR = armRUp
@@ -170,7 +170,7 @@ window.Stickers = {
         ${face}
         <!-- 얼굴 위에 얹히는 시그니처 (안경처럼 눈을 가리면 안 되는 것) -->
         ${sk.decoTop || ''}
-        <!-- 옷장에서 착용한 아이템 — 방 안 우렁이와 탈의실에서만 입는다.
+        <!-- 옷장에서 착용한 아이템 — 방 안 느루와 탈의실에서만 입는다.
              채팅 아바타·이모티콘까지 옷이 따라다니면 표정이 묻힌다. -->
         ${(this._outfit && window.Closet && window.Closet.layer) ? window.Closet.layer() : ''}
       </g>`;
@@ -179,7 +179,7 @@ window.Stickers = {
   svg(name, size = 96) {
     const p = 'wr2-' + this._skinId + '-' + name;
     const wrap = (style, inner) => `
-<svg width="${size}" height="${size}" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="우렁이 ${this.labels[name] || ''}">
+<svg width="${size}" height="${size}" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="느루 ${this.labels[name] || ''}">
   <style>${style}</style>
   ${inner}
 </svg>`;
@@ -587,7 +587,7 @@ window.Stickers = {
         + `<path d="M8 78 h18 M4 92 h14 M10 106 h16" stroke="#B7A38B" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
            <path d="M116 60 q3.6 5.5 0 8 q-3.6 -2.5 0 -8" fill="#A9CDEC"/>`);
 
-      // ── 숨기: 껍질 속으로 쏙 — 빼꼼 눈만 (우렁이의 정체성 포즈) ────────
+      // ── 숨기: 껍질 속으로 쏙 — 빼꼼 눈만 (느루의 정체성 포즈) ────────
       case 'hide': return wrap(`
         .${p}-sh{animation:${p}-wob 2.2s ease-in-out infinite;transform-origin:70px 100px}
         .${p}-eyes{animation:${p}-blink 3.2s ease-in-out infinite}

@@ -1,8 +1,8 @@
 // ============================================================================
-//  우렁이의 방 — 싸이월드 미니룸st 방 꾸미기
+//  느루의 방 — 싸이월드 미니룸st 방 꾸미기
 //  · 벽지 / 바닥 / 벽장식 / 왼쪽·오른쪽 가구 / 러그 슬롯을 각각 채운다
-//  · 씨앗코인(농장 수확) 또는 우렁 캐시(현질)로 구매
-//  · 방 한가운데에는 옷을 입은 우렁이가 서 있다
+//  · 씨앗코인(농장 수확) 또는 느루 캐시(현질)로 구매
+//  · 방 한가운데에는 옷을 입은 느루가 서 있다
 //
 //  씬 좌표계: viewBox 0 0 320 210   (벽 y0~140 · 바닥 y140~210)
 // ============================================================================
@@ -57,7 +57,7 @@ window.Room = {
         <path d="M237 26 V88 M196 57 H278" stroke="#8A7457" stroke-width="4"/>
         <circle cx="216" cy="44" r="7" fill="#F5EDCB"/>
       </g>` },
-    { id: 'wl_frame', slot: 'wall', name: '우렁이 액자', price: 75,
+    { id: 'wl_frame', slot: 'wall', name: '느루 액자', price: 75,
       svg: () => `<g>
         <rect x="206" y="30" width="62" height="50" rx="4" fill="#FBF6EC" stroke="#A9855C" stroke-width="4"/>
         <circle cx="237" cy="58" r="15" fill="#FFF9F0" stroke="#8A6F55" stroke-width="3"/>
@@ -206,7 +206,7 @@ window.Room = {
     }
     if (it.cash) {
       if (!window.Wallet || window.Wallet.balance() < it.cash) {
-        window.UI.alert(`우렁 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+        window.UI.alert(`느루 캐시가 부족해요. (${it.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
         return;
       }
       if (!await window.UI.confirm(`'${it.name}'을(를) ${it.cash.toLocaleString()}캐시에 살까요?`)) return;
@@ -250,11 +250,11 @@ window.Room = {
   },
 
   // --------------------------------------------------------------------------
-  //  방 안의 우렁이 — 들어갈 때마다 랜덤한 일상을 보내고 있다
+  //  방 안의 느루 — 들어갈 때마다 랜덤한 일상을 보내고 있다
   //  ("오 오늘은 얘 자고 있네?" 하는 재미. 밤에는 잘 확률이 높다)
   // --------------------------------------------------------------------------
   // active: true 면 방 안을 돌아다닌다 (정적인 포즈는 제자리)
-  // 우렁이가 방에서 하는 행동. lv 는 이 행동이 열리는 레벨.
+  // 느루가 방에서 하는 행동. lv 는 이 행동이 열리는 레벨.
   //  처음부터 전부 나오면 레벨업이 아무 의미가 없어서, 하나씩 열리게 했다.
   IDLES: [
     { s: 'blank',    cap: '대자로 뻗어 멍때리는 중', lv: 1 },
@@ -272,7 +272,7 @@ window.Room = {
     { s: 'tea',      cap: '햇님이 놀러 와서 수다 중!', skin: 'haru', lv: 12 },
     { s: 'sing',     cap: '달님이 자장가를 불러주고 있다…', skin: 'dalnim', lv: 13 },
     { s: 'think',    cap: '소나무 아저씨와 조용한 시간', skin: 'sonamu', lv: 14 },
-    // ── 후반부 (Lv.15~30) — 여기까지 오면 우렁이가 제법 다양해진다 ──
+    // ── 후반부 (Lv.15~30) — 여기까지 오면 느루가 제법 다양해진다 ──
     { s: 'stareyes', cap: '뭔가 발견하고 눈이 반짝', lv: 15 },
     { s: 'shy',      cap: '칭찬받은 게 부끄러운지 배배 꼬는 중', lv: 16 },
     { s: 'gift',     cap: '뭔가 포장하는 중… 누구 주려나', active: true, lv: 17 },
@@ -324,7 +324,7 @@ window.Room = {
   },
 
   // --------------------------------------------------------------------------
-  //  행동 도감 — 우렁이가 할 수 있는 일과 앞으로 열릴 것
+  //  행동 도감 — 느루가 할 수 있는 일과 앞으로 열릴 것
   // --------------------------------------------------------------------------
   openIdleBook() {
     const old = document.getElementById('idle-book-ov');
@@ -342,7 +342,7 @@ window.Room = {
     ov.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.15rem;">
         <span style="line-height: 0; color: var(--accent-primary);">${window.Icons ? window.Icons.svg('star', { size: 19 }) : ''}</span>
-        <strong style="font-size: 1.05rem; color: var(--text-primary);">우렁이가 할 수 있는 일</strong>
+        <strong style="font-size: 1.05rem; color: var(--text-primary);">느루가 할 수 있는 일</strong>
         <button onclick="document.getElementById('idle-book-ov').remove(); window.Sfx && window.Sfx.play('close');"
  style="all: unset; margin-left: auto; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 0.2rem 0.4rem;"></button>
       </div>
@@ -374,7 +374,7 @@ window.Room = {
   },
 
   // --------------------------------------------------------------------------
-  //  방 씬 그리기 (우렁이는 옷장 착용분이 그대로 반영된 스티커를 씀)
+  //  방 씬 그리기 (느루는 옷장 착용분이 그대로 반영된 스티커를 씀)
   // --------------------------------------------------------------------------
   scene(width = 420) {
     const p = this.placed();
@@ -382,7 +382,7 @@ window.Room = {
     const uid = 'rm' + Math.floor(Math.random() * 1e6);
     // 배회 폭·속도를 매번 다르게 (같은 움직임 반복 방지)
     const far = 42 + Math.floor(Math.random() * 46);
-    // 사용자가 우렁이를 직접 옮겨둔 자리가 있으면 배회하지 않고 그 자리에 머문다
+    // 사용자가 느루를 직접 옮겨둔 자리가 있으면 배회하지 않고 그 자리에 머문다
     const pos = this._pos();
     const hasPos = !!(pos && (Math.abs(pos.x) > 0.002 || Math.abs(pos.y) > 0.002));
     const roam = !hasPos && Math.random() < 0.5;   // 활발해도 절반은 제자리에서 논다
@@ -393,7 +393,7 @@ window.Room = {
       : '';
     return `
       <div id="wr-stage" style="position: relative; width: 100%; max-width: ${width}px; margin: 0 auto; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm);">
-        <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="우렁이의 방" style="display: block;">
+        <svg viewBox="0 0 320 210" width="100%" role="img" aria-label="느루의 방" style="display: block;">
           <defs>
             <linearGradient id="${uid}-wallsh" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stop-color="#000" stop-opacity="0.10"/>
@@ -430,7 +430,7 @@ window.Room = {
           <path d="M0 0 h46 q-30 24 -46 66z" fill="#000" opacity="0.05"/>
           <path d="M320 0 h-46 q30 24 46 66z" fill="#000" opacity="0.05"/>
         </svg>
-        <div id="wr-snail" class="wr-snail" role="button" tabindex="0" aria-label="우렁이 — 만지거나 옮겨보세요" style="position: absolute; left: 50%; bottom: 8%; width: 30%; line-height: 0;">
+        <div id="wr-snail" class="wr-snail" role="button" tabindex="0" aria-label="느루 — 만지거나 옮겨보세요" style="position: absolute; left: 50%; bottom: 8%; width: 30%; line-height: 0;">
           <div class="wr-move">
             <div class="${idle.active && roam ? 'wr-wander' : ''}" style="width: 100%; ${idle.active && roam ? ('--wr-far: ' + far + 'px; animation: wr-stroll ' + dur + 's ease-in-out infinite;') : ''}"><div class="wr-squish"><div class="wr-stand">${snail}</div></div></div>
           </div>
@@ -499,17 +499,17 @@ window.Room = {
             </div>`;
         }).join('')}
         <p style="margin: 0.8rem 0 0; font-size: 0.68rem; color: var(--text-muted); line-height: 1.5;">
-          회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 우렁이가 입은 옷도 방에 그대로 나와요.
+          회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 느루가 입은 옷도 방에 그대로 나와요.
         </p>
       </div>
       ${window.Game ? window.Game.careBar() : ''}`;
 
-    // 우렁이를 만지고 옮길 수 있게 — 방을 다시 그릴 때마다 새 캐릭터에 붙인다
+    // 느루를 만지고 옮길 수 있게 — 방을 다시 그릴 때마다 새 캐릭터에 붙인다
     this._mountSnail();
   },
 
   // ==========================================================================
-  //  우렁이 터치·롱프레스·드래그  (cbt_uroong_pos 에 위치 저장)
+  //  느루 터치·롱프레스·드래그  (cbt_uroong_pos 에 위치 저장)
   //   · 탭        → 통통 튀는 반응 + 효과음 + 가끔 말풍선
   //   · 롱프레스   → 말랑하게 찌그러짐 (누르는 동안 유지, 떼면 탱글 복원)
   //   · 드래그(8px+)→ 방 안에서 위치 이동, 놓으면 저장 (경계 clamp)
@@ -529,7 +529,7 @@ window.Room = {
     try { this._S() && this._S()._safeSet('cbt_uroong_pos', { x, y }); } catch (e) {}
   },
 
-  // 저장 좌표(무대 대비 분수) → 이동 한계. 우렁이 상자가 방 밖으로 안 나가게.
+  // 저장 좌표(무대 대비 분수) → 이동 한계. 느루 상자가 방 밖으로 안 나가게.
   _bounds(sr, nr) {
     const w = nr.width, h = nr.height;
     const halfFree = Math.max(0, sr.width / 2 - w / 2);

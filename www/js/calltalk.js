@@ -35,7 +35,7 @@ window.CallTalk = {
     if (!SR) { window.UI.alert('이 브라우저는 음성 인식을 지원하지 않아요. 크롬에서 사용해주세요.'); return; }
 
     if (window.SleepSounds) window.SleepSounds.stop(true); // 수면 사운드와 겹치지 않게
-    const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '우렁의사', tagline: '' };
+    const p = window.Personas ? window.Personas.getActive() : { id: 'woorung', name: '느루', tagline: '' };
     this._active = true;
     this._human = false;
     this._connected = false;
@@ -88,7 +88,7 @@ window.CallTalk = {
     // 무발화 자동 종료: 5분간 말이 없으면 끊는다.
     // 켜둔 채 잠들거나 자리를 비웠을 때 캐시·API 비용이 새는 것을 막는 안전장치.
     if (!this._human && this._lastTalk && Date.now() - this._lastTalk > 5 * 60000) {
-      this.end('5분 동안 대화가 없어서 우렁이가 조용히 전화를 끊었어요.\n(캐시가 새지 않도록 지켜드렸어요)');
+      this.end('5분 동안 대화가 없어서 느루가 조용히 전화를 끊었어요.\n(캐시가 새지 않도록 지켜드렸어요)');
       return;
     }
     const rate = (this._rate != null) ? this._rate : this.RATE;

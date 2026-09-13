@@ -14,7 +14,7 @@ window.Calm = {
       <div style="text-align: center; max-width: 300px;">
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('empathy', 96) : ''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem;">마음 응급처치</h2>
-        <p style="font-size: 0.85rem; opacity: 0.85; margin: 0 0 1.4rem;">지금 마음이 요동친다면,<br>우렁이랑 잠깐 가라앉혀봐요.</p>
+        <p style="font-size: 0.85rem; opacity: 0.85; margin: 0 0 1.4rem;">지금 마음이 요동친다면,<br>느루랑 잠깐 가라앉혀봐요.</p>
         <button onclick="window.Calm.startBreath('box')" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.9rem; border-radius: 14px; background: rgba(255,255,255,0.14); font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-bottom: 0.6rem;">${window.Icons ? window.Icons.svg('breath', { size: 19, line: '#fff' }) : ''} 박스 호흡 (4·4·4·4)<br><span style="font-size: 0.72rem; font-weight: 400; opacity: 0.75;">긴장·불안을 가라앉히는 기본 호흡</span></button>
         <button onclick="window.Calm.startBreath('478')" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.9rem; border-radius: 14px; background: rgba(255,255,255,0.14); font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-bottom: 0.6rem;">${window.Icons ? window.Icons.svg('moonly', { size: 19, line: '#fff' }) : ''} 4·7·8 호흡<br><span style="font-size: 0.72rem; font-weight: 400; opacity: 0.75;">잠들기 전, 격한 감정 진정에</span></button>
         <button onclick="window.Calm.startGrounding()" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.9rem; border-radius: 14px; background: rgba(255,255,255,0.14); font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-bottom: 0.6rem;">${window.Icons ? window.Icons.svg('mind', { size: 19, line: '#fff' }) : ''} 5·4·3·2·1 그라운딩<br><span style="font-size: 0.72rem; font-weight: 400; opacity: 0.75;">생각의 소용돌이에서 지금-여기로</span></button>
@@ -118,7 +118,7 @@ window.Calm = {
         <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('proud', 110) : ''}</span>
         <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.3rem;">잘 돌아왔어요</h2>
         <p style="font-size: 0.88rem; opacity: 0.85; line-height: 1.6; margin: 0 0 1.4rem;">방금 당신은 요동치는 마음을<br>스스로 가라앉혔어요. 그거, 아무나 못해요.</p>
-        <button onclick="window.Calm.close(); window.App.switchTab('chat');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; cursor: pointer; margin-bottom: 0.5rem;">우렁이한테 이야기하러 가기</button>
+        <button onclick="window.Calm.close(); window.App.switchTab('chat');" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.85rem; border-radius: 999px; background: #f2ede4; color: #2e4237; font-weight: 800; cursor: pointer; margin-bottom: 0.5rem;">느루한테 이야기하러 가기</button>
         <button onclick="window.Calm.close()" style="all: unset; box-sizing: border-box; display: block; width: 100%; text-align: center; padding: 0.7rem; font-size: 0.82rem; opacity: 0.75; cursor: pointer;">닫기</button>
       </div>`);
   },

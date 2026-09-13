@@ -193,11 +193,11 @@ window.Learn = {
           <h3 class="card-head">${window.Icons ? window.Icons.svg('quote', { size: 18 }) : ''}예를 들면</h3>
           <p class="detail-example"><i>${dist.example}</i></p>
         </div>
-        <!-- 우렁 선생님의 처방 말풍선 -->
+        <!-- 느루 선생님의 처방 말풍선 -->
         <div class="detail-woorung">
           <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('teacher', 72) : ''}</span>
           <div class="detail-woorung__bubble">
-            <strong style="color: ${dist.color};">우렁 선생님의 처방</strong>
+            <strong style="color: ${dist.color};">느루 선생님의 처방</strong>
             <p>${dist.counter}</p>
           </div>
         </div>
@@ -209,7 +209,7 @@ window.Learn = {
   },
 
   // ==========================================================================
-  //  우렁 탐정 퀴즈
+  //  느루 탐정 퀴즈
   // ==========================================================================
   QUIZ_LEN: 10,
 
@@ -220,7 +220,7 @@ window.Learn = {
     container.innerHTML = `
       <div class="quiz-intro">
  <span style="line-height: 0;">${window.Stickers ? window.Stickers.svg('detective', 110) :''}</span>
-        <h3 class="quiz-intro__title">우렁 탐정의 생각 함정 찾기</h3>
+        <h3 class="quiz-intro__title">느루 탐정의 생각 함정 찾기</h3>
         <p class="quiz-intro__desc">문장 속에 숨어있는 인지왜곡을 찾아내면<br>내 머릿속 함정도 알아챌 수 있게 돼요.</p>
  ${best ?`<p class="quiz-intro__best"> 최고 기록: ${best.score}/${best.total}</p>`:''}
  <button id="quiz-start"class="btn-primary"style="width: 100%;">수사 시작하기 </button>
@@ -336,7 +336,7 @@ window.Learn = {
     if (pct === 1) { sticker = 'joy'; title = '완벽한 명탐정!'; msg = '모든 함정을 꿰뚫어봤어요. 이제 내 생각 속 함정도 금방 알아챌 거예요.'; }
     else if (pct >= 0.7) { sticker = 'proud'; title = '베테랑 탐정'; msg = '인지왜곡을 아주 잘 이해하고 있어요. 실전에서도 이 감각을 기억해요!'; }
     else if (pct >= 0.4) { sticker = 'cheer'; title = '성장하는 수습 탐정'; msg = '좋아요! 헷갈렸던 함정은 카드를 다시 읽어보면 금방 익숙해져요.'; }
-    else { sticker = 'empathy'; title = '괜찮아요, 첫 수사잖아요'; msg = '함정은 처음엔 누구나 헷갈려요. 우렁 선생님과 카드부터 천천히 다시 볼까요?'; }
+    else { sticker = 'empathy'; title = '괜찮아요, 첫 수사잖아요'; msg = '함정은 처음엔 누구나 헷갈려요. 느루 선생님과 카드부터 천천히 다시 볼까요?'; }
 
     container.innerHTML = `
       <div class="quiz-results">

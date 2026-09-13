@@ -1,5 +1,5 @@
 // ============================================================================
-//  우렁 캐시 충전 — 토스페이먼츠 결제창
+//  느루 캐시 충전 — 토스페이먼츠 결제창
 //
 //  흐름 (돈이 걸린 부분은 전부 서버가 판정한다):
 //    ① 앱      : /api/pay/ready 로 금액을 못 박고 orderId 를 받는다
@@ -121,7 +121,7 @@ window.Pay = {
         method: 'CARD',
         amount: { currency: 'KRW', value: order.amount },
         orderId: order.orderId,
-        orderName: order.orderName || '우렁 캐시 충전',
+        orderName: order.orderName || '느루 캐시 충전',
         successUrl: back,
         failUrl: back,
         card: { useEscrow: false, flowMode: 'DEFAULT', useCardPoint: false, useAppCardOnly: false }

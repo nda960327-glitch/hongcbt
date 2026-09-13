@@ -4,7 +4,7 @@
 // ============================================================================
 window.Growth = {
   BADGES: [
- { id:'first_chat', icon:'chat', name:'첫 만남', desc:'우렁이와 첫 대화', metric:'chats', goal: 1 },
+ { id:'first_chat', icon:'chat', name:'첫 만남', desc:'느루와 첫 대화', metric:'chats', goal: 1 },
  { id:'chat50', icon:'bubble', name:'단골 손님', desc:'대화 50회', metric:'chats', goal: 50 },
  { id:'chat200', icon:'heart', name:'속마음 단짝', desc:'대화 200회', metric:'chats', goal: 200 },
  { id:'streak3', icon:'sprout', name:'사흘의 새싹', desc:'3일 연속 방문', metric:'streak', goal: 3 },
@@ -122,7 +122,7 @@ window.Growth = {
   },
 
   // ==========================================================================
-  //  우렁이 우정 레벨 — 마음을 돌본 모든 행동이 XP가 되어 우렁이가 함께 자란다
+  //  느루 우정 레벨 — 마음을 돌본 모든 행동이 XP가 되어 느루가 함께 자란다
   // ==========================================================================
   xp() {
     const s = this.stats();
@@ -134,13 +134,13 @@ window.Growth = {
   },
 
   levelInfo(lv) {
-    if (lv <= 2) return { name: '알에서 갓 깬 우렁이', sticker: 'sleepy' };
-    if (lv <= 4) return { name: '새싹 우렁이', sticker: 'joy' };
-    if (lv <= 7) return { name: '단짝 우렁이', sticker: 'cheer' };
-    if (lv <= 11) return { name: '든든 우렁이', sticker: 'proud' };
-    if (lv <= 15) return { name: '마음지기 우렁이', sticker: 'hero' };
-    if (lv <= 20) return { name: '현자 우렁이', sticker: 'teacher' };
-    return { name: '전설의 우렁이', sticker: 'party' };
+    if (lv <= 2) return { name: '알에서 갓 깬 느루', sticker: 'sleepy' };
+    if (lv <= 4) return { name: '새싹 느루', sticker: 'joy' };
+    if (lv <= 7) return { name: '단짝 느루', sticker: 'cheer' };
+    if (lv <= 11) return { name: '든든 느루', sticker: 'proud' };
+    if (lv <= 15) return { name: '마음지기 느루', sticker: 'hero' };
+    if (lv <= 20) return { name: '현자 느루', sticker: 'teacher' };
+    return { name: '전설의 느루', sticker: 'party' };
   },
 
   checkLevelUp() {
@@ -184,7 +184,7 @@ window.Growth = {
           <div style="height: 7px; border-radius: 99px; background: var(--bg-secondary); overflow: hidden; margin: 0.4rem 0 0.25rem;">
             <div style="height: 100%; width: ${pct}%; border-radius: 99px; background: var(--gradient-primary); transition: width 0.6s;"></div>
           </div>
-          <span style="font-size: 0.68rem; color: var(--text-muted);">${lv >= 30 ? '최고 레벨! 우렁이가 당신을 자랑스러워해요' : `다음 레벨까지 ${(nextAt - xp).toLocaleString()} XP — 대화·체크인·미션이 전부 경험치예요`}</span>
+          <span style="font-size: 0.68rem; color: var(--text-muted);">${lv >= 30 ? '최고 레벨! 느루가 당신을 자랑스러워해요' : `다음 레벨까지 ${(nextAt - xp).toLocaleString()} XP — 대화·체크인·미션이 전부 경험치예요`}</span>
         </div>
       </div>`;
   },
@@ -273,7 +273,7 @@ window.Growth = {
  <strong style="font-size: 0.95rem; color: var(--text-primary);"> 자유 일기</strong>
  <button onclick="document.getElementById('diary-write-overlay').remove()"style="all: unset; cursor: pointer; color: var(--text-muted); font-size: 1.05rem; padding: 0.1rem 0.4rem;"></button>
         </div>
-        <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">형식 없이, 지금 마음 가는 대로. 우렁이가 읽고 짧은 답글을 달아줘요.</p>
+        <p style="margin: 0 0 0.6rem; font-size: 0.74rem; color: var(--text-muted);">형식 없이, 지금 마음 가는 대로. 느루가 읽고 짧은 답글을 달아줘요.</p>
         <textarea id="diary-write-text" rows="7" maxlength="1200" placeholder="오늘은…"
           style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.8rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; font-family: inherit; resize: vertical; line-height: 1.7;"></textarea>
  <button class="btn-primary"style="width: 100%; margin-top: 0.7rem;"onclick="window.Growth.saveDiary()"> 일기장에 꽂기</button>
@@ -299,12 +299,12 @@ window.Growth = {
     if (window.Farm) window.Farm.addWater(3, '자유 일기 한 편');
     if (window.Storage.markDayActive) window.Storage.markDayActive();
     if (window.Sfx) window.Sfx.play('ripe');
-    if (window.App) window.App.showRecordToast('일기를 꽂았어요 — 우렁이가 읽고 있어요');
+    if (window.App) window.App.showRecordToast('일기를 꽂았어요 — 느루가 읽고 있어요');
     this.renderNightList();
     this._diaryReply(ts);
   },
 
-  // 우렁이의 한 줄 답글 (비동기 — 실패해도 일기는 무사)
+  // 느루의 한 줄 답글 (비동기 — 실패해도 일기는 무사)
   async _diaryReply(ts) {
     try {
       if (!window.LLM) return;
@@ -315,8 +315,8 @@ window.Growth = {
       if (!content) return;
       const res = await window.LLM._chatCompletion({
         model: window.LLM.MEMORY_MODEL,
-        messages: [{ role: 'user', content: `당신은 달팽이 상담사 '우렁이'. 사용자의 일기 아래에 다는 한 줄 답글을 쓰세요.
-규칙: 딱 1~2문장, 반말, 따뜻하되 상투적이지 않게. 일기의 구체적 내용을 되받을 것. 가끔 우렁이 울음(우로로록 등)이나 가벼운 위트 허용. 답글 문장만 출력.
+        messages: [{ role: 'user', content: `당신은 달팽이 상담사 '느루'. 사용자의 일기 아래에 다는 한 줄 답글을 쓰세요.
+규칙: 딱 1~2문장, 반말, 따뜻하되 상투적이지 않게. 일기의 구체적 내용을 되받을 것. 가끔 느루 울음(뇨로로롱 등)이나 가벼운 위트 허용. 답글 문장만 출력.
 [일기] 기분: ${j.mood ? j.mood.emo : '미기록'} / ${content.slice(0, 500)}` }],
         temperature: 0.8,
         max_tokens: 90
@@ -331,7 +331,7 @@ window.Growth = {
       target.reply = reply;
       window.Storage._safeSet('cbt_night_journal', jr);
       this.renderNightList();
-      if (window.App) window.App.showRecordToast('우렁이가 일기에 답글을 달았어요');
+      if (window.App) window.App.showRecordToast('느루가 일기에 답글을 달았어요');
     } catch (e) {}
   },
 
@@ -366,7 +366,7 @@ window.Growth = {
         <span class="eweather">마음 날씨 ${emoji}${j.mood && j.mood.emo ? ' ' + esc(j.mood.emo) : ''}</span></div>
         ${j.moment ? `<p class="emoment">${esc(j.moment)}</p>` : ''}
  ${j.note ?`<p class="enote"> 나에게: ${esc(j.note)}</p>`:''}
- ${j.reply ?`<p class="ereply"> 우렁이: ${esc(j.reply)}</p>`:''}
+ ${j.reply ?`<p class="ereply"> 느루: ${esc(j.reply)}</p>`:''}
       </div>`;
     }).join('');
     const coverMeta = `${first.getFullYear()}.${first.getMonth() + 1}.${first.getDate()} ~ ${lastD.getFullYear()}.${lastD.getMonth() + 1}.${lastD.getDate()}`;
@@ -385,7 +385,7 @@ h2.mhead{font-size:15px;color:#4f8a6b;margin:26px 0 2px;border-bottom:2px solid 
 @media print{body{padding:0}}
 </style></head><body>
 <h1>${esc(name) ||'나'}의 마음 일기장</h1>
-<p class="meta">${coverMeta} · 모두 ${journal.length}편 · 우렁이와 함께 쓴 기록</p>
+<p class="meta">${coverMeta} · 모두 ${journal.length}편 · 느루와 함께 쓴 기록</p>
 ${entries}
 <p style="font-size:11px;color:#a99c8c;margin-top:24px">— 느리지만 계속 가고 있는 기록. </p>
 </body></html>`;
@@ -426,7 +426,7 @@ ${entries}
       </div>
       <p style="margin: 0 0 0.85rem; font-size: 0.76rem; color: var(--text-muted);">지금까지 ${total}편을 남겼어요</p>
 
-      <input id="diary-full-search" type="search" placeholder="내용이나 우렁이 답글로 검색"
+      <input id="diary-full-search" type="search" placeholder="내용이나 느루 답글로 검색"
         oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
         style="width: 100%; box-sizing: border-box; margin-bottom: 0.45rem; padding: 0.6rem 0.85rem; border-radius: 11px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.85rem;">
       <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.9rem;">
@@ -482,7 +482,7 @@ ${entries}
     const emptyNote = document.getElementById('diary-empty-note');
     if (emptyNote) emptyNote.style.display = journal.length ? 'none' : '';
     if (journal.length === 0) return;
-    // 키워드 검색 (내용·나에게 한마디·우렁이 답글)
+    // 키워드 검색 (내용·나에게 한마디·느루 답글)
     const q = (this._diaryQuery || '').toLowerCase();
     const dq = this._diaryDate || '';
     let items = q
@@ -581,7 +581,7 @@ ${entries}
       wrap(`
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('sleepy', 110) :''}</span>
         <h2 style="margin: 0.7rem 0 0.3rem; font-size: 1.3rem; color: #ffffff;">오늘 하루도 살아냈네요</h2>
-        <p style="font-size: 0.92rem; color: #e9e2d2; line-height: 1.65;">자기 전에 딱 3분,<br>우렁이랑 오늘을 같이 정리하고 자요.</p>
+        <p style="font-size: 0.92rem; color: #e9e2d2; line-height: 1.65;">자기 전에 딱 3분,<br>느루랑 오늘을 같이 정리하고 자요.</p>
         ${intentHtml}
         ${nextBtn('좋아, 시작할게')}`);
       document.getElementById('ng-next').addEventListener('click', () => this._nightStep(2));
@@ -641,7 +641,7 @@ ${entries}
     if (window.Storage.markDayActive) window.Storage.markDayActive();
     this.renderNightList();
 
-    // 챗봇 우렁이의 장기기억에도 남긴다 — 다음 대화에서 "어제 산책 좋았다며?"가 가능하도록.
+    // 챗봇 느루의 장기기억에도 남긴다 — 다음 대화에서 "어제 산책 좋았다며?"가 가능하도록.
     // (다음 대화의 기억 정리 AI가 이 줄을 자연스럽게 사례 기록에 녹여넣는다)
     try {
       const m = this._night;
@@ -657,14 +657,14 @@ ${entries}
       window.Storage.setUserMemory(prev + line);
     } catch (e) {}
 
-    // 우렁이의 굿나잇 한마디 (AI, 실패 시 기본 문구)
-    let goodnight = '오늘의 이야기, 우렁이가 잘 안아 두었어요.\n내일의 당신은 조금 더 가벼울 거예요. 잘 자요.';
+    // 느루의 굿나잇 한마디 (AI, 실패 시 기본 문구)
+    let goodnight = '오늘의 이야기, 느루가 잘 안아 두었어요.\n내일의 당신은 조금 더 가벼울 거예요. 잘 자요.';
     try {
       if (window.LLM) {
         const m = this._night;
         const res = await window.LLM._chatCompletion({
           model: window.LLM.MODEL_LIGHT || window.LLM.MODEL,
-          messages: [{ role: 'user', content: `당신은 다정한 상담사 '우렁이'입니다. 사용자가 자기 전 하루 정리를 마쳤습니다.\n오늘 기분: ${m.mood ? m.mood.emo : '미기록'}\n마음에 남은 순간: ${m.moment || '(없음)'}\n스스로에게 한마디: ${m.note || '(없음)'}\n[장기기억]\n${window.Storage.getUserMemory() || '(없음)'}\n\n이 사람에게 보내는 굿나잇 메시지를 2문장 이내로, 따뜻하고 구체적으로(오늘 내용을 반영해서) 써주세요. 메시지만 출력.` }],
+          messages: [{ role: 'user', content: `당신은 다정한 상담사 '느루'입니다. 사용자가 자기 전 하루 정리를 마쳤습니다.\n오늘 기분: ${m.mood ? m.mood.emo : '미기록'}\n마음에 남은 순간: ${m.moment || '(없음)'}\n스스로에게 한마디: ${m.note || '(없음)'}\n[장기기억]\n${window.Storage.getUserMemory() || '(없음)'}\n\n이 사람에게 보내는 굿나잇 메시지를 2문장 이내로, 따뜻하고 구체적으로(오늘 내용을 반영해서) 써주세요. 메시지만 출력.` }],
           temperature: 0.8,
           max_tokens: 120
         });

@@ -315,7 +315,7 @@ window.SafetyPlan = {
       </div>
 
       <button class="btn-secondary" style="width: 100%; margin-top: 0.9rem; padding: 0.7rem; font-size: 0.86rem;"
-        onclick="document.getElementById('safety-now-ov').remove(); window.Calm && window.Calm.openMenu();">우렁이랑 호흡 먼저 할래요</button>
+        onclick="document.getElementById('safety-now-ov').remove(); window.Calm && window.Calm.openMenu();">느루랑 호흡 먼저 할래요</button>
       <button class="btn-secondary" style="width: 100%; margin-top: 0.4rem; padding: 0.65rem; font-size: 0.82rem;"
         onclick="document.getElementById('safety-now-ov').remove();">닫기</button>`;
 

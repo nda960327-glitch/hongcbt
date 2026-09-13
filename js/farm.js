@@ -1,9 +1,9 @@
 // ============================================================================
-//  우렁이 농장 — 마음을 돌본 만큼 밭이 자란다
+//  느루 농장 — 마음을 돌본 만큼 밭이 자란다
 //
-//  세계관: 우렁이는 마음밭을 가꾼다. 사용자가 자기를 돌볼 때마다(체크인·미션·
+//  세계관: 느루는 마음밭을 가꾼다. 사용자가 자기를 돌볼 때마다(체크인·미션·
 //  하루정리·사고기록·호흡) 물이 고이고, 그 물로 작물을 키운다. 다 자란 작물을
-//  거두면 씨앗코인이 생기고, 그 코인으로 우렁이 옷을 사 입힌다.
+//  거두면 씨앗코인이 생기고, 그 코인으로 느루 옷을 사 입힌다.
 //
 //  ※ 시간이 지나서 자라는 게 아니라 '돌봄 행동'으로만 자란다. 방치해도 시들지
 //     않는다 — 죄책감을 주는 게임이 되면 안 되기 때문.
@@ -111,7 +111,7 @@ window.Farm = {
     this.render();
   },
 
-  // 우렁 캐시로 물 사기 (급할 때만 — 기본은 돌봄 행동으로 모으는 것)
+  // 느루 캐시로 물 사기 (급할 때만 — 기본은 돌봄 행동으로 모으는 것)
   WATER_PACKS: [
     { water: 10, cash: 300 },
     { water: 30, cash: 800 },
@@ -122,7 +122,7 @@ window.Farm = {
     const pack = this.WATER_PACKS[idx];
     if (!pack || !window.Wallet) return;
     if (window.Wallet.balance() < pack.cash) {
-      window.UI.alert(`우렁 캐시가 부족해요. (${pack.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
+      window.UI.alert(`느루 캐시가 부족해요. (${pack.cash.toLocaleString()}캐시 필요)\n마이페이지에서 충전할 수 있어요.`);
       return;
     }
     if (!await window.UI.confirm(`물 ${pack.water}개를 ${pack.cash.toLocaleString()}캐시에 살까요?`)) return;
@@ -243,7 +243,7 @@ window.Farm = {
         window.App.stickerPop('stareyes', 1600);
       }
       if (window.App && window.App.notify) {
-        window.App.notify('우렁이 농장', `${c.name}이(가) 다 자랐어요! 수확하러 오세요`);
+        window.App.notify('느루 농장', `${c.name}이(가) 다 자랐어요! 수확하러 오세요`);
       }
     }
   },
@@ -295,7 +295,7 @@ window.Farm = {
   _checkQuests(st, c) {
     if (!window.Closet) return;
     if (st.harvested >= 1) window.Closet.grant('sprout', '첫 수확 기념!');
-    if (st.harvested >= 3) window.Closet.grant('can', '농부 우렁이 인정!');
+    if (st.harvested >= 3) window.Closet.grant('can', '농부 느루 인정!');
     if (c.id === 'carrot') window.Closet.grant('carrot', '당근 수확 기념!');
   },
 
@@ -334,7 +334,7 @@ window.Farm = {
       sunny: '오늘 마음 날씨: 맑음 — 밭일하기 딱 좋은 날!',
       mild:  '아직 체크인 전 — 오늘 마음 날씨는 어떨까요?',
       cloudy: '오늘 마음 날씨: 흐림 — 그래도 씨앗은 자라요',
-      rain:  '오늘 마음 날씨: 비 — 우렁이가 잎사귀 우산을 폈어요'
+      rain:  '오늘 마음 날씨: 비 — 느루가 잎사귀 우산을 폈어요'
     }[w];
 
     // 하늘 소품
@@ -360,14 +360,14 @@ window.Farm = {
       return art;
     }).join('');
 
-    // 우렁이: 비는 비피하기, 익은 작물 있으면 수확 포즈, 물주는 중이면 물주기, 평소엔 기쁨
+    // 느루: 비는 비피하기, 익은 작물 있으면 수확 포즈, 물주는 중이면 물주기, 평소엔 기쁨
     const anyRipe = p.some(s => s && this.crop(s.crop) && s.water >= this.crop(s.crop).need);
     const anyGrowing = p.some(s => s && this.crop(s.crop) && s.water < this.crop(s.crop).need);
     const pose = w === 'rain' ? 'shelter' : anyRipe ? 'harvesting' : anyGrowing ? 'watering' : 'joy';
     const snail = window.Stickers ? window.Stickers.svgDressed(null, pose, 104) : '';
 
     return '<div style="position: relative; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--glass-border); box-shadow: var(--shadow-sm); margin-bottom: 0.8rem;">'
-      + '<svg viewBox="0 0 320 210" width="100%" style="display: block;" role="img" aria-label="우렁이 농장">'
+      + '<svg viewBox="0 0 320 210" width="100%" style="display: block;" role="img" aria-label="느루 농장">'
       + '<style>.' + uid + '-r1{animation:' + uid + 'rain 0.9s linear infinite}.' + uid + '-r2{animation:' + uid + 'rain 0.9s linear 0.45s infinite}@keyframes ' + uid + 'rain{0%{transform:translateY(-8px);opacity:0}30%{opacity:1}100%{transform:translateY(20px);opacity:0}}.' + uid + '-bounce{animation:' + uid + 'bnc 0.9s ease-in-out infinite}@keyframes ' + uid + 'bnc{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}</style>'
       + '<defs><linearGradient id="' + uid + '-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + SKY[0] + '"/><stop offset="1" stop-color="' + SKY[1] + '"/></linearGradient></defs>'
       + '<rect width="320" height="132" fill="url(#' + uid + '-sky)"/>'

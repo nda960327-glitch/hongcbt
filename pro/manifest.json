@@ -1,6 +1,6 @@
 {
-  "name": "우렁의사 프로 — 상담사용",
-  "short_name": "우렁의사 프로",
+  "name": "느루 프로 — 상담사용",
+  "short_name": "느루 프로",
   "description": "상담사 전용 앱. 예약·채팅·통화·숙제·정산을 한 곳에서 관리합니다.",
   "id": "/pro/",
   "start_url": "./index.html",

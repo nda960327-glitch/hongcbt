@@ -1,4 +1,4 @@
--- 우렁의사 상담사 마켓 — Cloudflare D1 스키마
+-- 느루 상담사 마켓 — Cloudflare D1 스키마
 --
 --  적용:
 --    wrangler d1 create hongcbt
