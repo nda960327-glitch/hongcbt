@@ -33,14 +33,16 @@ function dist(lat1, lng1, lat2, lng2) {
 
 // 네이버 지역 검색. 키가 없으면 null — 그러면 D1 만으로 답한다.
 async function naver(env, query, opts) {
-  if (!env.NAVER_CLIENT_ID || !env.NAVER_CLIENT_SECRET) return null;
+  // 검색 전용 앱을 따로 만들었으면 그 키가 우선 (로그인 앱에 '검색' API 를 못 붙이는 경우가 있다)
+  const id = env.NAVER_SEARCH_ID || env.NAVER_CLIENT_ID, secret = env.NAVER_SEARCH_SECRET || env.NAVER_CLIENT_SECRET;
+  if (!id || !secret) return null;
   const u = new URL(NAVER);
   u.searchParams.set('query', query);
   u.searchParams.set('display', String((opts && opts.display) || 5));
   u.searchParams.set('start', '1');
   u.searchParams.set('sort', (opts && opts.sort) || 'random');
   try {
-    const r = await fetch(u.toString(), { headers: { 'X-Naver-Client-Id': env.NAVER_CLIENT_ID, 'X-Naver-Client-Secret': env.NAVER_CLIENT_SECRET } });
+    const r = await fetch(u.toString(), { headers: { 'X-Naver-Client-Id': id, 'X-Naver-Client-Secret': secret } });
     if (!r.ok) {
       let detail = '';
       try { detail = (await r.text()).slice(0, 200); } catch (e) {}
@@ -148,7 +150,7 @@ export async function handleClinics(request, env, cors, path, ctx) {
   let body = {};
   if (method === 'POST') { try { body = await request.json(); } catch (e) { body = {}; } }
   const later = p => { if (ctx && ctx.waitUntil) ctx.waitUntil(p.catch(() => {})); else p.catch(() => {}); };
-  const hasKey = !!(env.NAVER_CLIENT_ID && env.NAVER_CLIENT_SECRET);
+  const hasKey = !!((env.NAVER_SEARCH_ID || env.NAVER_CLIENT_ID) && (env.NAVER_SEARCH_SECRET || env.NAVER_CLIENT_SECRET));
 
   // ══════════════ 앱: 내 주변 ══════════════
   if (path === '/clinics/near' && method === 'GET') {
