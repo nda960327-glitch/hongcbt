@@ -31,6 +31,14 @@ VAPID_SUBJECT = "mailto:help@neurumind.com"
 #  Pages 프로젝트는 neurumind-pro, 커스텀 도메인은 pro.neurumind.com.
 PRO_URL = "https://pro.neurumind.com"
 
+# 의사(담당의) 앱 주소. 매직링크 메일과 긴급 알림 메일의 버튼이 여기로 간다.
+#  Pages 프로젝트는 neurumind-doc, 커스텀 도메인은 doc.neurumind.com.
+DOC_URL = "https://doc.neurumind.com"
+
+# 소개 페이지(neurumind.com/intro/)에서 팀원이 테스트 코드를 열어보는 비밀번호.
+#  진짜 비밀이 아니라 '팀원끼리 아는 번호' 수준이다. 운영자 코드가 같이 열리니 새면 ADMIN_CODE 를 돌려라.
+INTRO_PW = "1234"
+
 # 상담사 마켓 저장소. 먼저 만들고 아래 database_id 를 채우세요:
 #   wrangler d1 create hongcbt
 #   wrangler d1 execute hongcbt --remote --file=./schema.sql

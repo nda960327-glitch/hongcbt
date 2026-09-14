@@ -316,6 +316,7 @@ async function loadAll() {
   D.apps = apps ? (apps.items || []) : null;
   D.cs = cs ? (cs.items || []) : null;
   D.settle = settle ? (settle.items || []) : null;
+  D.settleBlocked = settle ? (settle.blocked || []) : [];
   D.bookings = bookings ? (bookings.items || []) : null;
   render();
   // 추이 차트는 대시보드의 일부다. 첫 화면이 뜬 뒤에 이어서 받는다 —
@@ -335,6 +336,7 @@ async function loadCounselors() {
 async function loadSettle() {
   const [settle, bookings] = await Promise.all([adminGet('/api/settle'), adminGet('/api/bookings')]);
   D.settle = settle ? (settle.items || []) : null;
+  D.settleBlocked = settle ? (settle.blocked || []) : [];
   D.bookings = bookings ? (bookings.items || []) : null;
   render();
 }
@@ -504,6 +506,8 @@ function viewHospitals() {
         <label class="muted" style="flex: 1 1 160px;">진료과 <input id="hp-dept" type="text" maxlength="40" value="${esc(h ? h.dept : '')}" placeholder="정신건강의학과"></label>
         <label class="muted" style="flex: 1 1 160px;">담당의 <input id="hp-doctor" type="text" maxlength="40" value="${esc(h ? h.doctor : '')}" placeholder="김OO"></label>
       </div>
+      <label class="muted">담당의 이메일 <input id="hp-email" type="email" maxlength="160" value="${esc(h ? h.email : '')}" placeholder="doctor@hospital.kr" autocomplete="off"></label>
+      <p class="muted" style="margin: 0.2rem 0 0;">이 주소로 <b>의사 앱 로그인 링크</b>가 가고, 상담사가 '긴급'을 표시하면 <b>즉시 알림 메일</b>이 갑니다. 비워 두면 코드 로그인만 되고 긴급 알림은 가지 않아요.</p>
       <div class="row" style="margin-top: 0.5rem;"><span class="grow"></span>
         <button class="btn" data-act="hosp-save" data-id="${esc(h ? h.id : '')}">${h ? '저장' : '등록하고 코드 받기'}</button></div>
     </div>`;
@@ -513,6 +517,7 @@ function viewHospitals() {
         <div class="grow" style="min-width: 0;">
           <b style="font-size: 0.92rem;">${esc(h.name)}</b>${h.active ? '' : ' <span class="chip">정지</span>'}
           <div class="muted">${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '진료과·담당의 미입력')} · ${fmtDate(h.created)} 등록</div>
+          <div class="muted">${h.email ? esc(h.email) + (h.lastSeen ? ' · 마지막 접속 ' + fmtDate(h.lastSeen) : ' · 아직 접속 안 함') : '<span style="color: var(--danger);">이메일 없음 — 긴급 알림이 가지 않아요</span>'}</div>
           <div style="margin-top: 0.3rem; font-size: 0.86rem;">연결 환자 <b>${h.patients}</b>명 · 보낸 피드백 <b>${h.feedbacks}</b>건</div>
           <div style="margin-top: 0.3rem; font-family: ui-monospace, monospace; font-size: 0.9rem; letter-spacing: 0.06em;">
             ${SHOWCODE[h.id] ? esc(h.code) : '••••-••••-••••'}
@@ -532,7 +537,7 @@ function viewHospitals() {
     <div class="sec-title">담당 병원
       <span class="right"><button class="btn sm" data-act="hosp-new">＋ 병원 등록</button></span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      등록하면 <b>H-XXXX-XXXX</b> 병원 코드가 나옵니다. 의사는 이 코드로 프로 앱에 들어와 연결된 환자의 상담 기록을 보고 피드백을 남깁니다.
+      등록하면 <b>H-XXXX-XXXX</b> 병원 코드가 나옵니다. 의사는 <b>의사 앱(doc.neurumind.com)</b>에 이메일 로그인 링크(또는 이 코드)로 들어와 연결된 환자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
       환자는 앱 → 마이 → 담당 병원 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
     ${(HOSP_FORM || editing) ? form(editing) : ''}
     ${D.hospitals.length ? D.hospitals.map(card).join('')
@@ -545,12 +550,12 @@ async function hospSave(id, btn) {
   if (!name) { alertBox('이름이 필요해요', '병원 이름을 적어주세요.'); return; }
   if (btn) btn.disabled = true;
   const res = id
-    ? await adminPost('/api/admin/hospitals/update', { id, name, dept: v('hp-dept'), doctor: v('hp-doctor') })
-    : await adminPost('/api/admin/hospitals', { name, dept: v('hp-dept'), doctor: v('hp-doctor') });
+    ? await adminPost('/api/admin/hospitals/update', { id, name, dept: v('hp-dept'), doctor: v('hp-doctor'), email: v('hp-email') })
+    : await adminPost('/api/admin/hospitals', { name, dept: v('hp-dept'), doctor: v('hp-doctor'), email: v('hp-email') });
   if (btn) btn.disabled = false;
   if (!res || !res.ok) { alertBox('저장하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   HOSP_FORM = false; HOSP_EDIT = null;
-  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('병원을 등록했어요', `병원 코드: ${res.code}\n\n이 코드를 병원에 전달하세요. 의사 로그인과 환자 연결 둘 다 이 코드를 씁니다.`); }
+  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('병원을 등록했어요', `병원 코드: ${res.code}\n\n이 코드를 병원에 전달하세요. 환자는 앱에서 이 코드로 연결하고, 의사는 doc.neurumind.com 에서 이메일 링크(또는 이 코드)로 들어옵니다.`); }
   else toast('저장했어요');
   loadHospitals();
 }
@@ -1153,6 +1158,29 @@ function viewCounselors() {
     </div>`;
 }
 
+// 회기 기록이 없어 정산이 막힌 건 — 사장님 지시로 기록을 정산 조건으로 걸었다.
+//  운영자는 여기서 '누가 기록을 안 남겼는지'를 보고 상담사에게 재촉한다. 지급 버튼은 없다.
+function blockedHtml() {
+  const rows = D.settleBlocked || [];
+  if (!rows.length) return '';
+  const sum = rows.reduce((a, x) => a + ((x.payout && x.payout.counselor) || 0), 0);
+  const by = {};
+  rows.forEach(x => { (by[x.counselor || x.counselorId] = by[x.counselor || x.counselorId] || []).push(x); });
+  return `
+    <div class="sec-title" style="margin-top: 1.2rem;">정산 보류 — 회기 기록 없음
+      <span class="right muted">${rows.length}건 · 상담사 몫 ${won(sum)}캐시</span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      상담은 끝났지만 상담사가 <b>회기 기록(요약·계획·위험도)</b>을 남기지 않은 건입니다.
+      기록을 남기는 순간 위의 지급 대기로 올라옵니다. 상담사 앱 홈의 '회기 기록' 칸에 같은 목록이 보입니다.</p>
+    ${Object.entries(by).map(([name, list]) => `
+    <div class="card" style="border-color: var(--gold, #c98a3f);">
+      <div class="row wrap"><div class="pav ${avaColor(name)}">${initial(name)}</div>
+        <div class="grow"><b style="font-size: 0.95rem;">${esc(name)}</b><div class="muted">기록 안 남긴 상담 ${list.length}건</div></div>
+        <b style="color: var(--muted);">${won(list.reduce((a, x) => a + ((x.payout && x.payout.counselor) || 0), 0))}캐시 보류</b></div>
+      ${list.map(x => `<div class="payrow"><span class="grow muted" style="color: var(--text);">${esc(x.clientName || '내담자')} · ${esc(x.time || '')}${x.kind === 'call' ? ' <span class="chip off">통화</span>' : ''}</span><span class="muted">${fmtDT(x.doneAt)} 완료</span></div>`).join('')}
+    </div>`).join('')}`;
+}
+
 // ── ④ 정산 ───────────────────────────────────────────────────────────
 function viewSettle() {
   if (D.settle === undefined) return loading;
@@ -1206,9 +1234,10 @@ function viewSettle() {
     <div class="sec-title">지급 대기
       <span class="right muted">${D.settle.length}건 · 상담사 몫 합계 ${won(total)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담만 올라옵니다.</p>
+      상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담 중 <b>회기 기록을 남긴 건</b>만 올라옵니다.</p>
     ${D.settle.length ? Object.entries(by).map(group).join('')
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
+    ${blockedHtml()}
 
     ${D.settle.length ? `
     <div class="paybar">
@@ -2069,7 +2098,8 @@ async function paySelected(btn) {
   const r = await busy(btn, '처리 중…', () => adminPost('/api/settle/pay', { ids }));
   if (!r || !r.ok) { alertBox('처리하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   Object.keys(PICK).forEach(k => delete PICK[k]);
-  toast(`${ids.length}건 지급 처리했어요`);
+  if (r.skipped) alertBox(`${r.n}건 지급 처리, ${r.skipped}건은 건너뛰었어요`, '건너뛴 건은 그 사이 회기 기록이 사라졌거나 이미 처리된 건입니다. 목록을 새로고침해 확인하세요.');
+  else toast(`${ids.length}건 지급 처리했어요`);
   loadSettle();
 }
 

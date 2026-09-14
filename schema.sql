@@ -110,11 +110,23 @@ CREATE TABLE IF NOT EXISTS feed_votes (
 );
 
 -- 병원(담당의) 연동 — hospital.js. 환자 연결·회기 기록·의사 피드백
-CREATE TABLE IF NOT EXISTS hospitals (id TEXT PRIMARY KEY, name TEXT NOT NULL, dept TEXT, doctor TEXT, code TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS patient_links (client_id TEXT NOT NULL, hospital_id TEXT NOT NULL, name TEXT, birth TEXT, linked_at INTEGER NOT NULL, unlinked_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (client_id, hospital_id));
+CREATE TABLE IF NOT EXISTS hospitals (id TEXT PRIMARY KEY, name TEXT NOT NULL, dept TEXT, doctor TEXT, email TEXT, code TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS patient_links (client_id TEXT NOT NULL, hospital_id TEXT NOT NULL, name TEXT, birth TEXT, linked_at INTEGER NOT NULL, unlinked_at INTEGER NOT NULL DEFAULT 0, share_weekly INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (client_id, hospital_id));
 CREATE INDEX IF NOT EXISTS idx_pl_hospital ON patient_links(hospital_id, unlinked_at);
-CREATE TABLE IF NOT EXISTS session_notes (id TEXT PRIMARY KEY, counselor_id TEXT NOT NULL, counselor_name TEXT, client_id TEXT NOT NULL, client_name TEXT, booking_id TEXT, call_id TEXT, kind TEXT NOT NULL DEFAULT 'chat', ts INTEGER NOT NULL, summary TEXT NOT NULL, plan TEXT, risk TEXT NOT NULL DEFAULT 'none', homework TEXT, shared INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS session_notes (id TEXT PRIMARY KEY, counselor_id TEXT NOT NULL, counselor_name TEXT, client_id TEXT NOT NULL, client_name TEXT, booking_id TEXT, call_id TEXT, kind TEXT NOT NULL DEFAULT 'chat', ts INTEGER NOT NULL, summary TEXT NOT NULL, plan TEXT, risk TEXT NOT NULL DEFAULT 'none', homework TEXT, shared INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL, alerted_at INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_sn_client ON session_notes(client_id, ts);
 CREATE INDEX IF NOT EXISTS idx_sn_counselor ON session_notes(counselor_id, ts);
 CREATE TABLE IF NOT EXISTS doctor_feedback (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, hospital_name TEXT, doctor TEXT, client_id TEXT NOT NULL, note_id TEXT, to_who TEXT NOT NULL DEFAULT 'both', text TEXT NOT NULL, ts INTEGER NOT NULL, read_c INTEGER NOT NULL DEFAULT 0, read_p INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_df_client ON doctor_feedback(client_id, ts);
+-- 의사 앱(doc.neurumind.com) · 주간 상태 요약 · 긴급 알림 (2026-09)
+--  hospitals.email        담당의 메일 — 매직링크 로그인과 긴급 알림이 여기로 간다
+--  patient_links.share_weekly  환자가 '주간 상태 요약 공유'에 동의했는지 (1 = 동의)
+--  session_notes.alerted_at    긴급 메일을 보낸 시각 (한 기록당 한 번)
+--  (기존 DB 에는 ALTER TABLE 로 추가: hospitals.email, patient_links.share_weekly, session_notes.alerted_at)
+CREATE TABLE IF NOT EXISTS hospital_tokens (token TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, expires INTEGER NOT NULL, used_at INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hospital_sessions (token TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, expires INTEGER NOT NULL, created INTEGER NOT NULL, last_seen INTEGER NOT NULL, agent TEXT);
+CREATE INDEX IF NOT EXISTS idx_hs_hospital ON hospital_sessions(hospital_id);
+CREATE TABLE IF NOT EXISTS patient_weekly (client_id TEXT NOT NULL, week_key TEXT NOT NULL, mood_avg REAL, checkins INTEGER NOT NULL DEFAULT 0, missions INTEGER NOT NULL DEFAULT 0, nights INTEGER NOT NULL DEFAULT 0, records INTEGER NOT NULL DEFAULT 0, streak INTEGER NOT NULL DEFAULT 0, headline TEXT, ts INTEGER NOT NULL, PRIMARY KEY (client_id, week_key));
+-- 소개 페이지 테스트 코드 열람 등 가벼운 요청 제한용
+CREATE TABLE IF NOT EXISTS rate_hits (key TEXT NOT NULL, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_rate_key ON rate_hits(key, ts);

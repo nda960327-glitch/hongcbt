@@ -869,6 +869,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
          FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
         WHERE b.status = 'done' AND b.settled_at = 0
+          AND EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)
         ORDER BY b.done_at ASC LIMIT 300`
     ).all();
     const items = (r.results || []).map(x => {
@@ -889,6 +890,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
               k.name cname, k.bank, k.bank_no, k.bank_holder
          FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
         WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
+          AND EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))
         ORDER BY c.end_at ASC LIMIT 300`
     ).all();
     const callItems = (rc.results || []).map(x => {
@@ -905,7 +907,31 @@ export async function handleMarket(request, env, cors, path, ctx) {
     });
     const all = items.map(x => ({ ...x, kind: 'booking' })).concat(callItems);
     const sum = all.reduce((a, x) => a + x.payout.counselor, 0);
-    return json({ items: all, counselorTotal: sum }, 200, cors);
+    // 회기 기록이 없는 상담은 정산 보류다 — 사장님 지시: 기록을 정산 조건으로 건다.
+    //  운영자가 '왜 안 올라오지?' 하지 않도록 보류 목록을 따로 준다. 지급은 막힌다(/settle/pay).
+    const blocked = [];
+    const rb = await db.prepare(
+      `SELECT b.id, b.counselor_id, b.client_name, b.time_label, b.price, b.done_at, c.name cname
+         FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
+        WHERE b.status = 'done' AND b.settled_at = 0
+          AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)
+        ORDER BY b.done_at ASC LIMIT 300`).all();
+    (rb.results || []).forEach(x => blocked.push({ id: x.id, kind: 'booking', counselorId: x.counselor_id, counselor: x.cname || '상담사',
+      clientName: x.client_name, time: x.time_label, price: x.price, doneAt: x.done_at, payout: payoutOf(x.price || 0), reason: 'no-note' }));
+    try {
+      const rbc = await db.prepare(
+        `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, k.name cname
+           FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+          WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
+            AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))
+          ORDER BY c.end_at ASC LIMIT 300`).all();
+      (rbc.results || []).forEach(x => {
+        const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
+        blocked.push({ id: x.id, kind: 'call', counselorId: x.counselor_id, counselor: x.cname || '상담사', clientName: String(x.client_id || '').slice(0, 8),
+          time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초', price: x.billed, doneAt: x.end_at, payout: payoutOf(x.billed || 0), reason: 'no-note' });
+      });
+    } catch (e) {}
+    return json({ items: all, counselorTotal: sum, blocked, blockedTotal: blocked.reduce((a, x) => a + x.payout.counselor, 0) }, 200, cors);
   }
 
   // 지급 완료 처리 (운영자)
@@ -919,11 +945,13 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const bkIds = ids.filter(x => !x.startsWith('call_'));
     const jobs = [];
     bkIds.forEach(id => jobs.push(
-      db.prepare("UPDATE bookings SET settled_at = ? WHERE id = ? AND status = 'done' AND settled_at = 0").bind(t, id)));
+      db.prepare("UPDATE bookings SET settled_at = ? WHERE id = ? AND status = 'done' AND settled_at = 0 AND EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = bookings.id)").bind(t, id)));
     callIds.forEach(id => jobs.push(
-      db.prepare('UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND COALESCE(settled_at, 0) = 0').bind(t, id)));
-    if (jobs.length) await db.batch(jobs);
-    return json({ ok: true, n: ids.length }, 200, cors);
+      db.prepare("UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND COALESCE(settled_at, 0) = 0 AND EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = calls.id OR (COALESCE(calls.booking_id, '') != '' AND n.booking_id = calls.booking_id))").bind(t, id)));
+    // 회기 기록이 없는 건은 WHERE 에서 걸러져 0건 바뀐다 — 그 수를 알려줘야 운영자가 안다
+    let n = 0;
+    if (jobs.length) { const rs = await db.batch(jobs); n = rs.reduce((a, r) => a + ((r && r.meta && r.meta.changes) || 0), 0); }
+    return json({ ok: true, n, skipped: ids.length - n }, 200, cors);
   }
 
   // ── 숙제 ────────────────────────────────────────────────────────────

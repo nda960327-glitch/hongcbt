@@ -70,9 +70,9 @@ let ROOM = null;                    // 열려 있는 대화방 key
 const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '',
   notes: [], pending: [], dfb: [] };   // 회기 기록 · 기록 안 남긴 상담 · 담당의 피드백
 
-// 병원(담당의) 모드 — 진료실 코드(H-…)로 들어오면 상담사 화면 대신 환자 목록을 본다
-let HCODE = localStorage.getItem('hospital_code') || '';
-const HOSP = { hospital: null, patients: [], patient: null, detail: null, q: '' };
+// 의사(담당의)는 이제 별도 앱(doc.neurumind.com)을 쓴다. H- 코드를 여기 넣으면 그리로 보낸다.
+const DOC_URL = 'https://doc.neurumind.com';
+localStorage.removeItem('hospital_code');   // 예전 의사 모드 흔적 정리
 const OPEN = {};                    // 접이식 섹션 열림 상태
 let SEEN = {};                      // 스레드별 '여기까지 읽음' ts
 try { SEEN = JSON.parse(localStorage.getItem('pro_seen') || '{}'); } catch (e) { SEEN = {}; }
@@ -312,13 +312,11 @@ async function loginWithCode() {
   const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
   btn.disabled = false; btn.textContent = '시작하기';
   if (!r || !r.ok) {
-    // 상담사 코드가 아니면 병원(담당의) 코드일 수 있다
-    const hd = /^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v)
-      ? await getJson('/api/hospital/me?hcode=' + encodeURIComponent(v.toUpperCase())) : null;
-    if (hd && hd.ok) {
-      HCODE = v.toUpperCase();
-      localStorage.setItem('hospital_code', HCODE);
-      enterHospital(hd.hospital);
+    // 상담사 코드가 아니면 병원(담당의) 코드일 수 있다 — 의사 앱으로 넘긴다
+    if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v)) {
+      errEl.textContent = '병원 코드네요. 의사 앱으로 이동합니다…';
+      errEl.style.display = 'block';
+      setTimeout(() => { location.href = DOC_URL + '/?code=' + encodeURIComponent(v.toUpperCase()); }, 600);
       return;
     }
     errEl.textContent = '코드가 올바르지 않습니다.';
@@ -400,13 +398,6 @@ async function unsubscribeThisDevice() {
 
 async function logout() {
   if (!confirm('앱을 잠글까요? 다시 열려면 코드를 입력해야 합니다.')) return;
-  if (HCODE) {   // 병원 모드는 세션·푸시가 없다 — 코드만 지우면 끝
-    HCODE = ''; localStorage.removeItem('hospital_code');
-    HOSP.hospital = null; HOSP.patients = []; HOSP.patient = null; HOSP.detail = null;
-    $('app').hidden = true; $('screen-login').hidden = false; $('tabbar').hidden = false;
-    $('code').value = '';
-    return;
-  }
   // 순서가 중요하다. 세션을 지운 뒤에 해제하면 '이 기기가 누구였는지'는
   //  남지만(토큰은 그대로다) 실패했을 때 다시 시도할 화면이 없다.
   //  그리고 무엇보다 — 지우기 전에 끊어야 로그아웃 직후 오는 전화가 안 울린다.
@@ -1518,6 +1509,14 @@ function renderMoney() {
   const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
   const callPaid = calls.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
   const waiting = (total + callTotal) - (paid + callPaid);
+  // 회기 기록이 없는 상담은 정산에 올라가지 않는다 (사장님 지시 — 기록이 정산 조건).
+  //  '지급 대기'에 잡혀 있어도 기록이 없으면 운영자 화면에는 '보류'로만 보인다. 여기서 알려줘야 한다.
+  const hasNoteB = b => D.notes.some(n => n.bookingId === b.id);
+  const hasNoteC = c => D.notes.some(n => n.callId === c.id || (c.bookingId && n.bookingId === c.bookingId));
+  const holdB = earned.filter(b => b.status === 'done' && !b.settledAt && !hasNoteB(b));
+  const holdC = calls.filter(c => !c.settledAt && !hasNoteC(c));
+  const holdSum = holdB.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0) + holdC.reduce((s, c) => s + share(c.charge), 0);
+  const holdN = holdB.length + holdC.length;
 
   // 최근 6개월 — '이번 달이 지난달보다 나은가'는 숫자 하나로는 절대 안 보인다
   const months = [];
@@ -1597,6 +1596,11 @@ function renderMoney() {
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
       <p class="muted" style="margin-top:0.6rem;">상담사 97% · 결제 수수료 3% — 플랫폼은 상담료에서 가져가지 않습니다</p>
+      ${holdN ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:rgba(201,138,63,0.12); border:1px solid rgba(201,138,63,0.45);">
+        <b style="font-size:0.88rem; color:var(--warn);">회기 기록이 없어 정산 보류 ${holdN}건 · ${won(holdSum)}캐시</b>
+        <p class="muted" style="margin:0.2rem 0 0.5rem;">상담이 끝나면 회기 기록(요약·계획·위험도)을 남겨야 정산 대상이 돼요. 기록을 남기는 순간 바로 올라갑니다.</p>
+        <button class="btn sm" style="width:auto; margin:0;" data-act="sn-home">기록 남기러 가기</button>
+      </div>` : ''}
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
     ${subBox ? `<div class="sec-title">구독</div>${subBox}` : ''}
@@ -2685,170 +2689,14 @@ async function saveSessionNote(btn) {
 }
 
 // ============================================================================
-//  병원(담당의) 모드 — 진료실 코드로 들어온 의사가 연결된 환자를 본다
-// ============================================================================
-function enterHospital(h) {
-  HOSP.hospital = h;
-  $('screen-login').hidden = true;
-  $('app').hidden = false;
-  $('tabbar').hidden = true;
-  const sb = document.querySelector('#appbar [data-act="settings"]');
-  if (sb) sb.hidden = true;
-  $('me-name').textContent = h.name;
-  $('me-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '담당의 화면';
-  $('me-av').textContent = (h.name || '병').slice(0, 1);
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'view-hosp'));
-  renderHosp();
-  loadHospital();
-}
-
-async function loadHospital() {
-  const d = await getJson('/api/hospital/patients?hcode=' + encodeURIComponent(HCODE));
-  if (d && Array.isArray(d.items)) HOSP.patients = d.items;
-  if (HOSP.patient) await loadPatient(); else renderHosp();
-}
-
-async function loadPatient() {
-  if (!HOSP.patient) return;
-  const d = await getJson('/api/hospital/patient?hcode=' + encodeURIComponent(HCODE) + '&clientId=' + encodeURIComponent(HOSP.patient));
-  if (d && d.patient) HOSP.detail = d;
-  renderHosp();
-}
-
-function renderHosp() {
-  const el = $('view-hosp');
-  if (!el || !HCODE) return;
-  if (busy(el)) return;
-  if (HOSP.patient) { el.innerHTML = hospPatientHtml(); return; }
-  const q = HOSP.q.trim();
-  const list = HOSP.patients.filter(p => !q || (p.name || '').includes(q) || (p.birth || '').includes(q));
-  const urgent = HOSP.patients.filter(p => p.lastRisk === 'urgent').length;
-  el.innerHTML = `
-    <div class="card" style="margin-bottom:0.7rem;">
-      <div class="row" style="gap:0.6rem;">
-        <div class="grow">
-          <strong style="font-size:0.98rem;">연결된 환자 ${HOSP.patients.length}명</strong>
-          <p class="muted" style="margin-top:0.2rem;">${urgent ? `<b style="color:var(--danger);">긴급 표시 ${urgent}명</b> · ` : ''}환자가 앱에서 병원 코드를 넣으면 여기에 나타납니다.</p>
-        </div>
-        <button class="btn ghost sm" data-act="refresh">새로고침</button>
-      </div>
-      <input id="hosp-q" type="search" placeholder="이름·생년으로 찾기" value="${esc(HOSP.q)}" style="margin-top:0.6rem;">
-    </div>
-    ${list.length ? list.map(p => `
-      <button class="card" style="width:100%; text-align:left; display:block; margin-bottom:0.5rem; cursor:pointer; ${p.lastRisk === 'urgent' ? 'border-color: var(--danger);' : p.lastRisk === 'watch' ? 'border-color: var(--gold);' : ''}" data-act="hosp-open" data-id="${esc(p.clientId)}">
-        <div class="row" style="gap:0.6rem;">
-          ${avatar(p.name)}
-          <div class="grow">
-            <div class="row" style="gap:0.4rem;"><strong style="font-size:0.92rem;">${esc(p.name)}</strong>${p.birth ? `<span class="muted">${esc(p.birth)}</span>` : ''}${RISK_CHIP[p.lastRisk] || ''}</div>
-            <div class="muted">${p.notes ? `상담 기록 ${p.notes}건 · 최근 ${fmtDay(p.lastNote)}` : '아직 상담 기록 없음'}${p.hwOpen ? ` · 진행 중 숙제 ${p.hwOpen}` : ''} · ${fmtDay(p.linkedAt)} 연결</div>
-          </div>
-          <span class="muted">›</span>
-        </div>
-      </button>`).join('')
-      : empty('chat', HOSP.patients.length ? '검색 결과가 없어요' : '아직 연결된 환자가 없어요', HOSP.patients.length ? '' : '진료실에서 환자에게 병원 코드를 알려주세요.<br>앱 → 마이 → 담당 병원 연결하기')}`;
-}
-
-function hospPatientHtml() {
-  const d = HOSP.detail;
-  const p = HOSP.patients.find(x => x.clientId === HOSP.patient) || {};
-  const head = `
-    <div class="row" style="gap:0.5rem; margin-bottom:0.7rem;">
-      <button class="iconbtn" data-act="hosp-back" aria-label="목록으로"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-      ${avatar(p.name)}
-      <div class="grow">
-        <strong style="font-size:1rem;">${esc(p.name || '환자')}</strong>
-        <div class="muted">${[p.birth, `${fmtDay(p.linkedAt || Date.now())} 연결`].filter(Boolean).join(' · ')}</div>
-      </div>
-      <button class="btn sm" data-act="hosp-fb">피드백 쓰기</button>
-    </div>`;
-  if (!d) return head + '<div class="empty">불러오는 중…</div>';
-  const hwDone = d.homework.filter(h => h.doneAt).length;
-  const lastRisk = d.notes.length ? d.notes[0].risk : 'none';
-  const stats = `
-    <div class="card" style="margin-bottom:0.7rem;">
-      <div class="row" style="gap:0.8rem; flex-wrap:wrap;">
-        <div><div class="muted">상담 기록</div><strong>${d.notes.length}건</strong></div>
-        <div><div class="muted">숙제</div><strong>${hwDone}/${d.homework.length} 완료</strong></div>
-        <div><div class="muted">최근 위험도</div><strong>${RISK_LABEL[lastRisk] || '—'}</strong></div>
-        <div><div class="muted">상담사</div><strong>${esc([...new Set(d.notes.map(n => n.counselor).filter(Boolean))].join(', ') || '—')}</strong></div>
-      </div>
-      <p class="muted" style="margin-top:0.5rem;">앱 안의 대화 내용은 병원에 오지 않습니다. 여기 보이는 건 상담사가 남긴 요약·숙제와 선생님의 피드백뿐이에요.</p>
-    </div>`;
-  const items = [];
-  d.notes.forEach(n => items.push({ ts: n.ts, html: `
-    <div class="card" style="margin-bottom:0.5rem; ${n.risk === 'urgent' ? 'border-color: var(--danger);' : n.risk === 'watch' ? 'border-color: var(--gold);' : ''}">
-      <div class="row" style="gap:0.4rem;"><span class="chip ok">${KIND_LABEL[n.kind] || '상담'}</span><strong style="font-size:0.88rem;">${esc(n.counselor || '상담사')}</strong>${RISK_CHIP[n.risk] || ''}<span class="muted grow" style="text-align:right;">${fmtDT(n.ts)}</span></div>
-      <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(n.summary)}</p>
-      ${n.plan ? `<p class="muted" style="margin-top:0.35rem;"><b>다음 계획</b> ${esc(n.plan)}</p>` : ''}
-      ${n.homework ? `<p class="muted"><b>낸 숙제</b> ${esc(n.homework)}</p>` : ''}
-      <button class="btn ghost sm" style="margin-top:0.5rem;" data-act="hosp-fb" data-note="${esc(n.id)}">이 기록에 피드백</button>
-    </div>` }));
-  d.homework.forEach(h => items.push({ ts: h.assignedAt, html: `
-    <div class="card" style="margin-bottom:0.5rem;">
-      <div class="row" style="gap:0.4rem;"><span class="chip ${h.doneAt ? 'ok' : 'gold'}">숙제${h.doneAt ? ' 완료' : ' 진행 중'}</span><strong style="font-size:0.88rem;">${esc(h.counselor || '상담사')}</strong><span class="muted grow" style="text-align:right;">${fmtDT(h.assignedAt)}</span></div>
-      <p style="margin-top:0.4rem; font-size:0.88rem;">${esc(h.text)}</p>
-      ${h.doneAt ? `<p class="muted" style="margin-top:0.3rem;">${fmtDT(h.doneAt)} 완료${h.note ? ` · 환자 메모: ${esc(h.note)}` : ''}</p>` : ''}
-    </div>` }));
-  d.feedback.forEach(f => items.push({ ts: f.ts, html: `
-    <div class="card" style="margin-bottom:0.5rem; background: var(--accent-soft);">
-      <div class="row" style="gap:0.4rem;"><span class="chip new">내 피드백</span><span class="muted">${f.to === 'counselor' ? '상담사에게' : f.to === 'patient' ? '환자에게' : '상담사·환자에게'}</span><span class="muted grow" style="text-align:right;">${fmtDT(f.ts)}</span></div>
-      <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(f.text)}</p>
-    </div>` }));
-  d.bookings.forEach(b => items.push({ ts: b.whenTs, html: `
-    <div class="listrow"><div class="grow"><div class="muted">${fmtDT(b.whenTs)} · ${esc(b.counselor || '상담사')} 예약 상담 · ${esc(b.status)}</div></div></div>` }));
-  items.sort((a, b) => b.ts - a.ts);
-  return head + stats + `<div class="sec-title">타임라인</div>` + (items.length ? items.map(i => i.html).join('') : '<p class="muted">아직 기록이 없어요.</p>');
-}
-
-function openFeedbackSheet(noteId) {
-  const p = HOSP.patients.find(x => x.clientId === HOSP.patient) || {};
-  const n = noteId && HOSP.detail ? HOSP.detail.notes.find(x => x.id === noteId) : null;
-  sheet(`
-    <h3 class="serif">${esc(p.name || '환자')} 님에게 피드백</h3>
-    ${n ? `<p class="muted" style="margin-bottom:0.6rem; padding:0.5rem 0.7rem; background:var(--bg); border-radius:10px;">${fmtDT(n.ts)} ${esc(n.counselor)} 기록에 대한 피드백<br>"${esc(String(n.summary).slice(0, 80))}${n.summary.length > 80 ? '…' : ''}"</p>` : ''}
-    <label><span>받는 사람</span>
-      <select id="fb-to">
-        <option value="both">상담사와 환자 모두</option>
-        <option value="counselor">상담사에게만</option>
-        <option value="patient">환자에게만</option>
-      </select></label>
-    <label><span>내용</span>
-      <textarea id="fb-text" rows="6" maxlength="2000" placeholder="예: 수면 문제가 계속되면 다음 진료 때 약 조정을 검토하겠습니다. 상담에서는 취침 시간 고정을 우선 다뤄주세요."></textarea></label>
-    <p class="muted" style="margin-bottom:0.8rem;">환자에게 보내는 내용은 환자 앱의 알림함과 '병원과 나누는 기록'에 그대로 뜹니다.</p>
-    <button class="btn" data-act="hosp-fb-send" data-note="${esc(noteId || '')}">보내기</button>`);
-  setTimeout(() => { const t = $('fb-text'); if (t) t.focus(); }, 60);
-}
-
-async function sendFeedback(btn) {
-  const text = (($('fb-text') || {}).value || '').trim();
-  if (!text) { toast('내용을 적어주세요.'); return; }
-  btn.disabled = true;
-  const res = await postJson('/api/hospital/feedback', { hcode: HCODE, clientId: HOSP.patient, noteId: btn.dataset.note || '', to: ($('fb-to') || {}).value || 'both', text });
-  btn.disabled = false;
-  if (!res || !res.ok) { toast('보내지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
-  closeSheet();
-  toast('피드백을 보냈어요');
-  loadPatient();
-}
-
-document.addEventListener('input', e => {
-  if (!e.target || e.target.id !== 'hosp-q') return;
-  HOSP.q = e.target.value || '';
-  const el = $('view-hosp');
-  const input = e.target;
-  renderHosp();
-  const again = $('hosp-q');
-  if (again && again !== input) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
-});
-
-// ============================================================================
 //  동작 — 클릭 한 곳에서 받는다 (인라인 onclick 은 따옴표 하나에 무너진다)
 // ============================================================================
 const ACT = {
   tab: (el) => setTab(el.dataset.tab),
-  refresh: () => { if (HCODE) { loadHospital(); } else { loadAll(); } toast('새로고침했어요'); },
+  refresh: () => { loadAll(); toast('새로고침했어요'); },
 
   // ── 회기 기록 (상담사) ──
+  'sn-home': () => { setTab('home'); OPEN.sn = true; renderHome(); const c = document.querySelector('#view-home [data-fold="sn"]'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
   'sn-open': (el) => openSessionNote({
     id: el.dataset.id || '', clientId: el.dataset.clientId || '', clientName: el.dataset.clientName || '',
     bookingId: el.dataset.bookingId || '', callId: el.dataset.callId || '', kind: el.dataset.kind || 'chat',
@@ -2864,10 +2712,6 @@ const ACT = {
   'sn-edit': (el) => { const n = D.notes.find(x => x.id === el.dataset.id); if (n) openSessionNote(n); },
 
   // ── 병원(담당의) 모드 ──
-  'hosp-open': (el) => { HOSP.patient = el.dataset.id; HOSP.detail = null; renderHosp(); loadPatient(); },
-  'hosp-back': () => { HOSP.patient = null; HOSP.detail = null; renderHosp(); },
-  'hosp-fb': (el) => openFeedbackSheet(el.dataset.note || ''),
-  'hosp-fb-send': (el) => sendFeedback(el),
   logout,
   fold: (el) => {
     const k = el.dataset.key;
@@ -3018,12 +2862,14 @@ const ACT = {
     await loadBookings(); renderBookings(); renderDots();
   },
   'bk-done': async (el) => {
-    if (!confirm(`${el.dataset.nm} 님과의 상담을 마치셨나요?\n\n완료로 표시하면 내담자 확인을 거쳐 정산 대상이 됩니다.\n되돌릴 수 없어요.`)) return;
-    const note = prompt('다음 회기를 위한 메모를 남기시겠어요? (내담자에게는 보이지 않아요)', '') || '';
-    const r = await postJson('/api/bookings/done', authBody({ id: el.dataset.id, note }));
+    if (!confirm(`${el.dataset.nm} 님과의 상담을 마치셨나요?\n\n완료로 표시한 뒤 회기 기록을 남기면 내담자 확인을 거쳐 정산 대상이 됩니다.\n(회기 기록이 없는 상담은 정산되지 않아요)\n되돌릴 수 없어요.`)) return;
+    const r = await postJson('/api/bookings/done', authBody({ id: el.dataset.id }));
     if (!r || !r.ok) { toast((r && r.error) || '처리하지 못했어요'); return; }
+    const b = D.bookings.find(x => x.id === el.dataset.id) || {};
     await loadBookings(); renderBookings(); renderMoney(); renderDots();
-    toast('완료 처리했어요. 정산이 시작됩니다.');
+    toast('완료 처리했어요. 이제 회기 기록을 남겨주세요.');
+    // 기록을 '나중에'로 미루면 정산도 같이 미뤄진다 — 바로 시트를 연다
+    openSessionNote({ clientId: b.clientId || '', clientName: el.dataset.nm || b.clientName || '', bookingId: el.dataset.id, kind: 'booking', ts: b.whenTs || Date.now() });
   },
   'bk-refund': async (el) => {
     const why = prompt(`${el.dataset.nm} 님 상담을 환불 처리합니다.\n사유를 적어주세요 (내담자에게 전달됩니다):`, '');
@@ -3337,7 +3183,6 @@ function initBackButton() {
         const vis = (id) => { const el = $(id); return el && !el.hidden; };
         if (vis('callov')) return;                       // 통화·수신 화면
         if (vis('sheet')) { closeSheet(); return; }      // 바텀시트
-        if (HCODE && HOSP.patient) { HOSP.patient = null; HOSP.detail = null; renderHosp(); return; }   // 환자 상세 → 목록
         if (vis('chatroom')) { closeRoom(); return; }    // 대화방 → 목록
         if (TAB !== 'home') { setTab('home'); return; }  // 다른 탭 → 홈
         // 접어둔 통화가 뒤로가기 두 번에 끊기면 최악이다 — 통화 중엔 앱을 끄지 않는다
@@ -3356,11 +3201,6 @@ initBackButton();
   const t = new URLSearchParams(location.search).get('t');
   if (t) { if (await verifyLink(t)) askNotify(); }
   if (SESSION || CODE) { enterApp(); await loadAll(); connectHub(); }
-  else if (HCODE) {
-    const hd = await getJson('/api/hospital/me?hcode=' + encodeURIComponent(HCODE));
-    if (hd && hd.ok) enterHospital(hd.hospital);
-    else { HCODE = ''; localStorage.removeItem('hospital_code'); }
-  }
 })();
 
 initSW();

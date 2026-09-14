@@ -379,3 +379,81 @@ export async function handleAuth(request, env, cors, path, body, url) {
 
   return null;
 }
+
+// ============================================================================
+//  병원(담당의) 메일 — 로그인 링크 · 긴급 위험 알림
+//  상담사 메일과 같은 발신자·같은 로그를 쓴다. 의사 앱(DOC_URL)은 별도 도메인이다.
+// ============================================================================
+async function sendHtml(env, db, to, subject, html) {
+  if (!env.RESEND_API_KEY) return { sent: false, reason: 'no-api-key' };
+  if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
+  let res;
+  try {
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: encodeFrom(env), to: [to], subject, html })
+    });
+    if (r.ok) res = { sent: true, reason: '' };
+    else {
+      let detail = '';
+      try { detail = (await r.text()).slice(0, 220); } catch (e) {}
+      res = { sent: false, reason: 'http-' + r.status, detail };
+    }
+  } catch (e) {
+    res = { sent: false, reason: 'network', detail: String(e && e.message || e).slice(0, 200) };
+  }
+  if (db) await logMail(db, to, res);
+  return res;
+}
+
+const mailWrap = (kicker, title, inner) => `
+<div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">${kicker}</p>
+  <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${title}</h1>
+  ${inner}
+</div>`;
+
+export async function sendHospitalLoginMail(env, db, to, hospital, link) {
+  const who = hospital.doctor ? `${hospital.doctor} 선생님, ` : '';
+  const html = mailWrap('마인드 인사이드 담당의', `${who}로그인 링크입니다`, `
+  <p style="font-size:14px;line-height:1.75;margin:0 0 20px;">
+    ${hospital.name} 담당의 화면으로 바로 들어갑니다.<br>
+    이 링크는 <b>15분 뒤에 만료</b>되고, <b>한 번만</b> 쓸 수 있습니다.</p>
+  <a href="${link}" style="display:inline-block;background:#4f8a6b;color:#fff;text-decoration:none;
+     padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;">담당의 화면 열기</a>
+  <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:22px 0 0;">
+    버튼이 안 눌리면 이 주소를 복사해 열어주세요:<br>
+    <span style="word-break:break-all;color:#4f8a6b;">${link}</span></p>
+  <hr style="border:0;border-top:1px solid #e8ddcd;margin:22px 0 12px;">
+  <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
+    요청한 적이 없다면 이 메일은 그냥 버리셔도 됩니다. 아무 일도 일어나지 않습니다.<br>
+    이 링크를 다른 사람에게 전달하지 마세요 — 환자 기록 열람 권한이 그대로 넘어갑니다.</p>`);
+  return await sendHtml(env, db, to, '마인드 인사이드 담당의 로그인 링크 (15분 유효)', html);
+}
+
+// 상담사가 회기 기록에 '긴급'을 찍은 순간 담당의에게 간다.
+//  요약 본문은 기록이 병원과 공유될 때만 싣는다. 비공유면 사실(누가·언제·긴급)만 알린다.
+export async function sendUrgentMail(env, db, to, d) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const when = new Date(d.ts || Date.now()).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const docUrl = String(env.DOC_URL || '').replace(/\/+$/, '') || '#';
+  const html = mailWrap('마인드 인사이드 · 긴급', `${esc(d.patientName || '환자')} 님 — 상담사가 긴급 위험을 표시했습니다`, `
+  <div style="background:#fbeeea;border:1px solid #efc8c0;border-radius:12px;padding:14px 16px;margin:0 0 18px;">
+    <p style="font-size:14px;line-height:1.8;margin:0;color:#3f352a;">
+      <b>환자</b> ${esc(d.patientName || '')}${d.birth ? ' (' + esc(d.birth) + ')' : ''}<br>
+      <b>상담사</b> ${esc(d.counselor || '상담사')} · ${esc(when)} ${esc(d.kindLabel || '상담')}<br>
+      <b>위험도</b> <span style="color:#c14a4a;font-weight:700;">긴급 — 의사 확인 필요</span></p>
+  </div>
+  ${d.summary ? `<p style="font-size:13px;font-weight:700;margin:0 0 6px;">상담사 요약</p>
+  <p style="font-size:14px;line-height:1.75;margin:0 0 14px;white-space:pre-wrap;background:#f6f1e7;border-radius:10px;padding:12px 14px;">${esc(d.summary)}</p>
+  ${d.plan ? `<p style="font-size:13px;line-height:1.7;margin:0 0 18px;color:#6b5f50;"><b>다음 계획</b> ${esc(d.plan)}</p>` : ''}`
+    : `<p style="font-size:13px;line-height:1.75;margin:0 0 18px;color:#6b5f50;">상담사가 이 기록을 병원과 공유하지 않도록 설정해 요약은 싣지 않았습니다. 상담사에게 직접 확인해주세요.</p>`}
+  <a href="${docUrl}" style="display:inline-block;background:#c14a4a;color:#fff;text-decoration:none;
+     padding:12px 22px;border-radius:10px;font-weight:700;font-size:15px;">담당의 화면에서 확인</a>
+  <hr style="border:0;border-top:1px solid #e8ddcd;margin:22px 0 12px;">
+  <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
+    이 메일은 상담사가 회기 기록에 '긴급'을 표시했을 때 자동으로 발송됩니다.<br>
+    자·타해 위험이 임박했다고 판단되면 119 또는 정신건강위기상담 1577-0199 로 연계해주세요.</p>`);
+  return await sendHtml(env, db, to, `[긴급] ${d.patientName || '환자'} 님 — 상담사가 긴급 위험을 표시했습니다`, html);
+}

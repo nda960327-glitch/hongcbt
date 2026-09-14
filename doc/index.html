@@ -2,16 +2,17 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
-  <title>마인드 인사이드 프로 — 상담사용</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>마인드 인사이드 닥터 — 담당의용</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#1c3027">
-  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="robots" content="noindex">
   <link rel="apple-touch-icon" href="./icon-192.png">
   <link rel="icon" href="./icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- 스타일은 pro/index.html 의 것을 build-doc.js 가 복사한다. 여기서 고치지 말 것. -->
   <style>
     :root {
       --bg: #faf5ee; --card: #ffffff; --line: rgba(120, 96, 66, 0.14);
@@ -507,160 +508,86 @@
     }
     #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
+  <style>
+    /* ── 의사 앱 전용 ── */
+    .wk { display: flex; align-items: flex-end; gap: 4px; height: 84px; padding: 0.2rem 0 0; }
+    .wk .b { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
+    .wk .b i { display: block; width: 100%; max-width: 34px; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: 0.85; }
+    .wk .b i.lo { background: var(--danger); }
+    .wk .b i.mid { background: var(--gold); }
+    .wk .b i.none { background: var(--line); height: 4px !important; }
+    .wk .b span { font-size: 0.62rem; color: var(--sub); margin-top: 0.25rem; white-space: nowrap; }
+    .wk .b em { font-style: normal; font-size: 0.66rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .urgentbar { background: #fbeeea; border: 1px solid #efc8c0; border-radius: 14px; padding: 0.7rem 0.85rem; margin-bottom: 0.7rem; }
+    .urgentbar b { color: var(--danger); }
+    .pill { display: inline-block; padding: 0.15rem 0.55rem; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-size: 0.72rem; font-weight: 700; }
+    .stat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+    .stat > div { background: var(--bg); border-radius: 12px; padding: 0.5rem 0.55rem; }
+    .stat strong { display: block; font-size: 0.95rem; margin-top: 0.1rem; }
+    @media (max-width: 380px) { .stat { grid-template-columns: repeat(2, 1fr); } }
+  </style>
 </head>
 <body>
 
   <!-- ── 로그인 ───────────────────────────────────────────────── -->
   <div id="screen-login">
     <div class="logo">
-      <div class="mark">우</div>
-      <h1>마인드 인사이드 프로</h1>
-      <p>상담사 전용 · 예약 · 채팅 · 통화 · 정산</p>
+      <div class="mark">닥</div>
+      <h1>마인드 인사이드 닥터</h1>
+      <p>담당의 전용 · 연결 환자 · 상담 기록 · 주간 상태 · 피드백</p>
     </div>
-    <div class="card">
-      <p style="font-weight: 700; text-align: center;">상담사 로그인</p>
+    <div class="card" id="login-email">
+      <p style="font-weight: 700; text-align: center;">담당의 로그인</p>
       <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
-        입점 승인 시 <b>이메일로 보내드린 코드</b>를 입력하세요.<br>한 번 입력하면 이 기기에서는 계속 열립니다.<br>
-        <span style="color: var(--accent); font-weight: 700;">병원(담당의)</span>은 <a href="https://doc.neurumind.com" style="color: var(--accent); font-weight: 700;">의사 앱(doc.neurumind.com)</a>에서 이메일로 들어오세요.</p>
-      <input id="code" type="password" autocomplete="off" placeholder="열람 코드" inputmode="text">
+        운영팀에 등록한 <b>이메일</b>을 넣으면 로그인 링크를 보내드려요.<br>링크는 15분 안에 한 번만 쓸 수 있고, 한 번 들어오면 이 기기에서 30일 동안 열립니다.</p>
+      <input id="email" type="email" autocomplete="email" placeholder="doctor@hospital.kr" inputmode="email">
       <p id="err" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
+      <p id="sent" class="muted" style="color: var(--accent); display: none; margin-top: 0.5rem; text-align: center; font-weight: 700;"></p>
+      <button class="btn" id="email-btn" style="margin-top: 0.7rem;">로그인 링크 받기</button>
+      <button class="btn ghost sm" id="to-code" style="margin-top: 0.5rem;">병원 코드로 들어가기</button>
+    </div>
+    <div class="card" id="login-code" hidden>
+      <p style="font-weight: 700; text-align: center;">병원 코드로 로그인</p>
+      <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
+        운영팀이 드린 <b>H-XXXX-XXXX</b> 코드예요. 이메일이 등록돼 있다면 링크 로그인이 더 안전합니다.</p>
+      <input id="code" type="text" autocomplete="off" autocapitalize="characters" placeholder="H-XXXX-XXXX" style="letter-spacing: 0.08em; text-transform: uppercase;">
+      <p id="err2" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
       <button class="btn" id="code-btn" style="margin-top: 0.7rem;">시작하기</button>
+      <button class="btn ghost sm" id="to-email" style="margin-top: 0.5rem;">이메일 링크로 들어가기</button>
     </div>
     <p class="muted" style="text-align: center; padding: 0 0.5rem;">
-      코드를 잃어버렸거나 코드가 샌 것 같으면 운영팀에 알려주세요.<br>
-      바로 새 코드를 보내드립니다 — <b>nda960327@gmail.com</b></p>
+      병원 등록·이메일 변경은 운영팀에 알려주세요 — <b>nda960327@gmail.com</b><br>
+      상담사이신가요? <a href="https://pro.neurumind.com" style="color: var(--accent); font-weight: 700;">마인드 인사이드 프로</a>로 가세요.</p>
   </div>
 
   <!-- ── 앱 ───────────────────────────────────────────────────── -->
   <div id="app" hidden>
     <div id="appbar">
       <div class="inner">
-        <div class="av" id="me-av">우</div>
+        <div class="av" id="me-av">병</div>
         <div class="grow">
-          <div class="who ell" id="me-name">마인드 인사이드 프로</div>
+          <div class="who ell" id="me-name">마인드 인사이드 닥터</div>
           <div class="whosub ell" id="me-sub">불러오는 중…</div>
         </div>
-        <button class="iconbtn" data-act="settings" title="내 정보" aria-label="내 정보 수정">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.11a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.11A1.7 1.7 0 0 0 4.67 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.11a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.11a1.7 1.7 0 0 0-1.49 1Z"/></svg>
-        </button>
         <button class="iconbtn" data-act="refresh" title="새로고침" aria-label="새로고침">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
         </button>
-        <button class="iconbtn" data-act="logout" title="잠그기" aria-label="잠그기">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <button class="iconbtn" data-act="settings" title="설정" aria-label="설정">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.11a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.11A1.7 1.7 0 0 0 4.67 8.6a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9a1.7 1.7 0 0 0 1-1.56V3a2 2 0 1 1 4 0v.11a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.56 1H21a2 2 0 1 1 0 4h-.11a1.7 1.7 0 0 0-1.49 1Z"/></svg>
         </button>
       </div>
     </div>
-
     <main id="views">
-      <section class="view on" id="view-home"></section>
-      <section class="view" id="view-chat"></section>
-      <section class="view" id="view-book"></section>
-      <section class="view" id="view-money"></section>
-      <section class="view" id="view-hosp"></section>
+      <section class="view on" id="view-hosp"></section>
     </main>
-
-    <nav id="tabbar">
-      <div class="inner">
-        <button class="tab on" data-tab="home">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
-          <span>홈</span><span class="dot" id="dot-home" hidden></span>
-        </button>
-        <button class="tab" data-tab="chat">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/></svg>
-          <span>채팅</span><span class="dot" id="dot-chat" hidden></span>
-        </button>
-        <button class="tab" data-tab="book">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
-          <span>예약</span><span class="dot" id="dot-book" hidden></span>
-        </button>
-        <button class="tab" data-tab="money">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18v12H3z"/><path d="M3 11h18"/><circle cx="8" cy="15" r="1.3"/></svg>
-          <span>정산</span><span class="dot" id="dot-money" hidden></span>
-        </button>
-      </div>
-    </nav>
   </div>
 
-  <!-- 대화방 (전체화면) -->
-  <div id="chatroom" hidden>
-    <div class="rhead">
-      <button class="iconbtn" data-act="room-close" aria-label="뒤로">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-      </button>
-      <div class="grow">
-        <div style="font-weight: 700; font-size: 0.95rem;" id="room-name" class="ell"></div>
-        <div class="muted" id="room-sub"></div>
-      </div>
-      <!-- 숙제는 예약이 있어야만 낼 수 있던 기능이었다. 스레드에는 clientId 가 있으니
-           바로상담만 한 내담자에게도 여기서 바로 낼 수 있다. -->
-      <button class="btn soft sm" data-act="call-client" title="이 내담자에게 전화 걸기 (무료)">통화</button>
-      <button class="btn soft sm" data-act="hw-open">숙제</button>
-      <button class="iconbtn" data-act="room-menu" aria-label="대화 메뉴">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
-      </button>
-    </div>
-    <div class="msgs" id="room-msgs"></div>
-    <div class="compwrap">
-      <!-- 빠른 답장 칩 — 진료 사이 3분에 답장을 쓰게 하려면 '고르기'가 '타이핑'보다 빨라야 한다 -->
-      <div id="qrbar"></div>
-      <div class="comp">
-        <textarea id="room-input" rows="1" placeholder="메시지를 입력하세요" enterkeyhint="send"></textarea>
-        <button class="send" data-act="room-send" aria-label="전송">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 걸려오는 전화 -->
-  <div id="callov" hidden>
-    <button class="minbtn" id="call-min" data-act="call-min" aria-label="통화 화면 축소" hidden>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-    </button>
-    <div>
-      <div style="font-size: 0.88rem; opacity: 0.85;" id="call-st">걸려온 상담 전화</div>
-      <div style="font-size: 1.05rem; font-weight: 700; margin-top: 0.3rem;" id="call-clock">00:00</div>
-    </div>
-    <div>
-      <div class="pulse">📞</div>
-      <h2 class="serif" id="call-who" style="margin: 1.1rem 0 0.25rem; font-size: 1.35rem;">내담자</h2>
-      <p style="font-size: 0.78rem; opacity: 0.72;">전화번호는 서로에게 보이지 않아요</p>
-      <button class="chatbtn" id="call-chat" data-act="call-chat" hidden>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H7l-4 3v-4.5A8 8 0 0 1 11 4h2a8 8 0 0 1 8 8Z"/></svg>
-        채팅 보며 통화
-      </button>
-      <div id="call-consult-info" hidden></div>
-      <button class="consultbtn" id="call-consult" data-act="consult" hidden>상담 시작</button>
-    </div>
-    <div style="display: flex; gap: 2.2rem;">
-      <button class="cbtn no" id="call-btn-no" data-act="call-no">거절</button>
-      <button class="cbtn yes" id="call-btn-yes" data-act="call-yes">받기</button>
-      <button class="cbtn no" id="call-btn-end" data-act="call-cancel" hidden>종료</button>
-    </div>
-  </div>
-
-  <!-- 주소 찾기 (카카오 우편번호 서비스를 이 안에 심는다) -->
-  <div id="addrov" hidden>
-    <div class="hd">
-      <strong>주소 찾기
-        <span class="muted">건물명·도로명·지번 아무거나 검색해 보세요</span></strong>
-      <button class="iconbtn" data-act="addr-close" aria-label="주소 찾기 닫기">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-    </div>
-    <div id="addrbox"></div>
-  </div>
-
-  <!-- 바텀시트 (숙제 내기·숙제 결과) -->
   <div id="sheet" hidden>
     <div class="bd" data-act="sheet-close"></div>
     <div id="sheet-body"></div>
   </div>
-
   <div id="toast"></div>
 
-  <script src="js/rtccall.js?v=186"></script>
-  <script src="js/app.js?v=186"></script>
+  <script src="js/app.js?v=1"></script>
 </body>
 </html>

@@ -138,14 +138,14 @@ export default {
     const reqOrigin = request.headers.get("Origin") || "";
     const ALLOW_ORIGINS = [
       "https://neurumind.com", "https://www.neurumind.com",
-      "https://pro.neurumind.com", "https://ops.neurumind.com",
+      "https://pro.neurumind.com", "https://ops.neurumind.com", "https://doc.neurumind.com",
       "https://neurumind.pages.dev", "https://neurumind-pro.pages.dev",
-      "https://neurumind-ops.pages.dev",
+      "https://neurumind-ops.pages.dev", "https://neurumind-doc.pages.dev",
       ...String(env.ALLOWED_ORIGIN || "").split(",").map(s => s.trim()).filter(Boolean),
     ];
     const originOk = !reqOrigin                                   // 네이티브·서버 요청 (Origin 없음)
       || ALLOW_ORIGINS.includes(reqOrigin)                        // 우리 도메인
-      || /^https:\/\/[a-z0-9-]+\.neurumind-?(pro|ops)?\.pages\.dev$/.test(reqOrigin)  // Pages 미리보기 해시
+      || /^https:\/\/[a-z0-9-]+\.neurumind-?(pro|ops|doc)?\.pages\.dev$/.test(reqOrigin)  // Pages 미리보기 해시
       || /^https?:\/\/localhost(:\d+)?$/.test(reqOrigin)          // 개발·일부 웹뷰
       || /^https:\/\/localhost$/.test(reqOrigin);
     // 허용되면 그 Origin 을 그대로 echo(자격증명 없는 API 라 * 대신 정확히),
@@ -191,9 +191,42 @@ export default {
       const r = await handleFeed(request, env, cors, path);
       if (r) return r;
     }
+    // 소개 페이지(neurumind.com/intro/) — 팀원이 비밀번호를 넣으면 테스트 코드를 본다.
+    //  코드를 HTML 에 박아 두면 소스 보기로 다 보인다. 여기서 주면 ADMIN_CODE 를 돌려도 페이지는 그대로다.
+    //  IP 당 10분에 8번까지 — 네 자리 번호를 무한정 찍어 보게 두지 않는다.
+    if (path === "/intro/unlock" && request.method === "POST") {
+      const db = env.DB;
+      let body = {};
+      try { body = await request.json(); } catch (e) {}
+      const ip = request.headers.get("cf-connecting-ip") || "?";
+      const key = "intro:" + ip, now = Date.now();
+      if (db) {
+        try {
+          const c = await db.prepare("SELECT COUNT(*) n FROM rate_hits WHERE key = ? AND ts > ?").bind(key, now - 600000).first();
+          if ((c && c.n) >= 8) return json({ error: "too-many", message: "너무 많이 시도했어요. 10분 뒤에 다시 해주세요." }, 429, cors);
+          await db.prepare("INSERT INTO rate_hits (key, ts) VALUES (?,?)").bind(key, now).run();
+          await db.prepare("DELETE FROM rate_hits WHERE ts < ?").bind(now - 3600000).run();
+        } catch (e) {}
+      }
+      const pw = String(body.pw || "").trim();
+      if (!env.INTRO_PW || pw !== String(env.INTRO_PW)) return json({ error: "bad-pw" }, 403, cors);
+      let hospital = null, counselor = null;
+      if (db) {
+        try {
+          const h = await db.prepare("SELECT name, doctor, code, email FROM hospitals WHERE active = 1 AND name LIKE '테스트%' ORDER BY created ASC LIMIT 1").first();
+          if (h) hospital = { name: h.name, doctor: h.doctor || "", code: h.code, email: h.email || "" };
+          const k = await db.prepare("SELECT name, code, email FROM counselors WHERE active = 1 ORDER BY created ASC LIMIT 1").first();
+          if (k) counselor = { name: k.name, code: k.code, email: k.email || "" };
+        } catch (e) {}
+      }
+      return json({
+        ok: true, admin: env.ADMIN_CODE || "", hospital, counselor,
+        urls: { app: env.APP_URL || "https://neurumind.com", pro: env.PRO_URL || "https://pro.neurumind.com", doc: env.DOC_URL || "https://doc.neurumind.com", ops: "https://ops.neurumind.com" }
+      }, 200, cors);
+    }
     // 병원(담당의) 연동 — 환자 연결·회기 기록·의사 피드백
     if (/^\/(patient\/|session-notes|hospital\/|admin\/hospitals|doctor-feedback)/.test(path)) {
-      const r = await handleHospital(request, env, cors, path);
+      const r = await handleHospital(request, env, cors, path, ctx);
       if (r) return r;
     }
     if (!/^\/(tts|chat)?$/.test(path)) {

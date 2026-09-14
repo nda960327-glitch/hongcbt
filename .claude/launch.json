@@ -4,20 +4,62 @@
     {
       "name": "app",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", "-p", "8317", "-c-1", "."],
+      "runtimeArgs": [
+        "http-server",
+        "-p",
+        "8317",
+        "-c-1",
+        "."
+      ],
       "port": 8317
     },
     {
       "name": "pro",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", "-p", "8319", "-c-1", "pro"],
+      "runtimeArgs": [
+        "http-server",
+        "-p",
+        "8319",
+        "-c-1",
+        "pro"
+      ],
       "port": 8319
     },
     {
       "name": "ops",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", "-p", "8323", "-c-1", "ops"],
+      "runtimeArgs": [
+        "http-server",
+        "-p",
+        "8323",
+        "-c-1",
+        "ops"
+      ],
       "port": 8323
+    },
+    {
+      "name": "doc",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "http-server",
+        "-p",
+        "8325",
+        "-c-1",
+        "doc"
+      ],
+      "port": 8325
+    },
+    {
+      "name": "www",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "http-server",
+        "-p",
+        "8327",
+        "-c-1",
+        "www"
+      ],
+      "port": 8327
     }
   ]
 }
