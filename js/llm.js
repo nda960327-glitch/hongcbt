@@ -798,6 +798,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     // 운영자가 올린 추천 영상·글 — 있는 것만 권하게 목록을 준다
     const feedCtx = (window.Feed && window.Feed.promptContext()) || '';
     if (feedCtx) tail += '\n\n' + feedCtx;
+    const hospCtx = (window.Hospital && window.Hospital.promptContext()) || '';
+    if (hospCtx) tail += '\n\n' + hospCtx;
 
     // 먼저 꺼낼 후속 질문 — 안부가 아니라 리포트에서 세운 가설의 확인이다
     const fu = (window.CarePlan && window.CarePlan.dueFollowUp && window.CarePlan.dueFollowUp()) || null;

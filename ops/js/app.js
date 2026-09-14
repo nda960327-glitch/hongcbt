@@ -263,6 +263,7 @@ const TITLES = {
   payments: ['결제 내역', '느루 캐시 충전 · 승인 실패 감시'],
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
   feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
+  hospitals: ['병원 관리', '담당 병원 등록 · 병원 코드 발급 · 연결 환자 수'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
   diag: ['진단 로그', '실기기 통화 단계 추적'],
@@ -278,6 +279,7 @@ const LAZY = {
   contact: ['contact', () => loadContact()],
   reviews: ['reviews', () => loadReviews()],
   feed: ['feed', () => loadFeed()],
+  hospitals: ['hospitals', () => loadHospitals()],
   payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
   settings: ['maillog', () => loadMaillog()]
@@ -480,6 +482,98 @@ function viewFeed() {
       : '<div class="card"><div class="empty"><b>아직 올린 콘텐츠가 없어요</b>＋ 새 콘텐츠로 첫 영상을 올려보세요.</div></div>'}`;
 }
 
+// ── 병원 관리 ──────────────────────────────────────────────────────────
+//  병원 코드(H-XXXX-XXXX)는 진료실에서 환자에게 알려주는 값이자, 의사가 프로 앱에
+//  들어오는 열쇠다. 코드 하나가 그 병원 환자 전원의 상담 기록을 여니 상담사 코드처럼 다룬다.
+let HOSP_FORM = false, HOSP_EDIT = null;
+async function loadHospitals() {
+  const r = await adminGet('/api/admin/hospitals');
+  D.hospitals = r ? (r.items || []) : null;
+  if (TAB === 'hospitals') render();
+}
+
+function viewHospitals() {
+  if (D.hospitals === undefined) return loading;
+  if (!D.hospitals) return failed;
+  const editing = HOSP_EDIT ? D.hospitals.find(h => h.id === HOSP_EDIT) : null;
+  const form = (h) => `
+    <div class="card" id="hosp-form">
+      <div class="sec-title">${h ? '병원 정보 고치기' : '병원 등록'}<span class="right"><button class="btn ghost sm" data-act="hosp-cancel">접기</button></span></div>
+      <label class="muted">병원 이름 <input id="hp-name" type="text" maxlength="60" value="${esc(h ? h.name : '')}" placeholder="예: 마음편한 정신건강의학과의원"></label>
+      <div class="row wrap" style="gap: 0.5rem;">
+        <label class="muted" style="flex: 1 1 160px;">진료과 <input id="hp-dept" type="text" maxlength="40" value="${esc(h ? h.dept : '')}" placeholder="정신건강의학과"></label>
+        <label class="muted" style="flex: 1 1 160px;">담당의 <input id="hp-doctor" type="text" maxlength="40" value="${esc(h ? h.doctor : '')}" placeholder="김OO"></label>
+      </div>
+      <div class="row" style="margin-top: 0.5rem;"><span class="grow"></span>
+        <button class="btn" data-act="hosp-save" data-id="${esc(h ? h.id : '')}">${h ? '저장' : '등록하고 코드 받기'}</button></div>
+    </div>`;
+  const card = h => `
+    <div class="card"${h.active ? '' : ' style="opacity: 0.6;"'}>
+      <div class="row wrap" style="gap: 0.6rem;">
+        <div class="grow" style="min-width: 0;">
+          <b style="font-size: 0.92rem;">${esc(h.name)}</b>${h.active ? '' : ' <span class="chip">정지</span>'}
+          <div class="muted">${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '진료과·담당의 미입력')} · ${fmtDate(h.created)} 등록</div>
+          <div style="margin-top: 0.3rem; font-size: 0.86rem;">연결 환자 <b>${h.patients}</b>명 · 보낸 피드백 <b>${h.feedbacks}</b>건</div>
+          <div style="margin-top: 0.3rem; font-family: ui-monospace, monospace; font-size: 0.9rem; letter-spacing: 0.06em;">
+            ${SHOWCODE[h.id] ? esc(h.code) : '••••-••••-••••'}
+            <button class="btn ghost sm" data-act="hosp-peek" data-id="${esc(h.id)}">${SHOWCODE[h.id] ? '숨기기' : '코드 보기'}</button>
+            <button class="btn ghost sm" data-act="hosp-copy" data-id="${esc(h.id)}">복사</button>
+          </div>
+        </div>
+      </div>
+      <div class="row wrap" style="gap: 0.4rem; margin-top: 0.55rem;">
+        <button class="btn ghost sm" data-act="hosp-edit" data-id="${esc(h.id)}">고치기</button>
+        <button class="btn ghost sm" data-act="hosp-rotate" data-id="${esc(h.id)}">코드 재발급</button>
+        <span class="grow"></span>
+        <button class="btn ${h.active ? 'warnline' : ''} sm" data-act="hosp-active" data-id="${esc(h.id)}" data-on="${h.active ? '0' : '1'}">${h.active ? '정지' : '다시 켜기'}</button>
+      </div>
+    </div>`;
+  return `
+    <div class="sec-title">담당 병원
+      <span class="right"><button class="btn sm" data-act="hosp-new">＋ 병원 등록</button></span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      등록하면 <b>H-XXXX-XXXX</b> 병원 코드가 나옵니다. 의사는 이 코드로 프로 앱에 들어와 연결된 환자의 상담 기록을 보고 피드백을 남깁니다.
+      환자는 앱 → 마이 → 담당 병원 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
+    ${(HOSP_FORM || editing) ? form(editing) : ''}
+    ${D.hospitals.length ? D.hospitals.map(card).join('')
+      : '<div class="card"><div class="empty"><b>등록된 병원이 없어요</b>＋ 병원 등록으로 첫 병원을 추가하세요.</div></div>'}`;
+}
+
+async function hospSave(id, btn) {
+  const v = k => { const el = $(k); return el ? el.value.trim() : ''; };
+  const name = v('hp-name');
+  if (!name) { alertBox('이름이 필요해요', '병원 이름을 적어주세요.'); return; }
+  if (btn) btn.disabled = true;
+  const res = id
+    ? await adminPost('/api/admin/hospitals/update', { id, name, dept: v('hp-dept'), doctor: v('hp-doctor') })
+    : await adminPost('/api/admin/hospitals', { name, dept: v('hp-dept'), doctor: v('hp-doctor') });
+  if (btn) btn.disabled = false;
+  if (!res || !res.ok) { alertBox('저장하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
+  HOSP_FORM = false; HOSP_EDIT = null;
+  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('병원을 등록했어요', `병원 코드: ${res.code}\n\n이 코드를 병원에 전달하세요. 의사 로그인과 환자 연결 둘 다 이 코드를 씁니다.`); }
+  else toast('저장했어요');
+  loadHospitals();
+}
+
+async function hospRotate(id) {
+  const h = (D.hospitals || []).find(x => x.id === id);
+  if (!h) return;
+  const ok = await confirmBox({ title: '병원 코드를 재발급할까요?', body: `${h.name}\n\n지금 코드는 즉시 무효가 되고, 의사는 새 코드로 다시 로그인해야 합니다. 이미 연결된 환자는 그대로 유지돼요.`, okLabel: '재발급', danger: true });
+  if (!ok) return;
+  const res = await adminPost('/api/admin/hospitals/rotate', { id });
+  if (!res || !res.ok) { alertBox('재발급하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
+  SHOWCODE[id] = true;
+  alertBox('새 코드', `${h.name}\n\n${res.code}`);
+  loadHospitals();
+}
+
+async function hospActive(id, on) {
+  const res = await adminPost('/api/admin/hospitals/active', { id, active: !!on });
+  if (!res || !res.ok) { alertBox('바꾸지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
+  toast(on ? '다시 켰어요' : '정지했어요 — 이 코드로는 더 이상 들어올 수 없어요');
+  loadHospitals();
+}
+
 function feedFormRead() {
   const v = id => { const el = $(id); return el ? el.value.trim() : ''; };
   return {
@@ -569,7 +663,7 @@ function render() {
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
     clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
-    feed: viewFeed, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
+    feed: viewFeed, hospitals: viewHospitals, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
   if (fn) {
@@ -2116,7 +2210,7 @@ document.addEventListener('click', e => {
     const only = {
       diag: loadDiag, calls: loadCalls, clients: loadClients,
       usage: loadUsage, contact: loadContact, reviews: loadReviews,
-      payments: loadPayments, feed: loadFeed
+      payments: loadPayments, feed: loadFeed, hospitals: loadHospitals
     }[TAB];
     if (only) only(); else loadAll();
     toast('새로고침했어요'); return;
@@ -2139,6 +2233,15 @@ document.addEventListener('click', e => {
   if (act === 'feed-save') { feedSave(id, el); return; }
   if (act === 'feed-toggle') { feedToggle(id); return; }
   if (act === 'feed-del') { feedDel(id); return; }
+
+  if (act === 'hosp-new') { HOSP_EDIT = null; HOSP_FORM = true; render(); const t = $('hp-name'); if (t) t.focus(); return; }
+  if (act === 'hosp-edit') { HOSP_EDIT = id; HOSP_FORM = true; render(); window.scrollTo(0, 0); return; }
+  if (act === 'hosp-cancel') { HOSP_EDIT = null; HOSP_FORM = false; render(); return; }
+  if (act === 'hosp-save') { hospSave(id, el); return; }
+  if (act === 'hosp-peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
+  if (act === 'hosp-copy') { const h = (D.hospitals || []).find(x => x.id === id); if (h) copy(h.code, '병원 코드를 복사했어요'); return; }
+  if (act === 'hosp-rotate') { hospRotate(id); return; }
+  if (act === 'hosp-active') { hospActive(id, el.dataset.on === '1'); return; }
 
   if (act === 'peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
   if (act === 'copycode') { const c = csOf(id); if (c) copy(c.code, '코드를 복사했어요'); return; }

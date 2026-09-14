@@ -30,6 +30,7 @@ const MAX_TTS_CHARS = 2000;
 
 import { handleMarket } from "./market.js";
 import { handleFeed } from "./feed.js";
+import { handleHospital } from "./hospital.js";
 import { resolveCounselor } from "./auth.js";
 export { ChatHub } from "./hub.js";
 
@@ -188,6 +189,11 @@ export default {
     // 느루의 추천(영상·글) — 마켓과 같은 D1 을 쓰되 모듈은 따로
     if (path.startsWith("/feed")) {
       const r = await handleFeed(request, env, cors, path);
+      if (r) return r;
+    }
+    // 병원(담당의) 연동 — 환자 연결·회기 기록·의사 피드백
+    if (/^\/(patient\/|session-notes|hospital\/|admin\/hospitals|doctor-feedback)/.test(path)) {
+      const r = await handleHospital(request, env, cors, path);
       if (r) return r;
     }
     if (!/^\/(tts|chat)?$/.test(path)) {

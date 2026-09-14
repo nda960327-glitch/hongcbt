@@ -67,7 +67,12 @@ let NOTI_NATIVE = '';
 let ME = null;                      // /api/me 프로필
 let TAB = 'home';
 let ROOM = null;                    // 열려 있는 대화방 key
-const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '' };
+const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '',
+  notes: [], pending: [], dfb: [] };   // 회기 기록 · 기록 안 남긴 상담 · 담당의 피드백
+
+// 병원(담당의) 모드 — 진료실 코드(H-…)로 들어오면 상담사 화면 대신 환자 목록을 본다
+let HCODE = localStorage.getItem('hospital_code') || '';
+const HOSP = { hospital: null, patients: [], patient: null, detail: null, q: '' };
 const OPEN = {};                    // 접이식 섹션 열림 상태
 let SEEN = {};                      // 스레드별 '여기까지 읽음' ts
 try { SEEN = JSON.parse(localStorage.getItem('pro_seen') || '{}'); } catch (e) { SEEN = {}; }
@@ -307,6 +312,15 @@ async function loginWithCode() {
   const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
   btn.disabled = false; btn.textContent = '시작하기';
   if (!r || !r.ok) {
+    // 상담사 코드가 아니면 병원(담당의) 코드일 수 있다
+    const hd = /^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v)
+      ? await getJson('/api/hospital/me?hcode=' + encodeURIComponent(v.toUpperCase())) : null;
+    if (hd && hd.ok) {
+      HCODE = v.toUpperCase();
+      localStorage.setItem('hospital_code', HCODE);
+      enterHospital(hd.hospital);
+      return;
+    }
     errEl.textContent = '코드가 올바르지 않습니다.';
     errEl.style.display = 'block';
     return;
@@ -386,6 +400,13 @@ async function unsubscribeThisDevice() {
 
 async function logout() {
   if (!confirm('앱을 잠글까요? 다시 열려면 코드를 입력해야 합니다.')) return;
+  if (HCODE) {   // 병원 모드는 세션·푸시가 없다 — 코드만 지우면 끝
+    HCODE = ''; localStorage.removeItem('hospital_code');
+    HOSP.hospital = null; HOSP.patients = []; HOSP.patient = null; HOSP.detail = null;
+    $('app').hidden = true; $('screen-login').hidden = false; $('tabbar').hidden = false;
+    $('code').value = '';
+    return;
+  }
   // 순서가 중요하다. 세션을 지운 뒤에 해제하면 '이 기기가 누구였는지'는
   //  남지만(토큰은 그대로다) 실패했을 때 다시 시도할 화면이 없다.
   //  그리고 무엇보다 — 지우기 전에 끊어야 로그아웃 직후 오는 전화가 안 울린다.
@@ -516,8 +537,20 @@ async function guideToNotifSettings() {
 let lastClientMsgs = null;   // 새 메시지 감지용
 
 async function loadAll() {
-  await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework(), loadCalls()]);
+  await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework(), loadCalls(), loadNotes()]);
   renderAll();
+}
+
+// 회기 기록·기록 안 남긴 상담·담당의 피드백 — 셋을 한 번에
+async function loadNotes() {
+  const [n, p, f] = await Promise.all([
+    getJson('/api/session-notes?' + authQS()),
+    getJson('/api/session-notes/pending?' + authQS()),
+    getJson('/api/doctor-feedback?' + authQS())
+  ]);
+  if (n && Array.isArray(n.items)) D.notes = n.items;
+  if (p && Array.isArray(p.items)) D.pending = p.items;
+  if (f && Array.isArray(f.items)) D.dfb = f.items;
 }
 
 // 바로상담(음성 상담) 수입. 예약(bookings)만 보던 정산 탭에서는
@@ -646,7 +679,7 @@ function renderDots() {
     el.textContent = n > 99 ? '99+' : n;
   };
   set('dot-chat', threads().reduce((s, t) => s + t.unread, 0));
-  set('dot-home', D.inbox.filter(x => !x.read).length);
+  set('dot-home', D.inbox.filter(x => !x.read).length + D.pending.length + D.dfb.filter(f => !f.readC).length);
   // 완료 처리를 안 하면 정산이 시작되지 않는다 — 그게 밀려 있으면 숫자로 보여준다
   set('dot-book', D.bookings.filter(b => b.status === 'confirmed' && b.whenTs <= Date.now()).length);
   set('dot-money', 0);
@@ -812,6 +845,10 @@ function renderHome() {
     ${foldProfile()}
     ${foldSlots()}
     ${foldPrefs()}
+    ${fold('sn', '회기 기록', D.pending.length
+      ? `<b style="color:var(--warn);">기록 안 남긴 상담 ${D.pending.length}건</b>`
+      : (D.notes.length ? `${D.notes.length}건 · 모두 기록됨` : '아직 없음'), snHomeHtml())}
+    ${D.dfb.length ? fold('dfb', '담당의 피드백', `${D.dfb.length}건${D.dfb.filter(f => !f.readC).length ? ` · <b style="color:var(--accent);">새 ${D.dfb.filter(f => !f.readC).length}</b>` : ''}`, dfbListHtml()) : ''}
     ${fold('hw', '내가 낸 숙제', D.homework.length ? `${D.homework.length}개 · 완료 ${hwDone}` : '아직 없음', hwListHtml(D.homework, true))}
     ${fold('inbox', '받은 상담 자료', D.inbox.length ? `${D.inbox.length}건 · 안 읽음 ${inboxUnread}` : '아직 없음', inboxHtml())}
     ${fold('rv', '내 리뷰', D.reviews.length ? `${D.reviews.length}개` : '아직 없음', reviewsHtml())}
@@ -1125,6 +1162,11 @@ function openRoomMenu() {
     <button class="menurow" data-act="hw-open">
       ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2.5 2.5L16 8"/><rect x="4" y="4" width="16" height="16" rx="4"/></svg>')}
       <span class="grow">숙제 내기<br><span class="ms">${hw.length ? `완료 ${hw.filter(h => h.doneAt).length}/${hw.length}` : '아직 낸 숙제가 없어요'}</span></span>
+    </button>
+    <button class="menurow" data-act="sn-open-room">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 12h8M8 16h5"/></svg>')}
+      <span class="grow">회기 기록 남기기<br><span class="ms">${(() => { const n = D.notes.filter(x => x.clientId === t.clientId).length; return n ? `이 내담자 기록 ${n}건 · 담당 병원과 공유` : '상담 요약·계획·위험도 — 담당의가 봅니다'; })()}</span></span>
+      ${D.notes.some(x => x.clientId === t.clientId) ? '<span class="chip ok">있음</span>' : ''}
     </button>
     <button class="menurow" data-act="qr-edit">
       ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/></svg>')}
@@ -2525,11 +2567,307 @@ function closeSheet() {
 }
 
 // ============================================================================
+//  회기 기록 — 상담이 끝나면 요약·다음 계획·위험도·낸 숙제를 남긴다.
+//  담당 병원이 연결된 내담자라면 그 기록을 담당의가 본다. 기록이 없으면 의사는
+//  환자가 상담을 받았다는 사실조차 모른다 — 그래서 '기록 안 남긴 상담'을 홈에서 재촉한다.
+// ============================================================================
+const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 의사 확인 필요' };
+const RISK_CHIP = { none: '', watch: '<span class="chip gold">주의</span>', urgent: '<span class="chip bad">긴급</span>' };
+const KIND_LABEL = { booking: '예약 상담', call: '전화 상담', chat: '채팅 상담' };
+const fmtDay = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; };
+const fmtDT = ts => new Date(ts).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+function snHomeHtml() {
+  const pend = D.pending.map(p => `
+    <div class="listrow">
+      <div class="grow">
+        <div class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(p.clientName || '내담자')} 님</strong>
+          <span class="chip gold">${KIND_LABEL[p.kind] || '상담'}</span></div>
+        <div class="muted">${fmtDT(p.ts)}${p.secs ? ` · ${Math.round(p.secs / 60)}분 통화` : ''} · 아직 기록이 없어요</div>
+      </div>
+      <button class="btn sm" data-act="sn-open" data-client-id="${esc(p.clientId)}" data-client-name="${esc(p.clientName || '')}"
+        data-booking-id="${esc(p.bookingId || '')}" data-call-id="${esc(p.callId || '')}" data-kind="${esc(p.kind)}" data-ts="${p.ts}">기록 남기기</button>
+    </div>`).join('');
+  const recent = D.notes.slice(0, 5).map(n => `
+    <div class="listrow">
+      <div class="grow">
+        <div class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(n.clientName || '내담자')} 님</strong>${RISK_CHIP[n.risk] || ''}${n.shared ? '' : '<span class="chip off">비공유</span>'}</div>
+        <div class="muted">${fmtDT(n.ts)} · ${KIND_LABEL[n.kind] || '상담'} · ${esc(String(n.summary).slice(0, 40))}${n.summary.length > 40 ? '…' : ''}</div>
+      </div>
+      <button class="btn ghost sm" data-act="sn-edit" data-id="${esc(n.id)}">고치기</button>
+    </div>`).join('');
+  return `
+    ${pend ? `<p class="muted" style="margin-bottom:0.4rem;">상담이 끝났는데 기록이 없는 건들이에요. 담당 병원이 연결된 내담자는 이 기록으로 의사가 상담 경과를 봅니다.</p>${pend}` : ''}
+    ${recent ? `<p class="muted" style="margin:${pend ? '0.8rem' : '0'} 0 0.4rem;">최근 기록</p>${recent}` : ''}
+    ${!pend && !recent ? '<p class="muted">대화방 메뉴의 [회기 기록 남기기] 로 첫 기록을 남겨보세요.</p>' : ''}`;
+}
+
+function dfbListHtml() {
+  const nameOf = cid => { const n = D.notes.find(x => x.clientId === cid); return n ? n.clientName : '내담자'; };
+  return D.dfb.map(f => `
+    <div class="card" style="margin-bottom:0.5rem; ${f.readC ? '' : 'border-color: var(--accent);'}">
+      <div class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(nameOf(f.clientId))} 님</strong>
+        <span class="muted">${esc(f.hospital)}${f.doctor ? ' · ' + esc(f.doctor) + ' 선생님' : ''}</span>
+        <span class="muted grow" style="text-align:right;">${fmtDT(f.ts)}</span></div>
+      <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(f.text)}</p>
+    </div>`).join('');
+}
+
+async function markDfbRead() {
+  const ids = D.dfb.filter(f => !f.readC).map(f => f.id);
+  if (!ids.length) return;
+  D.dfb.forEach(f => { if (!f.readC) f.readC = Date.now(); });
+  renderDots();
+  await postJson('/api/doctor-feedback/read', authBody({ ids }));
+}
+
+function openSessionNote(ctx) {
+  ctx = ctx || {};
+  const isEdit = !!ctx.id;
+  sheet(`
+    <h3 class="serif">${esc(ctx.clientName || '내담자')} 님 회기 기록${isEdit ? ' 고치기' : ''}</h3>
+    <p class="muted" style="margin-bottom:0.7rem;">${KIND_LABEL[ctx.kind] || '상담'} · ${fmtDT(ctx.ts || Date.now())}</p>
+    <label><span>상담 요약 (필수)</span>
+      <textarea id="sn-summary" rows="5" maxlength="2000" placeholder="호소 문제, 이번 회기에서 다룬 것, 내담자 상태. 담당의가 읽는다고 생각하고 사실 위주로.">${esc(ctx.summary || '')}</textarea></label>
+    <label><span>다음 계획</span>
+      <textarea id="sn-plan" rows="2" maxlength="1000" placeholder="다음 회기에 다룰 것, 권한 것">${esc(ctx.plan || '')}</textarea></label>
+    <label><span>위험도</span>
+      <select id="sn-risk">
+        ${['none', 'watch', 'urgent'].map(r => `<option value="${r}" ${(ctx.risk || 'none') === r ? 'selected' : ''}>${RISK_LABEL[r]}</option>`).join('')}
+      </select></label>
+    <label><span>이번에 낸 숙제 (있으면)</span>
+      <input id="sn-hw" type="text" maxlength="500" value="${esc(ctx.homework || '')}" placeholder="예: 잠들기 전 10분 걷기 · 매일"></label>
+    <label style="display:flex; align-items:center; gap:0.5rem; margin:0.4rem 0 0.8rem;">
+      <input id="sn-shared" type="checkbox" ${ctx.shared === false ? '' : 'checked'} style="width:auto;">
+      <span style="font-size:0.86rem;">담당 병원과 공유 (병원이 연결된 내담자에게만 전달돼요)</span></label>
+    <p class="muted" style="margin-bottom:0.8rem; padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
+      🔒 요약은 서버에 저장되고 내담자와 담당의가 볼 수 있어요. 대화 원문은 저장되지 않습니다.</p>
+    <button class="btn" data-act="sn-save" data-id="${esc(ctx.id || '')}" data-client-id="${esc(ctx.clientId || '')}" data-client-name="${esc(ctx.clientName || '')}"
+      data-booking-id="${esc(ctx.bookingId || '')}" data-call-id="${esc(ctx.callId || '')}" data-kind="${esc(ctx.kind || 'chat')}" data-ts="${ctx.ts || Date.now()}">${isEdit ? '저장' : '기록 남기기'}</button>`);
+  setTimeout(() => { const t = $('sn-summary'); if (t) t.focus(); }, 60);
+}
+
+function openSessionNoteList(t) {
+  const mine = D.notes.filter(n => n.clientId === t.clientId);
+  sheet(`
+    <h3 class="serif">${esc(t.clientName)} 님 회기 기록</h3>
+    <p class="muted" style="margin-bottom:0.8rem;">상담이 끝날 때마다 한 번씩. 담당 병원이 연결돼 있으면 담당의가 이 기록으로 경과를 봅니다.</p>
+    <button class="btn" data-act="sn-open" data-client-id="${esc(t.clientId)}" data-client-name="${esc(t.clientName)}" data-kind="chat" data-ts="${Date.now()}">＋ 새 기록</button>
+    <div class="sec-title" style="margin-top:0.9rem;">지금까지 ${mine.length}건</div>
+    ${mine.length ? mine.map(n => `
+      <div class="card" style="margin-bottom:0.5rem;">
+        <div class="row" style="gap:0.4rem;"><strong style="font-size:0.88rem;">${fmtDT(n.ts)}</strong><span class="muted">${KIND_LABEL[n.kind] || ''}</span>${RISK_CHIP[n.risk] || ''}${n.shared ? '' : '<span class="chip off">비공유</span>'}
+          <span class="grow"></span><button class="btn ghost sm" data-act="sn-edit" data-id="${esc(n.id)}">고치기</button></div>
+        <p style="margin-top:0.4rem; font-size:0.86rem; white-space:pre-wrap;">${esc(n.summary)}</p>
+        ${n.plan ? `<p class="muted" style="margin-top:0.3rem;"><b>계획</b> ${esc(n.plan)}</p>` : ''}
+        ${n.homework ? `<p class="muted"><b>숙제</b> ${esc(n.homework)}</p>` : ''}
+      </div>`).join('') : '<p class="muted">아직 기록이 없어요.</p>'}`);
+}
+
+async function saveSessionNote(btn) {
+  const d = btn.dataset;
+  const summary = (($('sn-summary') || {}).value || '').trim();
+  if (summary.length < 5) { toast('상담 요약을 조금 더 적어주세요.'); return; }
+  btn.disabled = true;
+  const res = await postJson('/api/session-notes', authBody({
+    id: d.id || '', clientId: d.clientId, clientName: d.clientName, bookingId: d.bookingId || '', callId: d.callId || '',
+    kind: d.kind || 'chat', ts: Number(d.ts) || Date.now(), summary,
+    plan: (($('sn-plan') || {}).value || '').trim(), risk: ($('sn-risk') || {}).value || 'none',
+    homework: (($('sn-hw') || {}).value || '').trim(), shared: !!($('sn-shared') && $('sn-shared').checked)
+  }));
+  btn.disabled = false;
+  if (!res || !res.ok) { toast(res && res.error === 'missing-summary' ? '요약이 너무 짧아요' : '저장하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+  closeSheet();
+  toast(d.id ? '기록을 고쳤어요' : '회기 기록을 남겼어요');
+  await loadNotes();
+  renderHome(); renderDots();
+  if (ROOM) renderRoom();
+}
+
+// ============================================================================
+//  병원(담당의) 모드 — 진료실 코드로 들어온 의사가 연결된 환자를 본다
+// ============================================================================
+function enterHospital(h) {
+  HOSP.hospital = h;
+  $('screen-login').hidden = true;
+  $('app').hidden = false;
+  $('tabbar').hidden = true;
+  const sb = document.querySelector('#appbar [data-act="settings"]');
+  if (sb) sb.hidden = true;
+  $('me-name').textContent = h.name;
+  $('me-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '담당의 화면';
+  $('me-av').textContent = (h.name || '병').slice(0, 1);
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'view-hosp'));
+  renderHosp();
+  loadHospital();
+}
+
+async function loadHospital() {
+  const d = await getJson('/api/hospital/patients?hcode=' + encodeURIComponent(HCODE));
+  if (d && Array.isArray(d.items)) HOSP.patients = d.items;
+  if (HOSP.patient) await loadPatient(); else renderHosp();
+}
+
+async function loadPatient() {
+  if (!HOSP.patient) return;
+  const d = await getJson('/api/hospital/patient?hcode=' + encodeURIComponent(HCODE) + '&clientId=' + encodeURIComponent(HOSP.patient));
+  if (d && d.patient) HOSP.detail = d;
+  renderHosp();
+}
+
+function renderHosp() {
+  const el = $('view-hosp');
+  if (!el || !HCODE) return;
+  if (busy(el)) return;
+  if (HOSP.patient) { el.innerHTML = hospPatientHtml(); return; }
+  const q = HOSP.q.trim();
+  const list = HOSP.patients.filter(p => !q || (p.name || '').includes(q) || (p.birth || '').includes(q));
+  const urgent = HOSP.patients.filter(p => p.lastRisk === 'urgent').length;
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:0.7rem;">
+      <div class="row" style="gap:0.6rem;">
+        <div class="grow">
+          <strong style="font-size:0.98rem;">연결된 환자 ${HOSP.patients.length}명</strong>
+          <p class="muted" style="margin-top:0.2rem;">${urgent ? `<b style="color:var(--danger);">긴급 표시 ${urgent}명</b> · ` : ''}환자가 앱에서 병원 코드를 넣으면 여기에 나타납니다.</p>
+        </div>
+        <button class="btn ghost sm" data-act="refresh">새로고침</button>
+      </div>
+      <input id="hosp-q" type="search" placeholder="이름·생년으로 찾기" value="${esc(HOSP.q)}" style="margin-top:0.6rem;">
+    </div>
+    ${list.length ? list.map(p => `
+      <button class="card" style="width:100%; text-align:left; display:block; margin-bottom:0.5rem; cursor:pointer; ${p.lastRisk === 'urgent' ? 'border-color: var(--danger);' : p.lastRisk === 'watch' ? 'border-color: var(--gold);' : ''}" data-act="hosp-open" data-id="${esc(p.clientId)}">
+        <div class="row" style="gap:0.6rem;">
+          ${avatar(p.name)}
+          <div class="grow">
+            <div class="row" style="gap:0.4rem;"><strong style="font-size:0.92rem;">${esc(p.name)}</strong>${p.birth ? `<span class="muted">${esc(p.birth)}</span>` : ''}${RISK_CHIP[p.lastRisk] || ''}</div>
+            <div class="muted">${p.notes ? `상담 기록 ${p.notes}건 · 최근 ${fmtDay(p.lastNote)}` : '아직 상담 기록 없음'}${p.hwOpen ? ` · 진행 중 숙제 ${p.hwOpen}` : ''} · ${fmtDay(p.linkedAt)} 연결</div>
+          </div>
+          <span class="muted">›</span>
+        </div>
+      </button>`).join('')
+      : empty('chat', HOSP.patients.length ? '검색 결과가 없어요' : '아직 연결된 환자가 없어요', HOSP.patients.length ? '' : '진료실에서 환자에게 병원 코드를 알려주세요.<br>앱 → 마이 → 담당 병원 연결하기')}`;
+}
+
+function hospPatientHtml() {
+  const d = HOSP.detail;
+  const p = HOSP.patients.find(x => x.clientId === HOSP.patient) || {};
+  const head = `
+    <div class="row" style="gap:0.5rem; margin-bottom:0.7rem;">
+      <button class="iconbtn" data-act="hosp-back" aria-label="목록으로"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+      ${avatar(p.name)}
+      <div class="grow">
+        <strong style="font-size:1rem;">${esc(p.name || '환자')}</strong>
+        <div class="muted">${[p.birth, `${fmtDay(p.linkedAt || Date.now())} 연결`].filter(Boolean).join(' · ')}</div>
+      </div>
+      <button class="btn sm" data-act="hosp-fb">피드백 쓰기</button>
+    </div>`;
+  if (!d) return head + '<div class="empty">불러오는 중…</div>';
+  const hwDone = d.homework.filter(h => h.doneAt).length;
+  const lastRisk = d.notes.length ? d.notes[0].risk : 'none';
+  const stats = `
+    <div class="card" style="margin-bottom:0.7rem;">
+      <div class="row" style="gap:0.8rem; flex-wrap:wrap;">
+        <div><div class="muted">상담 기록</div><strong>${d.notes.length}건</strong></div>
+        <div><div class="muted">숙제</div><strong>${hwDone}/${d.homework.length} 완료</strong></div>
+        <div><div class="muted">최근 위험도</div><strong>${RISK_LABEL[lastRisk] || '—'}</strong></div>
+        <div><div class="muted">상담사</div><strong>${esc([...new Set(d.notes.map(n => n.counselor).filter(Boolean))].join(', ') || '—')}</strong></div>
+      </div>
+      <p class="muted" style="margin-top:0.5rem;">앱 안의 대화 내용은 병원에 오지 않습니다. 여기 보이는 건 상담사가 남긴 요약·숙제와 선생님의 피드백뿐이에요.</p>
+    </div>`;
+  const items = [];
+  d.notes.forEach(n => items.push({ ts: n.ts, html: `
+    <div class="card" style="margin-bottom:0.5rem; ${n.risk === 'urgent' ? 'border-color: var(--danger);' : n.risk === 'watch' ? 'border-color: var(--gold);' : ''}">
+      <div class="row" style="gap:0.4rem;"><span class="chip ok">${KIND_LABEL[n.kind] || '상담'}</span><strong style="font-size:0.88rem;">${esc(n.counselor || '상담사')}</strong>${RISK_CHIP[n.risk] || ''}<span class="muted grow" style="text-align:right;">${fmtDT(n.ts)}</span></div>
+      <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(n.summary)}</p>
+      ${n.plan ? `<p class="muted" style="margin-top:0.35rem;"><b>다음 계획</b> ${esc(n.plan)}</p>` : ''}
+      ${n.homework ? `<p class="muted"><b>낸 숙제</b> ${esc(n.homework)}</p>` : ''}
+      <button class="btn ghost sm" style="margin-top:0.5rem;" data-act="hosp-fb" data-note="${esc(n.id)}">이 기록에 피드백</button>
+    </div>` }));
+  d.homework.forEach(h => items.push({ ts: h.assignedAt, html: `
+    <div class="card" style="margin-bottom:0.5rem;">
+      <div class="row" style="gap:0.4rem;"><span class="chip ${h.doneAt ? 'ok' : 'gold'}">숙제${h.doneAt ? ' 완료' : ' 진행 중'}</span><strong style="font-size:0.88rem;">${esc(h.counselor || '상담사')}</strong><span class="muted grow" style="text-align:right;">${fmtDT(h.assignedAt)}</span></div>
+      <p style="margin-top:0.4rem; font-size:0.88rem;">${esc(h.text)}</p>
+      ${h.doneAt ? `<p class="muted" style="margin-top:0.3rem;">${fmtDT(h.doneAt)} 완료${h.note ? ` · 환자 메모: ${esc(h.note)}` : ''}</p>` : ''}
+    </div>` }));
+  d.feedback.forEach(f => items.push({ ts: f.ts, html: `
+    <div class="card" style="margin-bottom:0.5rem; background: var(--accent-soft);">
+      <div class="row" style="gap:0.4rem;"><span class="chip new">내 피드백</span><span class="muted">${f.to === 'counselor' ? '상담사에게' : f.to === 'patient' ? '환자에게' : '상담사·환자에게'}</span><span class="muted grow" style="text-align:right;">${fmtDT(f.ts)}</span></div>
+      <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(f.text)}</p>
+    </div>` }));
+  d.bookings.forEach(b => items.push({ ts: b.whenTs, html: `
+    <div class="listrow"><div class="grow"><div class="muted">${fmtDT(b.whenTs)} · ${esc(b.counselor || '상담사')} 예약 상담 · ${esc(b.status)}</div></div></div>` }));
+  items.sort((a, b) => b.ts - a.ts);
+  return head + stats + `<div class="sec-title">타임라인</div>` + (items.length ? items.map(i => i.html).join('') : '<p class="muted">아직 기록이 없어요.</p>');
+}
+
+function openFeedbackSheet(noteId) {
+  const p = HOSP.patients.find(x => x.clientId === HOSP.patient) || {};
+  const n = noteId && HOSP.detail ? HOSP.detail.notes.find(x => x.id === noteId) : null;
+  sheet(`
+    <h3 class="serif">${esc(p.name || '환자')} 님에게 피드백</h3>
+    ${n ? `<p class="muted" style="margin-bottom:0.6rem; padding:0.5rem 0.7rem; background:var(--bg); border-radius:10px;">${fmtDT(n.ts)} ${esc(n.counselor)} 기록에 대한 피드백<br>"${esc(String(n.summary).slice(0, 80))}${n.summary.length > 80 ? '…' : ''}"</p>` : ''}
+    <label><span>받는 사람</span>
+      <select id="fb-to">
+        <option value="both">상담사와 환자 모두</option>
+        <option value="counselor">상담사에게만</option>
+        <option value="patient">환자에게만</option>
+      </select></label>
+    <label><span>내용</span>
+      <textarea id="fb-text" rows="6" maxlength="2000" placeholder="예: 수면 문제가 계속되면 다음 진료 때 약 조정을 검토하겠습니다. 상담에서는 취침 시간 고정을 우선 다뤄주세요."></textarea></label>
+    <p class="muted" style="margin-bottom:0.8rem;">환자에게 보내는 내용은 환자 앱의 알림함과 '병원과 나누는 기록'에 그대로 뜹니다.</p>
+    <button class="btn" data-act="hosp-fb-send" data-note="${esc(noteId || '')}">보내기</button>`);
+  setTimeout(() => { const t = $('fb-text'); if (t) t.focus(); }, 60);
+}
+
+async function sendFeedback(btn) {
+  const text = (($('fb-text') || {}).value || '').trim();
+  if (!text) { toast('내용을 적어주세요.'); return; }
+  btn.disabled = true;
+  const res = await postJson('/api/hospital/feedback', { hcode: HCODE, clientId: HOSP.patient, noteId: btn.dataset.note || '', to: ($('fb-to') || {}).value || 'both', text });
+  btn.disabled = false;
+  if (!res || !res.ok) { toast('보내지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+  closeSheet();
+  toast('피드백을 보냈어요');
+  loadPatient();
+}
+
+document.addEventListener('input', e => {
+  if (!e.target || e.target.id !== 'hosp-q') return;
+  HOSP.q = e.target.value || '';
+  const el = $('view-hosp');
+  const input = e.target;
+  renderHosp();
+  const again = $('hosp-q');
+  if (again && again !== input) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+});
+
+// ============================================================================
 //  동작 — 클릭 한 곳에서 받는다 (인라인 onclick 은 따옴표 하나에 무너진다)
 // ============================================================================
 const ACT = {
   tab: (el) => setTab(el.dataset.tab),
-  refresh: () => { loadAll(); toast('새로고침했어요'); },
+  refresh: () => { if (HCODE) { loadHospital(); } else { loadAll(); } toast('새로고침했어요'); },
+
+  // ── 회기 기록 (상담사) ──
+  'sn-open': (el) => openSessionNote({
+    id: el.dataset.id || '', clientId: el.dataset.clientId || '', clientName: el.dataset.clientName || '',
+    bookingId: el.dataset.bookingId || '', callId: el.dataset.callId || '', kind: el.dataset.kind || 'chat',
+    ts: Number(el.dataset.ts) || Date.now()
+  }),
+  'sn-open-room': () => {
+    const t = curThread();
+    if (!t) return;
+    if (!t.clientId) { toast('이 대화에는 내담자 식별자가 없어 기록을 남길 수 없어요.'); return; }
+    openSessionNoteList(t);
+  },
+  'sn-save': (el) => saveSessionNote(el),
+  'sn-edit': (el) => { const n = D.notes.find(x => x.id === el.dataset.id); if (n) openSessionNote(n); },
+
+  // ── 병원(담당의) 모드 ──
+  'hosp-open': (el) => { HOSP.patient = el.dataset.id; HOSP.detail = null; renderHosp(); loadPatient(); },
+  'hosp-back': () => { HOSP.patient = null; HOSP.detail = null; renderHosp(); },
+  'hosp-fb': (el) => openFeedbackSheet(el.dataset.note || ''),
+  'hosp-fb-send': (el) => sendFeedback(el),
   logout,
   fold: (el) => {
     const k = el.dataset.key;
@@ -2537,6 +2875,7 @@ const ACT = {
     renderHome(); renderMoney();
     // 기기 수는 열어본 사람에게만 물어본다 — 30초 폴링마다 서버를 두드릴 값이 아니다
     if (k === 'pref' && OPEN[k]) loadDevices();
+    if (k === 'dfb' && OPEN[k]) markDfbRead();
   },
   'ask-noti': askNotify,
   // 잃어버린 폰·초기화한 태블릿은 스스로 알림을 끊을 수 없다.
@@ -2998,6 +3337,7 @@ function initBackButton() {
         const vis = (id) => { const el = $(id); return el && !el.hidden; };
         if (vis('callov')) return;                       // 통화·수신 화면
         if (vis('sheet')) { closeSheet(); return; }      // 바텀시트
+        if (HCODE && HOSP.patient) { HOSP.patient = null; HOSP.detail = null; renderHosp(); return; }   // 환자 상세 → 목록
         if (vis('chatroom')) { closeRoom(); return; }    // 대화방 → 목록
         if (TAB !== 'home') { setTab('home'); return; }  // 다른 탭 → 홈
         // 접어둔 통화가 뒤로가기 두 번에 끊기면 최악이다 — 통화 중엔 앱을 끄지 않는다
@@ -3016,6 +3356,11 @@ initBackButton();
   const t = new URLSearchParams(location.search).get('t');
   if (t) { if (await verifyLink(t)) askNotify(); }
   if (SESSION || CODE) { enterApp(); await loadAll(); connectHub(); }
+  else if (HCODE) {
+    const hd = await getJson('/api/hospital/me?hcode=' + encodeURIComponent(HCODE));
+    if (hd && hd.ok) enterHospital(hd.hospital);
+    else { HCODE = ''; localStorage.removeItem('hospital_code'); }
+  }
 })();
 
 initSW();

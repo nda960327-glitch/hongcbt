@@ -305,6 +305,7 @@ window.App = {
     if (window.Missions) window.Missions.renderCard();
     this.renderMoodCard();
     if (window.Feed) window.Feed.init();
+    if (window.Hospital) window.Hospital.init();
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
     if (window.Safety) window.Safety.renderRow();
@@ -1877,6 +1878,7 @@ window.App = {
         this._callQueueTick();     // 바로상담 대기열 — 회선 비면 알림
         this._reviewReplyTick();   // 상담사 리뷰 답글 수신
         this._homeworkTick();      // 상담사가 낸 숙제 수신 → 퀘스트로
+        if (window.Hospital) window.Hospital.tick();   // 담당의 피드백 수신 (10분마다)
       }
       if (window.Weekly) window.Weekly.autoDeliver(); // 일요일 밤 주간 편지 자동 배달
       this._actionCheckinTick();   // 밤에 딱 한 번, 지금 필요한 '행동'을 권한다

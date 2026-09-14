@@ -108,3 +108,13 @@ CREATE TABLE IF NOT EXISTS feed_votes (
   ts         INTEGER NOT NULL,
   PRIMARY KEY (feed_id, client_id)
 );
+
+-- 병원(담당의) 연동 — hospital.js. 환자 연결·회기 기록·의사 피드백
+CREATE TABLE IF NOT EXISTS hospitals (id TEXT PRIMARY KEY, name TEXT NOT NULL, dept TEXT, doctor TEXT, code TEXT NOT NULL UNIQUE, active INTEGER NOT NULL DEFAULT 1, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS patient_links (client_id TEXT NOT NULL, hospital_id TEXT NOT NULL, name TEXT, birth TEXT, linked_at INTEGER NOT NULL, unlinked_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (client_id, hospital_id));
+CREATE INDEX IF NOT EXISTS idx_pl_hospital ON patient_links(hospital_id, unlinked_at);
+CREATE TABLE IF NOT EXISTS session_notes (id TEXT PRIMARY KEY, counselor_id TEXT NOT NULL, counselor_name TEXT, client_id TEXT NOT NULL, client_name TEXT, booking_id TEXT, call_id TEXT, kind TEXT NOT NULL DEFAULT 'chat', ts INTEGER NOT NULL, summary TEXT NOT NULL, plan TEXT, risk TEXT NOT NULL DEFAULT 'none', homework TEXT, shared INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_sn_client ON session_notes(client_id, ts);
+CREATE INDEX IF NOT EXISTS idx_sn_counselor ON session_notes(counselor_id, ts);
+CREATE TABLE IF NOT EXISTS doctor_feedback (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, hospital_name TEXT, doctor TEXT, client_id TEXT NOT NULL, note_id TEXT, to_who TEXT NOT NULL DEFAULT 'both', text TEXT NOT NULL, ts INTEGER NOT NULL, read_c INTEGER NOT NULL DEFAULT 0, read_p INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS idx_df_client ON doctor_feedback(client_id, ts);
