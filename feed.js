@@ -49,7 +49,7 @@ export async function handleFeed(request, env, cors, path) {
   if (path === '/feed' && method === 'GET') {
     let rows = [];
     try {
-      rows = (await db.prepare(LIST_SQL + ' WHERE f.published = 1 ORDER BY f.pinned DESC, f.created DESC LIMIT 60').all()).results || [];
+      rows = (await db.prepare(LIST_SQL + ' WHERE f.published = 1 ORDER BY f.pinned DESC, f.created DESC LIMIT 200').all()).results || [];
     } catch (e) { return json({ items: [], missing: true }, 200, cors); }   // 표가 아직 없어도 앱은 조용히
     const mine = {};
     const cid = cleanId(q('clientId'));
