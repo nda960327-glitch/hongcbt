@@ -83,3 +83,28 @@ CREATE TABLE IF NOT EXISTS call_queue (
   ts           INTEGER NOT NULL,
   PRIMARY KEY (counselor_id, client_id)
 );
+
+-- 느루의 추천 — 운영자가 올리는 정신건강 영상·글과 이용자의 반응 (feed.js)
+CREATE TABLE IF NOT EXISTS feed (
+  id         TEXT PRIMARY KEY,
+  type       TEXT NOT NULL DEFAULT 'youtube',  -- youtube | article
+  title      TEXT NOT NULL,
+  url        TEXT,
+  video_id   TEXT,
+  thumb      TEXT,
+  author     TEXT,
+  body       TEXT,                              -- 글 본문 (article)
+  tags       TEXT,                              -- '불안,수면' 처럼 쉼표 구분
+  note       TEXT,                              -- 느루 한마디
+  published  INTEGER NOT NULL DEFAULT 1,
+  pinned     INTEGER NOT NULL DEFAULT 0,
+  created    INTEGER NOT NULL,
+  updated    INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS feed_votes (
+  feed_id    TEXT NOT NULL,
+  client_id  TEXT NOT NULL,
+  v          INTEGER NOT NULL,                  -- 1 도움됐어요 · -1 별로예요
+  ts         INTEGER NOT NULL,
+  PRIMARY KEY (feed_id, client_id)
+);

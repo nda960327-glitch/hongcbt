@@ -262,6 +262,7 @@ const TITLES = {
   settle: ['정산', '확인 완료된 상담의 지급 처리'],
   payments: ['결제 내역', '느루 캐시 충전 · 승인 실패 감시'],
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
+  feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
   diag: ['진단 로그', '실기기 통화 단계 추적'],
@@ -276,6 +277,7 @@ const LAZY = {
   usage: ['usage', () => loadUsage()],
   contact: ['contact', () => loadContact()],
   reviews: ['reviews', () => loadReviews()],
+  feed: ['feed', () => loadFeed()],
   payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
   settings: ['maillog', () => loadMaillog()]
@@ -388,6 +390,144 @@ async function loadReviews() {
   if (TAB === 'reviews') render();
 }
 
+// ── 추천 콘텐츠 ────────────────────────────────────────────────────────
+let FEED_TAGS = ['불안', '우울', '수면', '관계', '자존감', '스트레스'];
+let FEED_EDIT = null;      // 고치는 중인 항목 id (null = 새로 만들기)
+let FEED_FORM_OPEN = false;
+async function loadFeed() {
+  const r = await adminGet('/api/feed/admin');
+  D.feed = r ? (r.items || []) : null;
+  if (r && Array.isArray(r.tags) && r.tags.length) FEED_TAGS = r.tags;
+  if (TAB === 'feed') render();
+}
+
+function feedForm(it) {
+  it = it || {};
+  const tags = new Set(it.tags || []);
+  return `
+    <div class="card" id="feed-form">
+      <div class="sec-title">${it.id ? '콘텐츠 고치기' : '새 콘텐츠'}
+        <span class="right"><button class="btn ghost sm" data-act="feed-cancel">접기</button></span></div>
+      <div class="row wrap" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+        <label class="muted">종류
+          <select id="fd-type" data-act="fd-type">
+            <option value="youtube" ${it.type !== 'article' ? 'selected' : ''}>유튜브 영상</option>
+            <option value="article" ${it.type === 'article' ? 'selected' : ''}>글</option>
+          </select></label>
+        <label class="muted" style="flex: 1 1 260px;">유튜브 링크 (영상일 때)
+          <input id="fd-url" type="url" placeholder="https://www.youtube.com/watch?v=…" value="${esc(it.url || '')}"></label>
+      </div>
+      <label class="muted">제목 <span style="font-weight: 400;">(영상은 비워두면 유튜브에서 가져옵니다)</span>
+        <input id="fd-title" type="text" maxlength="120" value="${esc(it.title || '')}"></label>
+      <label class="muted">출처·채널·저자 <input id="fd-author" type="text" maxlength="80" value="${esc(it.author || '')}"></label>
+      <label class="muted">느루 한마디 <span style="font-weight: 400;">(카드에 따옴표로 붙습니다. "잠들기 전 불안이 올라올 때 보면 좋아요" 처럼)</span>
+        <input id="fd-note" type="text" maxlength="200" value="${esc(it.note || '')}"></label>
+      <div class="muted" style="margin: 0.4rem 0 0.2rem;">태그 (고민과 맞는 사람에게 먼저 보입니다)</div>
+      <div class="row wrap" style="gap: 0.35rem 0.8rem; margin-bottom: 0.5rem;">
+        ${FEED_TAGS.map(t => `<label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.86rem;"><input type="checkbox" class="fd-tag" value="${esc(t)}" ${tags.has(t) ? 'checked' : ''}>${esc(t)}</label>`).join('')}
+      </div>
+      <label class="muted" id="fd-body-wrap" ${it.type !== 'article' ? 'hidden' : ''}>본문 (글일 때 · 빈 줄로 문단, **굵게**)
+        <textarea id="fd-body" rows="10" maxlength="20000">${esc(it.body || '')}</textarea></label>
+      <div class="row wrap" style="gap: 0.8rem; margin-top: 0.5rem;">
+        <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.86rem;"><input type="checkbox" id="fd-pub" ${it.published === false ? '' : 'checked'}>게시</label>
+        <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.86rem;"><input type="checkbox" id="fd-pin" ${it.pinned ? 'checked' : ''}>맨 앞에 고정</label>
+        <span class="grow"></span>
+        <button class="btn" data-act="feed-save" data-id="${esc(it.id || '')}">${it.id ? '저장' : '올리기'}</button>
+      </div>
+    </div>`;
+}
+
+function viewFeed() {
+  if (D.feed === undefined) return loading;
+  if (!D.feed) return failed;
+  const editing = FEED_EDIT ? D.feed.find(x => x.id === FEED_EDIT) : null;
+  const card = it => {
+    const total = (it.up || 0) + (it.down || 0);
+    const bad = total >= 5 && (it.down || 0) >= (it.up || 0) * 2;
+    const thumb = it.thumb || (it.videoId ? `https://i.ytimg.com/vi/${it.videoId}/hqdefault.jpg` : '');
+    return `
+    <div class="card"${!it.published ? ' style="opacity: 0.6;"' : bad ? ' style="border-color: rgba(207,107,96,0.35);"' : ''}>
+      <div class="row" style="gap: 0.7rem; align-items: flex-start;">
+        ${thumb ? `<img src="${esc(thumb)}" alt="" style="width: 96px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; flex-shrink: 0;">`
+                : `<div style="width: 96px; aspect-ratio: 16/9; border-radius: 8px; background: var(--line); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem;">글</div>`}
+        <div class="grow" style="min-width: 0;">
+          <b style="font-size: 0.9rem;">${esc(it.title)}</b>
+          <div class="muted">${it.type === 'youtube' ? '영상' : '글'}${it.author ? ' · ' + esc(it.author) : ''} · ${(it.tags || []).join(', ') || '태그 없음'}${it.pinned ? ' · 고정' : ''}${!it.published ? ' · <b>비공개</b>' : ''}</div>
+          ${it.note ? `<div class="muted" style="margin-top: 0.15rem;">"${esc(it.note)}"</div>` : ''}
+          <div style="margin-top: 0.3rem; font-size: 0.84rem;">
+            도움됐어요 <b>${it.up || 0}</b> · 별로예요 <b>${it.down || 0}</b>${bad ? ' <span style="color: var(--danger); font-weight: 700;">· 반응이 나빠요 — 내리는 걸 고려하세요</span>' : ''}
+            <span class="muted"> · ${fmtDate(it.created)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="row wrap" style="gap: 0.4rem; margin-top: 0.55rem;">
+        <button class="btn ghost sm" data-act="feed-edit" data-id="${esc(it.id)}">고치기</button>
+        <button class="btn ghost sm" data-act="feed-toggle" data-id="${esc(it.id)}">${it.published ? '내리기' : '다시 게시'}</button>
+        ${it.url ? `<a class="btn ghost sm" href="${esc(it.url)}" target="_blank" rel="noopener">열어보기</a>` : ''}
+        <span class="grow"></span>
+        <button class="btn warnline sm" data-act="feed-del" data-id="${esc(it.id)}">삭제</button>
+      </div>
+    </div>`;
+  };
+  return `
+    <div class="sec-title">홈 "느루의 추천"
+      <span class="right"><button class="btn sm" data-act="feed-new">＋ 새 콘텐츠</button></span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      올리면 앱 홈에 카드로 뜹니다. 유튜브는 링크만 넣어도 제목·채널·썸네일이 채워져요.
+      태그가 이용자의 온보딩 고민과 맞으면 그 사람에게 먼저 보이고, 별로예요가 도움됐어요의 두 배를 넘으면(5표 이상) 자동으로 뒤로 밀립니다.</p>
+    ${(FEED_FORM_OPEN || editing) ? feedForm(editing) : ''}
+    ${D.feed.length ? D.feed.map(card).join('')
+      : '<div class="card"><div class="empty"><b>아직 올린 콘텐츠가 없어요</b>＋ 새 콘텐츠로 첫 영상을 올려보세요.</div></div>'}`;
+}
+
+function feedFormRead() {
+  const v = id => { const el = $(id); return el ? el.value.trim() : ''; };
+  return {
+    type: v('fd-type') || 'youtube', url: v('fd-url'), title: v('fd-title'), author: v('fd-author'),
+    note: v('fd-note'), body: v('fd-body'),
+    tags: [...document.querySelectorAll('.fd-tag:checked')].map(c => c.value),
+    published: !!($('fd-pub') && $('fd-pub').checked), pinned: !!($('fd-pin') && $('fd-pin').checked)
+  };
+}
+
+async function feedSave(id, btn) {
+  const item = feedFormRead();
+  if (id) item.id = id;
+  if (item.type === 'youtube' && !item.url) { alertBox('링크가 필요해요', '유튜브 영상 링크를 붙여넣어 주세요.'); return; }
+  if (item.type === 'article' && !item.title) { alertBox('제목이 필요해요', '글에는 제목을 적어주세요.'); return; }
+  if (btn) btn.disabled = true;
+  const res = await adminPost('/api/feed/save', { item });
+  if (btn) btn.disabled = false;
+  if (!res || !res.ok) {
+    const why = res && res.error === 'bad-url' ? '유튜브 링크를 알아보지 못했어요. 주소를 다시 확인해주세요.'
+      : res && res.error === 'missing-title' ? '제목을 가져오지 못했어요. 직접 적어주세요.' : '잠시 후 다시 시도해주세요.';
+    alertBox('저장하지 못했어요', why); return;
+  }
+  toast(id ? '고쳤어요' : '올렸어요 — 앱 홈에 바로 뜹니다');
+  FEED_EDIT = null; FEED_FORM_OPEN = false;
+  loadFeed();
+}
+
+async function feedToggle(id) {
+  const it = (D.feed || []).find(x => x.id === id);
+  if (!it) return;
+  const res = await adminPost('/api/feed/save', { item: { ...it, published: !it.published } });
+  if (!res || !res.ok) { alertBox('바꾸지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
+  toast(it.published ? '내렸어요' : '다시 게시했어요');
+  loadFeed();
+}
+
+async function feedDel(id) {
+  const it = (D.feed || []).find(x => x.id === id);
+  if (!it) return;
+  const ok = await confirmBox({ title: '이 콘텐츠를 지울까요?', body: `"${it.title}"\n\n반응 기록도 함께 사라집니다. 잠시 내려두려면 '내리기'를 쓰세요.`, okLabel: '삭제', danger: true });
+  if (!ok) return;
+  const res = await adminPost('/api/feed/delete', { id });
+  if (!res || !res.ok) { alertBox('삭제하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
+  toast('삭제했어요');
+  loadFeed();
+}
+
 async function loadPayments() {
   const r = await adminGet('/api/admin/payments');
   D.payments = r || null;
@@ -429,7 +569,7 @@ function render() {
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
     clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
-    usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
+    feed: viewFeed, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
   if (fn) {
@@ -1976,7 +2116,7 @@ document.addEventListener('click', e => {
     const only = {
       diag: loadDiag, calls: loadCalls, clients: loadClients,
       usage: loadUsage, contact: loadContact, reviews: loadReviews,
-      payments: loadPayments
+      payments: loadPayments, feed: loadFeed
     }[TAB];
     if (only) only(); else loadAll();
     toast('새로고침했어요'); return;
@@ -1992,6 +2132,13 @@ document.addEventListener('click', e => {
 
   if (act === 'approve') { approve(id, el); return; }
   if (act === 'reject') { reject(id, el); return; }
+
+  if (act === 'feed-new') { FEED_EDIT = null; FEED_FORM_OPEN = true; render(); const t = $('fd-url'); if (t) t.focus(); return; }
+  if (act === 'feed-edit') { FEED_EDIT = id; FEED_FORM_OPEN = true; render(); window.scrollTo(0, 0); return; }
+  if (act === 'feed-cancel') { FEED_EDIT = null; FEED_FORM_OPEN = false; render(); return; }
+  if (act === 'feed-save') { feedSave(id, el); return; }
+  if (act === 'feed-toggle') { feedToggle(id); return; }
+  if (act === 'feed-del') { feedDel(id); return; }
 
   if (act === 'peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
   if (act === 'copycode') { const c = csOf(id); if (c) copy(c.code, '코드를 복사했어요'); return; }
@@ -2036,6 +2183,7 @@ document.addEventListener('change', e => {
   const el = e.target.closest('[data-act]');
   if (!el) return;
   if (el.dataset.act === 'diag-stage') { DIAGQ.stage = el.value; render(); }
+  if (el.dataset.act === 'fd-type') { const w = $('fd-body-wrap'); if (w) w.hidden = el.value !== 'article'; }
 });
 
 // 검색은 입력할 때마다 그린다. 다시 그려도 포커스를 잃지 않도록 값만 되살린다.

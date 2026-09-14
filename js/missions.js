@@ -427,7 +427,8 @@ ${recent}` }],
     let planActs = [];
     let planKinds = [];
     try {
-      if (window.CarePlan && window.CarePlan.active()) {
+      // 2주가 끝난 계획의 할 일은 더 이상 '오늘 할 일'이 아니다 — 8월에 끝난 게 9월에도 떠 있었다
+      if (window.CarePlan && window.CarePlan.active() && !window.CarePlan.isOver()) {
         const wi = window.CarePlan.weekIndex();
         planActs = window.CarePlan.weekActions(window.CarePlan.currentWeek()) || [];
         planActs.forEach((a, i) => {

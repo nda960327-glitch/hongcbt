@@ -29,6 +29,7 @@ const MAX_MESSAGES = 40;
 const MAX_TTS_CHARS = 2000;
 
 import { handleMarket } from "./market.js";
+import { handleFeed } from "./feed.js";
 import { resolveCounselor } from "./auth.js";
 export { ChatHub } from "./hub.js";
 
@@ -184,6 +185,11 @@ export default {
 
     // 상담사 마켓(D1)은 GET 도 받는다. 여기서 처리되지 않으면 null 이 와서
     //  아래 AI 경로로 흘러간다 — 두 기능이 한 Worker 를 쓰되 서로 모르게.
+    // 느루의 추천(영상·글) — 마켓과 같은 D1 을 쓰되 모듈은 따로
+    if (path.startsWith("/feed")) {
+      const r = await handleFeed(request, env, cors, path);
+      if (r) return r;
+    }
     if (!/^\/(tts|chat)?$/.test(path)) {
       const r = await handleMarket(request, env, cors, path, ctx);
       if (r) return r;

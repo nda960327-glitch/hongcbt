@@ -304,6 +304,7 @@ window.App = {
     if (window.Growth) window.Growth.init();
     if (window.Missions) window.Missions.renderCard();
     this.renderMoodCard();
+    if (window.Feed) window.Feed.init();
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
     if (window.Safety) window.Safety.renderRow();
@@ -493,7 +494,7 @@ window.App = {
     if (tabName === 'home' && window.Missions) {
       window.Missions.renderCard();
     }
-    if (tabName === 'home') this.renderMoodCard();
+    if (tabName === 'home') { this.renderMoodCard(); if (window.Feed) window.Feed.render(); }
     if (tabName === 'home') {
       this.hydrateInlineIcons(document.getElementById('tab-home'));
       this.renderHomeGreeting();

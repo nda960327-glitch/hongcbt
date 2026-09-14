@@ -795,6 +795,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 · 나빠진 지표가 있으면 숨기지 마세요. 대신 "네 잘못이 아니라 도움이 더 필요하다는 신호"로 다루고 상담사 연결을 권하세요.`;
     }
 
+    // 운영자가 올린 추천 영상·글 — 있는 것만 권하게 목록을 준다
+    const feedCtx = (window.Feed && window.Feed.promptContext()) || '';
+    if (feedCtx) tail += '\n\n' + feedCtx;
+
     // 먼저 꺼낼 후속 질문 — 안부가 아니라 리포트에서 세운 가설의 확인이다
     const fu = (window.CarePlan && window.CarePlan.dueFollowUp && window.CarePlan.dueFollowUp()) || null;
     if (fu) {
