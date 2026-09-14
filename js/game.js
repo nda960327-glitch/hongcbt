@@ -20,6 +20,7 @@ window.Game = {
   //  퀘스트 카드(data-mission-card)는 홈과 퀘스트 화면에만 있고 방에는 없다.
   //  오늘 할 일은 홈 화면이나 아래 내비의 '퀘스트'에서 본다.
   _view: 'room',
+  _hist: [],   // 사용자가 직접 옮겨온 화면들 — 뒤로가기가 되짚어 간다
 
   open() {
     this.renderNav();
@@ -28,6 +29,12 @@ window.Game = {
 
   show(view, force) {
     if (!force && this._view === view) return;
+    // 사용자가 직접 옮긴 화면만 되돌아갈 자리로 쌓는다 (force 는 복원·프로그램 이동)
+    if (!force && this._view !== view) {
+      this._hist.push(this._view);
+      if (this._hist.length > 12) this._hist.shift();
+      if (window.App && window.App._pushNav) window.App._pushNav();
+    }
     this._view = view;
 
     document.querySelectorAll('.game-view').forEach(el => {
@@ -76,6 +83,23 @@ window.Game = {
       if (window.App && window.App.hydrateInlineIcons) window.App.hydrateInlineIcons(document.getElementById('gv-letter'));
     }
     this.renderHud();
+  },
+
+  // 뒤로가기: 열린 시트 → 펼친 서재 칸 → 직전 화면 → 방. 처리했으면 true.
+  back() {
+    const sheet = document.getElementById('game-sheet');
+    if (sheet && !sheet.classList.contains('hidden')) { this.closeSheet(); return true; }
+    const lib = document.querySelector('#gv-letter .lib-body:not(.hidden)');
+    if (lib && this._view === 'letter' && window.App && window.App.toggleLib) {
+      window.App.toggleLib(lib.id, lib.previousElementSibling);
+      return true;
+    }
+    while (this._hist.length) {
+      const prev = this._hist.pop();
+      if (prev && prev !== this._view) { this.show(prev, true); return true; }
+    }
+    if (this._view !== 'room') { this.show('room', true); return true; }
+    return false;
   },
 
   // --------------------------------------------------------------------------

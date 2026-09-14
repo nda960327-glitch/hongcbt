@@ -459,8 +459,15 @@ window.App = {
       }
       // 다시 묻지 않기 선택함 → 바로 채팅으로
     }
+    // 되돌아갈 탭을 쌓는다 — 뒤로가기로 온 이동은 쌓지 않는다 (앞으로 되돌아가 버린다)
+    if (this.currentTab !== tabName && !this._navFromBack) {
+      this._tabHist = this._tabHist || [];
+      this._tabHist.push(this.currentTab);
+      if (this._tabHist.length > 12) this._tabHist.shift();
+      this._pushNav();
+    }
     this.currentTab = tabName;
-    
+
     // Update nav active state
     document.querySelectorAll('.nav-item[data-tab]').forEach(nav => {
       nav.classList.toggle('active', nav.getAttribute('data-tab') === tabName);
@@ -4979,9 +4986,20 @@ ${body}
       'admin-overlay', 'admin-code-overlay', 'hchat-overlay', 'chat-search-overlay', 'day-detail-overlay',
       'share-pack-overlay', 'report-send-overlay', 'cprof-edit-overlay',
       // 감사에서 누락 확인 — 위기화면/편지함/일기 전체보기가 빠져 있어 여기서 앱이 꺼졌다.
-      'safety-now-ov', 'inbox-overlay', 'diary-full-ov'];
-    const isGuardable = el => !!el && el.nodeType === 1 && !!el.id
-      && (el.dataset.ovGuard === '1' || DYNAMIC.includes(el.id));
+      'safety-now-ov', 'inbox-overlay', 'diary-full-ov', 'program-sheet'];
+    // 뒤로가기로 닫으면 안 되는 고정 레이어 — 잠금 화면·통화·로그인
+    const EXCLUDE = ['applock-overlay', 'call-overlay', 'call-incoming', 'login-screen', 'back-exit-toast', 'toast'];
+    const isGuardable = el => {
+      if (!el || el.nodeType !== 1 || !el.id || EXCLUDE.includes(el.id)) return false;
+      if (el.dataset.ovGuard === '1' || DYNAMIC.includes(el.id)) return true;
+      // 화면을 거의 덮는 고정 레이어는 전부 '뒤로가기로 닫히는 것'이다 — 목록에 없는 새 시트도 잡힌다
+      try {
+        const cs = getComputedStyle(el);
+        if (cs.position !== 'fixed' || cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return r.width >= innerWidth * 0.8 && r.height >= innerHeight * 0.5;
+      } catch (e) { return false; }
+    };
     const currentTop = () => {
       for (let i = document.body.children.length - 1; i >= 0; i--) {
         const el = document.body.children[i];
@@ -4997,11 +5015,19 @@ ${body}
         t.dataset.bp = '1';
         try { history.pushState({ ov: 1 }, ''); } catch (e) {}
       }
+      if (t) this._ovTop = t;
+      else if (this._ovTop) {
+        // 닫기 버튼으로 닫혔다 — 남은 히스토리 한 칸을 조용히 걷어낸다.
+        //  안 걷어내면 다음 뒤로가기가 그 빈 칸을 먹고 탭까지 한 칸 더 물러난다.
+        this._ovTop = null;
+        if (history.state && history.state.ov) { this._skipPop = true; try { history.back(); } catch (e) { this._skipPop = false; } }
+      }
     });
     mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     window.addEventListener('popstate', () => {
+      if (this._skipPop) { this._skipPop = false; return; }
       const t = currentTop();
-      if (!t) return;
+      if (!t) { this.goBack(); return; }
       delete t.dataset.bp;
       if (t.id === 'tr-wizard') {
         // 작성 중이면 확인을 거쳐 닫힌다 (내용 실수 유실 방지)
@@ -5027,9 +5053,35 @@ ${body}
     });
   },
 
+  // 탭·화면 이동 한 칸 = 히스토리 한 칸. 브라우저(PWA)의 뒤로가기도 앱 밖으로 나가지 않게.
+  _navFromBack: false,
+  _pushNav() {
+    if (this._navFromBack) return;
+    try { history.pushState({ nav: 1 }, ''); } catch (e) {}
+  },
+
+  // 큰 탭 안에서 들어간 화면을 한 칸씩 되돌린다. 처리했으면 true, 더 물러설 곳이 없으면 false.
+  //  순서: 대시보드 안의 시트·서재 칸·하위 화면 → 직전 탭 → 홈. 홈에서는 false(호출부가 종료 처리).
+  goBack() {
+    this._navFromBack = true;
+    try {
+      if (this.currentTab === 'dashboard' && window.Game && window.Game.back && window.Game.back()) return true;
+      if (this.currentTab !== 'home') {
+        let prev = null;
+        while (this._tabHist && this._tabHist.length) {
+          const t = this._tabHist.pop();
+          if (t && t !== this.currentTab) { prev = t; break; }
+        }
+        this.switchTab(prev || 'home', true);
+        return true;
+      }
+      return false;
+    } finally { this._navFromBack = false; }
+  },
+
   // === 앱(웹뷰) 전용: 하드웨어 뒤로가기 ===
   //  JS 가 backButton 을 구독하는 순간 기본 동작(액티비티 종료)이 꺼지므로
-  //  여기서 전부 책임진다: 오버레이 닫기 → 홈으로 → 홈에서는 두 번 눌러 종료.
+  //  여기서 전부 책임진다: 오버레이 닫기 → 들어간 화면 되돌리기 → 직전 탭 → 홈에서는 두 번 눌러 종료.
   //  통화 화면에서는 무시 — 실수로 전화가 끊기는 게 제일 나쁘다.
   _initNativeBack() {
     try {
@@ -5046,7 +5098,7 @@ ${body}
           if ((callOv && callOv.style.display !== 'none') || document.getElementById('call-incoming')) return;
           // 열린 오버레이는 히스토리를 되감아 닫는다 (_initBackGuard 의 popstate 가 받는다)
           if (history.state && history.state.ov) { history.back(); return; }
-          if (this.currentTab !== 'dashboard') { this.switchTab('dashboard'); return; }
+          if (this.goBack()) return;
           // 접어둔 통화가 뒤로가기 두 번에 끊기면 최악이다 — 통화 중엔 앱을 끄지 않는다
           if (window.CallTalk && window.CallTalk._active) {
             this._backToast('통화 중이에요 — 위쪽 바를 누르면 통화 화면으로 돌아가요');

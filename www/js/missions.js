@@ -531,6 +531,32 @@ ${recent}` }],
   // --------------------------------------------------------------------------
   TODO_MAX_RX: 2,
 
+  _md(ts) { const d = new Date(ts); return isNaN(d) ? '' : `${d.getMonth() + 1}/${d.getDate()}`; },
+
+  // 언제 받은 숙제인지·언제 했는지를 줄 밑에 단다 — 날짜가 없으면 "이게 며칠 건지" 알 수 없다
+  _todoSub(r) {
+    const parts = [];
+    let doneTs = 0;
+    if (r.src === 'hw') {
+      const h = window.Homework ? (window.Homework.all() || []).find(x => x.id === r.hwId) : null;
+      parts.push(h ? `${h.counselor}님 숙제 · ${this._md(h.assignedAt)} 받음` : '상담사 숙제');
+      doneTs = (h && h.doneAt) || this.rxLog()[this.rxKey(r.text)] || 0;
+    } else if (r.src === 'planact') {
+      const p = window.CarePlan && window.CarePlan.active();
+      if (p && p.startedAt) {
+        const s = new Date(p.startedAt); s.setHours(0, 0, 0, 0);
+        const ws = s.getTime() + (r.planW - 1) * 7 * 86400000;
+        parts.push(`케어플랜 ${r.planW}주차 · ${this._md(ws)}~${this._md(ws + 6 * 86400000)}`);
+        doneTs = (p.done && p.done[window.CarePlan._key(r.planW, r.planI)]) || 0;
+      } else parts.push('케어플랜');
+    } else {
+      parts.push(r.src === 'goal' ? '내가 적어둔 것' : '케어플랜');
+      doneTs = this.rxLog()[this.rxKey(r.text)] || 0;
+    }
+    if (doneTs) parts.push(`${this._md(doneTs)} 완료`);
+    return parts.join(' · ');
+  },
+
   renderTodo() {
     const targets = [...document.querySelectorAll('[data-todo-card]')];
     if (!targets.length) return;
@@ -557,7 +583,7 @@ ${recent}` }],
         : this.rxDone(r.text);
       rows.push({
         text: r.text, done, reward: 2, route: this.routeFor(r.text),
-        sub: r.src === 'hw' ? '상담사 숙제' : r.src === 'goal' ? '내가 적어둔 것' : '케어플랜',
+        sub: this._todoSub(r),
         attr: isPlanAct
           ? `data-mi-act="plan-toggle" data-mi-w="${r.planW}" data-mi-i="${r.planI}"`
           : `data-mi-act="rx-toggle" data-mi-text="${esc(r.text)}" data-mi-src="${esc(r.src)}"`
