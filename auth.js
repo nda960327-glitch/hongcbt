@@ -68,8 +68,8 @@ export async function resolveCounselor(db, { session, code }) {
 // 발신자 이름에 한글을 쓰면 그대로는 못 보낸다.
 //  이메일 헤더는 ASCII 만 허용해서, 비ASCII 이름은 RFC 2047 로 인코딩해야 한다.
 //  (안 하면 Resend 가 422 Invalid `from` field 로 거절한다 — 실제로 여기서 막혔다)
-//  인코딩해 두면 받는 쪽 메일함에는 '느루' 로 제대로 보인다.
-const SENDER_NAME = '느루';
+//  인코딩해 두면 받는 쪽 메일함에는 '마인드 인사이드' 로 제대로 보인다.
+const SENDER_NAME = '마인드 인사이드';
 
 function rfc2047(name) {
   const bytes = new TextEncoder().encode(name);
@@ -83,7 +83,7 @@ function rfc2047(name) {
 //  실제로 여기서 계속 막혔다. 그래서 순서를 이렇게 둔다:
 //    1) MAIL_FROM 에서 주소 형태가 깨끗이 뽑히면 그걸 쓴다
 //    2) 안 되면 APP_URL 의 도메인으로 noreply@도메인 을 만든다
-//  이름(느루)은 언제나 코드가 붙인다.
+//  이름(마인드 인사이드)은 언제나 코드가 붙인다.
 function pickAddress(env) {
   const raw = String(env.MAIL_FROM || '').trim().replace(/^["']|["']$/g, '');
   const m = raw.match(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/);
@@ -106,7 +106,7 @@ async function sendMail(env, to, link, name) {
   if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   const html = `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
-  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">느루 상담사</p>
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">마인드 인사이드 상담사</p>
   <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${name ? name + ' 선생님, ' : ''}로그인 링크입니다</h1>
   <p style="font-size:14px;line-height:1.75;margin:0 0 20px;">
     아래 버튼을 누르면 상담사 페이지로 바로 들어갑니다.<br>
@@ -127,7 +127,7 @@ async function sendMail(env, to, link, name) {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: encodeFrom(env), to: [to],
-        subject: '느루 상담사 로그인 링크 (15분 유효)',
+        subject: '마인드 인사이드 상담사 로그인 링크 (15분 유효)',
         html
       })
     });
@@ -158,7 +158,7 @@ export async function sendApplyReceipt(env, db, to, name) {
   if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   const html = `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
-  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">느루</p>
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">마인드 인사이드</p>
   <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${name ? name + ' 선생님, ' : ''}입점 신청이 접수됐습니다</h1>
   <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">
     보내주신 자격과 소속 기관을 확인하고 있습니다.<br>
@@ -167,7 +167,7 @@ export async function sendApplyReceipt(env, db, to, name) {
     <p style="font-size:13px;font-weight:700;margin:0 0 8px;color:#3f352a;">승인되면 이렇게 진행돼요</p>
     <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">
       1. 이 주소로 <b>상담사 앱 로그인 코드</b>가 도착합니다<br>
-      2. 느루 프로에서 코드를 한 번 넣으면 그 기기에서 계속 열려요<br>
+      2. 마인드 인사이드 프로에서 코드를 한 번 넣으면 그 기기에서 계속 열려요<br>
       3. 예약 가능 시간과 정산 계좌를 확인하면 상담을 받을 수 있습니다</p>
   </div>
   <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
@@ -184,7 +184,7 @@ export async function sendApplyReceipt(env, db, to, name) {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: encodeFrom(env), to: [to],
-        subject: '[느루] 입점 신청이 접수됐습니다',
+        subject: '[마인드 인사이드] 입점 신청이 접수됐습니다',
         html
       })
     });
@@ -210,12 +210,12 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   const { addr } = pickAddress(env);
   if (!addr) return { sent: false, reason: 'no-from-address' };
   const base = String(appUrl || env.APP_URL || '').replace(/\/+$/, '');
-  // 상담사 앱은 소비자 앱과 다른 도메인에 있다(느루 프로).
+  // 상담사 앱은 소비자 앱과 다른 도메인에 있다(마인드 인사이드 프로).
   //  PRO_URL 이 아직 없으면 예전 주소로 보낸다 — 그 페이지가 넘겨준다.
   const proLink = String(env.PRO_URL || (base + '/counselor.html')).replace(/\/+$/, '') || '#';
   const html = `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
-  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">느루</p>
+  <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">마인드 인사이드</p>
   <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${name ? name + ' 선생님, ' : ''}입점이 승인됐습니다</h1>
   <p style="font-size:14px;line-height:1.75;margin:0 0 18px;">
     아래 주소로 들어가 코드를 입력하시면 상담사 페이지가 열립니다.<br>
@@ -242,7 +242,7 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: encodeFrom(env), to: [to],
-        subject: '느루 입점 승인 · 상담사 페이지 접속 코드',
+        subject: '마인드 인사이드 입점 승인 · 상담사 페이지 접속 코드',
         html
       })
     });

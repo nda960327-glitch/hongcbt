@@ -725,7 +725,7 @@ ${recent}`;
  const text = card.innerText.replace(/ 요약 복사하기| 상담사에게 전달 공유/g,'').trim();
     if (navigator.share) {
       navigator.share({
-        title: '[느루] AI 상담 요약 리포트',
+        title: '[마인드 인사이드] AI 상담 요약 리포트',
         text: text
       }).catch(() => {});
     } else {

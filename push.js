@@ -193,7 +193,7 @@ async function fcmOne(env, db, row, call, retried) {
     message: {
       token: row.endpoint,
       notification: {
-        title: isClient ? '느루' : '느루 프로',
+        title: isClient ? '마인드 인사이드' : '마인드 인사이드 프로',
         body: '새 소식이 도착했어요'
       },
       android: {

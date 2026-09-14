@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 178;</script>
+  <script>window.APP_BUILD = 179;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="느루의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
-  <title>느루</title>
+  <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
+  <title>마인드 인사이드</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f8a6b">
   <meta name="color-scheme" content="light dark">
@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=178">
+  <link rel="stylesheet" href="css/style.css?v=179">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -43,7 +43,7 @@
   <div id="disclaimer-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card">
       <div class="disclaimer-icon" data-art="mascot" data-art-size="88"></div>
-      <h2>느루의 마음챙김 CBT에 오신 것을 환영합니다</h2>
+      <h2>마인드 인사이드의 마음챙김 CBT에 오신 것을 환영합니다</h2>
       <p>이 앱은 인지행동치료(CBT) 기법을 기반으로 한 <strong>자기관리 보조 도구</strong>입니다.</p>
       <ul>
         <li>전문적인 정신건강 치료를 대체하지 않습니다</li>
@@ -71,7 +71,7 @@
   <!-- 로그인 (카카오·구글·네이버) -->
   <div id="login-screen" class="hidden" style="position: fixed; inset: 0; z-index: 10002; background: var(--bg-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1.6rem; max-width: 480px; margin: 0 auto;">
     <span data-sticker="joy" data-sticker-size="120" style="line-height: 0;"></span>
-    <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">느루</h1>
+    <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">마인드 인사이드</h1>
     <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 2rem; text-align: center;">당신을 기억하는 AI 마음 주치의</p>
     <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.6rem;">
       <button onclick="window.Account.login('kakao')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;">카카오로 시작하기</button>
@@ -104,7 +104,7 @@
       <div class="header-content">
         <div class="header-left">
           <span class="app-logo" data-art="mascot" data-art-size="34"></span>
-          <h1 class="app-title">느루</h1>
+          <h1 class="app-title">마인드 인사이드</h1>
         </div>
         <div class="header-right">
           <!-- 전체화면·테마는 마이페이지 설정으로, 대화 초기화는 챗봇 화면으로 이동 -->
@@ -118,7 +118,7 @@
       <!-- 홈 상단 로고 -->
       <header class="home-top">
         <span class="home-logo__mark" data-sticker="joy" data-sticker-size="32"></span>
-        <span class="home-logo__t">느루</span>
+        <span class="home-logo__t">마인드 인사이드</span>
         <!-- 스트릭 칩 자리를 알림함이 물려받았다. 연속 일수는 대시보드에서 계속 보인다. -->
         <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
@@ -1126,7 +1126,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">문의하기</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">불편한 점, 제안, 결제 문의 모두 환영해요.</span>
             </div>
-            <a href="mailto:nda960327@gmail.com?subject=%5B느루%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
+            <a href="mailto:nda960327@gmail.com?subject=%5B마인드 인사이드%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
           </div>
 
           <!-- 로그아웃 -->
@@ -1242,7 +1242,7 @@
         </div>
 
         <p style="text-align: center; margin: 1rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
-          느루 <span id="app-version">v1.0.0</span> <span id="app-build" style="opacity: 0.75;"></span>
+          마인드 인사이드 <span id="app-version">v1.0.0</span> <span id="app-build" style="opacity: 0.75;"></span>
         </p>
 
         <!-- 최후의 수단.
@@ -1352,7 +1352,7 @@
     <div id="global-install-modal" class="modal-overlay hidden" style="z-index: 9999;">
       <div class="modal-content glass-card" style="text-align: center;">
         <div style="margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite; display: flex; justify-content: center;"><span data-sticker="cheer" data-sticker-size="92"></span></div>
-        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">느루 앱 다운로드</h2>
+        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">마인드 인사이드 앱 다운로드</h2>
         <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
           바탕화면에 느루를 설치하고<br>언제든 빠르게 마음을 돌보세요!
         </p>
@@ -1434,58 +1434,58 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=178"></script>
-  <script defer src="js/storage.js?v=178"></script>
-  <script defer src="js/inbox.js?v=178"></script>
-  <script defer src="js/cards.js?v=178"></script>
-  <script defer src="js/chatviz.js?v=178"></script>
-  <script defer src="js/memory-vault.js?v=178"></script>
-  <script defer src="js/personas.js?v=178"></script>
-  <script defer src="js/stickers.js?v=178"></script>
-  <script defer src="js/ui.js?v=178"></script>
-  <script defer src="js/api.js?v=178"></script>
-  <script defer src="js/rtccall.js?v=178"></script>
-  <script defer src="js/prolink.js?v=178"></script>
-  <script defer src="js/account.js?v=178"></script>
-  <script defer src="js/freshness.js?v=178"></script>
-  <script defer src="js/i18n.js?v=178"></script>
-  <script defer src="js/wallet.js?v=178"></script>
-  <script defer src="js/pay.js?v=178"></script>
-  <script defer src="js/subscription.js?v=178"></script>
-  <script defer src="js/calltalk.js?v=178"></script>
-  <script defer src="js/calm.js?v=178"></script>
-  <script defer src="js/voice.js?v=178"></script>
-  <script defer src="js/llm.js?v=178"></script>
-  <script defer src="js/chatbot.js?v=178"></script>
-  <script defer src="js/marketplace.js?v=178"></script>
-  <script defer src="js/booking.js?v=178"></script>
-  <script defer src="js/thought-record.js?v=178"></script>
-  <script defer src="js/growth.js?v=178"></script>
-  <script defer src="js/missions.js?v=178"></script>
-  <script defer src="js/weekly.js?v=178"></script>
-  <script defer src="js/sleep.js?v=178"></script>
-  <script defer src="js/onboard.js?v=178"></script>
-  <script defer src="js/stickershop.js?v=178"></script>
-  <script defer src="js/applock.js?v=178"></script>
-  <script defer src="js/safety.js?v=178"></script>
-  <script defer src="js/admin.js?v=178"></script>
-  <script defer src="js/dashboard.js?v=178"></script>
-  <script defer src="js/learn.js?v=178"></script>
-  <script defer src="js/sfx.js?v=178"></script>
-  <script defer src="js/mail.js?v=178"></script>
-  <script defer src="js/payout.js?v=178"></script>
-  <script defer src="js/careplan.js?v=178"></script>
-  <script defer src="js/goals.js?v=178"></script>
-  <script defer src="js/progress.js?v=178"></script>
-  <script defer src="js/safetyplan.js?v=178"></script>
-  <script defer src="js/homework.js?v=178"></script>
-  <script defer src="js/assess-charts.js?v=178"></script>
-  <script defer src="js/assess.js?v=178"></script>
-  <script defer src="js/game.js?v=178"></script>
-  <script defer src="js/room.js?v=178"></script>
-  <script defer src="js/farm.js?v=178"></script>
-  <script defer src="js/closet.js?v=178"></script>
-  <script defer src="js/app.js?v=178"></script>
+  <script defer src="js/icons.js?v=179"></script>
+  <script defer src="js/storage.js?v=179"></script>
+  <script defer src="js/inbox.js?v=179"></script>
+  <script defer src="js/cards.js?v=179"></script>
+  <script defer src="js/chatviz.js?v=179"></script>
+  <script defer src="js/memory-vault.js?v=179"></script>
+  <script defer src="js/personas.js?v=179"></script>
+  <script defer src="js/stickers.js?v=179"></script>
+  <script defer src="js/ui.js?v=179"></script>
+  <script defer src="js/api.js?v=179"></script>
+  <script defer src="js/rtccall.js?v=179"></script>
+  <script defer src="js/prolink.js?v=179"></script>
+  <script defer src="js/account.js?v=179"></script>
+  <script defer src="js/freshness.js?v=179"></script>
+  <script defer src="js/i18n.js?v=179"></script>
+  <script defer src="js/wallet.js?v=179"></script>
+  <script defer src="js/pay.js?v=179"></script>
+  <script defer src="js/subscription.js?v=179"></script>
+  <script defer src="js/calltalk.js?v=179"></script>
+  <script defer src="js/calm.js?v=179"></script>
+  <script defer src="js/voice.js?v=179"></script>
+  <script defer src="js/llm.js?v=179"></script>
+  <script defer src="js/chatbot.js?v=179"></script>
+  <script defer src="js/marketplace.js?v=179"></script>
+  <script defer src="js/booking.js?v=179"></script>
+  <script defer src="js/thought-record.js?v=179"></script>
+  <script defer src="js/growth.js?v=179"></script>
+  <script defer src="js/missions.js?v=179"></script>
+  <script defer src="js/weekly.js?v=179"></script>
+  <script defer src="js/sleep.js?v=179"></script>
+  <script defer src="js/onboard.js?v=179"></script>
+  <script defer src="js/stickershop.js?v=179"></script>
+  <script defer src="js/applock.js?v=179"></script>
+  <script defer src="js/safety.js?v=179"></script>
+  <script defer src="js/admin.js?v=179"></script>
+  <script defer src="js/dashboard.js?v=179"></script>
+  <script defer src="js/learn.js?v=179"></script>
+  <script defer src="js/sfx.js?v=179"></script>
+  <script defer src="js/mail.js?v=179"></script>
+  <script defer src="js/payout.js?v=179"></script>
+  <script defer src="js/careplan.js?v=179"></script>
+  <script defer src="js/goals.js?v=179"></script>
+  <script defer src="js/progress.js?v=179"></script>
+  <script defer src="js/safetyplan.js?v=179"></script>
+  <script defer src="js/homework.js?v=179"></script>
+  <script defer src="js/assess-charts.js?v=179"></script>
+  <script defer src="js/assess.js?v=179"></script>
+  <script defer src="js/game.js?v=179"></script>
+  <script defer src="js/room.js?v=179"></script>
+  <script defer src="js/farm.js?v=179"></script>
+  <script defer src="js/closet.js?v=179"></script>
+  <script defer src="js/app.js?v=179"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

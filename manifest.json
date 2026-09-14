@@ -1,6 +1,6 @@
 {
-  "name": "느루 — 마음 돌봄",
-  "short_name": "느루",
+  "name": "마인드 인사이드 — 마음 돌봄",
+  "short_name": "마인드 인사이드",
   "description": "인지행동치료(CBT) 기반 AI 상담과 표준 검진으로 마음을 돌보는 앱. 진단·치료를 대체하지 않는 참고용 도구입니다.",
   "start_url": "./index.html",
   "scope": "./",

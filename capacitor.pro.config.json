@@ -1,6 +1,6 @@
 {
   "appId": "com.neurumind.pro",
-  "appName": "느루 프로",
+  "appName": "마인드 인사이드 프로",
   "webDir": "pro",
   "android": {
     "path": "android-pro"

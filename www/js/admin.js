@@ -172,7 +172,7 @@ window.Admin = {
     this.loadCounselors();
   },
 
-  // 상담사 앱은 이제 별도 앱(느루 프로)이다.
+  // 상담사 앱은 이제 별도 앱(마인드 인사이드 프로)이다.
   //  운영 도메인에서는 pro.neurumind.com, 그 밖(로컬·미리보기)에서는 ./pro/
   counselorLink(code) {
     // 주소 규칙은 App 한 곳에만 둔다 — 두 군데 두면 반드시 어긋난다
@@ -187,7 +187,7 @@ window.Admin = {
   // 발급된 코드를 전달하기 좋은 형태로 한 번에 보여준다
   shareCounselor(id, name, code) {
     const link = this.counselorLink();
-    const msg = `[느루] ${name} 선생님 상담사 페이지 안내\n\n`
+    const msg = `[마인드 인사이드] ${name} 선생님 상담사 페이지 안내\n\n`
       + `주소: ${link}\n열람 코드: ${code}\n\n`
       + `· 위 주소를 열고 코드를 붙여넣으면 로그인됩니다.\n`
       + `· 코드는 비밀번호와 같습니다. 단톡방에 올리지 마세요.\n`
@@ -619,12 +619,12 @@ window.Admin = {
       <div style="margin-top: 1.2rem;">
         <h3 style="margin: 0 0 0.2rem; font-size: 0.95rem;">상담 정산</h3>
         <p style="margin: 0 0 0.7rem; font-size: 0.72rem; color: var(--text-muted);">
-          상담사 ${P.SPLIT.counselor}% · 기관 ${P.SPLIT.hospital}% · PG ${P.SPLIT.pg}% · 느루 ${P.SPLIT.platform}%
+          상담사 ${P.SPLIT.counselor}% · 기관 ${P.SPLIT.hospital}% · PG ${P.SPLIT.pg}% · 마인드 인사이드 ${P.SPLIT.platform}%
           · 완료 ${P.SETTLE_DAYS}일 뒤 지급
         </p>
         ${bookings.length ? `
           <div style="display: flex; gap: 0.4rem; font-size: 0.64rem; font-weight: 800; color: var(--text-muted); padding-bottom: 0.3rem;">
-            <span style="flex: 1 1 0%;">상담</span><span>결제</span><span>상담사</span><span>기관</span><span>느루</span>
+            <span style="flex: 1 1 0%;">상담</span><span>결제</span><span>상담사</span><span>기관</span><span>마인드 인사이드</span>
           </div>
           ${rows}
           <div style="display: flex; align-items: baseline; gap: 0.4rem; padding-top: 0.55rem; font-size: 0.78rem; font-weight: 800;">

@@ -1,5 +1,5 @@
 // ============================================================================
-//  느루 프로 — 상담사 앱
+//  마인드 인사이드 프로 — 상담사 앱
 //
 //  화면은 넷뿐이다: 홈 · 채팅 · 예약 · 정산.
 //   상담사는 진료 사이 3분에 이 앱을 연다. 스크롤로 찾게 만들면 안 본다.
@@ -506,7 +506,7 @@ async function guideToNotifSettings() {
     const S = C && C.Plugins && C.Plugins.AppSettings;
     if (S && S.openNotifications) { await S.openNotifications(); return true; }
   } catch (e) {}
-  alert('알림이 꺼져 있어요.\n\n폰 설정 → 앱 → 느루 프로 → 알림 을 켜주세요.\n켜두지 않으면 걸려오는 전화를 놓칩니다.');
+  alert('알림이 꺼져 있어요.\n\n폰 설정 → 앱 → 마인드 인사이드 프로 → 알림 을 켜주세요.\n켜두지 않으면 걸려오는 전화를 놓칩니다.');
   return false;
 }
 
@@ -548,7 +548,7 @@ async function loadMe() {
     tellSwWhoIAm(); enablePush();
   } else {
     // 운영자 마스터 코드는 /api/me 가 없다 — 그래도 앱은 돌아가야 한다
-    $('me-name').textContent = D.scope === 'admin' ? '운영자' : '느루 프로';
+    $('me-name').textContent = D.scope === 'admin' ? '운영자' : '마인드 인사이드 프로';
     $('me-sub').textContent = D.scope === 'admin' ? '전체 열람 모드' : '';
   }
 }
@@ -600,7 +600,7 @@ async function loadChats() {
       toast(who + ' 님이 메시지를 보냈어요');
       try {
         if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-          new Notification('느루 프로', { body: who + ' 님의 새 메시지', icon: './icon-192.png', tag: 'chat' });
+          new Notification('마인드 인사이드 프로', { body: who + ' 님의 새 메시지', icon: './icon-192.png', tag: 'chat' });
         }
       } catch (e) {}
     }
@@ -1448,7 +1448,7 @@ function openSubPay() {
     (s ? (s.active ? '지금 구독은 ' + subDay(s.until) + '까지예요.\n' : '지금은 만료 상태예요.\n') : '') +
     '\n앱 내 결제는 준비 중이에요.\n' +
     '운영팀에 연락 주시면 바로 연장해드립니다.\n' +
-    '(느루 운영팀 nda960327@gmail.com)'
+    '(마인드 인사이드 운영팀 nda960327@gmail.com)'
   );
 }
 

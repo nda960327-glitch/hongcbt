@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v178';
+﻿const CACHE_NAME = 'cbt-app-v179';
 const ASSETS = [
   './',
   './index.html',
@@ -78,7 +78,7 @@ self.addEventListener('push', (event) => {
       wins.forEach(w => { try { w.postMessage({ type: 'wake' }); } catch (e) {} });
       return;
     }
-    await self.registration.showNotification('느루', {
+    await self.registration.showNotification('마인드 인사이드', {
       body: '새 소식이 도착했어요 — 상담사님의 답장이나 숙제일 수 있어요',
       icon: 'icon.png', badge: 'icon.png', tag: 'woorung-wake', renotify: true,
       vibrate: [120, 60, 120], data: { act: 'counselors' }

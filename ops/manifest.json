@@ -1,6 +1,6 @@
 {
-  "name": "느루 운영자 콘솔",
-  "short_name": "느루 운영",
+  "name": "마인드 인사이드 운영자 콘솔",
+  "short_name": "마인드 인사이드 운영",
   "description": "운영자 전용. 입점 심사·상담사 관리·정산·진단 로그를 한 곳에서 봅니다.",
   "id": "/ops/",
   "start_url": "./index.html",

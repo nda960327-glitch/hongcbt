@@ -144,7 +144,7 @@ window.Subscription = {
 
   // 구독 결제 — 실서비스에서는 이 함수가 Google Play 구독 결제 호출로 바뀐다
   subscribe() {
-    if (!window.Wallet || !window.Wallet.spend(this.PRICE, '느루 월 구독')) {
+    if (!window.Wallet || !window.Wallet.spend(this.PRICE, '마인드 인사이드 월 구독')) {
       window.UI.alert(`캐시가 부족해요. (월 구독 ${this.PRICE.toLocaleString()}원)\n마이페이지에서 충전 후 다시 시도해주세요.`);
       const m = document.getElementById('sub-paywall-modal');
       if (m) m.classList.add('hidden');

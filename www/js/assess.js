@@ -866,7 +866,7 @@ window.Assess = {
     const j = r.json || {};
     if (!await window.UI.confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
     const lines = [
-      '[느루 AI 마음 리포트 · 참고용 — 진단 아님]',
+      '[마인드 인사이드 AI 마음 리포트 · 참고용 — 진단 아님]',
       r.date,
       j.headline ? '— ' + String(j.headline).replace(/\*\*/g, '') : '',
       (j.standard || []).map(x => `${x.name}: ${x.score}/${x.max} (${x.band})`).join(' · '),
@@ -913,7 +913,7 @@ window.Assess = {
       .replace(/color-mix\(in srgb, #4f8a6b 12%, transparent\)/g, '#e4efe8')
       .replace(/color-mix\(in srgb, #c57c54 8%, transparent\)/g, '#f8efe9');
     return `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
-<title>느루 AI 마음 리포트 — ${r.date}</title>
+<title>마인드 인사이드 AI 마음 리포트 — ${r.date}</title>
 <style>
 body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fffdf9;color:#2b2620;max-width:720px;margin:0 auto;padding:30px 24px;line-height:1.75;font-size:15px}
 h1{font-size:22px;margin:0 0 2px;letter-spacing:-0.02em}
@@ -923,10 +923,10 @@ section{break-inside:avoid}
 b{font-weight:800}
 @media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
 </style></head><body>
-<h1> 느루 AI 마음 리포트</h1>
+<h1> 마인드 인사이드 AI 마음 리포트</h1>
 <p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 109 / 1577-0199</p>
 <div class="box">${inner}</div>
-<p style="font-size:11px;color:#8a8073">이 리포트는 느루 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
+<p style="font-size:11px;color:#8a8073">이 리포트는 마인드 인사이드 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
 </body></html>`;
   },
 
@@ -936,7 +936,7 @@ b{font-weight:800}
     const blob = new Blob([this._docHtml(r)], { type: 'text/html;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `느루_AI마음리포트_${new Date().toLocaleDateString('sv-CA')}.html`;
+    a.download = `마인드인사이드_AI마음리포트_${new Date().toLocaleDateString('sv-CA')}.html`;
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);

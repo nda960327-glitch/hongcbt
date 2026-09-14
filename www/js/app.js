@@ -350,7 +350,7 @@ window.App = {
         <div style="width: 38px; height: 4px; border-radius: 2px; background: var(--glass-border); margin: 0 auto 0.9rem;"></div>
         <div style="text-align: center; margin-bottom: 0.7rem;">
           <span data-sticker="hero" data-sticker-size="72" style="line-height: 0; display: inline-block;"></span>
-          <h3 style="margin: 0.4rem 0 0.15rem; font-size: 1.05rem; color: var(--text-primary);">홈 화면에 느루 추가하기</h3>
+          <h3 style="margin: 0.4rem 0 0.15rem; font-size: 1.05rem; color: var(--text-primary);">홈 화면에 마인드 인사이드 추가하기</h3>
           <p style="margin: 0; font-size: 0.78rem; color: var(--text-muted);">${isIOS ? 'iPhone은 사파리에서만 추가할 수 있어요' : '30초면 끝나요'}</p>
         </div>
         ${steps.map(([n, t, path]) => `
@@ -1515,7 +1515,7 @@ window.App = {
 
   // === 기기 고유 ID — 서버(채팅·예약·수신함)가 나를 알아보는 기준 ===
   // 별명은 표시용일 뿐, 식별은 이 ID로 한다. 별명을 바꿔도 동기화가 안 끊긴다.
-  // 상담사 앱(느루 프로)은 별도 앱·별도 도메인이다.
+  // 상담사 앱(마인드 인사이드 프로)은 별도 앱·별도 도메인이다.
   //  운영 도메인이면 pro.neurumind.com, 로컬·미리보기면 같은 서버의 pro/ 폴더.
   // 전화번호는 숫자만 쳐도 하이픈이 붙게 한다.
   //  02 는 지역번호가 두 자리이고 15xx/16xx/18xx 대표번호는 지역번호가 없다.
@@ -2358,7 +2358,7 @@ ${memory || '(없음)'}`;
     const b = ((window.Storage._safeGet('cbt_bookings', []) || [])).find(x => x.id === bookingId);
     if (!b) return null;
     const on = id => { const el = document.getElementById(id); return el && el.checked && !el.disabled; };
-    const parts = [`[느루 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
+    const parts = [`[마인드 인사이드 상담 참고 자료]\n내담자: ${window.Storage._safeGet('cbt_user_name', '') || '(별명 미설정)'} · 상담: ${b.name} (${b.time})\n생성일: ${new Date().toLocaleDateString('ko-KR')}`];
 
     if (on('sp-mood')) {
       const from = Date.now() - 14 * 86400000;
@@ -2443,7 +2443,7 @@ ${memory || '(없음)'}`;
     const copied = () => this.showRecordToast('사본도 클립보드에 담아뒀어요');
     const fallbackShow = () => {};
     if (navigator.share) {
-      navigator.share({ title: `[느루] ${b.name} 상담 참고 자료`, text }).catch(() => {
+      navigator.share({ title: `[마인드 인사이드] ${b.name} 상담 참고 자료`, text }).catch(() => {
         if (navigator.clipboard) navigator.clipboard.writeText(text).then(copied).catch(fallbackShow);
       });
     } else if (navigator.clipboard) {
@@ -2798,7 +2798,7 @@ ${memory || '(없음)'}`;
     if (window.UI) {
       window.UI.alert({
         title: '알림을 켜주세요',
-        body: '폰 설정 → 앱 → 느루 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
+        body: '폰 설정 → 앱 → 마인드 인사이드 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
       });
     }
     return false;
@@ -3698,7 +3698,7 @@ ${memory || '(없음)'}`;
 
     const doc = `<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>느루 상담 기록</title>
+<title>마인드 인사이드 상담 기록</title>
 <style>
 body{font-family:'Malgun Gothic',system-ui,sans-serif;background:#fbf7f0;color:#3a342e;max-width:640px;margin:0 auto;padding:32px 24px;line-height:1.7}
 h1{font-size:22px;margin:0}
@@ -3717,7 +3717,7 @@ p.meta{font-size:12px;color:#a99c8c;margin:4px 0 26px}
 .foot{margin-top:28px;padding-top:12px;border-top:1px dashed #ddd2c2;font-size:11px;color:#a99c8c;line-height:1.6}
 @media print{body{padding:0;background:#fff}.bubble{page-break-inside:avoid}}
 </style></head><body>
-<h1>느루 상담 기록</h1>
+<h1>마인드 인사이드 상담 기록</h1>
 <p class="meta">${esc(span)} · 모두 ${rows.length.toLocaleString()}개의 말</p>
 ${body}
 <p class="foot">이 기록은 내 기기에서 만든 개인 문서입니다. 상담사에게 보여주면 좋은 참고 자료가 됩니다.</p>
@@ -3732,7 +3732,7 @@ ${body}
       const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `느루_상담기록_${new Date().toLocaleDateString('sv-CA')}.html`;
+      a.download = `마인드인사이드_상담기록_${new Date().toLocaleDateString('sv-CA')}.html`;
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
       this.showRecordToast('상담 기록을 파일로 저장했어요');
@@ -3785,7 +3785,7 @@ ${body}
     });
 
     const shareOut = () => {
-      if (navigator.share) navigator.share({ title: '[느루] AI 상담 요약 리포트', text: full }).catch(() => {});
+      if (navigator.share) navigator.share({ title: '[마인드 인사이드] AI 상담 요약 리포트', text: full }).catch(() => {});
  else if (navigator.clipboard) navigator.clipboard.writeText(full).then(() => this.showRecordToast('리포트가 복사됐어요. 메신저에 붙여넣어 전달하세요')).catch(() => window.UI.alert(full.slice(0, 1500)));
       else window.UI.alert(full.slice(0, 1500));
     };
@@ -4760,7 +4760,7 @@ ${body}
  msgs.push({ role:'sys', text:'메시지가 전달되었어요. 상담사님이 확인하면 답장이 도착합니다.\n급한 상담은 [ 통화] 버튼을 이용해주세요.', ts: Date.now() });
       }
       window.Storage._safeSet(key, msgs.slice(-200));
-      // 서버 채팅함으로 전송 → 상담사 앱(느루 프로)에 도착
+      // 서버 채팅함으로 전송 → 상담사 앱(마인드 인사이드 프로)에 도착
       try {
         window.Api.f('/api/chat-msg', {
           method: 'POST',
@@ -4895,7 +4895,7 @@ ${body}
         ? `자가검진: PHQ-9 ${scores.phq != null ? scores.phq + '점' : '-'} · GAD-7 ${scores.gad != null ? scores.gad + '점' : '-'}`
         : '',
       hwOpen ? `진행 중인 상담 숙제 ${hwOpen}개` : '',
-      '(느루 앱에서 자동 정리된 요약이에요)'
+      '(마인드 인사이드 앱에서 자동 정리된 요약이에요)'
     ].filter(Boolean).join('\n');
   },
 

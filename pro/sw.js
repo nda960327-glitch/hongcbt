@@ -1,4 +1,4 @@
-// 느루 프로 — 상담사 앱 서비스워커
+// 마인드 인사이드 프로 — 상담사 앱 서비스워커
 //  소비자 앱(sw.js)과는 캐시 이름도 범위도 완전히 분리되어 있다.
 //  존재 이유의 절반은 오프라인 캐시가 아니라 '푸시'다.
 //  상담사가 화면을 끄고 있어도 전화가 왔다는 걸 알려야 한다.
@@ -99,7 +99,7 @@ self.addEventListener('push', e => {
         actions: [{ action: 'answer', title: '받기' }, { action: 'reject', title: '거절' }]
       });
     } else {
-      await self.registration.showNotification('느루 프로', {
+      await self.registration.showNotification('마인드 인사이드 프로', {
         body: '새 소식이 있어요',
         icon: './icon-192.png',
         badge: './icon-96.png',
