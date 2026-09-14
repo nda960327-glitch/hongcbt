@@ -2364,9 +2364,9 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── 주변 정신과 (앱 홈 "대면상담 및 진료") ───────────────────────────────
-//  앱은 카카오 로컬로 전국 정신건강의학과를 거리순으로 보여준다. 여기서 하는 건 둘이다.
+//  앱은 D1 에 쌓인 전국 정신건강의학과를 거리순으로 보여준다 (데이터는 네이버 지역 검색). 여기서 하는 건 둘이다.
 //   1) 제휴 병원 등록 — 배지가 붙고 맨 위에 뜬다. 담당 병원(hospitals)과 이으면 '앱 연동'.
-//   2) 전국 수집 — 격자로 카카오를 훑어 D1 에 쌓는다. 카카오가 죽어도 검색이 되고, 집계에도 쓴다.
+//   2) 전국 수집 — 시군구·동 이름으로 네이버를 훑어 D1 에 쌓는다 (눈덩이).
 let CL_FORM = false, CL_EDIT = null, CL_CANDS = null, CL_PICK = null, CL_ERR = '', CL_SYNC = { running: false };
 async function loadClinics() {
   const [r, h] = await Promise.all([adminGet('/api/admin/clinics'), D.hospitals === undefined ? adminGet('/api/admin/hospitals') : Promise.resolve(null)]);
@@ -2386,7 +2386,7 @@ function viewClinics() {
       <div class="sec-title">${editing ? '제휴 병원 고치기' : '제휴 병원 등록'}<span class="right"><button class="btn ghost sm" data-act="cl-cancel">접기</button></span></div>
       ${editing ? '' : `
       <div class="row wrap" style="gap: 0.5rem; margin-bottom: 0.6rem;">
-        <input id="cl-q" type="text" placeholder="병원 이름이나 주소로 카카오에서 찾기 (예: 마음편한 정신건강의학과 강남)" style="flex: 1 1 260px;" autocomplete="off">
+        <input id="cl-q" type="text" placeholder="병원 이름이나 주소로 네이버에서 찾기 (예: 마음편한 정신건강의학과 강남)" style="flex: 1 1 260px;" autocomplete="off">
         <button class="btn ghost sm" data-act="cl-find">찾기</button>
       </div>
       ${CL_ERR ? `<p class="muted" style="color: var(--danger);">${esc(CL_ERR)}</p>` : ''}
@@ -2406,7 +2406,7 @@ function viewClinics() {
         <label class="muted" style="flex: 1 1 120px;">위도 <input id="cl-lat" type="text" inputmode="decimal" value="${p.lat != null ? p.lat : ''}"></label>
         <label class="muted" style="flex: 1 1 120px;">경도 <input id="cl-lng" type="text" inputmode="decimal" value="${p.lng != null ? p.lng : ''}"></label>
       </div>
-      <label class="muted">카카오맵 링크 <input id="cl-url" type="text" maxlength="200" value="${esc(p.url || '')}"></label>
+      <label class="muted">홈페이지·지도 링크 <input id="cl-url" type="text" maxlength="200" value="${esc(p.url || '')}"></label>
       <label class="muted">한 줄 소개 (앱 카드에 보임) <input id="cl-note" type="text" maxlength="200" value="${esc(p.note || '')}" placeholder="예: 직장인 야간 진료 (화·목 21시까지) · 초진 당일 예약 가능"></label>
       <label class="muted">태그 (쉼표) <input id="cl-tags" type="text" maxlength="120" value="${esc((p.tags || []).join(', '))}" placeholder="야간진료, 주차, 여의사, 청소년"></label>
       <label class="muted">담당 병원과 연결 (병원 관리에 등록된 곳) <select id="cl-hosp"><option value="">연결 안 함</option>${hospOpts}</select></label>
@@ -2429,7 +2429,7 @@ function viewClinics() {
       </div>
       <div class="row wrap" style="gap: 0.4rem; margin-top: 0.55rem;">
         <button class="btn ghost sm" data-act="cl-edit" data-id="${esc(c.id)}">고치기</button>
-        ${c.url ? `<a class="btn ghost sm" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration: none;">카카오맵</a>` : ''}
+        ${c.url ? `<a class="btn ghost sm" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration: none;">링크</a>` : ''}
         <span class="grow"></span>
         <button class="btn warnline sm" data-act="cl-delete" data-id="${esc(c.id)}">제휴 해제</button>
       </div>
@@ -2439,18 +2439,18 @@ function viewClinics() {
       <div class="sec-title">전국 정신과 등록 현황</div>
       <div class="row wrap" style="gap: 1.2rem;">
         <div><div class="muted">등록된 곳</div><b style="font-size: 1.1rem;">${won(d.total)}</b></div>
-        <div><div class="muted">카카오에서 수집</div><b style="font-size: 1.1rem;">${won(d.fromKakao)}</b></div>
+        <div><div class="muted">네이버에서 수집</div><b style="font-size: 1.1rem;">${won(d.fromProvider)}</b></div>
         <div><div class="muted">제휴</div><b style="font-size: 1.1rem;">${d.partners.length}</b></div>
       </div>
       <p class="muted" style="margin: 0.5rem 0 0.4rem;">
-        앱은 검색할 때마다 카카오 지도에서 최신 목록을 가져오고, 그 결과가 여기 자동으로 쌓입니다.
-        <b>전국 수집</b>을 돌리면 한반도를 격자로 훑어 한 번에 다 채웁니다 (카카오 호출 약 6천 번, 5~10분). 이 탭을 열어 둔 채로 기다리세요.</p>
-      ${!d.kakaoKey ? '<p class="muted" style="color: var(--danger);">KAKAO_CLIENT_ID 시크릿이 없어 카카오 검색이 꺼져 있습니다. D1 에 쌓인 것만 보여줍니다.</p>' : ''}
-      ${sy ? `<div class="muted" style="margin-bottom: 0.4rem;">${sy.done ? '<b style="color: var(--accent);">수집 완료</b>' : (CL_SYNC.running ? '<b>수집 중…</b>' : '중단됨 — 이어서 할 수 있어요')} · 격자 ${won(sy.i)}/${won(sy.total)} (${pct}%) · 쪼갠 칸 ${won(sy.queued != null ? sy.queued : (sy.queue ? sy.queue.length : 0))} · 카카오 호출 ${won(sy.calls)} · 저장 ${won(sy.found)}</div>
+        앱의 '내 주변'은 여기 등록된 곳에서 거리순으로 고릅니다. <b>전국 수집</b>을 돌리면 전국 시군구·동 이름으로 네이버 지역 검색을 훑어 D1 을 채웁니다 (네이버 호출 수천 번, 5~15분 · 하루 한도 2만5천). 이 탭을 열어 둔 채로 기다리세요. 환자가 지역 이름으로 검색하면 그 동네도 그때그때 보충됩니다.</p>
+      ${!d.providerKey ? '<p class="muted" style="color: var(--danger);">NAVER_CLIENT_ID/SECRET 시크릿이 없어 네이버 검색이 꺼져 있습니다. D1 에 쌓인 것만 보여줍니다.</p>' : ''}
+      ${sy && sy.lastError ? `<p class="muted" style="color: var(--danger);">네이버 응답 오류: ${esc(sy.lastError)} — 네이버 개발자센터 앱의 사용 API 에 '검색'이 켜져 있는지 확인하세요.</p>` : ''}
+      ${sy ? `<div class="muted" style="margin-bottom: 0.4rem;">${sy.done ? '<b style="color: var(--accent);">수집 완료</b>' : (CL_SYNC.running ? '<b>수집 중…</b>' : '중단됨 — 이어서 할 수 있어요')} · 검색어 ${won(sy.i)}/${won(sy.total)} (${pct}%) · 남은 검색어 ${won(sy.queued != null ? sy.queued : 0)} · 네이버 호출 ${won(sy.calls)} · 저장 ${won(sy.found)}</div>
       <div style="height: 6px; background: var(--line); border-radius: 3px; overflow: hidden;"><i style="display: block; height: 100%; width: ${pct}%; background: var(--accent);"></i></div>` : ''}
       <div class="row wrap" style="gap: 0.4rem; margin-top: 0.6rem;">
         ${CL_SYNC.running ? '<button class="btn warnline sm" data-act="cl-sync-stop">중지</button>'
-          : `<button class="btn sm" data-act="cl-sync" ${d.kakaoKey ? '' : 'disabled'}>${sy && !sy.done ? '이어서 수집' : (sy && sy.done ? '다시 수집 (갱신)' : '전국 수집 시작')}</button>`}
+          : `<button class="btn sm" data-act="cl-sync" ${d.providerKey ? '' : 'disabled'}>${sy && !sy.done ? '이어서 수집' : (sy && sy.done ? '다시 수집 (갱신)' : '전국 수집 시작')}</button>`}
         ${sy && !CL_SYNC.running ? '<button class="btn ghost sm" data-act="cl-sync-reset">처음부터</button>' : ''}
       </div>
     </div>
@@ -2458,7 +2458,7 @@ function viewClinics() {
       <span class="right"><button class="btn sm" data-act="cl-new">＋ 제휴 등록</button></span></div>
     ${(CL_FORM || editing) ? form : ''}
     ${d.partners.length ? d.partners.map(card).join('')
-      : '<div class="card"><div class="empty"><b>제휴 병원이 아직 없어요</b>＋ 제휴 등록 → 카카오에서 찾아 선택하면 주소·좌표가 채워집니다.</div></div>'}`;
+      : '<div class="card"><div class="empty"><b>제휴 병원이 아직 없어요</b>＋ 제휴 등록 → 네이버에서 찾아 선택하면 주소·좌표가 채워집니다.</div></div>'}`;
 }
 async function clinicAct(act, el, id) {
   const v = k => { const x = $(k); return x ? String(x.value || '').trim() : ''; };
@@ -2468,8 +2468,8 @@ async function clinicAct(act, el, id) {
   if (act === 'cl-find') {
     const q = v('cl-q'); if (!q) return;
     const r = await busy(el, '찾는 중…', () => adminPost('/api/admin/clinics/geocode', { q }));
-    if (!r || !r.items) { alertBox('찾지 못했어요', r && r.error === 'no-kakao-key' ? 'KAKAO_CLIENT_ID 시크릿이 없습니다.' : '잠시 후 다시 시도해주세요.'); return; }
-    CL_CANDS = r.items; CL_ERR = r.kakaoError ? `카카오 응답 ${r.kakaoError} ${r.kakaoDetail || ''}` : '';
+    if (!r || !r.items) { alertBox('찾지 못했어요', r && r.error === 'no-provider-key' ? 'NAVER_CLIENT_ID/SECRET 시크릿이 없습니다.' : '잠시 후 다시 시도해주세요.'); return; }
+    CL_CANDS = r.items; CL_ERR = r.providerError ? `네이버 응답 ${r.providerError} ${r.providerDetail || ''} — 네이버 개발자센터 앱의 사용 API 에 '검색'을 추가하세요.` : '';
     render(); const again = $('cl-q'); if (again) again.value = q; return;
   }
   if (act === 'cl-pick') {
@@ -2481,7 +2481,7 @@ async function clinicAct(act, el, id) {
     const body = { id, name: v('cl-name'), kind: v('cl-kind'), tel: v('cl-tel'), roadAddr: v('cl-road'), addr: v('cl-addr'), lat: v('cl-lat'), lng: v('cl-lng'), url: v('cl-url'),
       note: v('cl-note'), tags: v('cl-tags'), hospitalId: v('cl-hosp'), kakaoId: v('cl-kakao'), active: !!($('cl-active') && $('cl-active').checked) };
     if (!body.name) { alertBox('이름이 필요해요'); return; }
-    if (!body.lat || !body.lng) { alertBox('좌표가 필요해요', '위에서 카카오로 찾아 선택하면 자동으로 채워집니다.'); return; }
+    if (!body.lat || !body.lng) { alertBox('좌표가 필요해요', '위에서 네이버로 찾아 선택하면 자동으로 채워집니다.'); return; }
     const r = await busy(el, '저장 중…', () => adminPost('/api/admin/clinics/save', body));
     if (!r || !r.ok) { alertBox('저장하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
     CL_FORM = false; CL_EDIT = null; CL_PICK = null; CL_CANDS = null;
@@ -2489,7 +2489,7 @@ async function clinicAct(act, el, id) {
   }
   if (act === 'cl-delete') {
     const c = (D.clinics.partners || []).find(x => x.id === id); if (!c) return;
-    const ok = await confirmBox({ title: '제휴를 해제할까요?', body: `${c.name}\n\n배지와 소개 문구가 사라집니다. 카카오에서 온 곳이면 일반 검색 결과에는 계속 나옵니다.`, okLabel: '해제', danger: true });
+    const ok = await confirmBox({ title: '제휴를 해제할까요?', body: `${c.name}\n\n배지와 소개 문구가 사라집니다. 네이버에서 온 곳이면 일반 검색 결과에는 계속 나옵니다.`, okLabel: '해제', danger: true });
     if (!ok) return;
     await adminPost('/api/admin/clinics/delete', { id }); toast('제휴를 해제했어요'); loadClinics(); return;
   }

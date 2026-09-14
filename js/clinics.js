@@ -64,7 +64,7 @@ window.Clinics = {
       this.render(); this.renderAll(); return;
     }
     this._items = d.items; this._center = d.center; this._live = !!d.live;
-    this._state = 'ready';
+    this._state = (!d.items.length && !d.registered) ? 'empty' : 'ready';
     this.render(); this.renderAll();
   },
 
@@ -75,7 +75,8 @@ window.Clinics = {
     if (it.partner) return '<span class="clinic-badge clinic-badge--partner">제휴</span>';
     return `<span class="clinic-badge">${this._esc(it.kind || '의원')}</span>`;
   },
-  _toLink(it) { return `https://map.kakao.com/link/to/${encodeURIComponent(it.name)},${it.lat},${it.lng}`; },
+  _toLink(it) { return `https://map.naver.com/p/directions/-/${it.lng},${it.lat},${encodeURIComponent(it.name)}/-/transit`; },
+  _mapLink(it) { return `https://map.naver.com/p/search/${encodeURIComponent(it.name + ' ' + (it.roadAddr || it.addr || ''))}`; },
 
   // ── 홈 카드 ──
   render() {
@@ -98,6 +99,7 @@ window.Clinics = {
     else if (st === 'denied') el.innerHTML = prompt('위치를 쓸 수 없어요', '설정에서 위치 권한을 켜거나, 동네·역 이름으로 찾아보세요.', true);
     else if (st === 'notfound') el.innerHTML = prompt('그 이름의 장소를 못 찾았어요', '"강남역", "수원 영통" 처럼 넣어보세요.');
     else if (st === 'error') el.innerHTML = prompt('지금은 불러오지 못했어요', '잠시 후 다시 시도해주세요.');
+    else if (st === 'empty') el.innerHTML = prompt('아직 이 지역 병원이 등록되지 않았어요', '운영팀이 전국 병원을 채우는 중이에요. 동네·역 이름으로 찾으면 그 동네를 바로 채워요.');
     else {
       const items = this._items.slice(0, this.HOME_MAX);
       if (!items.length) { el.innerHTML = prompt('반경 안에 정신건강의학과가 없어요', '전체 보기에서 반경을 30km 로 넓혀보세요.'); }
@@ -203,7 +205,7 @@ window.Clinics = {
         </div>
       </button>`).join('')
       + (items.length > st.shown ? `<button class="feed-all__more" data-clinics-more>더 보기 (${items.length - st.shown}곳 남음)</button>` : '')
-      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">${this._live ? '카카오 지도 기준 · ' : ''}진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
+      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">네이버 지도 기준 · 진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
   },
   closeAll() { const ov = document.getElementById('clinic-all-ov'); if (ov) ov.remove(); },
 
@@ -228,8 +230,8 @@ window.Clinics = {
       <div class="clinic-ov__acts">
         ${tel ? `<a class="btn-primary" href="tel:${esc(tel)}">전화 ${esc(it.tel)}</a>` : '<button class="btn-primary" disabled>전화번호 없음</button>'}
         <a class="btn-secondary" href="${this._toLink(it)}" target="_blank" rel="noopener">길찾기</a>
-        ${it.url ? `<a class="btn-secondary" href="${esc(it.url)}" target="_blank" rel="noopener">카카오맵에서 보기</a>` : ''}
-        <a class="btn-secondary" href="https://map.naver.com/p/search/${encodeURIComponent(it.name)}" target="_blank" rel="noopener">네이버 지도</a>
+        <a class="btn-secondary" href="${this._mapLink(it)}" target="_blank" rel="noopener">네이버 지도에서 보기</a>
+        ${it.url && !/naver\.com/.test(it.url) ? `<a class="btn-secondary" href="${esc(it.url)}" target="_blank" rel="noopener">병원 홈페이지</a>` : ''}
         ${it.hospitalId && window.Hospital && !window.Hospital.link() ? `<button class="btn-secondary" data-clinics-link>병원 코드로 담당의 연결</button>` : ''}
       </div>
       <p class="feed-ov__author" style="margin-top: 0.8rem;">진료 시간·예약 가능 여부는 병원에 직접 확인해주세요. 첫 방문이면 신분증을 챙기세요.</p>`;
