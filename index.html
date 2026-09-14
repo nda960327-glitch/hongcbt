@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 186;</script>
+  <script>window.APP_BUILD = 187;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
@@ -18,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=186">
+  <link rel="stylesheet" href="css/style.css?v=187">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -256,37 +256,12 @@
         </div>
       </div>
 
-      <!-- ========== 추천 제휴 콘텐츠 ========== -->
+      <!-- ========== 대면상담 및 진료 — 내 주변 정신건강의학과 (js/clinics.js) ========== -->
       <div class="home-sec">
         <h3>대면상담 및 진료</h3>
-        <span class="home-sec__sub">제휴</span>
+        <button class="home-sec__link" data-clinics-all>전체 보기 ›</button>
       </div>
-      <div class="home-ads">
-        <div class="glass-card home-ad" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
-          <div class="ad-art" data-art="adHospital"></div>
-          <div style="padding: 0.9rem;">
-            <span style="font-size: 0.68rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.4rem; border-radius: 6px;">제휴병원</span>
-            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">서울 마음그린 정신건강의학과</h4>
-            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시!</p>
-          </div>
-        </div>
-        <div class="glass-card home-ad" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
-          <div class="ad-art" data-art="adSleep"></div>
-          <div style="padding: 0.9rem;">
-            <span style="font-size: 0.68rem; color: #6f97ab; font-weight: bold; border: 1px solid #6f97ab; padding: 0.1rem 0.4rem; border-radius: 6px;">수면클리닉</span>
-            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">굿나잇 수면클리닉 기획전</h4>
-            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">수면다원검사로 불면의 원인을 찾아드립니다.</p>
-          </div>
-        </div>
-        <div class="glass-card home-ad" onclick="alert('도서 구매 페이지로 이동합니다.')">
-          <div class="ad-art" data-art="adBook"></div>
-          <div style="padding: 0.9rem;">
-            <span style="font-size: 0.68rem; color: var(--accent-secondary); font-weight: bold; border: 1px solid var(--accent-secondary); padding: 0.1rem 0.4rem; border-radius: 6px;">추천도서</span>
-            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">내 마음을 안아주는 연습</h4>
-            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">인지심리학자의 따뜻한 위로와 솔루션.</p>
-          </div>
-        </div>
-      </div>
+      <div id="home-clinics" style="padding: 0 0 0.6rem;"></div>
     </section>
 
     <!-- CHAT TAB -->
@@ -1444,60 +1419,61 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=186"></script>
-  <script defer src="js/storage.js?v=186"></script>
-  <script defer src="js/inbox.js?v=186"></script>
-  <script defer src="js/cards.js?v=186"></script>
-  <script defer src="js/chatviz.js?v=186"></script>
-  <script defer src="js/memory-vault.js?v=186"></script>
-  <script defer src="js/personas.js?v=186"></script>
-  <script defer src="js/stickers.js?v=186"></script>
-  <script defer src="js/ui.js?v=186"></script>
-  <script defer src="js/api.js?v=186"></script>
-  <script defer src="js/rtccall.js?v=186"></script>
-  <script defer src="js/prolink.js?v=186"></script>
-  <script defer src="js/account.js?v=186"></script>
-  <script defer src="js/freshness.js?v=186"></script>
-  <script defer src="js/i18n.js?v=186"></script>
-  <script defer src="js/wallet.js?v=186"></script>
-  <script defer src="js/pay.js?v=186"></script>
-  <script defer src="js/subscription.js?v=186"></script>
-  <script defer src="js/calltalk.js?v=186"></script>
-  <script defer src="js/calm.js?v=186"></script>
-  <script defer src="js/voice.js?v=186"></script>
-  <script defer src="js/llm.js?v=186"></script>
-  <script defer src="js/chatbot.js?v=186"></script>
-  <script defer src="js/marketplace.js?v=186"></script>
-  <script defer src="js/booking.js?v=186"></script>
-  <script defer src="js/thought-record.js?v=186"></script>
-  <script defer src="js/growth.js?v=186"></script>
-  <script defer src="js/missions.js?v=186"></script>
-  <script defer src="js/weekly.js?v=186"></script>
-  <script defer src="js/sleep.js?v=186"></script>
-  <script defer src="js/onboard.js?v=186"></script>
-  <script defer src="js/stickershop.js?v=186"></script>
-  <script defer src="js/applock.js?v=186"></script>
-  <script defer src="js/safety.js?v=186"></script>
-  <script defer src="js/admin.js?v=186"></script>
-  <script defer src="js/dashboard.js?v=186"></script>
-  <script defer src="js/learn.js?v=186"></script>
-  <script defer src="js/sfx.js?v=186"></script>
-  <script defer src="js/mail.js?v=186"></script>
-  <script defer src="js/payout.js?v=186"></script>
-  <script defer src="js/careplan.js?v=186"></script>
-  <script defer src="js/goals.js?v=186"></script>
-  <script defer src="js/progress.js?v=186"></script>
-  <script defer src="js/safetyplan.js?v=186"></script>
-  <script defer src="js/homework.js?v=186"></script>
-  <script defer src="js/feed.js?v=186"></script>
-  <script defer src="js/hospital.js?v=186"></script>
-  <script defer src="js/assess-charts.js?v=186"></script>
-  <script defer src="js/assess.js?v=186"></script>
-  <script defer src="js/game.js?v=186"></script>
-  <script defer src="js/room.js?v=186"></script>
-  <script defer src="js/farm.js?v=186"></script>
-  <script defer src="js/closet.js?v=186"></script>
-  <script defer src="js/app.js?v=186"></script>
+  <script defer src="js/icons.js?v=187"></script>
+  <script defer src="js/storage.js?v=187"></script>
+  <script defer src="js/inbox.js?v=187"></script>
+  <script defer src="js/cards.js?v=187"></script>
+  <script defer src="js/chatviz.js?v=187"></script>
+  <script defer src="js/memory-vault.js?v=187"></script>
+  <script defer src="js/personas.js?v=187"></script>
+  <script defer src="js/stickers.js?v=187"></script>
+  <script defer src="js/ui.js?v=187"></script>
+  <script defer src="js/api.js?v=187"></script>
+  <script defer src="js/rtccall.js?v=187"></script>
+  <script defer src="js/prolink.js?v=187"></script>
+  <script defer src="js/account.js?v=187"></script>
+  <script defer src="js/freshness.js?v=187"></script>
+  <script defer src="js/i18n.js?v=187"></script>
+  <script defer src="js/wallet.js?v=187"></script>
+  <script defer src="js/pay.js?v=187"></script>
+  <script defer src="js/subscription.js?v=187"></script>
+  <script defer src="js/calltalk.js?v=187"></script>
+  <script defer src="js/calm.js?v=187"></script>
+  <script defer src="js/voice.js?v=187"></script>
+  <script defer src="js/llm.js?v=187"></script>
+  <script defer src="js/chatbot.js?v=187"></script>
+  <script defer src="js/marketplace.js?v=187"></script>
+  <script defer src="js/booking.js?v=187"></script>
+  <script defer src="js/thought-record.js?v=187"></script>
+  <script defer src="js/growth.js?v=187"></script>
+  <script defer src="js/missions.js?v=187"></script>
+  <script defer src="js/weekly.js?v=187"></script>
+  <script defer src="js/sleep.js?v=187"></script>
+  <script defer src="js/onboard.js?v=187"></script>
+  <script defer src="js/stickershop.js?v=187"></script>
+  <script defer src="js/applock.js?v=187"></script>
+  <script defer src="js/safety.js?v=187"></script>
+  <script defer src="js/admin.js?v=187"></script>
+  <script defer src="js/dashboard.js?v=187"></script>
+  <script defer src="js/learn.js?v=187"></script>
+  <script defer src="js/sfx.js?v=187"></script>
+  <script defer src="js/mail.js?v=187"></script>
+  <script defer src="js/payout.js?v=187"></script>
+  <script defer src="js/careplan.js?v=187"></script>
+  <script defer src="js/goals.js?v=187"></script>
+  <script defer src="js/progress.js?v=187"></script>
+  <script defer src="js/safetyplan.js?v=187"></script>
+  <script defer src="js/homework.js?v=187"></script>
+  <script defer src="js/feed.js?v=187"></script>
+  <script defer src="js/hospital.js?v=187"></script>
+  <script defer src="js/clinics.js?v=187"></script>
+  <script defer src="js/assess-charts.js?v=187"></script>
+  <script defer src="js/assess.js?v=187"></script>
+  <script defer src="js/game.js?v=187"></script>
+  <script defer src="js/room.js?v=187"></script>
+  <script defer src="js/farm.js?v=187"></script>
+  <script defer src="js/closet.js?v=187"></script>
+  <script defer src="js/app.js?v=187"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

@@ -31,6 +31,7 @@ const MAX_TTS_CHARS = 2000;
 import { handleMarket } from "./market.js";
 import { handleFeed } from "./feed.js";
 import { handleHospital } from "./hospital.js";
+import { handleClinics } from "./clinics.js";
 import { resolveCounselor } from "./auth.js";
 export { ChatHub } from "./hub.js";
 
@@ -223,6 +224,11 @@ export default {
         ok: true, admin: env.ADMIN_CODE || "", hospital, counselor,
         urls: { app: env.APP_URL || "https://neurumind.com", pro: env.PRO_URL || "https://pro.neurumind.com", doc: env.DOC_URL || "https://doc.neurumind.com", ops: "https://ops.neurumind.com" }
       }, 200, cors);
+    }
+    // 대면상담 및 진료 — 내 주변 정신건강의학과 (카카오 로컬 + D1)
+    if (/^\/(clinics\/|admin\/clinics)/.test(path)) {
+      const r = await handleClinics(request, env, cors, path, ctx);
+      if (r) return r;
     }
     // 병원(담당의) 연동 — 환자 연결·회기 기록·의사 피드백
     if (/^\/(patient\/|session-notes|hospital\/|admin\/hospitals|doctor-feedback)/.test(path)) {

@@ -130,3 +130,10 @@ CREATE TABLE IF NOT EXISTS patient_weekly (client_id TEXT NOT NULL, week_key TEX
 -- 소개 페이지 테스트 코드 열람 등 가벼운 요청 제한용
 CREATE TABLE IF NOT EXISTS rate_hits (key TEXT NOT NULL, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_rate_key ON rate_hits(key, ts);
+-- 대면상담 및 진료 — 내 주변 정신건강의학과 (2026-09)
+--  clinics: 카카오 로컬에서 쌓이는 전국 정신과 + 운영자가 등록한 제휴 병원(partner=1, hospital_id 로 담당 병원과 연결)
+--  clinic_sync: 전국 격자 수집 진행 상태
+CREATE TABLE IF NOT EXISTS clinics (id TEXT PRIMARY KEY, kakao_id TEXT, name TEXT NOT NULL, kind TEXT, addr TEXT, road_addr TEXT, tel TEXT, lat REAL NOT NULL, lng REAL NOT NULL, url TEXT, partner INTEGER NOT NULL DEFAULT 0, hospital_id TEXT, note TEXT, tags TEXT, active INTEGER NOT NULL DEFAULT 1, source TEXT, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_clinics_geo ON clinics(lat, lng);
+CREATE INDEX IF NOT EXISTS idx_clinics_partner ON clinics(partner, active);
+CREATE TABLE IF NOT EXISTS clinic_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);

@@ -263,6 +263,7 @@ const TITLES = {
   payments: ['결제 내역', '느루 캐시 충전 · 승인 실패 감시'],
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
   feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
+  clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
   hospitals: ['병원 관리', '담당 병원 등록 · 병원 코드 발급 · 연결 환자 수'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
@@ -279,6 +280,7 @@ const LAZY = {
   contact: ['contact', () => loadContact()],
   reviews: ['reviews', () => loadReviews()],
   feed: ['feed', () => loadFeed()],
+  clinics: ['clinics', () => loadClinics()],
   hospitals: ['hospitals', () => loadHospitals()],
   payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
@@ -668,7 +670,7 @@ function render() {
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
     clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
-    feed: viewFeed, hospitals: viewHospitals, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
+    feed: viewFeed, clinics: viewClinics, hospitals: viewHospitals, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
   if (fn) {
@@ -2240,7 +2242,7 @@ document.addEventListener('click', e => {
     const only = {
       diag: loadDiag, calls: loadCalls, clients: loadClients,
       usage: loadUsage, contact: loadContact, reviews: loadReviews,
-      payments: loadPayments, feed: loadFeed, hospitals: loadHospitals
+      payments: loadPayments, feed: loadFeed, clinics: loadClinics, hospitals: loadHospitals
     }[TAB];
     if (only) only(); else loadAll();
     toast('새로고침했어요'); return;
@@ -2264,6 +2266,7 @@ document.addEventListener('click', e => {
   if (act === 'feed-toggle') { feedToggle(id); return; }
   if (act === 'feed-del') { feedDel(id); return; }
 
+  if (act.startsWith('cl-')) { clinicAct(act, el, id); return; }
   if (act === 'hosp-new') { HOSP_EDIT = null; HOSP_FORM = true; render(); const t = $('hp-name'); if (t) t.focus(); return; }
   if (act === 'hosp-edit') { HOSP_EDIT = id; HOSP_FORM = true; render(); window.scrollTo(0, 0); return; }
   if (act === 'hosp-cancel') { HOSP_EDIT = null; HOSP_FORM = false; render(); return; }
@@ -2358,4 +2361,153 @@ else setTimeout(() => $('adm-code').focus(), 200);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+}
+
+// ── 주변 정신과 (앱 홈 "대면상담 및 진료") ───────────────────────────────
+//  앱은 카카오 로컬로 전국 정신건강의학과를 거리순으로 보여준다. 여기서 하는 건 둘이다.
+//   1) 제휴 병원 등록 — 배지가 붙고 맨 위에 뜬다. 담당 병원(hospitals)과 이으면 '앱 연동'.
+//   2) 전국 수집 — 격자로 카카오를 훑어 D1 에 쌓는다. 카카오가 죽어도 검색이 되고, 집계에도 쓴다.
+let CL_FORM = false, CL_EDIT = null, CL_CANDS = null, CL_PICK = null, CL_ERR = '', CL_SYNC = { running: false };
+async function loadClinics() {
+  const [r, h] = await Promise.all([adminGet('/api/admin/clinics'), D.hospitals === undefined ? adminGet('/api/admin/hospitals') : Promise.resolve(null)]);
+  D.clinics = r || null;
+  if (h) D.hospitals = h.items || [];
+  if (TAB === 'clinics') render();
+}
+function viewClinics() {
+  if (D.clinics === undefined) return loading;
+  if (!D.clinics) return failed;
+  const d = D.clinics;
+  const editing = CL_EDIT ? d.partners.find(p => p.id === CL_EDIT) : null;
+  const p = editing || CL_PICK || {};
+  const hospOpts = (D.hospitals || []).map(h => `<option value="${esc(h.id)}" ${p.hospitalId === h.id ? 'selected' : ''}>${esc(h.name)}${h.doctor ? ' · ' + esc(h.doctor) : ''}</option>`).join('');
+  const form = `
+    <div class="card" id="cl-form">
+      <div class="sec-title">${editing ? '제휴 병원 고치기' : '제휴 병원 등록'}<span class="right"><button class="btn ghost sm" data-act="cl-cancel">접기</button></span></div>
+      ${editing ? '' : `
+      <div class="row wrap" style="gap: 0.5rem; margin-bottom: 0.6rem;">
+        <input id="cl-q" type="text" placeholder="병원 이름이나 주소로 카카오에서 찾기 (예: 마음편한 정신건강의학과 강남)" style="flex: 1 1 260px;" autocomplete="off">
+        <button class="btn ghost sm" data-act="cl-find">찾기</button>
+      </div>
+      ${CL_ERR ? `<p class="muted" style="color: var(--danger);">${esc(CL_ERR)}</p>` : ''}
+      ${CL_CANDS ? (CL_CANDS.length ? CL_CANDS.map((c, i) => `
+        <div class="listrow" style="padding: 0.4rem 0;">
+          <div class="grow"><b style="font-size: 0.88rem;">${esc(c.name)}</b><div class="muted">${esc(c.roadAddr || c.addr)}${c.tel ? ' · ' + esc(c.tel) : ''}</div></div>
+          <button class="btn sm" data-act="cl-pick" data-idx="${i}">선택</button>
+        </div>`).join('') : '<p class="muted">찾은 곳이 없어요. 이름을 바꿔보거나 아래에 직접 적어주세요.</p>') : ''}`}
+      <label class="muted">병원 이름 <input id="cl-name" type="text" maxlength="80" value="${esc(p.name || '')}"></label>
+      <div class="row wrap" style="gap: 0.5rem;">
+        <label class="muted" style="flex: 1 1 120px;">구분 <select id="cl-kind">${['의원', '병원', '종합병원', '공공'].map(k => `<option ${(p.kind || '의원') === k ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+        <label class="muted" style="flex: 2 1 200px;">전화 <input id="cl-tel" type="text" maxlength="30" value="${esc(p.tel || '')}"></label>
+      </div>
+      <label class="muted">도로명 주소 <input id="cl-road" type="text" maxlength="160" value="${esc(p.roadAddr || '')}"></label>
+      <label class="muted">지번 주소 <input id="cl-addr" type="text" maxlength="160" value="${esc(p.addr || '')}"></label>
+      <div class="row wrap" style="gap: 0.5rem;">
+        <label class="muted" style="flex: 1 1 120px;">위도 <input id="cl-lat" type="text" inputmode="decimal" value="${p.lat != null ? p.lat : ''}"></label>
+        <label class="muted" style="flex: 1 1 120px;">경도 <input id="cl-lng" type="text" inputmode="decimal" value="${p.lng != null ? p.lng : ''}"></label>
+      </div>
+      <label class="muted">카카오맵 링크 <input id="cl-url" type="text" maxlength="200" value="${esc(p.url || '')}"></label>
+      <label class="muted">한 줄 소개 (앱 카드에 보임) <input id="cl-note" type="text" maxlength="200" value="${esc(p.note || '')}" placeholder="예: 직장인 야간 진료 (화·목 21시까지) · 초진 당일 예약 가능"></label>
+      <label class="muted">태그 (쉼표) <input id="cl-tags" type="text" maxlength="120" value="${esc((p.tags || []).join(', '))}" placeholder="야간진료, 주차, 여의사, 청소년"></label>
+      <label class="muted">담당 병원과 연결 (병원 관리에 등록된 곳) <select id="cl-hosp"><option value="">연결 안 함</option>${hospOpts}</select></label>
+      <label class="muted" style="display: flex; gap: 0.4rem; align-items: center;"><input id="cl-active" type="checkbox" ${p.active === false ? '' : 'checked'} style="width: auto;"> 앱에 노출</label>
+      <input id="cl-kakao" type="hidden" value="${esc(p.kakaoId || '')}">
+      <div class="row" style="margin-top: 0.5rem;"><span class="grow"></span>
+        <button class="btn" data-act="cl-save" data-id="${esc(editing ? editing.id : '')}">${editing ? '저장' : '제휴로 등록'}</button></div>
+    </div>`;
+  const sy = d.sync;
+  const pct = sy ? Math.min(100, Math.round((sy.i / Math.max(1, sy.total)) * 100)) : 0;
+  const card = c => `
+    <div class="card"${c.active ? '' : ' style="opacity: 0.6;"'}>
+      <div class="row wrap" style="gap: 0.6rem;">
+        <div class="grow" style="min-width: 0;">
+          <b style="font-size: 0.92rem;">${esc(c.name)}</b> <span class="chip">${esc(c.kind)}</span>${c.hospitalId ? ` <span class="chip ok">앱 연동 · ${esc(c.hospitalName || '')}</span>` : ''}${c.active ? '' : ' <span class="chip">숨김</span>'}
+          <div class="muted">${esc(c.roadAddr || c.addr)}${c.tel ? ' · ' + esc(c.tel) : ''}</div>
+          ${c.note ? `<div style="font-size: 0.86rem; margin-top: 0.2rem;">${esc(c.note)}</div>` : ''}
+          ${c.tags.length ? `<div class="muted">${c.tags.map(t => '#' + esc(t)).join(' ')}</div>` : ''}
+        </div>
+      </div>
+      <div class="row wrap" style="gap: 0.4rem; margin-top: 0.55rem;">
+        <button class="btn ghost sm" data-act="cl-edit" data-id="${esc(c.id)}">고치기</button>
+        ${c.url ? `<a class="btn ghost sm" href="${esc(c.url)}" target="_blank" rel="noopener" style="text-decoration: none;">카카오맵</a>` : ''}
+        <span class="grow"></span>
+        <button class="btn warnline sm" data-act="cl-delete" data-id="${esc(c.id)}">제휴 해제</button>
+      </div>
+    </div>`;
+  return `
+    <div class="card">
+      <div class="sec-title">전국 정신과 등록 현황</div>
+      <div class="row wrap" style="gap: 1.2rem;">
+        <div><div class="muted">등록된 곳</div><b style="font-size: 1.1rem;">${won(d.total)}</b></div>
+        <div><div class="muted">카카오에서 수집</div><b style="font-size: 1.1rem;">${won(d.fromKakao)}</b></div>
+        <div><div class="muted">제휴</div><b style="font-size: 1.1rem;">${d.partners.length}</b></div>
+      </div>
+      <p class="muted" style="margin: 0.5rem 0 0.4rem;">
+        앱은 검색할 때마다 카카오 지도에서 최신 목록을 가져오고, 그 결과가 여기 자동으로 쌓입니다.
+        <b>전국 수집</b>을 돌리면 한반도를 격자로 훑어 한 번에 다 채웁니다 (카카오 호출 약 6천 번, 5~10분). 이 탭을 열어 둔 채로 기다리세요.</p>
+      ${!d.kakaoKey ? '<p class="muted" style="color: var(--danger);">KAKAO_CLIENT_ID 시크릿이 없어 카카오 검색이 꺼져 있습니다. D1 에 쌓인 것만 보여줍니다.</p>' : ''}
+      ${sy ? `<div class="muted" style="margin-bottom: 0.4rem;">${sy.done ? '<b style="color: var(--accent);">수집 완료</b>' : (CL_SYNC.running ? '<b>수집 중…</b>' : '중단됨 — 이어서 할 수 있어요')} · 격자 ${won(sy.i)}/${won(sy.total)} (${pct}%) · 쪼갠 칸 ${won(sy.queued != null ? sy.queued : (sy.queue ? sy.queue.length : 0))} · 카카오 호출 ${won(sy.calls)} · 저장 ${won(sy.found)}</div>
+      <div style="height: 6px; background: var(--line); border-radius: 3px; overflow: hidden;"><i style="display: block; height: 100%; width: ${pct}%; background: var(--accent);"></i></div>` : ''}
+      <div class="row wrap" style="gap: 0.4rem; margin-top: 0.6rem;">
+        ${CL_SYNC.running ? '<button class="btn warnline sm" data-act="cl-sync-stop">중지</button>'
+          : `<button class="btn sm" data-act="cl-sync" ${d.kakaoKey ? '' : 'disabled'}>${sy && !sy.done ? '이어서 수집' : (sy && sy.done ? '다시 수집 (갱신)' : '전국 수집 시작')}</button>`}
+        ${sy && !CL_SYNC.running ? '<button class="btn ghost sm" data-act="cl-sync-reset">처음부터</button>' : ''}
+      </div>
+    </div>
+    <div class="sec-title">제휴 병원 <span class="muted" style="font-weight: 400;">— 앱에서 배지가 붙고 맨 위에 뜹니다</span>
+      <span class="right"><button class="btn sm" data-act="cl-new">＋ 제휴 등록</button></span></div>
+    ${(CL_FORM || editing) ? form : ''}
+    ${d.partners.length ? d.partners.map(card).join('')
+      : '<div class="card"><div class="empty"><b>제휴 병원이 아직 없어요</b>＋ 제휴 등록 → 카카오에서 찾아 선택하면 주소·좌표가 채워집니다.</div></div>'}`;
+}
+async function clinicAct(act, el, id) {
+  const v = k => { const x = $(k); return x ? String(x.value || '').trim() : ''; };
+  if (act === 'cl-new') { CL_FORM = true; CL_EDIT = null; CL_CANDS = null; CL_PICK = null; CL_ERR = ''; render(); const q = $('cl-q'); if (q) q.focus(); return; }
+  if (act === 'cl-edit') { CL_EDIT = id; CL_FORM = true; CL_CANDS = null; CL_PICK = null; render(); window.scrollTo(0, 0); return; }
+  if (act === 'cl-cancel') { CL_FORM = false; CL_EDIT = null; CL_CANDS = null; CL_PICK = null; render(); return; }
+  if (act === 'cl-find') {
+    const q = v('cl-q'); if (!q) return;
+    const r = await busy(el, '찾는 중…', () => adminPost('/api/admin/clinics/geocode', { q }));
+    if (!r || !r.items) { alertBox('찾지 못했어요', r && r.error === 'no-kakao-key' ? 'KAKAO_CLIENT_ID 시크릿이 없습니다.' : '잠시 후 다시 시도해주세요.'); return; }
+    CL_CANDS = r.items; CL_ERR = r.kakaoError ? `카카오 응답 ${r.kakaoError} ${r.kakaoDetail || ''}` : '';
+    render(); const again = $('cl-q'); if (again) again.value = q; return;
+  }
+  if (act === 'cl-pick') {
+    const c = (CL_CANDS || [])[Number(el.dataset.idx)]; if (!c) return;
+    CL_PICK = { name: c.name, kind: c.kind, tel: c.tel, roadAddr: c.roadAddr, addr: c.addr, lat: c.lat, lng: c.lng, url: c.url, kakaoId: c.kakaoId, tags: [], note: '' };
+    CL_CANDS = null; render(); const n = $('cl-note'); if (n) n.focus(); return;
+  }
+  if (act === 'cl-save') {
+    const body = { id, name: v('cl-name'), kind: v('cl-kind'), tel: v('cl-tel'), roadAddr: v('cl-road'), addr: v('cl-addr'), lat: v('cl-lat'), lng: v('cl-lng'), url: v('cl-url'),
+      note: v('cl-note'), tags: v('cl-tags'), hospitalId: v('cl-hosp'), kakaoId: v('cl-kakao'), active: !!($('cl-active') && $('cl-active').checked) };
+    if (!body.name) { alertBox('이름이 필요해요'); return; }
+    if (!body.lat || !body.lng) { alertBox('좌표가 필요해요', '위에서 카카오로 찾아 선택하면 자동으로 채워집니다.'); return; }
+    const r = await busy(el, '저장 중…', () => adminPost('/api/admin/clinics/save', body));
+    if (!r || !r.ok) { alertBox('저장하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
+    CL_FORM = false; CL_EDIT = null; CL_PICK = null; CL_CANDS = null;
+    toast('저장했어요 — 앱 홈에 바로 반영됩니다'); loadClinics(); return;
+  }
+  if (act === 'cl-delete') {
+    const c = (D.clinics.partners || []).find(x => x.id === id); if (!c) return;
+    const ok = await confirmBox({ title: '제휴를 해제할까요?', body: `${c.name}\n\n배지와 소개 문구가 사라집니다. 카카오에서 온 곳이면 일반 검색 결과에는 계속 나옵니다.`, okLabel: '해제', danger: true });
+    if (!ok) return;
+    await adminPost('/api/admin/clinics/delete', { id }); toast('제휴를 해제했어요'); loadClinics(); return;
+  }
+  if (act === 'cl-sync' || act === 'cl-sync-reset') {
+    if (act === 'cl-sync-reset' && !await confirmBox({ title: '처음부터 다시 수집할까요?', body: '이미 쌓인 데이터는 지워지지 않고 갱신됩니다. 진행 상태만 0 으로 돌아갑니다.', okLabel: '처음부터' })) return;
+    CL_SYNC.running = true; render();
+    let reset = act === 'cl-sync-reset' || !!(D.clinics.sync && D.clinics.sync.done);
+    while (CL_SYNC.running) {
+      const r = await adminPost('/api/admin/clinics/sync', { budget: 25, reset });
+      reset = false;
+      if (!r || !r.ok) { CL_SYNC.running = false; alertBox('수집이 멈췄어요', (r && r.error) || '네트워크를 확인하고 이어서 수집을 누르세요.'); render(); break; }
+      D.clinics.sync = Object.assign({}, D.clinics.sync || {}, r.progress);
+      D.clinics.total = r.progress.dbTotal;
+      if (TAB === 'clinics') render();
+      if (r.progress.done) { CL_SYNC.running = false; toast(`전국 수집 완료 — ${won(r.progress.dbTotal)}곳`); loadClinics(); break; }
+      await new Promise(res => setTimeout(res, 250));
+    }
+    return;
+  }
+  if (act === 'cl-sync-stop') { CL_SYNC.running = false; render(); return; }
 }

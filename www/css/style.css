@@ -2258,3 +2258,37 @@ body.header-hidden #tab-chat { padding-top: 0; }
 }
 #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h, 158px) + 1rem); }
 body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h, 96px) + 0.8rem); }
+
+/* ── 대면상담 및 진료 — 내 주변 정신건강의학과 (js/clinics.js) ── */
+.clinic-prompt { margin: 0 1.25rem; padding: 0.9rem 1rem; display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem; align-items: center; }
+.clinic-prompt__ico { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 14%, transparent); display: inline-flex; align-items: center; justify-content: center; color: var(--accent-primary); }
+.clinic-prompt__txt { flex: 1 1 160px; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.clinic-prompt__txt b { font-size: 0.92rem; color: var(--text-primary); }
+.clinic-prompt__txt span { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.45; }
+.clinic-prompt__btns { flex: 1 1 100%; display: flex; gap: 0.5rem; }
+.clinic-prompt__btns .btn-primary, .clinic-prompt__btns .btn-secondary { flex: 1; padding: 0.6rem 0.5rem; font-size: 0.84rem; }
+.clinic-where { margin: 0 1.25rem 0.55rem; font-size: 0.78rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.4rem; }
+.clinic-where b { color: var(--text-primary); }
+.clinic-where__btn { all: unset; cursor: pointer; margin-left: auto; font-size: 0.74rem; font-weight: 800; color: var(--accent-primary); }
+.clinic-card { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 0.3rem; min-width: 232px; max-width: 232px; padding: 0.85rem 0.9rem; cursor: pointer; text-align: left; scroll-snap-align: start; }
+.clinic-card:active { transform: scale(0.99); }
+.clinic-card__top { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.clinic-card__dist { margin-left: auto; font-size: 0.78rem; font-weight: 800; color: var(--accent-primary); }
+.clinic-badge { display: inline-block; font-size: 0.66rem; font-weight: 800; padding: 0.1rem 0.45rem; border-radius: 6px; border: 1px solid var(--glass-border); color: var(--text-secondary); }
+.clinic-badge--partner { color: var(--accent-primary); border-color: var(--accent-primary); }
+.clinic-badge--link { color: #fff; background: var(--accent-primary); border-color: var(--accent-primary); }
+.clinic-badge--tag { color: var(--text-muted); border-style: dashed; }
+.clinic-card__name { margin: 0; font-size: 0.92rem; font-weight: 800; color: var(--text-primary); line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.clinic-card__addr { margin: 0; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.clinic-card__note { margin: 0; font-size: 0.74rem; color: var(--accent-primary); font-weight: 700; line-height: 1.4; }
+.clinic-card__acts { display: flex; gap: 0.4rem; margin-top: 0.35rem; }
+.clinic-act { flex: 1; text-align: center; text-decoration: none; font-size: 0.76rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 9px; padding: 0.4rem 0; }
+.clinic-card--more { justify-content: center; align-items: center; text-align: center; min-width: 120px; max-width: 120px; gap: 0.2rem; }
+.clinic-card--more b { color: var(--accent-primary); font-size: 0.9rem; }
+.clinic-card--more span { font-size: 0.72rem; color: var(--text-secondary); }
+.clinic-card__arrow { font-size: 1.3rem; color: var(--accent-primary); }
+.clinic-row { align-items: center; }
+.clinic-row__dist { flex: 0 0 56px; text-align: center; font-size: 0.8rem; color: var(--accent-primary); }
+.clinic-row .clinic-card__name { font-size: 0.88rem; }
+.clinic-ov__acts { display: flex; flex-direction: column; gap: 0.45rem; margin-top: 0.6rem; }
+.clinic-ov__acts .btn-primary, .clinic-ov__acts .btn-secondary { width: 100%; text-align: center; text-decoration: none; box-sizing: border-box; display: block; padding: 0.75rem; }
