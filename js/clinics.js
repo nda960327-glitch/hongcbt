@@ -97,9 +97,9 @@ window.Clinics = {
     else if (st === 'locating') el.innerHTML = prompt('내 위치를 확인하고 있어요…', '잠깐만요. 오래 걸리면 지역 이름으로 찾아도 돼요.');
     else if (st === 'loading') el.innerHTML = `<div class="glass-card clinic-prompt"><div class="clinic-prompt__txt"><b>가까운 병원을 찾는 중…</b><span>느루가 지도를 펼치고 있어요. 느적느적.</span></div></div>`;
     else if (st === 'denied') el.innerHTML = prompt('위치를 쓸 수 없어요', '설정에서 위치 권한을 켜거나, 동네·역 이름으로 찾아보세요.', true);
-    else if (st === 'notfound') el.innerHTML = prompt('그 이름의 장소를 못 찾았어요', '"강남역", "수원 영통" 처럼 넣어보세요.');
+    else if (st === 'notfound') el.innerHTML = prompt('그 이름의 장소를 못 찾았어요', '"수원 영통", "강남구 역삼동" 처럼 동네 이름으로 넣어보세요. 역 이름은 아직 안 돼요.');
     else if (st === 'error') el.innerHTML = prompt('지금은 불러오지 못했어요', '잠시 후 다시 시도해주세요.');
-    else if (st === 'empty') el.innerHTML = prompt('아직 이 지역 병원이 등록되지 않았어요', '운영팀이 전국 병원을 채우는 중이에요. 동네·역 이름으로 찾으면 그 동네를 바로 채워요.');
+    else if (st === 'empty') el.innerHTML = prompt('아직 이 지역 병원이 등록되지 않았어요', '운영팀이 전국 병원 자료를 채우면 바로 보여요. 조금만 기다려주세요.');
     else {
       const items = this._items.slice(0, this.HOME_MAX);
       if (!items.length) { el.innerHTML = prompt('반경 안에 정신건강의학과가 없어요', '전체 보기에서 반경을 30km 로 넓혀보세요.'); }
@@ -134,8 +134,8 @@ window.Clinics = {
     ov.innerHTML = `<div class="feed-ov">
       <div class="feed-ov__bar"><span class="feed-tag">지역으로 찾기</span><button class="feed-ov__x" data-clinics-close>닫기</button></div>
       <h3>어디 근처를 볼까요?</h3>
-      <p class="feed-ov__author">동네·역·건물 이름을 넣어주세요. 예: 강남역, 수원 영통, 부산대</p>
-      <input id="clinic-q" type="search" autocomplete="off" placeholder="예: 홍대입구역" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 1rem; margin-bottom: 0.7rem;">
+      <p class="feed-ov__author">동네 이름을 넣어주세요. 예: 수원 영통, 강남구 역삼동, 부산 해운대</p>
+      <input id="clinic-q" type="search" autocomplete="off" placeholder="예: 마포구 서교동" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 1rem; margin-bottom: 0.7rem;">
       <div style="display: flex; gap: 0.5rem;">
         <button class="btn-secondary" style="flex: 1;" data-clinics-locate data-clinics-close>내 위치로</button>
         <button class="btn-primary" style="flex: 2;" data-clinics-go>찾기</button>
@@ -205,7 +205,7 @@ window.Clinics = {
         </div>
       </button>`).join('')
       + (items.length > st.shown ? `<button class="feed-all__more" data-clinics-more>더 보기 (${items.length - st.shown}곳 남음)</button>` : '')
-      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">네이버 지도 기준 · 진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
+      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">건강보험심사평가원 자료 · 지도는 네이버 · 진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
   },
   closeAll() { const ov = document.getElementById('clinic-all-ov'); if (ov) ov.remove(); },
 

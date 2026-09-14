@@ -59,3 +59,6 @@ new_sqlite_classes = ["ChatHub"]
 # 야간 청소 — 한국시간 새벽 3시(UTC 18시)에 오래된 기록을 정리한다
 [triggers]
 crons = ["0 18 * * *"]
+
+#   내 주변 정신과 — 건강보험심사평가원 병원정보서비스(data.go.kr) 인증키. 없으면 전국 수집이 꺼진다.
+#   wrangler secret put HIRA_KEY          (data.go.kr 마이페이지 → 활용신청 현황 → 일반 인증키 Decoding 값)
