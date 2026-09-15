@@ -218,7 +218,9 @@ window.Missions = {
     // 오늘의 퀘스트가 케어플랜 할 일과 같은 종류면 거기에도 찍는다 (연동)
     if (window.CarePlan && window.CarePlan.autoDone) {
       const m = this.todayMission();
-      if (m && m.text) window.CarePlan.autoDone(m.text);
+      const planKey = (m && m.text) ? window.CarePlan.autoDone(m.text) : false;
+      // 되돌릴 때 이 칸만 풀 수 있게 적어 둔다
+      if (typeof planKey === 'string') { s.planKey = planKey; window.Storage._safeSet('cbt_daily_mission', s); }
     }
     this.renderCard();
     if (window.App && window.App.showRecordToast) {
@@ -233,6 +235,31 @@ window.Missions = {
     if (window.App && window.App.playNotify) window.App.playNotify();
     if (window.Growth) window.Growth.checkAwards();
     if (window.Farm) window.Farm.addWater(3, '오늘의 미션 완료');
+  },
+
+  // 잘못 눌렀을 때 되돌리기 — 완료 표시·오늘의 완료 기록·물 보상·자동으로 찍힌 케어플랜 칸을 원래대로.
+  //  연속 사용일은 건드리지 않는다(오늘 다른 돌봄으로도 채워질 수 있다).
+  async uncomplete() {
+    const s = this.state();
+    if (!s || !s.done) return;
+    const msg = '미션 체크를 취소할까요? 받은 물 3개도 되돌려요.';
+    const ok = window.UI && window.UI.confirm ? await window.UI.confirm(msg) : window.confirm(msg);
+    if (!ok) return;
+    const raw = window.Storage._safeGet('cbt_daily_mission', null);
+    if (!raw || !raw.done) return;
+    // 완료할 때 케어플랜에 자동으로 찍었던 그 칸만 푼다 (사용자가 직접 찍은 칸은 그대로)
+    if (raw.planKey && window.CarePlan && window.CarePlan.autoUndo) window.CarePlan.autoUndo(raw.planKey);
+    raw.done = false;
+    delete raw.ts;
+    delete raw.planKey;
+    window.Storage._safeSet('cbt_daily_mission', raw);
+    const today = this._today();
+    const log = window.Storage._safeGet('cbt_mission_log', []) || [];
+    const i = log.findIndex(x => x && x.done && x.id === raw.id && x.ts && window.Storage.dayKey(x.ts) === today);
+    if (i >= 0) { log.splice(i, 1); window.Storage._safeSet('cbt_mission_log', log); }
+    if (window.Farm) window.Farm.takeWater(3, '미션 체크를 취소했어요');
+    if (window.Sfx) window.Sfx.play('close');
+    this.renderCard();
   },
 
   // 완료 후 보너스 퀘스트 (하루 3개까지)
@@ -681,7 +708,7 @@ document.addEventListener('click', function (e) {
     if (window.CarePlan) window.CarePlan.toggle(+el.dataset.miW, +el.dataset.miI);
     M.renderCard();
   }
-  else if (act === 'todo-mission') { const s = M.state(); if (!s || !s.done) M.complete(); }
+  else if (act === 'todo-mission') { const s = M.state(); if (s && s.done) M.uncomplete(); else M.complete(); }
   else if (act === 'todo-reroll') M.reroll();
   else if (act === 'todo-checkin') M._pulseMoodRow();
   else if (act === 'todo-more') {

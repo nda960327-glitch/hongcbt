@@ -375,10 +375,22 @@ window.CarePlan = {
         if (window.App && window.App.showRecordToast) {
           window.App.showRecordToast('케어플랜에도 체크했어요 — ' + acts[i]);
         }
-        return true;
+        return this._key(wi, i);
       }
     } catch (e) {}
     return false;
+  },
+
+  // 미션 체크를 취소할 때 — autoDone 이 찍었던 그 칸만 푼다
+  autoUndo(key) {
+    try {
+      const p = this.active();
+      if (!p || !p.done || !key || !p.done[key]) return false;
+      delete p.done[key];
+      this._S()._safeSet('cbt_careplan', p);
+      this.render();
+      return true;
+    } catch (e) { return false; }
   },
 
   // 이번 주 실행률 (0~1)
