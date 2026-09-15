@@ -257,7 +257,7 @@ window.Clinics = {
     ov.innerHTML = `<div class="feed-ov">
       <div class="feed-ov__bar">${this._badge(it)}<span class="feed-ov__author" style="margin: 0 auto 0 0.4rem;">${this._km(it.dist)} 거리</span><button class="feed-ov__x" data-clinics-close>닫기</button></div>
       <h3>${esc(it.name)}</h3>
-      <p class="feed-ov__author">${esc(it.roadAddr || it.addr)}${it.roadAddr && it.addr ? `<br><span style="opacity: 0.7;">지번 ${esc(it.addr)}</span>` : ''}</p>
+      <p class="feed-ov__author">${esc(it.roadAddr || it.addr)}${it.roadAddr && it.addr && it.addr !== it.roadAddr ? `<br><span style="opacity: 0.7;">지번 ${esc(it.addr)}</span>` : ''}</p>
       ${this._openLabel(it)}
       ${it.note ? `<div class="feed-ov__note"><span>${esc(it.note)}</span></div>` : ''}
       ${this._hoursTable(it)}
