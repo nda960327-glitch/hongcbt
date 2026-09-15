@@ -2306,3 +2306,24 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 /* '내 마음 도구' 안의 소제목 — 느루의 추천 (큰 섹션 제목이 아니라 같은 섹션의 하위 묶음) */
 .home-subsec { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; margin: 0.7rem 1.25rem 0.4rem; }
 .home-subsec > span { font-size: 0.84rem; font-weight: 800; color: var(--text-secondary); letter-spacing: -0.01em; }
+
+/* ══ 홈 여백 기준 (한 곳에서만 정한다) ══════════════════════════════════
+   좌우 20px · 블록 사이 12px · 섹션 사이 32px · 제목과 내용 12px.
+   규칙: 섹션 안의 모든 블록은 아래로 12px 를 갖고, 섹션 제목은 위로 20px 를 갖는다(12+20=32).
+   가로 스크롤 줄은 카드 그림자가 잘리지 않게 위아래 안쪽 여백을 주고 같은 만큼 바깥을 당겨 상쇄한다.
+   scroll-padding 이 없으면 카드 단위 스냅이 좌우 여백을 먹어서 첫 카드가 화면 끝에 붙는다(실측 4px). */
+#tab-home { --home-gutter: 1.25rem; --home-gap: 0.75rem; --home-sec-top: 1.25rem; }
+#tab-home .home-sec { margin: var(--home-sec-top) var(--home-gutter) var(--home-gap); }
+#tab-home .home-card { margin: 0 var(--home-gutter) var(--home-gap); }
+#tab-home .home-tools { gap: var(--home-gap); margin: 0 var(--home-gutter) var(--home-gap); }
+#tab-home .feed-scroll,
+#tab-home .home-ads {
+  gap: var(--home-gap);
+  padding: 0.25rem var(--home-gutter) 0.5rem;
+  margin: -0.25rem 0 0.25rem;
+  scroll-padding-inline: var(--home-gutter);
+}
+#tab-home .clinic-where { margin: 0 var(--home-gutter) var(--home-gap); }
+#tab-home .clinic-prompt { margin: 0 var(--home-gutter) var(--home-gap); }
+/* 아주 좁은 화면 — 같은 기준을 비율만 줄인다 (예전 360px 규칙의 의도 유지) */
+@media (max-width: 360px) { #tab-home { --home-gutter: 0.75rem; --home-gap: 0.6rem; --home-sec-top: 1rem; } }
