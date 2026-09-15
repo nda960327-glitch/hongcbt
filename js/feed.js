@@ -110,7 +110,7 @@ window.Feed = {
     ov.innerHTML = `
       <div class="feed-all__head">
         <button class="feed-all__back" data-feed-all-close aria-label="닫기">‹</button>
-        <h2>느루의 추천</h2>
+        <h2>추천 콘텐츠</h2>
         <select class="feed-all__sort" data-feed-sort aria-label="정렬">
           <option value="rec">나에게 맞는 순</option>
           <option value="new">최신순</option>
@@ -232,9 +232,9 @@ window.Feed = {
   promptContext() {
     const items = this.sorted().slice(0, 6);
     if (!items.length) return '';
-    return '[느루의 추천 콘텐츠 — 운영자가 고른 영상·글, 홈 화면 "느루의 추천"에 있음]\n'
+    return '[추천 콘텐츠 — 운영자가 고른 영상·글, 홈 화면 "내 마음 도구" 아래에 있음]\n'
       + items.map(it => `- ${it.title} (${(it.tags || []).join('·') || '일반'} · ${it.type === 'youtube' ? '영상' : '글'})`).join('\n')
-      + '\n사용자의 고민과 정말 맞을 때만 하나를 자연스럽게 권하세요. 링크는 주지 말고 "홈의 느루의 추천에 있어"라고 알려주세요. 여기 없는 콘텐츠를 지어내지 마세요.';
+      + '\n사용자의 고민과 정말 맞을 때만 하나를 자연스럽게 권하세요. 링크는 주지 말고 "홈 내 마음 도구 아래에 있어"라고 알려주세요. 여기 없는 콘텐츠를 지어내지 마세요.';
   }
 };
 
