@@ -2364,9 +2364,9 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── 주변 정신과 (앱 홈 "대면상담 및 진료") ───────────────────────────────
-//  앱은 D1 에 쌓인 전국 정신건강의학과를 거리순으로 보여준다 (데이터는 심평원 공공데이터, 지도는 네이버 링크). 여기서 하는 건 둘이다.
+//  앱은 D1 에 쌓인 전국 정신건강의학과를 거리순으로 보여준다 (데이터는 국립중앙의료원 공공데이터, 지도는 네이버 링크). 여기서 하는 건 둘이다.
 //   1) 제휴 병원 등록 — 배지가 붙고 맨 위에 뜬다. 담당 병원(hospitals)과 이으면 '앱 연동'.
-//   2) 전국 수집 — 심평원 병원정보서비스에서 진료과목 05(정신건강의학과) 전체를 페이지로 받아 D1 에 쌓는다.
+//   2) 전국 수집 — 국립중앙의료원 병·의원 찾기에서 진료과목 D004(정신건강의학과) 전체를 페이지로 받아 D1 에 쌓는다.
 let CL_FORM = false, CL_EDIT = null, CL_CANDS = null, CL_PICK = null, CL_ERR = '', CL_SYNC = { running: false };
 async function loadClinics() {
   const [r, h] = await Promise.all([adminGet('/api/admin/clinics'), D.hospitals === undefined ? adminGet('/api/admin/hospitals') : Promise.resolve(null)]);
@@ -2439,14 +2439,14 @@ function viewClinics() {
       <div class="sec-title">전국 정신과 등록 현황</div>
       <div class="row wrap" style="gap: 1.2rem;">
         <div><div class="muted">등록된 곳</div><b style="font-size: 1.1rem;">${won(d.total)}</b></div>
-        <div><div class="muted">심평원에서 받음</div><b style="font-size: 1.1rem;">${won(d.fromProvider)}</b></div>
+        <div><div class="muted">공공데이터에서 받음</div><b style="font-size: 1.1rem;">${won(d.fromProvider)}</b></div>
         <div><div class="muted">제휴</div><b style="font-size: 1.1rem;">${d.partners.length}</b></div>
       </div>
       <p class="muted" style="margin: 0.5rem 0 0.4rem;">
-        앱의 '내 주변'은 여기 등록된 곳에서 거리순으로 고릅니다. <b>전국 수집</b>을 누르면 건강보험심사평가원 공공데이터(병원정보서비스)에서 진료과목이 정신건강의학과인 전국 병의원을 통째로 받아옵니다 (1~2분). 심평원 자료는 매달 갱신되니 한 달에 한 번 '다시 수집'을 눌러주세요. 지도 보기·길찾기는 네이버 지도로 열립니다.</p>
-      ${!d.providerKey ? '<p class="muted" style="color: var(--danger);">HIRA_KEY 시크릿이 없어 수집을 돌릴 수 없습니다. data.go.kr 에서 \'건강보험심사평가원_병원정보서비스\' 활용신청 → 일반 인증키(Decoding)를 <code>npx wrangler secret put HIRA_KEY</code> 로 넣으세요.</p>' : ''}
-      ${sy && sy.lastError ? `<p class="muted" style="color: var(--danger);">심평원 응답 오류: ${esc(sy.lastError)} — 인증키가 맞는지, 활용신청이 승인됐는지 확인하세요. (신청 직후에는 반영까지 몇 분 걸릴 수 있어요)</p>` : ''}
-      ${sy ? `<div class="muted" style="margin-bottom: 0.4rem;">${sy.done ? '<b style="color: var(--accent);">수집 완료</b>' : (CL_SYNC.running ? '<b>수집 중…</b>' : '중단됨 — 이어서 할 수 있어요')} · 받은 병원 ${won(sy.i)}/${won(sy.total)} (${pct}%) · 남은 ${won(sy.queued != null ? sy.queued : 0)}곳 · 심평원 호출 ${won(sy.calls)} · 저장 ${won(sy.found)}</div>
+        앱의 '내 주변'은 여기 등록된 곳에서 거리순으로 고릅니다. <b>전국 수집</b>을 누르면 국립중앙의료원 '전국 병·의원 찾기 서비스'에서 진료과목이 정신건강의학과인 전국 병의원(약 3,800곳)을 요일별 진료시간과 함께 받아옵니다 (1분 안팎). 자료가 수시로 갱신되니 한 달에 한 번 '다시 수집'을 눌러주세요. 지도 보기·길찾기는 네이버 지도로 열립니다.</p>
+      ${!d.providerKey ? '<p class="muted" style="color: var(--danger);">공공데이터 인증키(DATA_GO_KEY 또는 HIRA_KEY)가 없어 수집을 돌릴 수 없습니다. data.go.kr 에서 \'국립중앙의료원_전국 병·의원 찾기 서비스\' 활용신청 → 일반 인증키(Decoding)를 <code>npx wrangler secret put HIRA_KEY</code> 로 넣으세요.</p>' : ''}
+      ${sy && sy.lastError ? `<p class="muted" style="color: var(--danger);">공공데이터 응답 오류: ${esc(sy.lastError)} — 인증키가 맞는지, 활용신청이 승인됐는지 확인하세요. (신청 직후에는 반영까지 몇 분 걸릴 수 있어요)</p>` : ''}
+      ${sy ? `<div class="muted" style="margin-bottom: 0.4rem;">${sy.done ? '<b style="color: var(--accent);">수집 완료</b>' : (CL_SYNC.running ? '<b>수집 중…</b>' : '중단됨 — 이어서 할 수 있어요')} · 받은 병원 ${won(sy.i)}/${won(sy.total)} (${pct}%) · 남은 ${won(sy.queued != null ? sy.queued : 0)}곳 · 공공데이터 호출 ${won(sy.calls)} · 저장 ${won(sy.found)}</div>
       <div style="height: 6px; background: var(--line); border-radius: 3px; overflow: hidden;"><i style="display: block; height: 100%; width: ${pct}%; background: var(--accent);"></i></div>` : ''}
       <div class="row wrap" style="gap: 0.4rem; margin-top: 0.6rem;">
         ${CL_SYNC.running ? '<button class="btn warnline sm" data-act="cl-sync-stop">중지</button>'
@@ -2468,7 +2468,7 @@ async function clinicAct(act, el, id) {
   if (act === 'cl-find') {
     const q = v('cl-q'); if (!q) return;
     const r = await busy(el, '찾는 중…', () => adminPost('/api/admin/clinics/geocode', { q }));
-    if (!r || !r.items) { alertBox('찾지 못했어요', r && r.error === 'no-provider-key' ? 'HIRA_KEY 시크릿이 없습니다.' : '잠시 후 다시 시도해주세요.'); return; }
+    if (!r || !r.items) { alertBox('찾지 못했어요', r && r.error === 'no-provider-key' ? '공공데이터 인증키가 없습니다.' : '잠시 후 다시 시도해주세요.'); return; }
     CL_CANDS = r.items; CL_ERR = r.hint || '';
     render(); const again = $('cl-q'); if (again) again.value = q; return;
   }
@@ -2489,7 +2489,7 @@ async function clinicAct(act, el, id) {
   }
   if (act === 'cl-delete') {
     const c = (D.clinics.partners || []).find(x => x.id === id); if (!c) return;
-    const ok = await confirmBox({ title: '제휴를 해제할까요?', body: `${c.name}\n\n배지와 소개 문구가 사라집니다. 심평원에서 온 곳이면 일반 검색 결과에는 계속 나옵니다.`, okLabel: '해제', danger: true });
+    const ok = await confirmBox({ title: '제휴를 해제할까요?', body: `${c.name}\n\n배지와 소개 문구가 사라집니다. 공공데이터에서 온 곳이면 일반 검색 결과에는 계속 나옵니다.`, okLabel: '해제', danger: true });
     if (!ok) return;
     await adminPost('/api/admin/clinics/delete', { id }); toast('제휴를 해제했어요'); loadClinics(); return;
   }
@@ -2498,7 +2498,7 @@ async function clinicAct(act, el, id) {
     CL_SYNC.running = true; render();
     let reset = act === 'cl-sync-reset' || !!(D.clinics.sync && D.clinics.sync.done);
     while (CL_SYNC.running) {
-      const r = await adminPost('/api/admin/clinics/sync', { budget: 4, reset });
+      const r = await adminPost('/api/admin/clinics/sync', { budget: 2, reset });
       reset = false;
       if (!r || !r.ok) { CL_SYNC.running = false; alertBox('수집이 멈췄어요', (r && r.error) || '네트워크를 확인하고 이어서 수집을 누르세요.'); render(); break; }
       D.clinics.sync = Object.assign({}, D.clinics.sync || {}, r.progress);

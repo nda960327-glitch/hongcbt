@@ -76,6 +76,37 @@ window.Clinics = {
     return `<span class="clinic-badge">${this._esc(it.kind || '의원')}</span>`;
   },
   _toLink(it) { return `https://map.naver.com/p/directions/-/${it.lng},${it.lat},${encodeURIComponent(it.name)}/-/transit`; },
+  // 진료시간: hours = {1:[s,c] … 7:일, 8:공휴일}. 지금 열었는지 — true/false, 자료가 없으면 null
+  DAYS: ['', '월', '화', '수', '목', '금', '토', '일', '공휴일'],
+  _hm(v) { return v ? `${v.slice(0, 2)}:${v.slice(2)}` : ''; },
+  _openNow(it, now) {
+    const h = it && it.hours;
+    if (!h) return null;
+    const d = now || new Date();
+    const day = d.getDay() === 0 ? 7 : d.getDay();
+    const cur = d.getHours() * 100 + d.getMinutes();
+    const t = h[day];
+    if (!t) return false;
+    const s = Number(t[0]); let c = Number(t[1]);
+    if (c <= s) c += 2400;
+    return cur >= s && cur < c;
+  },
+  _openLabel(it) {
+    const o = this._openNow(it);
+    if (o === null) return '';
+    const d = new Date(); const day = d.getDay() === 0 ? 7 : d.getDay();
+    const t = it.hours[day];
+    if (o) return `<span class="clinic-open clinic-open--on">진료 중 · ${this._hm(t[1])}까지</span>`;
+    const cur = d.getHours() * 100 + d.getMinutes();
+    if (t && cur < Number(t[0])) return `<span class="clinic-open">오늘 ${this._hm(t[0])} 시작</span>`;
+    return '<span class="clinic-open">진료 종료</span>';
+  },
+  _hoursTable(it) {
+    const h = it && it.hours;
+    if (!h) return '<p class="feed-ov__author">진료시간 정보가 없어요. 방문 전에 전화로 확인해주세요.</p>';
+    const d = new Date(); const today = d.getDay() === 0 ? 7 : d.getDay();
+    return `<div class="clinic-hours">${[1, 2, 3, 4, 5, 6, 7, 8].map(i => `<div class="clinic-hours__row${i === today ? ' is-today' : ''}"><span>${this.DAYS[i]}</span><b>${h[i] ? this._hm(h[i][0]) + ' ~ ' + this._hm(h[i][1]) : '휴진'}</b></div>`).join('')}</div>`;
+  },
   _mapLink(it) { return `https://map.naver.com/p/search/${encodeURIComponent(it.name + ' ' + (it.roadAddr || it.addr || ''))}`; },
 
   // ── 홈 카드 ──
@@ -111,6 +142,7 @@ window.Clinics = {
             <div class="clinic-card__top">${this._badge(it)}<span class="clinic-card__dist">${this._km(it.dist)}</span></div>
             <h4 class="clinic-card__name">${esc(it.name)}</h4>
             <p class="clinic-card__addr">${esc(it.roadAddr || it.addr)}</p>
+            ${this._openLabel(it)}
             ${it.note ? `<p class="clinic-card__note">${esc(it.note)}</p>` : ''}
             <div class="clinic-card__acts">
               ${it.tel ? `<a class="clinic-act" href="tel:${esc(it.tel.replace(/[^\d+]/g, ''))}" data-clinic-tel>전화</a>` : ''}
@@ -186,11 +218,11 @@ window.Clinics = {
     const chips = ov.querySelector('[data-clinics-chips]');
     const list = ov.querySelector('[data-clinics-list]');
     const all = this._items;
-    const F = [['', `전체 ${all.length}`], ['partner', `제휴 ${all.filter(x => x.partner).length}`], ['link', `앱 연동 ${all.filter(x => x.hospitalId).length}`],
+    const F = [['', `전체 ${all.length}`], ['open', `지금 진료 중 ${all.filter(x => this._openNow(x) === true).length}`], ['partner', `제휴 ${all.filter(x => x.partner).length}`], ['link', `앱 연동 ${all.filter(x => x.hospitalId).length}`],
       ['의원', `의원 ${all.filter(x => x.kind === '의원').length}`], ['병원', `병원 ${all.filter(x => /병원/.test(x.kind)).length}`]];
     chips.innerHTML = `<button class="feed-chip" data-clinics-search>📍 ${this._center && this._center.label ? esc(this._center.label) : '내 위치'} · 바꾸기</button>`
       + F.filter(([k, l]) => !k || !/ 0$/.test(l)).map(([k, l]) => `<button class="feed-chip${st.filter === k ? ' on' : ''}" data-clinics-filter="${k}">${esc(l)}</button>`).join('');
-    const items = all.filter(x => !st.filter || (st.filter === 'partner' ? x.partner : st.filter === 'link' ? !!x.hospitalId : st.filter === '병원' ? /병원/.test(x.kind) : x.kind === st.filter));
+    const items = all.filter(x => !st.filter || (st.filter === 'open' ? this._openNow(x) === true : st.filter === 'partner' ? x.partner : st.filter === 'link' ? !!x.hospitalId : st.filter === '병원' ? /병원/.test(x.kind) : x.kind === st.filter));
     if (this._state === 'loading') { list.innerHTML = '<p class="feed-all__empty">찾는 중…</p>'; return; }
     if (this._state !== 'ready') { list.innerHTML = `<p class="feed-all__empty">먼저 위치를 정해주세요.</p><button class="feed-all__more" data-clinics-locate>내 주변 찾기</button><button class="feed-all__more" data-clinics-search>지역으로 찾기</button>`; return; }
     if (!items.length) { list.innerHTML = '<p class="feed-all__empty">이 조건에 맞는 곳이 없어요. 반경을 넓혀보세요.</p>'; return; }
@@ -201,11 +233,12 @@ window.Clinics = {
           <div class="clinic-card__top">${this._badge(it)}${it.tags.length ? it.tags.slice(0, 3).map(t => `<span class="clinic-badge clinic-badge--tag">${esc(t)}</span>`).join('') : ''}</div>
           <span class="clinic-card__name">${esc(it.name)}</span>
           <span class="clinic-card__addr">${esc(it.roadAddr || it.addr)}</span>
+          ${this._openLabel(it)}
           ${it.note ? `<span class="clinic-card__note">${esc(it.note)}</span>` : ''}
         </div>
       </button>`).join('')
       + (items.length > st.shown ? `<button class="feed-all__more" data-clinics-more>더 보기 (${items.length - st.shown}곳 남음)</button>` : '')
-      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">건강보험심사평가원 자료 · 지도는 네이버 · 진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
+      + `<p class="feed-all__empty" style="padding: 1rem 0 0;">국립중앙의료원 자료 · 지도는 네이버 · 진료 시간·예약은 병원에 직접 확인해주세요.<br>응급 상황이면 119, 마음이 급하면 1577-0199</p>`;
   },
   closeAll() { const ov = document.getElementById('clinic-all-ov'); if (ov) ov.remove(); },
 
@@ -225,7 +258,9 @@ window.Clinics = {
       <div class="feed-ov__bar">${this._badge(it)}<span class="feed-ov__author" style="margin: 0 auto 0 0.4rem;">${this._km(it.dist)} 거리</span><button class="feed-ov__x" data-clinics-close>닫기</button></div>
       <h3>${esc(it.name)}</h3>
       <p class="feed-ov__author">${esc(it.roadAddr || it.addr)}${it.roadAddr && it.addr ? `<br><span style="opacity: 0.7;">지번 ${esc(it.addr)}</span>` : ''}</p>
+      ${this._openLabel(it)}
       ${it.note ? `<div class="feed-ov__note"><span>${esc(it.note)}</span></div>` : ''}
+      ${this._hoursTable(it)}
       ${it.hospitalId ? `<div class="feed-ov__note"><span><b>마인드 인사이드 연동 병원</b>이에요. 진료 뒤 병원 코드를 받으면 담당 선생님이 상담 기록을 함께 볼 수 있어요.</span></div>` : ''}
       <div class="clinic-ov__acts">
         ${tel ? `<a class="btn-primary" href="tel:${esc(tel)}">전화 ${esc(it.tel)}</a>` : '<button class="btn-primary" disabled>전화번호 없음</button>'}
