@@ -91,10 +91,12 @@ window.Feed = {
     const el = document.getElementById('home-feed');
     if (!sec || !el) return;
     const items = this.sorted();
-    if (!items.length) { sec.classList.add('hidden'); return; }
+    // '전체 보기'는 '내 마음 도구' 제목 줄에 있다 — 카드와 같이 보이고 같이 숨는다
+    const link = document.getElementById('home-feed-all');
+    if (!items.length) { sec.classList.add('hidden'); if (link) link.classList.add('hidden'); return; }
     sec.classList.remove('hidden');
+    if (link) link.classList.remove('hidden');
     el.innerHTML = items.slice(0, this.HOME_MAX).map(it => this._card(it, false)).join('');
-    const link = sec.querySelector('[data-feed-all]');
     if (link) link.textContent = items.length > this.HOME_MAX ? `전체 보기 (${items.length}) ›` : '전체 보기 ›';
   },
 
