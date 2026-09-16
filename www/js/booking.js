@@ -232,13 +232,23 @@ window.Booking = {
           time: formattedDate, whenTs: booking.whenTs, price: counselor.price
         })
       }).then(res => {
-        // 구독이 끊긴 상담사는 서버가 신규 예약을 막는다(409 sub_expired).
-        //  우리가 보고 있는 목록은 조금 전에 받아온 것이라, 그 사이 만료된 분이
-        //  카드에 남아 있을 수 있다. 여기서 조용히 넘어가면 캐시는 빠져나갔는데
-        //  상담사 화면에는 예약이 없어서, 내담자만 오지 않을 상담을 기다리게 된다.
-        if (!res || res.status !== 409) return;
+        // 서버가 받지 않은 예약 — 가짜 예약 차단·같은 시간 중복·결제 미확인·과다 요청 등.
+        //  캐시는 이미 기기에서 빠졌으므로 반드시 되돌린다. 조용히 넘어가면
+        //  상담사 화면에는 예약이 없는데 내담자만 오지 않을 상담을 기다리게 된다.
+        if (!res || ![400, 402, 403, 409, 429].includes(res.status)) return;
         return res.json().catch(() => ({})).then(err => {
-          if (err && err.error === 'sub_expired') this._undoBooking(booking, counselor);
+          const TITLE = {
+            'slot-taken': '이 시간은 방금 마감됐어요',
+            'no-cash': '결제 확인이 필요해요',
+            'too-many': '잠시 후 다시 시도해주세요',
+            'too-many-open': '예약은 3건까지 잡을 수 있어요',
+            'too-many-today': '오늘은 예약을 더 잡을 수 없어요',
+            'bad-time': '예약할 수 없는 시간이에요',
+            'forbidden': '이 기기에서는 예약할 수 없어요',
+            'sub_expired': '지금은 예약을 받을 수 없어요'
+          };
+          const code = (err && err.error) || '';
+          this._undoBooking(booking, counselor, TITLE[code] || '예약을 완료하지 못했어요', (err && err.message) || '');
         });
       }).catch(() => {});   // 네트워크가 끊긴 것뿐이면 예약은 기기에 남겨 둔다
     } catch (e) {}
@@ -254,7 +264,7 @@ window.Booking = {
   // 서버가 예약을 받지 않았을 때 되돌린다.
   //  기기에 적어 둔 예약을 지우고 캐시를 전액 돌려준다 — 돈이 걸린 일이라
   //  '나중에 운영자가 확인해서'로 미룰 수 없다.
-  _undoBooking(booking, counselor) {
+  _undoBooking(booking, counselor, title, why) {
     Promise.resolve(this._payAlert).catch(() => {}).then(() => {
       const left = (window.Storage._safeGet('cbt_bookings', []) || []).filter(b => b && b.id !== booking.id);
       window.Storage._safeSet('cbt_bookings', left);
@@ -263,8 +273,8 @@ window.Booking = {
       // 목록은 굳이 다시 받지 않는다 — 새로고침 효과음·토스트가 사과 문구와 겹친다.
       //  만료된 상담사는 서버가 걸러 주므로 다음 갱신 때 카드에서 조용히 사라진다.
       window.UI.alert({
-        title: '지금은 예약을 받을 수 없어요',
-        body: `${counselor.name} 선생님은 현재 상담을 받지 않고 있어요.\n\n결제하신 ${booking.price.toLocaleString()}캐시는 전액 돌려드렸습니다. 다른 선생님을 찾아봐 주세요.`
+        title: title || '지금은 예약을 받을 수 없어요',
+        body: `${why || (counselor.name + ' 선생님은 현재 상담을 받지 않고 있어요.')}\n\n결제하신 ${booking.price.toLocaleString()}캐시는 전액 돌려드렸어요.`
       });
     });
   }

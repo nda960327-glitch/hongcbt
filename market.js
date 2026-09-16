@@ -699,6 +699,43 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (dup && dup.client_id !== clientId) id = rid('bk');   // 남의 것과 부딪혔다 → 새 id
     else if (dup) return json({ ok: true, id, already: true }, 200, cors);  // 재전송 — 그대로 둔다
 
+    // ── 악용 방지 ────────────────────────────────────────────────────
+    //  스크립트로 가짜 예약을 수천 건 넣거나, 남의 기기 id 로 예약을 만들거나,
+    //  같은 시간에 두 사람을 겹쳐 넣어 상담사를 골탕 먹이는 걸 여기서 막는다.
+    //  (막힌 요청은 앱이 받아서 기기에서 뺀 캐시를 돌려놓는다 — js/booking.js)
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden', message: '이 기기에서 예약할 수 없어요. 앱을 다시 열어주세요.' }, 403, cors);
+    if (!(await actOk(env.RL_ACT, 'bk:' + clientId)))
+      return json({ error: 'too-many', message: '예약 요청이 너무 잦아요. 1분 뒤에 다시 시도해주세요.' }, 429, cors);
+    const tNow = nowMs();
+    const wantTs = num(body.whenTs);
+    //  지난 시간(30분 여유)과 너무 먼 미래(120일)는 받지 않는다
+    if (!wantTs || wantTs < tNow - 30 * 60000 || wantTs > tNow + 120 * 86400000)
+      return json({ error: 'bad-time', message: '예약할 수 없는 시간이에요. 다른 시간을 골라주세요.' }, 400, cors);
+    const BK = { openMax: 3, dayMax: 5, ipDayMax: 10, slotMs: 50 * 60000 };
+    let lim = null;
+    try {
+      lim = await db.prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status = 'confirmed' AND when_ts > ?) AS openN,
+           (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND created > ?) AS dayN,
+           (SELECT COUNT(*) FROM bookings WHERE counselor_id = ? AND status = 'confirmed'
+              AND when_ts > ? AND when_ts < ?) AS clash`
+      ).bind(clientId, tNow, clientId, tNow - 86400000, counselorId, wantTs - BK.slotMs, wantTs + BK.slotMs).first();
+    } catch (e) {}
+    if (lim && lim.clash > 0)
+      return json({ error: 'slot-taken', message: '방금 다른 분이 이 시간을 예약했어요. 다른 시간을 골라주세요.' }, 409, cors);
+    if (lim && lim.openN >= BK.openMax)
+      return json({ error: 'too-many-open', message: `아직 받지 않은 예약이 ${lim.openN}건 있어요. 상담을 마치거나 취소한 뒤 더 잡을 수 있어요.` }, 429, cors);
+    if (lim && lim.dayN >= BK.dayMax)
+      return json({ error: 'too-many-today', message: '오늘은 예약을 더 잡을 수 없어요. 내일 다시 시도해주세요.' }, 429, cors);
+    const bkIp = request.headers.get('cf-connecting-ip') || '?';
+    try {
+      const ipN = await db.prepare('SELECT COUNT(*) n FROM rate_hits WHERE key = ? AND ts > ?').bind('bkip:' + bkIp, tNow - 86400000).first();
+      if (ipN && ipN.n >= BK.ipDayMax)
+        return json({ error: 'too-many-today', message: '오늘은 이 네트워크에서 예약을 더 잡을 수 없어요.' }, 429, cors);
+    } catch (e) {}
+
     // 상담료는 서버가 정한다. 클라이언트가 보낸 값을 그대로 믿으면
     //  1원짜리 예약을 만들어 상담사 몫을 0 으로 만들 수 있다.
     //  (마켓에 없는 상담사면 옛 흐름대로 보낸 값을 쓴다 — 예약 자체를 잃지 않게)
@@ -737,6 +774,13 @@ export async function handleMarket(request, env, cors, path, ctx) {
       }, 409, cors);
     }
 
+    // 서버 기록으로 본 잔액이 모자라면 받지 않는다 (기기 저장값 조작 방지).
+    //  비상시 운영자가 CASH_CHECK=off 로 끌 수 있다.
+    if (env.CASH_CHECK !== 'off' && price > 0) {
+      const bal = await cashBalance(db, clientId);
+      if (bal !== null && bal < price)
+        return json({ error: 'no-cash', message: '결제 기록이 확인되지 않아요. 캐시를 충전한 뒤 다시 예약해주세요.', balance: Math.max(0, bal), price }, 402, cors);
+    }
     // 이 예약이 병원을 통해 온 것인지 지금 정한다 — 나중에 연결이 바뀌어도 이 값은 그대로다
     const ch = await channelOf(db, clientId);
     await db.prepare(
@@ -748,6 +792,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       clientId, s(body.clientName) || '익명',
       num(body.whenTs), s(body.time, 120), price,
       'confirmed', nowMs(), ch.channel, ch.hospitalId).run();
+    try { await db.prepare('INSERT INTO rate_hits (key, ts) VALUES (?,?)').bind('bkip:' + bkIp, nowMs()).run(); } catch (e) {}
     return json({ ok: true, id, price, channel: ch.channel }, 200, cors);
   }
 
@@ -1196,6 +1241,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
       }
     }
     if (!clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
+    // 도배 방지 — 상담사 수신함을 스크립트로 채워 업무를 마비시키는 걸 막는다
+    if (from === 'client') {
+      if (!(await actOk(env.RL_MSG, 'msg:' + clientId)))
+        return json({ error: 'too-many', message: '메시지를 너무 빨리 보내고 있어요. 잠시 후 다시 보내주세요.' }, 429, cors);
+      //  바인딩은 대략 센다 — 1분 30통은 DB 로 정확히 한 번 더 본다
+      try {
+        const mk = 'msg:' + clientId, mt = nowMs();
+        const mc = await db.prepare('SELECT COUNT(*) n FROM rate_hits WHERE key = ? AND ts > ?').bind(mk, mt - 60000).first();
+        if (mc && mc.n >= 30) return json({ error: 'too-many', message: '메시지를 너무 빨리 보내고 있어요. 1분 뒤에 다시 보내주세요.' }, 429, cors);
+        await db.prepare('INSERT INTO rate_hits (key, ts) VALUES (?,?)').bind(mk, mt).run();
+      } catch (e) {}
+    }
 
     // 연락처는 저장 전에 가린다. 원문을 남겨두면 언젠가 새어 나간다.
     const clean = maskContacts(text);
@@ -2344,6 +2401,34 @@ function payoutOf(price, channel) {
 }
 
 // 이 내담자가 지금 병원을 통해 등록된 상태인가 — 예약·통화를 만들 때 한 번만 본다
+
+// ── 서버가 아는 캐시 잔액 ─────────────────────────────────────────────
+//  예약 결제는 기기에서 캐시를 빼는 방식이라, 기기 저장값을 고치면 '돈 안 낸 예약'이 생긴다.
+//  그러면 앱은 돈을 못 받았는데 상담사 몫은 줘야 한다. 그래서 서버 기록으로 한 번 더 본다.
+//  잔액 = 카드로 결제 완료된 캐시 − 유효한 예약(환불분 제외) − 바로상담 통화 요금.
+//  (AI 보이스톡처럼 기기 안에서만 쓰는 캐시는 여기 안 잡힌다 → 서버 잔액이 조금 넉넉하게 나온다.
+//   막아야 할 쪽은 '없는 돈으로 예약'이므로 넉넉한 쪽 오차는 괜찮다.)
+//  표가 없거나 조회가 실패하면 null — 판단하지 않는다(정상 사용자를 막지 않는다).
+async function cashBalance(db, clientId) {
+  try {
+    const r = await db.prepare(
+      `SELECT
+         (SELECT COALESCE(SUM(cash), 0) FROM orders WHERE client_id = ? AND status = 'paid') AS paid,
+         (SELECT COALESCE(SUM(price - COALESCE(refund, 0)), 0) FROM bookings
+            WHERE client_id = ? AND status NOT IN ('cancelled', 'declined', 'noshow')) AS spent,
+         (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?) AS calls`
+    ).bind(clientId, clientId, clientId).first();
+    if (!r) return null;
+    return (r.paid || 0) - (r.spent || 0) - (r.calls || 0);
+  } catch (e) { return null; }
+}
+
+// 사람 행동(예약·채팅·전화) 연속 제한 — 바인딩이 없으면 통과
+async function actOk(binding, key) {
+  if (!binding || !binding.limit) return true;
+  try { return (await binding.limit({ key })).success; } catch (e) { return true; }
+}
+
 async function channelOf(db, clientId) {
   try {
     const r = await db.prepare(

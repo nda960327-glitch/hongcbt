@@ -62,3 +62,32 @@ crons = ["0 18 * * *"]
 
 #   내 주변 정신과 — 건강보험심사평가원 병원정보서비스(data.go.kr) 인증키. 없으면 전국 수집이 꺼진다.
 #   wrangler secret put HIRA_KEY          (data.go.kr 마이페이지 → 활용신청 현황 → 일반 인증키 Decoding 값)
+
+# ── 악용·과부하 방지 (Workers Rate Limiting) ─────────────────────────────
+#  스크립트로 요청을 퍼붓거나 코드를 찍어 보는 걸 서버 앞단에서 끊는다.
+#  period 는 10 또는 60 초만 된다. 키는 코드에서 정한다(IP·기기 id).
+#  값은 정상 사용의 몇 배로 넉넉히 잡았다 — 병원 한 곳이 IP 하나를 같이 써도 막히지 않게.
+[[ratelimits]]
+name = "RL_IP"            # 모든 요청 · IP당 분당 300
+namespace_id = "1001"
+simple = { limit = 300, period = 60 }
+
+[[ratelimits]]
+name = "RL_WRITE"         # 쓰기(POST) · IP당 분당 60
+namespace_id = "1002"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "RL_AUTH"          # 코드·로그인·운영자 경로 · IP당 분당 60 (코드 찍어보기 차단)
+namespace_id = "1003"
+simple = { limit = 60, period = 60 }
+
+[[ratelimits]]
+name = "RL_ACT"           # 사람 행동(예약·채팅·전화) · 기기당 분당 12
+namespace_id = "1004"
+simple = { limit = 12, period = 60 }
+
+[[ratelimits]]
+name = "RL_MSG"           # 채팅 · 기기당 분당 30
+namespace_id = "1005"
+simple = { limit = 30, period = 60 }

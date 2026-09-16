@@ -412,6 +412,13 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       }, 409, cors);
     }
 
+    // 장난 전화 연속 방지 — 상담사 폰을 계속 울리게 하는 걸 막는다
+    if (env.RL_ACT && env.RL_ACT.limit) {
+      try {
+        const lr = await env.RL_ACT.limit({ key: 'call:' + clientId });
+        if (!lr.success) return json({ error: 'too-many', message: '전화를 너무 자주 걸고 있어요. 1분 뒤에 다시 걸어주세요.' }, 429, cors);
+      } catch (e) {}
+    }
     const id = rid('call');
     const cch = await callChannel(db, clientId);
     await db.prepare(

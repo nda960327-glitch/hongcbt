@@ -107,7 +107,7 @@ async function abuseCheck(request, env, body) {
   return null;
 }
 
-export default {
+const APP = {
   // 야간 청소 (매일 KST 03:00) — 손으로 SQL 을 치던 정리를 자동으로.
   //  통화 신호·진단·사용량 카운터는 유통기한이 짧다. 안 치우면 D1 만 무거워진다.
   async scheduled(event, env, ctx) {
@@ -161,6 +161,25 @@ export default {
 
     // CORS preflight
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+
+    // ── 과부하·악용 차단 (앞단) ─────────────────────────────────────────
+    //  스크립트로 요청을 퍼붓는 한 사람 때문에 서비스 전체가 멈추면, 그 피해 배상은 우리 몫이다.
+    //  그래서 IP 단위로 먼저 끊는다. 바인딩이 없는 배포(로컬 등)에서는 그냥 통과한다.
+    //  Cloudflare 가 L3/L4 DDoS 는 앞에서 흡수하고, 여기서는 정상 요청처럼 보이는 폭주를 막는다.
+    {
+      const ipKey = request.headers.get("cf-connecting-ip") || "?";
+      const pth = new URL(request.url).pathname.replace(/^\/api/, "");
+      const ok = async (b, key) => { if (!b || !b.limit) return true; try { return (await b.limit({ key })).success; } catch (e) { return true; } };
+      const authy = /^\/(stats|admin\/|inbox|hospital\/me|hospital\/auth\/|auth\/|intro\/unlock|settle|purge)/.test(pth);
+      let tooMany = !(await ok(env.RL_IP, "ip:" + ipKey));
+      if (!tooMany && request.method === "POST") tooMany = !(await ok(env.RL_WRITE, "w:" + ipKey));
+      if (!tooMany && authy) tooMany = !(await ok(env.RL_AUTH, "a:" + ipKey));
+      if (tooMany) {
+        return new Response(JSON.stringify({ error: "too-many", message: "요청이 너무 많아요. 1분 뒤에 다시 시도해주세요." }), {
+          status: 429, headers: { ...cors, "Content-Type": "application/json; charset=utf-8", "Retry-After": "60" }
+        });
+      }
+    }
 
     const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
 
@@ -353,3 +372,53 @@ function json(obj, status, cors) {
     headers: { ...(cors || {}), "Content-Type": "application/json" },
   });
 }
+
+
+// ══ 입구 래퍼 — 코드 찍어보기 잠금 ════════════════════════════════════
+//  운영자·상담사·병원 코드는 전부 '맞히면 열리는 열쇠'다. 스크립트로 계속 찍어 보면 언젠가 열린다.
+//  Cloudflare 요청 제한 바인딩은 빠르지만 대략 센다(서버마다 따로) — 실측에서 80번 연속이 그대로 통과했다.
+//  그래서 여기서는 '틀린 횟수'만 DB 에 정확히 적고, 10분에 AUTH_FAIL_MAX 번 틀린 IP 는 잠근다.
+//  맞힌 요청은 적지 않으므로 정상 사용에는 비용이 없다.
+const AUTH_FAIL_MAX = 30;
+const AUTH_FAIL_WINDOW = 10 * 60000;
+const AUTHY = /^\/(stats|admin\/|inbox|hospital\/|auth\/|intro\/unlock|settle|purge|bookings\/done|session-notes|doctor-feedback)/;
+
+// 만료된 로그인이 10초마다 새로고침하면 같은 값이 계속 틀린다 — 그걸로 병원 와이파이 전체가 잠기면 안 된다.
+//  찍어보기는 매번 다른 값을 넣으므로 "서로 다른 틀린 값의 개수"로 센다.
+const credOf = async (request) => {
+  const u = new URL(request.url);
+  let v = u.searchParams.get('code') || u.searchParams.get('session') || u.searchParams.get('hcode') || u.searchParams.get('hsession') || '';
+  if (!v && request.method === 'POST') {
+    try { const b = await request.clone().json(); v = (b && (b.code || b.session || b.hcode || b.hsession || b.pw || b.t)) || ''; } catch (e) {}
+  }
+  let h = 5381; const s = String(v);
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+};
+
+export default {
+  scheduled: (event, env, ctx) => APP.scheduled(event, env, ctx),
+  async fetch(request, env, ctx) {
+    if (request.method === 'OPTIONS' || !env.DB) return APP.fetch(request, env, ctx);
+    const pth = new URL(request.url).pathname.replace(/^\/api/, '');
+    if (!AUTHY.test(pth)) return APP.fetch(request, env, ctx);
+    const ip = request.headers.get('cf-connecting-ip') || '?';
+    const prefix = 'af:' + ip + ':';
+    try {
+      const c = await env.DB.prepare('SELECT COUNT(DISTINCT key) n FROM rate_hits WHERE key LIKE ? AND ts > ?').bind(prefix + '%', Date.now() - AUTH_FAIL_WINDOW).first();
+      if (c && c.n >= AUTH_FAIL_MAX) {
+        const origin = request.headers.get('Origin') || '*';
+        return new Response(JSON.stringify({ error: 'locked', message: '잘못된 코드를 너무 많이 입력했어요. 10분 뒤에 다시 시도해주세요.' }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json; charset=utf-8', 'Retry-After': '600', 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' }
+        });
+      }
+    } catch (e) {}
+    const cred = await credOf(request);
+    const res = await APP.fetch(request, env, ctx);
+    if (res.status === 403) {
+      try { await env.DB.prepare('INSERT INTO rate_hits (key, ts) VALUES (?,?)').bind(prefix + cred, Date.now()).run(); } catch (e) {}
+    }
+    return res;
+  }
+};
