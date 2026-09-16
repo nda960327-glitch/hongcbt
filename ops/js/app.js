@@ -801,7 +801,9 @@ function chartsSection() {
     </div>`;
 }
 
-// ── 상담사 구독 ──────────────────────────────────────────────────────
+// ── [폐지] 상담사 구독 — 2026-09 부터 받지 않는다 ─────────────────
+//  플랫폼 수익은 상담료 수수료다: 앱 채널 37%, 병원 채널 7%.
+//  아래 계산은 지난 구독 기록이 남은 배포를 위해 두되 화면에는 쓰지 않는다.───────────────────
 //  2026-08-18 개편: 상담료 분배는 없앴다. 플랫폼 수익은 상담사 구독료 하나뿐이다.
 //  그래서 '지금 몇 명이 구독 중인가'가 곧 이 서비스의 매출이다.
 //  값은 js/payout.js 의 PRO_SUB · market.js 의 PRO_SUB_PRICE 와 같아야 한다.
@@ -875,11 +877,7 @@ function viewDash() {
     <div class="sec-title">전체 현황<span class="right muted">서버 집계</span></div>
     <div class="stats">
       ${tile('누적 이용자', won(d.uniqueClients), '서버에 기록을 남긴 기기 수')}
-      ${tile('구독 중', won(d.subs ? d.subs.active : 0), d.subs ? `체험 중 ${won(d.subs.trial)}명 · 앱이 하루 1회 자진 신고한 집계` : '집계 준비 중', d.subs && d.subs.active > 0)}
       ${tile('입점 상담사', won(d.counselors), d.counselorsWithoutEmail ? `이메일 미등록 ${d.counselorsWithoutEmail}` : '전원 이메일 등록됨')}
-      ${ss ? tile('구독 수익(월)', won(ss.mrr) + '<span class="u" style="font-size:0.7rem;">원</span>',
-          `구독 중 ${ss.active}명${ss.soon ? ` · 14일 내 만료 ${ss.soon}명` : ''}${ss.expired ? ` · 만료 ${ss.expired}명` : ''}`,
-          ss.active > 0) : ''}
       ${tile('예약', won(d.bookings.total), `예정 ${won(d.bookings.upcoming)} · 완료 ${won(d.bookings.done)} · 취소 ${won(d.bookings.cancelled)}`)}
       ${tile('채팅 스레드', won(d.chat.threads), `답장 대기 ${won(d.chat.awaiting)}`)}
       ${tile('상담 자료', won(d.inbox.total), `안 읽음 ${won(d.inbox.unread)}`)}
@@ -916,11 +914,10 @@ function viewDash() {
           : '<span><i style="background:#b98a1a;"></i>플랫폼 0% · <b>상담료에서 안 받음</b></span>'}
       </div>
       <p class="muted" style="margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.6rem;">
-        <b>플랫폼 수익 = 상담사 구독</b> — 월 ${won(PRO_SUB_PRICE)}원, 등록 승인 후 첫 1개월 무료.
-        구글 인앱결제로 받으면 수수료 15%를 뗀 <b>${won(PRO_SUB_PRICE * 0.85)}원</b>이 실수령입니다.
-        구독이 끊긴 상담사는 매칭 목록에서 자동으로 내려갑니다(기존 예약·정산은 그대로).<br>
-        ${ss ? `지금 구독 중 <b>${ss.active}명</b> · 월 예상 <b>${won(ss.mrr)}원</b>${ss.expired ? ` · 만료 ${ss.expired}명` : ''}<br>` : ''}
-        <b>상담료</b> — PG ${sp.pg}%는 카드사·결제대행 실비이고, 나머지 ${sp.counselor}%는 전액 상담사 몫입니다.<br>
+        <b>플랫폼 수익 = 상담료 수수료</b> — 상담사 구독(월 99,000원)은 2026-09 부터 받지 않습니다.<br>
+        <b>앱으로 온 내담자</b> — 상담사 60% · 마인드 인사이드 37% · 결제 수수료 3%. 앱이 상담사에게 직접 지급합니다.<br>
+        <b>병원을 통해 온 내담자</b> — 병원 90% · 마인드 인사이드 7% · 결제 수수료 3%.
+        앱은 <b>병원에만</b> 지급하고, 상담사에게는 병원이 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
         <b>바로상담(캐시·30초당)</b> — 요금 = 예약 상담료 ÷60 × 1.25 (즉시성 프리미엄). 배분율은 예약 상담과 같습니다.<br>
         <b>AI 구독·캐시(인앱결제)</b> — 구글 수수료 15% 선차감 후 순액 기준. 구독 9,900원 → 순입금 8,415원(전액 플랫폼, API 원가 차감).</p>
     </div>
@@ -1056,20 +1053,11 @@ function viewCounselors() {
           <span class="muted"> ${esc(c.hospital || '')}</span>
           <div class="muted mono">${esc(c.id)} · 등록 ${fmtDate(c.created)}</div>
         </div>
-        ${subDead ? '<span class="chip bad">구독 만료</span>' : ''}
         ${!on ? '<span class="chip bad">정지됨</span>'
           : busyNow ? '<span class="chip new">통화 중</span>'
           : c.available ? '<span class="chip ok">수신 중</span>' : '<span class="chip off">부재중</span>'}
       </div>
 
-      <div class="row" style="margin-top: 0.6rem;">
-        <span class="grow muted" style="${subDead ? 'color: var(--danger);' : (sub && sub.soon) ? 'color: var(--gold);' : ''}">
-          ${sub === undefined ? '구독 정보를 알 수 없어요 (워커 배포 필요)'
-            : !sub ? '구독 기록 없음 — 매칭 목록에 노출되지 않아요'
-            : sub.active ? `구독 ~${subDay(sub.until)}까지 · ${sub.days}일 남음${sub.soon ? ' (곧 만료)' : ''}`
-            : `구독 만료 ${subDay(sub.until)} — 매칭 목록에 노출되지 않아요`}</span>
-        <button class="btn ${subDead ? 'soft' : 'ghost'} sm" data-act="sub-ext" data-id="${esc(c.id)}">1개월 연장</button>
-      </div>
 
       <div class="row" style="margin-top: 0.6rem;">
         <span class="grow ell muted" style="${c.email ? '' : 'color: var(--gold);'}">
@@ -1126,21 +1114,14 @@ function viewCounselors() {
 
   return `
     <div class="sec-title">등록된 상담사
-      <span class="right muted">전체 ${D.cs.length}명 · 정지 ${off}명 · 이메일 미등록 ${noMail}명${
-        ss ? ` · <b style="color: ${ss.expired ? 'var(--danger)' : 'inherit'};">구독 만료 ${ss.expired}명</b>` : ''}</span></div>
-    ${ss ? `<div class="card" style="margin-bottom: 0.7rem;">
-      <div class="row wrap">
-        <div class="grow">
-          <b style="font-size: 0.9rem;">구독 현황</b>
-          <div class="muted">구독 중 ${ss.active}명 · 14일 내 만료 ${ss.soon}명 · 만료 ${ss.expired}명
-            — 만료된 상담사는 매칭 목록에서 자동으로 내려갑니다(기존 예약·정산·로그인은 그대로).</div>
-        </div>
-        <div style="text-align: right;">
-          <div class="muted">월 예상 구독 수익</div>
-          <b style="font-size: 1.2rem; color: var(--accent);">${won(ss.mrr)}<span class="u" style="font-size:0.7rem;">원</span></b>
-        </div>
-      </div>
-    </div>` : ''}
+      <span class="right muted">전체 ${D.cs.length}명 · 정지 ${off}명 · 이메일 미등록 ${noMail}명</span></div>
+    <div class="card" style="margin-bottom: 0.7rem;">
+      <b style="font-size: 0.9rem;">정산 구조</b>
+      <div class="muted">상담사 구독(월 99,000원)은 <b>2026-09 부터 받지 않습니다</b>. 플랫폼 수익은 상담료 수수료입니다.<br>
+        앱으로 온 내담자: 상담사 60% · 앱 37% · 결제 수수료 3% &nbsp;|&nbsp; 병원을 통해 온 내담자: 병원 90% · 앱 7% · 결제 수수료 3%<br>
+        승인된 상담사는 구독과 무관하게 매칭 목록에 노출됩니다.</div>
+    </div>
+
     <div class="row" style="margin-bottom: 0.7rem;">
       <input id="cs-q" type="text" placeholder="이름 · 병원 · 이메일 · 연락처 · 주소 · ID 로 찾기" autocomplete="off">
     </div>

@@ -1394,7 +1394,9 @@ function renderBookings() {
 }
 
 // ============================================================================
-//  구독 — 상담료가 아니라 구독료로 운영한다
+//  [폐지] 구독 — 2026-09 부터 받지 않는다. 상담료 수수료로 일원화했다.
+//   (앱으로 온 내담자: 상담사 60 · 앱 37 · 결제 수수료 3 / 병원을 통해 온 내담자: 병원이 지급)
+//   아래 코드는 지난 구독 기록을 읽는 화면이 남아 있을 때를 대비해 두되, 화면에는 뜨지 않는다.
 //
 //  2026-08-18 개편으로 느루는 상담료에서 한 푼도 가져가지 않는다.
 //  대신 상담사가 월 구독료를 낸다(등록 승인 후 첫 달 무료).
@@ -1422,6 +1424,9 @@ function subInfo() {
 const subDay = ts => new Date(ts).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function subCard() {
+  // 구독 폐지(2026-09) — 상담료 수수료로 일원화했다. 카드도 경고도 띄우지 않는다.
+  return '';
+  /* eslint-disable no-unreachable */
   const s = subInfo();
   if (!s) return '';
   const payBtn = label =>
@@ -1617,7 +1622,7 @@ function renderMoney() {
       </div>` : ''}
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
-    ${subBox ? `<div class="sec-title">구독</div>${subBox}` : ''}
+    ${subBox || ''}
     <div class="sec-title">수입 흐름</div>
     ${chartCard}
     <div class="sec-title">계좌</div>

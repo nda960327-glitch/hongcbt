@@ -14,7 +14,7 @@ window.Payout = {
   // 합이 100 이어야 한다. 바꿀 때 이 주석도 같이 고칠 것.
   //  2026-08-11 개편: 기관 몫은 배분에서 뺐다 — 기관 협의 수수료는 플랫폼 몫에서
   //  나중에 따로 떼어주는 방식이 정산 관리가 훨씬 단순하다.
-  //  2026-08-18 개편: 분배 폐지, 상담사 구독제(월 99,000원 · 첫 달 무료) 전환.
+  //  2026-09 개편: 상담사 구독 폐지. 상담료 수수료로 일원화한다.
   //  상담료는 PG 3% 를 제외한 전액이 상담사 몫이고, 플랫폼은 상담료에서
   //  한 푼도 가져가지 않는다. 우리 수익은 상담사 구독료 하나뿐이다.
   //  (market.js 의 SPLIT · PRO_SUB_PRICE 와 반드시 같은 값이어야 한다)
@@ -27,10 +27,7 @@ window.Payout = {
     hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
   },
   get SPLIT() { return this.SPLITS.app; },   // 옛 이름 — 채널을 모르는 화면용
-  PRO_SUB: {
-    PRICE: 99000,    // 월 구독료 (원)
-    FREE_DAYS: 30    // 등록 승인 후 무료 기간
-  },
+  // [폐지] 상담사 월 구독 — 2026-09 부터 받지 않는다. 상담료 수수료로 일원화했다.
 
   LABEL: {
     counselor: '상담사',
@@ -101,12 +98,7 @@ window.Payout = {
           ${this.won(b.pg)}은 카드사·PG 로 나가는 실비입니다.<br>`}
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.
         </p>
-        ${s.platform > 0 ? '' : `
-        <p style="margin: 0.5rem 0 0; padding-top: 0.5rem; border-top: 1px dashed var(--glass-border);
-                  font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
-          대신 상담사 <b style="color: var(--text-primary);">월 구독료 ${this.won(this.PRO_SUB.PRICE)}</b>으로 운영해요.
-          등록이 승인되면 <b style="color: var(--accent-primary);">첫 ${Math.round(this.PRO_SUB.FREE_DAYS / 30)}개월은 무료</b>입니다.
-        </p>`}
+
       </div>`;
   },
 

@@ -25,7 +25,8 @@ const KEEP_MS = 180 * 86400000;            // 180일 지난 기록은 정리 대
 // ── 상담사 구독 (2026-08-18 수익 구조 개편) ────────────────────────────
 //  플랫폼은 상담료에서 한 푼도 가져가지 않는다 (아래 SPLIT.platform = 0).
 //  대신 상담사가 월 구독료를 낸다 — 이게 플랫폼의 유일한 수익이다.
-//  등록 승인 직후 첫 PRO_SUB_FREE_DAYS 일은 무료로 얹어 준다.
+//  [폐지] 2026-09: 상담사 구독을 없애고 상담료 수수료로 일원화했다(앱 채널 37%).
+//   아래 값과 표는 지난 결제 이력 조회를 위해 남겨 둘 뿐, 새로 부과하지 않는다.
 //  스키마는 schema-prosub.sql 참고.
 const PRO_SUB_PRICE = 99000;                        // 월 구독료(원)
 const PRO_SUB_FREE_DAYS = 30;                       // 승인 후 무료 기간(일)
@@ -314,7 +315,9 @@ async function subActive(db, counselorId) {
     const r = await db.prepare('SELECT sub_until FROM counselors WHERE id = ?')
       .bind(counselorId).first();
     if (!r || r.sub_until == null) return true;
-    return Number(r.sub_until) > nowMs();
+    // 구독 폐지(2026-09) — 상담료 수수료로 일원화했다. 만료로 막지 않는다.
+    //  sub_until 칸과 옛 기록은 남겨 둔다(환불·정산 소명에 쓰인다).
+    return true;
   } catch (e) { return true; }
 }
 
@@ -590,7 +593,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     try {
       r = await db.prepare(
         `SELECT ${COLS} FROM counselors
-          WHERE active = 1 AND COALESCE(sub_until, 0) > ? ORDER BY created DESC`
+          WHERE active = 1 AND (1 = 1 OR COALESCE(sub_until, 0) > ?) ORDER BY created DESC`
       ).bind(nowMs()).all();
     } catch (e) {
       // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용). 예전 흐름 그대로 —
@@ -711,7 +714,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
         // 구독이 끊긴 상담사는 새 예약을 받지 못한다 (2026-08-18 개편).
         //  이미 잡힌 예약의 완료·확인·정산은 이 길을 지나지 않으므로 그대로 돌아간다.
         //  sub_until 이 null 인 옛 행은 막지 않는다 — 마이그레이션 전 상태다.
-        if (c.sub_until != null && Number(c.sub_until) <= nowMs()) expired = true;
+        // 구독 폐지 — 만료를 이유로 새 예약을 막지 않는다 (2026-09)
       }
     } catch (e) {
       // sub_until 칸이 없는 옛 스키마 — 칸을 빼고 다시 물어 예전 흐름 그대로 간다.
