@@ -38,6 +38,7 @@ const fmtDay = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.g
 const fmtDT = ts => new Date(ts).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const avColor = name => String(name || '').split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
 const avatar = (name, cls) => `<div class="pav c${avColor(name)}${cls ? ' ' + cls : ''}">${esc(String(name || '환').slice(0, 1))}</div>`;
+const won = n => (Math.round(Number(n) || 0)).toLocaleString('ko-KR');
 const empty = (title, body) => `<div class="empty"><b>${title}</b>${body || ''}</div>`;
 const busy = el => !!(el && document.activeElement && el.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement.tagName));
 
@@ -300,6 +301,78 @@ async function sendFeedback(btn) {
   loadPatient();
 }
 
+// ── 정산 ────────────────────────────────────────────────────────────
+//  병원을 통해 등록한 내담자의 상담은 병원이 90 을 받고, 상담사에게는 병원이 직접 지급한다.
+//  앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조).
+//  그래서 이 화면은 '앱에서 병원으로 들어온 돈'과 '병원이 상담사에게 보낸 돈'을 나란히 둔다.
+let SETTLE = null;
+
+async function openSettle() {
+  sheet('<h3 class="serif">정산</h3><p class="muted">불러오는 중…</p>');
+  const d = await getJson('/api/hospital/settle?' + authQS());
+  if (!d || !d.items) { sheet('<h3 class="serif">정산</h3><p class="muted">불러오지 못했어요. 잠시 후 다시 시도해주세요.</p>'); return; }
+  SETTLE = d;
+  renderSettle();
+}
+
+function renderSettle() {
+  const d = SETTLE;
+  if (!d) return;
+  const t = d.totals || {};
+  const by = {};
+  d.items.forEach(x => { (by[x.counselorId] = by[x.counselorId] || []).push(x); });
+  const rows = Object.entries(by).map(([cid, list]) => {
+    const due = list.reduce((a, x) => a + x.hospital, 0);
+    const paid = list.reduce((a, x) => a + x.paidToCounselor, 0);
+    return `
+      <div class="card" style="margin-bottom:0.5rem;">
+        <div class="row" style="gap:0.5rem;">
+          ${avatar(list[0].counselor)}
+          <div class="grow" style="min-width:0;">
+            <strong style="font-size:0.92rem;">${esc(list[0].counselor)} 선생님</strong>
+            <div class="muted">상담 ${list.length}건 · 병원 몫 ${won(due)}원 · 지급함 ${won(paid)}원</div>
+          </div>
+          ${paid >= due ? '<span class="chip ok">정산 완료</span>' : `<span class="chip gold">미지급 ${won(due - paid)}원</span>`}
+        </div>
+        ${list.map(x => `
+          <div class="listrow">
+            <div class="grow">
+              <div class="muted">${fmtDT(x.at)} · ${esc(x.clientName || '내담자')} · ${esc(x.label)}</div>
+              <div class="muted">상담료 ${won(x.gross)}원 → 병원 ${won(x.hospital)}원${x.appPaidAt ? ' · 앱에서 입금됨' : ' · 앱 입금 대기'}</div>
+            </div>
+            ${x.paidToCounselor ? `<span class="chip ok">${won(x.paidToCounselor)}원 지급</span>`
+              : `<button class="btn sm" style="width:auto; margin:0;" data-act="pay" data-id="${esc(x.id)}" data-kind="${esc(x.kind)}" data-cid="${esc(x.counselorId)}" data-amt="${x.hospital}" data-nm="${esc(x.counselor)}">지급 기록</button>`}
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+  sheet(`
+    <h3 class="serif">정산</h3>
+    <div class="card" style="margin-bottom:0.6rem;">
+      <div class="stat">
+        <div><span class="muted">상담료 합계</span><strong>${won(t.gross || 0)}원</strong></div>
+        <div><span class="muted">병원 몫(90%)</span><strong>${won(t.hospital || 0)}원</strong></div>
+        <div><span class="muted">앱에서 입금됨</span><strong>${won(t.received || 0)}원</strong></div>
+        <div><span class="muted">상담사에게 지급</span><strong>${won(t.paidOut || 0)}원</strong></div>
+      </div>
+      <p class="muted" style="margin-top:0.5rem;">
+        병원을 통해 등록한 내담자의 상담은 <b>병원 90% · 앱 7% · 결제 수수료 3%</b>로 나뉩니다.
+        앱은 병원에만 입금하고, <b>상담사에게는 병원이 직접 지급</b>합니다. 지급하신 뒤 '지급 기록'을 눌러 남겨주세요.</p>
+    </div>
+    ${rows || '<div class="empty"><b>아직 정산할 상담이 없어요</b>병원 코드로 연결된 내담자가 상담을 받으면 여기에 쌓입니다.</div>'}`);
+}
+
+async function recordPayout(el) {
+  const amt = prompt(`${el.dataset.nm} 선생님께 보낸 금액을 적어주세요 (원)`, el.dataset.amt);
+  if (amt === null) return;
+  const n = Math.max(0, Math.round(Number(String(amt).replace(/[^\d]/g, '')) || 0));
+  if (!n) { toast('금액을 확인해주세요'); return; }
+  const memo = prompt('메모 (선택) — 예: 9월분 계좌이체', '') || '';
+  const r = await postJson('/api/hospital/payout', authBody({ refId: el.dataset.id, kind: el.dataset.kind, counselorId: el.dataset.cid, amount: n, memo }));
+  if (!r || !r.ok) { toast('기록하지 못했어요'); return; }
+  toast('지급 기록을 남겼어요');
+  openSettle();
+}
+
 function openSettings() {
   const h = HOSP.hospital || {};
   sheet(`
@@ -309,6 +382,10 @@ function openSettings() {
     <div class="card" style="margin-bottom:0.6rem;">
       <b style="font-size:0.88rem;">환자를 연결하려면</b>
       <p class="muted" style="margin-top:0.2rem;">진료실에서 환자에게 병원 코드를 알려주세요. 환자는 앱 → 마이 → <b>담당 병원 연결하기</b>에 코드와 이름을 넣습니다. 코드는 운영팀 콘솔에서 확인·재발급합니다.</p>
+    </div>
+    <div class="card" style="margin-bottom:0.6rem;">
+      <b style="font-size:0.88rem;">정산</b>
+      <p class="muted" style="margin-top:0.2rem;">병원을 통해 등록한 내담자의 상담은 병원 90% · 앱 7% · 결제 수수료 3%로 나뉩니다. 앱은 병원에 입금하고, 상담사에게는 병원이 직접 지급합니다. 위쪽 지폐 아이콘에서 확인하세요.</p>
     </div>
     <div class="card" style="margin-bottom:0.6rem;">
       <b style="font-size:0.88rem;">긴급 알림</b>
@@ -329,6 +406,8 @@ document.addEventListener('click', async e => {
   else if (act === 'fb-send') sendFeedback(el);
   else if (act === 'refresh') { await loadHospital(); toast('새로고침했어요'); }
   else if (act === 'settings') openSettings();
+  else if (act === 'settle') openSettle();
+  else if (act === 'pay') recordPayout(el);
   else if (act === 'sheet-close') closeSheet();
   else if (act === 'logout') logout();
   else if (act === 'logout-others') { const r = await postJson('/api/hospital/auth/logout-others', { hsession: HS }); toast(r && r.ok ? '다른 기기를 모두 로그아웃했어요' : '처리하지 못했어요'); }

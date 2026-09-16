@@ -1491,7 +1491,12 @@ function openSubPay() {
 function renderMoney() {
   const el = $('view-money');
   if (busy(el)) return;
-  const earned = D.bookings.filter(isEarned);
+  // 병원을 통해 등록한 내담자의 상담은 '병원이' 상담사에게 지급한다(앱은 병원에만 보낸다).
+  //  두 돈을 한 줄에 합치면 상담사가 '앱에서 들어올 돈'을 잘못 읽는다 — 묶음을 갈라 둔다.
+  const isHosp = x => x && x.channel === 'hospital';
+  const earnedAll = D.bookings.filter(isEarned);
+  const earned = earnedAll.filter(b => !isHosp(b));
+  const hospBookings = earnedAll.filter(isHosp);
   const total = earned.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
   const ms = monthStart();
   const month = earned.filter(b => b.whenTs >= ms);
@@ -1503,8 +1508,13 @@ function renderMoney() {
   //  나머지 전부를 가져간다 (반올림 잔돈은 상담사 몫).
   //  (프로 앱에는 payout.js 를 싣지 않으므로 여기서는 숫자를 직접 적는다 —
   //   비율을 고칠 때 이 줄을 같이 고치지 않으면 화면 금액이 실제 입금과 갈라진다)
-  const calls = (D.calls || []).slice().sort((a, b) => b.at - a.at);
-  const share = n => { const p = Math.max(0, Math.round(n || 0)); return p - Math.round(p * 3 / 100); };
+  const callsAll = (D.calls || []).slice().sort((a, b) => b.at - a.at);
+  const calls = callsAll.filter(c => !isHosp(c));
+  const hospCalls = callsAll.filter(isHosp);
+  //  앱 채널 배분: 상담사 60 · 앱 37 · 결제 수수료 3 (market.js SPLITS 와 같아야 한다)
+  const share = n => { const p = Math.max(0, Math.round(n || 0)); return Math.max(0, p - Math.round(p * 3 / 100) - Math.round(p * 37 / 100)); };
+  //  병원 채널은 병원이 90 을 받고 그중에서 상담사에게 지급한다 — 앱은 금액을 단정하지 않는다
+  const hospGross = hospBookings.reduce((s, b) => s + (b.price || 0), 0) + hospCalls.reduce((s, c) => s + (c.charge || 0), 0);
   const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
   const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
   const callPaid = calls.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
@@ -1595,7 +1605,11 @@ function renderMoney() {
         <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.6rem;">상담사 97% · 결제 수수료 3% — 플랫폼은 상담료에서 가져가지 않습니다</p>
+      <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담사 60% · 마인드 인사이드 37% · 결제 수수료 3%</p>
+      ${hospBookings.length + hospCalls.length ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent);">
+        <b style="font-size:0.88rem; color:var(--accent);">병원 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>
+        <p class="muted" style="margin:0.2rem 0 0;">병원을 통해 등록된 내담자의 상담이에요. 이 건은 <b>병원이 선생님께 직접 지급</b>합니다 (앱에서 입금되지 않아요). 금액과 지급일은 병원과의 계약을 따릅니다.</p>
+      </div>` : ''}
       ${holdN ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:rgba(201,138,63,0.12); border:1px solid rgba(201,138,63,0.45);">
         <b style="font-size:0.88rem; color:var(--warn);">회기 기록이 없어 정산 보류 ${holdN}건 · ${won(holdSum)}캐시</b>
         <p class="muted" style="margin:0.2rem 0 0.5rem;">상담이 끝나면 회기 기록(요약·계획·위험도)을 남겨야 정산 대상이 돼요. 기록을 남기는 순간 바로 올라갑니다.</p>

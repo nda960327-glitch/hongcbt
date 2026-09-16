@@ -319,6 +319,8 @@ async function loadAll() {
   D.cs = cs ? (cs.items || []) : null;
   D.settle = settle ? (settle.items || []) : null;
   D.settleBlocked = settle ? (settle.blocked || []) : [];
+  D.settleHosp = settle ? (settle.hospitalItems || []) : [];
+  D.settleSums = settle ? { hospital: settle.hospitalTotal || 0, platform: settle.platformTotal || 0 } : null;
   D.bookings = bookings ? (bookings.items || []) : null;
   render();
   // 추이 차트는 대시보드의 일부다. 첫 화면이 뜬 뒤에 이어서 받는다 —
@@ -339,6 +341,8 @@ async function loadSettle() {
   const [settle, bookings] = await Promise.all([adminGet('/api/settle'), adminGet('/api/bookings')]);
   D.settle = settle ? (settle.items || []) : null;
   D.settleBlocked = settle ? (settle.blocked || []) : [];
+  D.settleHosp = settle ? (settle.hospitalItems || []) : [];
+  D.settleSums = settle ? { hospital: settle.hospitalTotal || 0, platform: settle.platformTotal || 0 } : null;
   D.bookings = bookings ? (bookings.items || []) : null;
   render();
 }
@@ -1160,6 +1164,43 @@ function viewCounselors() {
     </div>`;
 }
 
+// 병원을 통해 등록한 내담자의 상담 — 앱은 병원에 보내고, 상담사에게는 병원이 보낸다.
+//  앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조). 그래서 줄을 갈라 둔다.
+function hospitalSettleHtml() {
+  const rows = D.settleHosp || [];
+  const sums = D.settleSums || { hospital: 0, platform: 0 };
+  const by = {};
+  rows.forEach(x => { (by[x.hospitalId || '?'] = by[x.hospitalId || '?'] || []).push(x); });
+  return `
+    <div class="card" style="border-color: var(--accent);">
+      <div class="sec-title">이번 정산의 플랫폼 수익
+        <span class="right muted">앱 몫 합계 ${won(sums.platform)}캐시</span></div>
+      <p class="muted" style="margin: 0;">
+        병원 채널은 <b>병원 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 60 · 앱 37 · 결제 수수료 3</b> 입니다.</p>
+    </div>
+    <div class="sec-title" style="margin-top: 1.2rem;">병원에 지급
+      <span class="right muted">${rows.length}건 · 병원 몫 합계 ${won(sums.hospital)}캐시</span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      병원을 통해 등록한 내담자의 상담입니다. <b>앱은 병원에만 지급하고, 상담사에게는 병원이 지급합니다.</b>
+      여기 있는 건을 상담사에게 직접 보내면 안 됩니다.</p>
+    ${rows.length ? Object.entries(by).map(([hid, list]) => `
+    <div class="card">
+      <div class="row wrap"><div class="pav ${avaColor(list[0].hospitalName)}">${initial(list[0].hospitalName)}</div>
+        <div class="grow"><b style="font-size: 0.95rem;">${esc(list[0].hospitalName || hid)}</b>
+          <div class="muted mono">${esc(hid)}</div></div>
+        <b style="color: var(--accent); font-size: 1rem;">${won(list.reduce((a, x) => a + x.payout.hospital, 0))}캐시</b></div>
+      ${list.map(x => `
+        <label class="payrow">
+          <input type="checkbox" data-act="pick" data-id="${esc(x.id)}" ${PICK[x.id] ? 'checked' : ''}>
+          <span class="grow muted" style="color: var(--text);">${esc(x.clientName || '내담자')} · ${esc(x.time || '')}
+            <span class="chip">${esc(x.counselor || '상담사')}</span></span>
+          <span class="muted">결제 ${won(x.price)}</span>
+          <b style="min-width: 74px; text-align: right;">${won(x.payout.hospital)}</b>
+        </label>`).join('')}
+    </div>`).join('')
+      : '<div class="card"><div class="empty"><b>병원에 지급할 건이 없어요</b>병원 코드로 연결된 내담자의 상담이 생기면 여기에 쌓입니다.</div></div>'}`;
+}
+
 // 회기 기록이 없어 정산이 막힌 건 — 사장님 지시로 기록을 정산 조건으로 걸었다.
 //  운영자는 여기서 '누가 기록을 안 남겼는지'를 보고 상담사에게 재촉한다. 지급 버튼은 없다.
 function blockedHtml() {
@@ -1233,12 +1274,14 @@ function viewSettle() {
     .sort((a, b) => b.settledAt - a.settledAt).slice(0, 40);
 
   return `
-    <div class="sec-title">지급 대기
+    <div class="sec-title">상담사에게 지급 <span class="muted" style="font-weight: 400;">— 앱으로 직접 온 내담자</span>
       <span class="right muted">${D.settle.length}건 · 상담사 몫 합계 ${won(total)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담 중 <b>회기 기록을 남긴 건</b>만 올라옵니다.</p>
+      상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담 중 <b>회기 기록을 남긴 건</b>만 올라옵니다.<br>
+      여기는 <b>앱 채널</b>(상담사 60 · 앱 37 · 결제 수수료 3)입니다. 병원 채널은 아래 '병원에 지급'에서 따로 처리합니다.</p>
     ${D.settle.length ? Object.entries(by).map(group).join('')
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
+    ${hospitalSettleHtml()}
     ${blockedHtml()}
 
     ${D.settle.length ? `

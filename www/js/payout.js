@@ -18,15 +18,15 @@ window.Payout = {
   //  상담료는 PG 3% 를 제외한 전액이 상담사 몫이고, 플랫폼은 상담료에서
   //  한 푼도 가져가지 않는다. 우리 수익은 상담사 구독료 하나뿐이다.
   //  (market.js 의 SPLIT · PRO_SUB_PRICE 와 반드시 같은 값이어야 한다)
-  SPLIT: {
-    counselor: 97,   // 상담을 실제로 하는 사람 — 실비(PG)를 뺀 전액
-    hospital: 0,     // (배분 종료 — 기관 수수료는 상담사·기관 사이의 문제다)
-    pg: 3,           // 결제대행 수수료 (실비)
-    platform: 0      // 마인드 인사이드 — 상담료에서는 받지 않는다. 수익은 구독료.
+  // 채널별 배분 — market.js 의 SPLITS 와 한 글자도 다르면 안 된다.
+  //  hospital: 병원을 통해 등록한 내담자. 병원이 90 을 받고 상담사에게는 병원이 지급한다.
+  //            앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조).
+  //  app:      앱으로 그냥 들어온 내담자. 앱이 상담사에게 지급한다.
+  SPLITS: {
+    app:      { counselor: 60, hospital: 0,  pg: 3, platform: 37 },
+    hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
   },
-
-  // 상담사 구독 — 플랫폼의 유일한 상담 관련 수익원.
-  //  market.js 의 PRO_SUB_PRICE · PRO_SUB_FREE_DAYS 와 같은 값이어야 한다.
+  get SPLIT() { return this.SPLITS.app; },   // 옛 이름 — 채널을 모르는 화면용
   PRO_SUB: {
     PRICE: 99000,    // 월 구독료 (원)
     FREE_DAYS: 30    // 등록 승인 후 무료 기간
@@ -53,16 +53,23 @@ window.Payout = {
   //   금액에서 합이 총액을 넘어 platform 이 -1원으로 떨어진다)
   //  계산식은 market.js payoutOf 와 한 글자도 다르면 안 된다 — 화면에 뜬 금액과
   //  실제로 입금되는 금액이 갈라지면 그 차이는 전부 문의로 돌아온다.
-  breakdown(price) {
+  breakdown(price, channel) {
     const p = Math.max(0, Math.round(Number(price) || 0));
-    const s = this.SPLIT;
-    const hospital = Math.round(p * s.hospital / 100);
+    const ch = channel === 'hospital' ? 'hospital' : 'app';
+    const s = this.SPLITS[ch];
     const pg = Math.round(p * s.pg / 100);
     const platform = Math.round(p * s.platform / 100);
-    const counselor = Math.max(0, p - hospital - pg - platform);
-    return { total: p, counselor, hospital, pg, platform };
+    // 반올림 잔돈은 '받는 사람' 몫으로 — 앱 채널은 상담사, 병원 채널은 병원
+    if (ch === 'hospital') {
+      const hospital = Math.max(0, p - pg - platform);
+      return { total: p, counselor: 0, hospital, pg, platform, channel: ch, payTo: 'hospital' };
+    }
+    const counselor = Math.max(0, p - pg - platform);
+    return { total: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor' };
   },
 
+  // 이 기기의 내담자가 병원을 통해 등록됐는지 — 화면 안내 문구를 고를 때 쓴다
+  channel() { return (window.Hospital && window.Hospital.link()) ? 'hospital' : 'app'; },
   won(n) { return (n || 0).toLocaleString('ko-KR') + '원'; },
 
   // 상담사에게 보여주는 안내 — 신청 화면과 마이페이지에서 쓴다

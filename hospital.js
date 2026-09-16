@@ -24,7 +24,7 @@
 //          GET  /hospital/me · /hospital/patients · /hospital/patient · POST /hospital/feedback
 //          (hsession 또는 hcode 로 인증)
 //   운영자 GET /admin/hospitals · POST /admin/hospitals · /admin/hospitals/update · /active · /rotate
-import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
+import { json, isAdmin, verifyClient, s, nowMs, payoutOf } from './market.js';
 import { resolveCounselor, sendHospitalLoginMail, sendUrgentMail } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -377,6 +377,76 @@ export async function handleHospital(request, env, cors, path, ctx) {
         bookings: bk.map(b => ({ id: b.id, counselor: b.counselor_name || '', whenTs: b.when_ts, status: b.status })),
         weekly: weeks.map(rowWeek).reverse()
       }, 200, cors);
+    }
+
+    // ── 병원 정산 ────────────────────────────────────────────────────
+    //  병원을 통해 등록한 내담자의 상담은 배분이 다르다: 병원 90 · 앱 7 · 결제 수수료 3.
+    //  앱은 병원에만 지급하고, 상담사에게는 병원이 직접 지급한다.
+    //  (앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다 — 의료법 제27조)
+    //  여기서는 병원이 "받을 돈"과 "상담사에게 보낸 돈"을 함께 본다. 보낸 기록은 병원이 적는다.
+    if (path === '/hospital/settle' && method === 'GET') {
+      const since = nowMs() - 400 * 86400000;
+      const rows = [];
+      const bk = (await db.prepare(
+        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at
+           FROM bookings WHERE hospital_id = ? AND channel = 'hospital' AND status = 'done' AND when_ts >= ?
+          ORDER BY done_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
+      bk.forEach(x => rows.push({ kind: 'booking', id: x.id, counselorId: x.counselor_id, counselor: x.counselor_name || '상담사',
+        clientId: x.client_id, clientName: x.client_name || '', label: x.time_label || '', gross: x.price || 0,
+        at: x.done_at || 0, appPaidAt: x.settled_at || 0 }));
+      try {
+        const cl = (await db.prepare(
+          `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.settled_at, k.name cname
+             FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+            WHERE c.hospital_id = ? AND c.channel = 'hospital' AND c.billed > 0 AND c.end_at >= ?
+            ORDER BY c.end_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
+        cl.forEach(x => {
+          const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
+          rows.push({ kind: 'call', id: x.id, counselorId: x.counselor_id, counselor: x.cname || '상담사',
+            clientId: x.client_id, clientName: '', label: '전화 상담 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
+            gross: x.billed || 0, at: x.end_at || 0, appPaidAt: x.settled_at || 0 });
+        });
+      } catch (e) {}
+      rows.forEach(r => { const p = payoutOf(r.gross, 'hospital'); r.hospital = p.hospital; r.platform = p.platform; r.pg = p.pg; });
+      rows.sort((a, b) => b.at - a.at);
+      const paid = (await db.prepare(
+        'SELECT * FROM hospital_payouts WHERE hospital_id = ? ORDER BY paid_at DESC LIMIT 500').bind(h.id).all()).results || [];
+      const paidByRef = {};
+      paid.forEach(p => { paidByRef[p.ref_id] = (paidByRef[p.ref_id] || 0) + (p.amount || 0); });
+      rows.forEach(r => { r.paidToCounselor = paidByRef[r.id] || 0; });
+      return json({
+        hospital: hospitalPublic(h), items: rows,
+        totals: {
+          gross: rows.reduce((a, x) => a + x.gross, 0),
+          hospital: rows.reduce((a, x) => a + x.hospital, 0),
+          received: rows.filter(x => x.appPaidAt).reduce((a, x) => a + x.hospital, 0),
+          paidOut: rows.reduce((a, x) => a + x.paidToCounselor, 0)
+        },
+        payouts: paid.map(p => ({ id: p.id, counselorId: p.counselor_id, kind: p.kind, refId: p.ref_id, amount: p.amount, paidAt: p.paid_at, memo: p.memo || '' }))
+      }, 200, cors);
+    }
+
+    // 병원이 상담사에게 보낸 돈을 적는다 — 앱은 이 돈에 관여하지 않고 기록만 보관한다
+    if (path === '/hospital/payout' && method === 'POST') {
+      const refId = cleanId(body.refId);
+      const amount = Math.max(0, Math.round(Number(body.amount) || 0));
+      const kind = body.kind === 'call' ? 'call' : 'booking';
+      if (!refId || !amount) return json({ error: 'missing' }, 400, cors);
+      // 이 병원 건이 맞는지 확인한다 — 남의 상담에 지급 기록을 붙이지 못하게
+      let counselorId = cleanId(body.counselorId);
+      let ok = false;
+      if (kind === 'booking') {
+        const b2 = await db.prepare('SELECT counselor_id FROM bookings WHERE id = ? AND hospital_id = ?').bind(refId, h.id).first();
+        if (b2) { ok = true; counselorId = counselorId || b2.counselor_id; }
+      } else {
+        try { const c2 = await db.prepare('SELECT counselor_id FROM calls WHERE id = ? AND hospital_id = ?').bind(refId, h.id).first(); if (c2) { ok = true; counselorId = counselorId || c2.counselor_id; } } catch (e) {}
+      }
+      if (!ok) return json({ error: 'not-found' }, 404, cors);
+      const id = rid('hpay');
+      await db.prepare(`INSERT INTO hospital_payouts (id, hospital_id, counselor_id, kind, ref_id, amount, paid_at, memo, created)
+        VALUES (?,?,?,?,?,?,?,?,?)`)
+        .bind(id, h.id, counselorId, kind, refId, amount, Math.min(nowMs(), Number(body.paidAt) || nowMs()), s(body.memo, 120), nowMs()).run();
+      return json({ ok: true, id }, 200, cors);
     }
 
     if (path === '/hospital/feedback' && method === 'POST') {

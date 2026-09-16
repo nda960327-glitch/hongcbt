@@ -139,3 +139,12 @@ CREATE INDEX IF NOT EXISTS idx_clinics_partner ON clinics(partner, active);
 CREATE TABLE IF NOT EXISTS clinic_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 -- clinics.hours: 요일별 진료시간 JSON {"1":["0900","1830"], … "7":일, "8":공휴일} (국립중앙의료원 병·의원 찾기 서비스)
 --  (기존 DB: ALTER TABLE clinics ADD COLUMN hours TEXT)
+-- 정산 채널 (2026-09) — 병원을 통해 등록한 내담자와 앱으로 그냥 온 내담자는 배분이 다르다.
+--  bookings/calls.channel: 'hospital'(병원 90 / 앱 7 / PG 3) 또는 'app'(상담사 60 / 앱 37 / PG 3).
+--  채널은 예약·통화가 만들어질 때 그 순간의 병원 연결로 정하고 이후 바뀌지 않는다(정산 분쟁 방지).
+--  병원 채널은 앱이 상담사에게 지급하지 않는다 — 앱은 병원에 보내고, 병원이 상담사에게 보낸다.
+--  hospital_payouts: 병원이 상담사에게 지급한 기록(병원이 직접 적는다. 미지급 분쟁·증빙 대비).
+--  (기존 DB: ALTER TABLE bookings/calls ADD COLUMN channel TEXT NOT NULL DEFAULT 'app', hospital_id TEXT)
+CREATE TABLE IF NOT EXISTS hospital_payouts (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, counselor_id TEXT NOT NULL, kind TEXT NOT NULL, ref_id TEXT NOT NULL, amount INTEGER NOT NULL, paid_at INTEGER NOT NULL, memo TEXT, created INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_hp_hospital ON hospital_payouts(hospital_id, paid_at);
+CREATE INDEX IF NOT EXISTS idx_hp_ref ON hospital_payouts(ref_id);

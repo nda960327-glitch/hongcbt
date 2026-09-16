@@ -279,6 +279,18 @@ async function logCallToChat(db, env, ctx, call, line, sender) {
   }
 }
 
+// 이 통화가 병원을 통해 온 내담자인지 — 만들어지는 순간에 정하고 이후 바뀌지 않는다.
+//  정산 배분이 여기서 갈린다 (market.js payoutOf 참고).
+async function callChannel(db, clientId) {
+  try {
+    const x = await db.prepare(
+      'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
+    ).bind(clientId).first();
+    if (x && x.hospital_id) return { channel: 'hospital', hospitalId: x.hospital_id };
+  } catch (e) {}
+  return { channel: 'app', hospitalId: null };
+}
+
 export async function handleRtc(request, env, cors, path, body, url, ctx) {
   const db = env.DB;
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
@@ -401,9 +413,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     }
 
     const id = rid('call');
+    const cch = await callChannel(db, clientId);
     await db.prepare(
-      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,?,?,'to-counselor')"
-    ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t).run();
+      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir, channel, hospital_id) VALUES (?,?,?,?,?,?,?,'to-counselor',?,?)"
+    ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t, cch.channel, cch.hospitalId).run();
 
     // 상담사 기기를 깨운다. 앱이 닫혀 있어도, 잠긴 화면이어도 벨이 울린다.
     //  응답보다 뒤에 보낸다 — 푸시가 느려도 전화 거는 쪽은 기다리지 않는다.
@@ -471,11 +484,12 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       return json({ error: 'busy', message: '지금 다른 통화가 진행 중이에요. 그 통화를 끝내고 다시 걸어주세요.' }, 409, cors);
     }
     const id = rid('call');
+    const cch2 = await callChannel(db, clientId);
     // 상담사 발신은 요금 0 — 내담자에게 과금할 수 없다
     try {
       await db.prepare(
-        "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir) VALUES (?,?,?,?,?,0,?,'to-client')"
-      ).bind(id, room, me.id, clientId, '', t).run();
+        "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir, channel, hospital_id) VALUES (?,?,?,?,?,0,?,'to-client',?,?)"
+      ).bind(id, room, me.id, clientId, '', t, cch2.channel, cch2.hospitalId).run();
     } catch (e) {
       // 통화를 못 만들었으면 잠금을 들고 있을 이유가 없다
       await releaseLine(db, me.id, '');
@@ -885,7 +899,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const since = nowMs() - 400 * 86400000;
     try {
       const r = await db.prepare(
-        `SELECT id, client_id, billed, connect_at, end_at, consult_start, consult_end, settled_at
+        `SELECT id, client_id, billed, connect_at, end_at, consult_start, consult_end, settled_at, channel, hospital_id
            FROM calls WHERE counselor_id = ? AND billed > 0 AND end_at >= ?
           ORDER BY end_at DESC LIMIT 200`
       ).bind(me.id, since).all();
@@ -894,7 +908,9 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
           id: x.id, clientId: x.client_id, charge: x.billed || 0, at: x.end_at,
           callSeconds: Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000)),
           consultSeconds: x.consult_start && x.consult_end ? Math.round((x.consult_end - x.consult_start) / 1000) : 0,
-          settledAt: x.settled_at || 0
+          settledAt: x.settled_at || 0,
+          // 병원 채널이면 앱이 아니라 병원이 상담사에게 지급한다
+          channel: x.channel === 'hospital' ? 'hospital' : 'app'
         }))
       }, 200, cors);
     } catch (e) { return json({ items: [] }, 200, cors); }

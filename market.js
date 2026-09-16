@@ -37,7 +37,7 @@ const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const nowMs = () => Date.now();
 
 // 추천 콘텐츠 모듈(feed.js)이 같은 인증·응답 헬퍼를 쓴다
-export { json, isAdmin, verifyClient, s, nowMs };
+export { json, isAdmin, verifyClient, s, nowMs, payoutOf };
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
 
 // 상담사 코드. 이 문자열 하나가 그 사람의 수신함 열쇠라서
@@ -734,16 +734,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
       }, 409, cors);
     }
 
+    // 이 예약이 병원을 통해 온 것인지 지금 정한다 — 나중에 연결이 바뀌어도 이 값은 그대로다
+    const ch = await channelOf(db, clientId);
     await db.prepare(
       `INSERT INTO bookings
-       (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created)
-       VALUES (?,?,?,?,?,?,?,?,?,?)
+       (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created, channel, hospital_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
        ON CONFLICT(id) DO NOTHING`
     ).bind(id, counselorId, cname,
       clientId, s(body.clientName) || '익명',
       num(body.whenTs), s(body.time, 120), price,
-      'confirmed', nowMs()).run();
-    return json({ ok: true, id, price }, 200, cors);
+      'confirmed', nowMs(), ch.channel, ch.hospitalId).run();
+    return json({ ok: true, id, price, channel: ch.channel }, 200, cors);
   }
 
   // 취소(내담자) · 미진행(내담자) · 거절(상담사)
@@ -873,12 +875,12 @@ export async function handleMarket(request, env, cors, path, ctx) {
         ORDER BY b.done_at ASC LIMIT 300`
     ).all();
     const items = (r.results || []).map(x => {
-      const p = payoutOf(x.price || 0);
+      const p = payoutOf(x.price || 0, x.channel);
       return {
         id: x.id, counselorId: x.counselor_id, counselor: x.cname || x.counselor_name,
         clientName: x.client_name, time: x.time_label, price: x.price,
         doneAt: x.done_at, confirmed: !!x.confirm_at, auto: !x.confirm_at,
-        payout: p,
+        payout: p, channel: p.channel, hospitalId: x.hospital_id || '',
         bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
       };
     });
@@ -886,7 +888,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  내담자 지갑에서는 캐시가 빠져나갔는데 상담사 몫은 어디에도 잡히지 않았다.
     //  통화는 '완료 확인' 절차가 없다 — 연결돼서 요금이 붙은 순간 이미 제공된 상담이다.
     const rc = await db.prepare(
-      `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at,
+      `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.channel, c.hospital_id,
               k.name cname, k.bank, k.bank_no, k.bank_holder
          FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
         WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
@@ -895,32 +897,37 @@ export async function handleMarket(request, env, cors, path, ctx) {
     ).all();
     const callItems = (rc.results || []).map(x => {
       const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
-      const p = payoutOf(x.billed || 0);   // 캐시 1 = 1원으로 본다
+      const p = payoutOf(x.billed || 0, x.channel);   // 캐시 1 = 1원으로 본다
       return {
         id: x.id, kind: 'call', counselorId: x.counselor_id, counselor: x.cname || '상담사',
         clientName: String(x.client_id || '').slice(0, 8),
         time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
         price: x.billed, doneAt: x.end_at, confirmed: true, auto: false,
-        payout: p,
+        payout: p, channel: p.channel, hospitalId: x.hospital_id || '',
         bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
       };
     });
     const all = items.map(x => ({ ...x, kind: 'booking' })).concat(callItems);
-    const sum = all.reduce((a, x) => a + x.payout.counselor, 0);
+    // 병원 채널은 앱이 상담사에게 보내지 않는다 — 병원에 보내고, 병원이 상담사에게 보낸다.
+    const toCounselor = all.filter(x => x.payout.payTo === 'counselor');
+    const toHospital = all.filter(x => x.payout.payTo === 'hospital');
+    const sum = toCounselor.reduce((a, x) => a + x.payout.counselor, 0);
+    const hospitalSum = toHospital.reduce((a, x) => a + x.payout.hospital, 0);
+    const platformSum = all.reduce((a, x) => a + x.payout.platform, 0);
     // 회기 기록이 없는 상담은 정산 보류다 — 사장님 지시: 기록을 정산 조건으로 건다.
     //  운영자가 '왜 안 올라오지?' 하지 않도록 보류 목록을 따로 준다. 지급은 막힌다(/settle/pay).
     const blocked = [];
     const rb = await db.prepare(
-      `SELECT b.id, b.counselor_id, b.client_name, b.time_label, b.price, b.done_at, c.name cname
+      `SELECT b.id, b.counselor_id, b.client_name, b.time_label, b.price, b.done_at, b.channel, c.name cname
          FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
         WHERE b.status = 'done' AND b.settled_at = 0
           AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)
         ORDER BY b.done_at ASC LIMIT 300`).all();
     (rb.results || []).forEach(x => blocked.push({ id: x.id, kind: 'booking', counselorId: x.counselor_id, counselor: x.cname || '상담사',
-      clientName: x.client_name, time: x.time_label, price: x.price, doneAt: x.done_at, payout: payoutOf(x.price || 0), reason: 'no-note' }));
+      clientName: x.client_name, time: x.time_label, price: x.price, doneAt: x.done_at, payout: payoutOf(x.price || 0, x.channel), reason: 'no-note' }));
     try {
       const rbc = await db.prepare(
-        `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, k.name cname
+        `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.channel, k.name cname
            FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
           WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
             AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))
@@ -928,10 +935,21 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (rbc.results || []).forEach(x => {
         const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
         blocked.push({ id: x.id, kind: 'call', counselorId: x.counselor_id, counselor: x.cname || '상담사', clientName: String(x.client_id || '').slice(0, 8),
-          time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초', price: x.billed, doneAt: x.end_at, payout: payoutOf(x.billed || 0), reason: 'no-note' });
+          time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초', price: x.billed, doneAt: x.end_at, payout: payoutOf(x.billed || 0, x.channel), reason: 'no-note' });
       });
     } catch (e) {}
-    return json({ items: all, counselorTotal: sum, blocked, blockedTotal: blocked.reduce((a, x) => a + x.payout.counselor, 0) }, 200, cors);
+    // 병원 이름을 붙인다 — 운영자는 'hp_...' 가 아니라 이름을 보고 이체한다
+    const hnames = {};
+    try {
+      const hs = (await db.prepare('SELECT id, name FROM hospitals').all()).results || [];
+      hs.forEach(h => { hnames[h.id] = h.name; });
+    } catch (e) {}
+    toHospital.forEach(x => { x.hospitalName = hnames[x.hospitalId] || '(병원 정보 없음)'; });
+    return json({
+      items: toCounselor, counselorTotal: sum,
+      hospitalItems: toHospital, hospitalTotal: hospitalSum, platformTotal: platformSum,
+      blocked, blockedTotal: blocked.reduce((a, x) => a + x.payout.counselor, 0)
+    }, 200, cors);
   }
 
   // 지급 완료 처리 (운영자)
@@ -2291,14 +2309,46 @@ function maskAcct(n) {
 //  반올림 오차는 상담사가 흡수한다 — 실비 몫들만 반올림하고 상담사가 나머지 전부를
 //   가져간다. 예전처럼 상담사 몫까지 따로 반올림하면 platform 이 0 인 지금은
 //   1,650원 같은 금액에서 합이 총액을 넘어 platform 이 -1원이 된다.
-const SPLIT = { counselor: 97, hospital: 0, pg: 3, platform: 0 };
-function payoutOf(price) {
+// ── 상담료 배분 — 채널에 따라 다르다 ──────────────────────────────────
+//  hospital: 병원을 통해 등록한 내담자. 병원이 90 을 받고, 상담사에게는 '병원이' 지급한다.
+//            앱이 상담사에게 직접 지급하면 병원 입장에서 환자 유인 소지가 생긴다(의료법 제27조).
+//            그래서 이 채널에서 앱은 상담사에게 한 푼도 보내지 않는다 — 병원에 보내고 끝난다.
+//  app:      앱으로 그냥 들어온 내담자. 앱이 상담사에게 직접 지급한다.
+//  채널은 예약·통화가 만들어질 때 확정되고 그 뒤로 바뀌지 않는다(정산 분쟁 방지).
+//  js/payout.js 의 SPLITS 와 한 글자도 다르면 안 된다 — 화면 금액과 입금액이 갈라진다.
+const SPLITS = {
+  app:      { counselor: 60, hospital: 0,  pg: 3, platform: 37 },
+  hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
+};
+const SPLIT = SPLITS.app;   // 옛 이름 — 채널을 모르는 오래된 호출부를 위해 남긴다
+const splitOf = ch => SPLITS[ch === 'hospital' ? 'hospital' : 'app'];
+
+function payoutOf(price, channel) {
   const p = Math.max(0, Math.round(price || 0));
-  const hospital  = Math.round(p * SPLIT.hospital / 100);
-  const pg        = Math.round(p * SPLIT.pg / 100);
-  const platform  = Math.round(p * SPLIT.platform / 100);
-  const counselor = Math.max(0, p - hospital - pg - platform);
-  return { gross: p, counselor, hospital, pg, platform, split: SPLIT };
+  const S = splitOf(channel);
+  const ch = S === SPLITS.hospital ? 'hospital' : 'app';
+  // 실비·정액 몫만 반올림하고, 나머지 전부를 '받는 사람'이 가져간다.
+  //  받는 사람은 앱 채널이면 상담사, 병원 채널이면 병원이다. 반올림 잔돈도 거기로 간다.
+  const pg = Math.round(p * S.pg / 100);
+  if (ch === 'hospital') {
+    const platform = Math.round(p * S.platform / 100);
+    const hospital = Math.max(0, p - pg - platform);
+    return { gross: p, counselor: 0, hospital, pg, platform, channel: ch, payTo: 'hospital', split: S };
+  }
+  const platform = Math.round(p * S.platform / 100);
+  const counselor = Math.max(0, p - pg - platform);
+  return { gross: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor', split: S };
+}
+
+// 이 내담자가 지금 병원을 통해 등록된 상태인가 — 예약·통화를 만들 때 한 번만 본다
+async function channelOf(db, clientId) {
+  try {
+    const r = await db.prepare(
+      'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
+    ).bind(clientId).first();
+    if (r && r.hospital_id) return { channel: 'hospital', hospitalId: r.hospital_id };
+  } catch (e) {}
+  return { channel: 'app', hospitalId: null };
 }
 
 // 신청서. 계좌는 운영자에게도 마스킹해서만 보낸다 —
@@ -2364,7 +2414,9 @@ const rowBooking = r => ({
   settledAt: r.settled_at || 0,
   refund: r.refund || 0, refundAt: r.refund_at || 0, refundWhy: r.refund_why || '',
   dispute: r.dispute || '', disputeAt: r.dispute_at || 0,
-  payout: payoutOf(r.price || 0)
+  // 배분은 채널에 따라 다르다 — 병원 채널이면 상담사 몫은 0 이고 병원이 따로 지급한다
+  channel: r.channel === 'hospital' ? 'hospital' : 'app', hospitalId: r.hospital_id || '',
+  payout: payoutOf(r.price || 0, r.channel)
   // cnote(상담사 메모)는 일부러 뺀다 — 내담자에게 나가면 안 된다
 });
 const rowInbox = r => ({
