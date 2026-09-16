@@ -2327,3 +2327,31 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 #tab-home .clinic-prompt { margin: 0 var(--home-gutter) var(--home-gap); }
 /* 아주 좁은 화면 — 같은 기준을 비율만 줄인다 (예전 360px 규칙의 의도 유지) */
 @media (max-width: 360px) { #tab-home { --home-gutter: 0.75rem; --home-gap: 0.6rem; --home-sec-top: 1rem; } }
+
+/* ══ 심플 홈 (A/B 비교용) — 큰 버튼 다섯 개 ══════════════════════════════ */
+.simple-list { display: flex; flex-direction: column; gap: 0.7rem; padding: 0.4rem 1.25rem 0; }
+.simple-btn {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.9rem; cursor: pointer;
+  background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 18px;
+  padding: 1.15rem 1.1rem; box-shadow: var(--shadow-sm); transition: transform var(--transition-fast);
+}
+.simple-btn:active { transform: scale(0.99); }
+.simple-btn__ico {
+  flex: 0 0 auto; width: 48px; height: 48px; border-radius: 15px; display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--accent-primary) 13%, transparent); color: var(--accent-primary);
+}
+.simple-btn__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.simple-btn__txt b { font-size: 1.05rem; color: var(--text-primary); letter-spacing: -0.01em; }
+.simple-btn__txt span { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.45; }
+.simple-btn__go { flex: 0 0 auto; font-size: 1.3rem; color: var(--text-muted); }
+.simple-note { margin: 1rem 1.25rem 0; text-align: center; font-size: 0.76rem; color: var(--text-muted); }
+.simple-tools { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.3rem; }
+.simple-tool {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.7rem; cursor: pointer;
+  background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.85rem 0.9rem;
+}
+.simple-tool__ico { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-secondary); color: var(--accent-primary); }
+.simple-tool__txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.simple-tool__txt b { font-size: 0.92rem; color: var(--text-primary); }
+.simple-tool__txt span { font-size: 0.76rem; color: var(--text-secondary); }
+.simple-tool__go { color: var(--text-muted); }

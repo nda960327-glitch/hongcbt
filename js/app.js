@@ -306,7 +306,8 @@ window.App = {
     this.renderMoodCard();
     if (window.Feed) window.Feed.init();
     if (window.Hospital) window.Hospital.init();
-    if (window.Clinics) window.Clinics.init();   // 내 주변 정신과 (홈 맨 아래)
+    if (window.Clinics) window.Clinics.init();
+    if (window.HomeSimple) window.HomeSimple.init();   // 홈 모양(기본/심플) 적용 — A/B 비교용   // 내 주변 정신과 (홈 맨 아래)
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
     if (window.Safety) window.Safety.renderRow();
