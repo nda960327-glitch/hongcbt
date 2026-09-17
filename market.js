@@ -25,7 +25,7 @@ const KEEP_MS = 180 * 86400000;            // 180일 지난 기록은 정리 대
 // ── 상담사 구독 (2026-08-18 수익 구조 개편) ────────────────────────────
 //  플랫폼은 상담료에서 한 푼도 가져가지 않는다 (아래 SPLIT.platform = 0).
 //  대신 상담사가 월 구독료를 낸다 — 이게 플랫폼의 유일한 수익이다.
-//  [폐지] 2026-09: 상담사 구독을 없애고 상담료 수수료로 일원화했다(앱 채널 37%).
+//  [폐지] 2026-09: 상담사 구독을 없애고 상담료 수수료로 일원화했다(앱 채널: 상담사 70%·6만원 초과분 55%).
 //   아래 값과 표는 지난 결제 이력 조회를 위해 남겨 둘 뿐, 새로 부과하지 않는다.
 //  스키마는 schema-prosub.sql 참고.
 const PRO_SUB_PRICE = 99000;                        // 월 구독료(원)
@@ -1472,6 +1472,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (SELECT COUNT(*) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS bkDone,
       (SELECT COUNT(*) FROM bookings WHERE status IN ('cancelled','declined','noshow')) AS bkCancelled,
       (SELECT COALESCE(SUM(price),0) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS gross,
+      (SELECT COALESCE(SUM(ROUND(MIN(price, 60000) * 0.70 + MAX(price - 60000, 0) * 0.55)),0) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS grossCounselor,
       (SELECT COUNT(*) FROM inbox) AS ibTotal,
       (SELECT COUNT(*) FROM inbox WHERE read_at = 0) AS ibUnread,
       (SELECT COUNT(DISTINCT counselor_id || '|' || client_id) FROM chat_msgs) AS threads,
@@ -1479,7 +1480,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (SELECT COALESCE(AVG(rating),0) FROM reviews) AS rvAvg,
       (SELECT COUNT(*) FROM subs WHERE plan = 'sub' AND until > ?) AS subsActive,
       (SELECT COUNT(*) FROM subs WHERE plan = 'trial' AND until > ?) AS trialActive
-    `).bind(t, t, t, t, t).first() || {};
+    `).bind(t, t, t, t, t, t).first() || {};
 
     // 답장 대기: 스레드별 마지막 발신자가 내담자인 것
     const aw = await db.prepare(`SELECT COUNT(*) n FROM (
@@ -1523,10 +1524,11 @@ export async function handleMarket(request, env, cors, path, ctx) {
       reviews: { count: r.rvCount || 0, avg: Math.round((r.rvAvg || 0) * 10) / 10 },
       revenue: {
         gross,
-        platform: Math.round(gross * SPLIT.platform / 100),
-        counselor: Math.round(gross * SPLIT.counselor / 100),
-        hospital: Math.round(gross * SPLIT.hospital / 100),
+        // 60000·0.70·0.55 는 위 SQL 에 적힌 SPLITS.app 값 — 비율을 고치면 SQL 도 같이
+        counselor: r.grossCounselor || 0,
+        hospital: 0,
         pg: Math.round(gross * SPLIT.pg / 100),
+        platform: Math.max(0, gross - (r.grossCounselor || 0) - Math.round(gross * SPLIT.pg / 100)),
         split: SPLIT
       },
       proSub,
@@ -2446,12 +2448,21 @@ function maskAcct(n) {
 //  app:      앱으로 그냥 들어온 내담자. 앱이 상담사에게 직접 지급한다.
 //  채널은 예약·통화가 만들어질 때 확정되고 그 뒤로 바뀌지 않는다(정산 분쟁 방지).
 //  js/payout.js 의 SPLITS 와 한 글자도 다르면 안 된다 — 화면 금액과 입금액이 갈라진다.
+//  app 은 구간제(2026-09 회의): 상담료 tierAt(6만원)까지 counselor%(70), 넘는 부분은 counselorOver%(55).
+//  PG 3% 를 떼고 남는 전부가 앱 몫이다. platform 값(27)은 6만원 이하일 때의 앱 비율 — 표시용.
 const SPLITS = {
-  app:      { counselor: 60, hospital: 0,  pg: 3, platform: 37 },
+  app:      { counselor: 70, hospital: 0,  pg: 3, platform: 27, tierAt: 60000, counselorOver: 55 },
   hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
 };
 const SPLIT = SPLITS.app;   // 옛 이름 — 채널을 모르는 오래된 호출부를 위해 남긴다
 const splitOf = ch => SPLITS[ch === 'hospital' ? 'hospital' : 'app'];
+
+// 앱 채널 상담사 몫 — js/payout.js · pro/js/app.js 의 같은 계산과 한 글자도 다르면 안 된다
+function appCounselorOf(p) {
+  const S = SPLITS.app;
+  const base = Math.min(p, S.tierAt), over = Math.max(0, p - S.tierAt);
+  return Math.round(base * S.counselor / 100 + over * S.counselorOver / 100);
+}
 
 function payoutOf(price, channel) {
   const p = Math.max(0, Math.round(price || 0));
@@ -2465,8 +2476,8 @@ function payoutOf(price, channel) {
     const hospital = Math.max(0, p - pg - platform);
     return { gross: p, counselor: 0, hospital, pg, platform, channel: ch, payTo: 'hospital', split: S };
   }
-  const platform = Math.round(p * S.platform / 100);
-  const counselor = Math.max(0, p - pg - platform);
+  const counselor = appCounselorOf(p);
+  const platform = Math.max(0, p - pg - counselor);   // 반올림 잔돈은 앱 몫
   return { gross: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor', split: S };
 }
 

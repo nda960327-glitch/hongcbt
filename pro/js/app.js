@@ -1395,7 +1395,7 @@ function renderBookings() {
 
 // ============================================================================
 //  [폐지] 구독 — 2026-09 부터 받지 않는다. 상담료 수수료로 일원화했다.
-//   (앱으로 온 내담자: 상담사 60 · 앱 37 · 결제 수수료 3 / 병원을 통해 온 내담자: 병원이 지급)
+//   (앱으로 온 내담자: 상담사 70(6만원 초과분 55) · 결제 수수료 3 · 나머지 앱 / 병원을 통해 온 내담자: 병원이 지급)
 //   아래 코드는 지난 구독 기록을 읽는 화면이 남아 있을 때를 대비해 두되, 화면에는 뜨지 않는다.
 //
 //  2026-08-18 개편으로 느루는 상담료에서 한 푼도 가져가지 않는다.
@@ -1517,15 +1517,15 @@ function renderMoney() {
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
 
   // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 97%).
-  //  계산식은 market.js payoutOf 와 같아야 한다: PG 3% 만 반올림하고 상담사가
-  //  나머지 전부를 가져간다 (반올림 잔돈은 상담사 몫).
+  //  계산식은 market.js payoutOf 와 같아야 한다: 상담사 몫은 구간제로 반올림하고
+  //  PG 3% 를 뗀 나머지가 앱 몫이다 (반올림 잔돈은 앱 몫).
   //  (프로 앱에는 payout.js 를 싣지 않으므로 여기서는 숫자를 직접 적는다 —
   //   비율을 고칠 때 이 줄을 같이 고치지 않으면 화면 금액이 실제 입금과 갈라진다)
   const callsAll = (D.calls || []).slice().sort((a, b) => b.at - a.at);
   const calls = callsAll.filter(c => !isHosp(c));
   const hospCalls = callsAll.filter(isHosp);
-  //  앱 채널 배분: 상담사 60 · 앱 37 · 결제 수수료 3 (market.js SPLITS 와 같아야 한다)
-  const share = n => { const p = Math.max(0, Math.round(n || 0)); return Math.max(0, p - Math.round(p * 3 / 100) - Math.round(p * 37 / 100)); };
+  //  앱 채널 배분: 6만원까지 70%, 넘는 부분 55% (market.js appCounselorOf 와 같아야 한다)
+  const share = n => { const p = Math.max(0, Math.round(n || 0)); return Math.round(Math.min(p, 60000) * 70 / 100 + Math.max(0, p - 60000) * 55 / 100); };
   //  병원 채널은 병원이 90 을 받고 그중에서 상담사에게 지급한다 — 앱은 금액을 단정하지 않는다
   const hospGross = hospBookings.reduce((s, b) => s + (b.price || 0), 0) + hospCalls.reduce((s, c) => s + (c.charge || 0), 0);
   const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
@@ -1618,7 +1618,7 @@ function renderMoney() {
         <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담사 60% · 마인드 인사이드 37% · 결제 수수료 3%</p>
+      <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담료 6만원까지 <b>70%</b>, 6만원 넘는 부분은 <b>55%</b>가 선생님 몫이에요. (예: 6만원 → 42,000 · 7만원 → 47,500 · 10만원 → 64,000)</p>
       ${waiting > 0 ? `<p class="muted" style="margin-top:0.3rem;">개인 상담사는 지급할 때 사업소득 3.3%를 원천징수해요. 지금 대기 금액이면 <b>약 ${won(withhold33(waiting))}원 입금</b> 예정이에요. 사업자 상담사는 세금계산서로 대체돼요.</p>` : ''}
       ${hospBookings.length + hospCalls.length ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent);">
         <b style="font-size:0.88rem; color:var(--accent);">병원 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>

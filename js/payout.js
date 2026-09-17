@@ -23,7 +23,7 @@ window.Payout = {
   //            앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조).
   //  app:      앱으로 그냥 들어온 내담자. 앱이 상담사에게 지급한다.
   SPLITS: {
-    app:      { counselor: 60, hospital: 0,  pg: 3, platform: 37 },
+    app:      { counselor: 70, hospital: 0,  pg: 3, platform: 27, tierAt: 60000, counselorOver: 55 },
     hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
   },
   get SPLIT() { return this.SPLITS.app; },   // 옛 이름 — 채널을 모르는 화면용
@@ -55,13 +55,16 @@ window.Payout = {
     const ch = channel === 'hospital' ? 'hospital' : 'app';
     const s = this.SPLITS[ch];
     const pg = Math.round(p * s.pg / 100);
-    const platform = Math.round(p * s.platform / 100);
-    // 반올림 잔돈은 '받는 사람' 몫으로 — 앱 채널은 상담사, 병원 채널은 병원
+    // 반올림 잔돈은 병원 채널은 병원, 앱 채널은 앱 몫으로
     if (ch === 'hospital') {
+      const platform = Math.round(p * s.platform / 100);
       const hospital = Math.max(0, p - pg - platform);
       return { total: p, counselor: 0, hospital, pg, platform, channel: ch, payTo: 'hospital' };
     }
-    const counselor = Math.max(0, p - pg - platform);
+    // 구간제: 6만원까지 70%, 넘는 부분 55% (market.js appCounselorOf 와 같은 식)
+    const base = Math.min(p, s.tierAt), over = Math.max(0, p - s.tierAt);
+    const counselor = Math.round(base * s.counselor / 100 + over * s.counselorOver / 100);
+    const platform = Math.max(0, p - pg - counselor);
     return { total: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor' };
   },
 
@@ -89,13 +92,14 @@ window.Payout = {
           <strong style="font-size: 0.84rem; color: var(--text-primary);">정산 구조</strong>
           <span style="margin-left: auto; font-size: 0.68rem; color: var(--text-muted);">${this.won(sample)} 상담 기준</span>
         </div>
-        ${row(this.LABEL.counselor, s.counselor, b.counselor, true)}
+        ${row(this.LABEL.counselor, Math.round(b.counselor / sample * 1000) / 10, b.counselor, true)}
         ${s.hospital > 0 ? row(this.LABEL.hospital, s.hospital, b.hospital) : ''}
         ${row(this.LABEL.pg, s.pg, b.pg)}
-        ${s.platform > 0 ? row(this.LABEL.platform, s.platform, b.platform) : ''}
+        ${s.platform > 0 ? row(this.LABEL.platform, Math.round(b.platform / sample * 1000) / 10, b.platform) : ''}
         <p style="margin: 0.55rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
           ${s.platform > 0 ? '' : `느루는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
           ${this.won(b.pg)}은 카드사·PG 로 나가는 실비입니다.<br>`}
+          상담사 몫은 상담료 ${this.won(s.tierAt)}까지 ${s.counselor}%, 넘는 부분은 ${s.counselorOver}%예요.<br>
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.
         </p>
 

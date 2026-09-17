@@ -619,7 +619,7 @@ window.Admin = {
       <div style="margin-top: 1.2rem;">
         <h3 style="margin: 0 0 0.2rem; font-size: 0.95rem;">상담 정산</h3>
         <p style="margin: 0 0 0.7rem; font-size: 0.72rem; color: var(--text-muted);">
-          상담사 ${P.SPLIT.counselor}% · 기관 ${P.SPLIT.hospital}% · PG ${P.SPLIT.pg}% · 마인드 인사이드 ${P.SPLIT.platform}%
+          상담사 ${P.SPLIT.counselor}%(${(P.SPLIT.tierAt / 10000)}만원 넘는 부분 ${P.SPLIT.counselorOver}%) · PG ${P.SPLIT.pg}% · 나머지 마인드 인사이드
           · 완료 ${P.SETTLE_DAYS}일 뒤 지급
         </p>
         ${bookings.length ? `

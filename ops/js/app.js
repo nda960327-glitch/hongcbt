@@ -802,7 +802,7 @@ function chartsSection() {
 }
 
 // ── [폐지] 상담사 구독 — 2026-09 부터 받지 않는다 ─────────────────
-//  플랫폼 수익은 상담료 수수료다: 앱 채널 37%, 병원 채널 7%.
+//  플랫폼 수익은 상담료 수수료다: 앱 채널은 상담사 구간제(70%/55%)와 PG 3% 를 뺀 나머지, 병원 채널 7%.
 //  아래 계산은 지난 구독 기록이 남은 배포를 위해 두되 화면에는 쓰지 않는다.───────────────────
 //  2026-08-18 개편: 상담료 분배는 없앴다. 플랫폼 수익은 상담사 구독료 하나뿐이다.
 //  그래서 '지금 몇 명이 구독 중인가'가 곧 이 서비스의 매출이다.
@@ -847,6 +847,8 @@ function viewDash() {
   const d = D.stats;
   const rev = d.revenue || { gross: 0, split: { counselor: 97, hospital: 0, pg: 3, platform: 0 } };
   const sp = rev.split || { counselor: 97, hospital: 0, pg: 3, platform: 0 };
+  // 구간제라 고정 비율이 없다 — 실제 금액에서 비율을 낸다
+  const pct = n => rev.gross ? Math.round((n || 0) / rev.gross * 1000) / 10 : 0;
   const ss = subStat();
   const pending = (D.apps || []).filter(a => a.status === 'pending').length;
   const settleN = (D.settle || []).length;
@@ -896,26 +898,26 @@ function viewDash() {
           <b style="font-size: 1.5rem;">${won(rev.gross)}<span class="u" style="font-size:0.7rem;">캐시</span></b>
         </div>
         <div style="text-align: right;">
-          <div class="muted">상담사 지급액 ${sp.counselor}%</div>
+          <div class="muted">상담사 지급액 ${pct(rev.counselor)}%</div>
           <b style="font-size: 1.5rem; color: var(--accent);">${won(rev.counselor)}</b>
         </div>
       </div>
       <div class="splitbar">
-        <i style="width:${sp.counselor}%; background:#4f8a6b;"></i>
+        <i style="width:${pct(rev.counselor)}%; background:#4f8a6b;"></i>
         ${sp.hospital > 0 ? `<i style="width:${sp.hospital}%; background:#8fb8a0;"></i>` : ''}
-        <i style="width:${sp.pg}%; background:#d9cbb4;"></i>
-        ${sp.platform > 0 ? `<i style="width:${sp.platform}%; background:#b98a1a;"></i>` : ''}
+        <i style="width:${pct(rev.pg)}%; background:#d9cbb4;"></i>
+        ${rev.platform > 0 ? `<i style="width:${pct(rev.platform)}%; background:#b98a1a;"></i>` : ''}
       </div>
       <div class="splitlegend">
-        <span><i style="background:#4f8a6b;"></i>상담사 ${sp.counselor}% · <b>${won(rev.counselor)}</b></span>
+        <span><i style="background:#4f8a6b;"></i>상담사 ${pct(rev.counselor)}% · <b>${won(rev.counselor)}</b></span>
         ${sp.hospital > 0 ? `<span><i style="background:#8fb8a0;"></i>기관 ${sp.hospital}% · <b>${won(rev.hospital)}</b></span>` : ''}
         <span><i style="background:#d9cbb4;"></i>PG ${sp.pg}% · <b>${won(rev.pg)}</b></span>
-        ${sp.platform > 0 ? `<span><i style="background:#b98a1a;"></i>플랫폼 ${sp.platform}% · <b>${won(rev.platform)}</b></span>`
+        ${rev.platform > 0 ? `<span><i style="background:#b98a1a;"></i>플랫폼 ${pct(rev.platform)}% · <b>${won(rev.platform)}</b></span>`
           : '<span><i style="background:#b98a1a;"></i>플랫폼 0% · <b>상담료에서 안 받음</b></span>'}
       </div>
       <p class="muted" style="margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.6rem;">
         <b>플랫폼 수익 = 상담료 수수료</b> — 상담사 구독(월 99,000원)은 2026-09 부터 받지 않습니다.<br>
-        <b>앱으로 온 내담자</b> — 상담사 60% · 마인드 인사이드 37% · 결제 수수료 3%. 앱이 상담사에게 직접 지급합니다.<br>
+        <b>앱으로 온 내담자</b> — 상담사 70%(6만원 넘는 부분 55%) · 결제 수수료 3% · 나머지 마인드 인사이드. 앱이 상담사에게 직접 지급합니다.<br>
         <b>병원을 통해 온 내담자</b> — 병원 90% · 마인드 인사이드 7% · 결제 수수료 3%.
         앱은 <b>병원에만</b> 지급하고, 상담사에게는 병원이 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
         <b>바로상담(캐시·30초당)</b> — 요금 = 예약 상담료 ÷60 × 1.25 (즉시성 프리미엄). 배분율은 예약 상담과 같습니다.<br>
@@ -1118,7 +1120,7 @@ function viewCounselors() {
     <div class="card" style="margin-bottom: 0.7rem;">
       <b style="font-size: 0.9rem;">정산 구조</b>
       <div class="muted">상담사 구독(월 99,000원)은 <b>2026-09 부터 받지 않습니다</b>. 플랫폼 수익은 상담료 수수료입니다.<br>
-        앱으로 온 내담자: 상담사 60% · 앱 37% · 결제 수수료 3% &nbsp;|&nbsp; 병원을 통해 온 내담자: 병원 90% · 앱 7% · 결제 수수료 3%<br>
+        앱으로 온 내담자: 상담사 70%(6만원 넘는 부분은 55%) · 결제 수수료 3% · 나머지 앱 &nbsp;|&nbsp; 병원을 통해 온 내담자: 병원 90% · 앱 7% · 결제 수수료 3%<br>
         승인된 상담사는 구독과 무관하게 매칭 목록에 노출됩니다.</div>
     </div>
 
@@ -1157,7 +1159,7 @@ function hospitalSettleHtml() {
       <div class="sec-title">이번 정산의 플랫폼 수익
         <span class="right muted">앱 몫 합계 ${won(sums.platform)}캐시</span></div>
       <p class="muted" style="margin: 0;">
-        병원 채널은 <b>병원 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 60 · 앱 37 · 결제 수수료 3</b> 입니다.</p>
+        병원 채널은 <b>병원 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 70(6만원 넘는 부분 55) · 결제 수수료 3 · 나머지 앱</b> 입니다.</p>
     </div>
     <div class="sec-title" style="margin-top: 1.2rem;">병원에 지급
       <span class="right muted">${rows.length}건 · 병원 몫 합계 ${won(sums.hospital)}캐시</span></div>
@@ -1316,7 +1318,7 @@ function viewSettle() {
       <span class="right muted">${D.settle.length}건 · 상담사 몫 합계 ${won(total)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
       상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담 중 <b>회기 기록을 남긴 건</b>만 올라옵니다.<br>
-      여기는 <b>앱 채널</b>(상담사 60 · 앱 37 · 결제 수수료 3)입니다. 병원 채널은 아래 '병원에 지급'에서 따로 처리합니다.</p>
+      여기는 <b>앱 채널</b>(상담사 70%, 6만원 넘는 부분 55%)입니다. 병원 채널은 아래 '병원에 지급'에서 따로 처리합니다.</p>
     ${D.settle.length ? Object.entries(by).map(group).join('')
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
     ${hospitalSettleHtml()}
