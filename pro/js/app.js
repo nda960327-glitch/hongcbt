@@ -1493,6 +1493,14 @@ function openSubPay() {
 // ============================================================================
 //  ④ 정산
 // ============================================================================
+// 사업소득 원천징수 3.3% 뒤 금액 — market.js withholdingOf 와 같은 계산(소득세 1,000원 미만은 안 뗌)
+function withhold33(amount) {
+  const g = Math.max(0, Math.round(amount || 0));
+  let it = Math.floor(g * 0.03 / 10) * 10;
+  if (it < 1000) it = 0;
+  return g - it - Math.floor(it * 0.1 / 10) * 10;
+}
+
 function renderMoney() {
   const el = $('view-money');
   if (busy(el)) return;
@@ -1611,6 +1619,7 @@ function renderMoney() {
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
       <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담사 60% · 마인드 인사이드 37% · 결제 수수료 3%</p>
+      ${waiting > 0 ? `<p class="muted" style="margin-top:0.3rem;">개인 상담사는 지급할 때 사업소득 3.3%를 원천징수해요. 지금 대기 금액이면 <b>약 ${won(withhold33(waiting))}원 입금</b> 예정이에요. 사업자 상담사는 세금계산서로 대체돼요.</p>` : ''}
       ${hospBookings.length + hospCalls.length ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent);">
         <b style="font-size:0.88rem; color:var(--accent);">병원 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>
         <p class="muted" style="margin:0.2rem 0 0;">병원을 통해 등록된 내담자의 상담이에요. 이 건은 <b>병원이 선생님께 직접 지급</b>합니다 (앱에서 입금되지 않아요). 금액과 지급일은 병원과의 계약을 따릅니다.</p>

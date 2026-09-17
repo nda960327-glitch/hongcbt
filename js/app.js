@@ -245,6 +245,8 @@ window.App = {
 
     // 4.5 Theme toggle
     this.initTheme();
+    // 4.6 약관·민감정보·국외이전 동의 — 동의 전에는 앱을 쓸 수 없다 (js/consent.js)
+    if (window.Consent) window.Consent.ensure();
     const btnTheme = document.getElementById('btn-theme');
     if (btnTheme) {
       btnTheme.addEventListener('click', () => this.toggleTheme());
@@ -4993,7 +4995,7 @@ ${body}
       // 감사에서 누락 확인 — 위기화면/편지함/일기 전체보기가 빠져 있어 여기서 앱이 꺼졌다.
       'safety-now-ov', 'inbox-overlay', 'diary-full-ov', 'program-sheet'];
     // 뒤로가기로 닫으면 안 되는 고정 레이어 — 잠금 화면·통화·로그인
-    const EXCLUDE = ['applock-overlay', 'call-overlay', 'call-incoming', 'login-screen', 'back-exit-toast', 'toast'];
+    const EXCLUDE = ['applock-overlay', 'call-overlay', 'call-incoming', 'login-screen', 'back-exit-toast', 'toast', 'consent-overlay'];
     const isGuardable = el => {
       if (!el || el.nodeType !== 1 || !el.id || EXCLUDE.includes(el.id)) return false;
       if (el.dataset.ovGuard === '1' || DYNAMIC.includes(el.id)) return true;

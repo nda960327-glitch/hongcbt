@@ -652,6 +652,76 @@ export async function handleMarket(request, env, cors, path, ctx) {
   }
 
   // ── 예약 ────────────────────────────────────────────────────────────
+  // ── 약관·민감정보·국외이전 동의 기록 ─────────────────────────────────
+  //  '동의를 받았다'는 입증 책임은 회사에 있다. 기기 번호·버전·항목·시각·브라우저만 남긴다.
+  if (path === '/consent' && method === 'POST') {
+    const cid = s(body.clientId, MAX.id);
+    if (!cid) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
+    const ver = s(body.ver, 40);
+    const items = (Array.isArray(body.items) ? body.items : []).map(x => s(x, 20).replace(/[^\w-]/g, '')).filter(Boolean).slice(0, 10).join(',');
+    if (!ver || !items) return json({ error: 'missing' }, 400, cors);
+    try {
+      await db.prepare('INSERT INTO consents (client_id, ver, items, agent, ts) VALUES (?,?,?,?,?)')
+        .bind(cid, ver, items, s(request.headers.get('user-agent') || '', 160), nowMs()).run();
+    } catch (e) { return json({ error: 'no-table' }, 500, cors); }
+    return json({ ok: true }, 200, cors);
+  }
+
+  // ── 월별 원천징수 합계 (운영자) ──────────────────────────────────────
+  //  앱이 개인 상담사에게 직접 지급한 몫(앱 채널)에 사업소득 3.3% 를 원천징수한다.
+  //  소득세 3% (10원 미만 절사) + 지방소득세 = 소득세의 10% (10원 미만 절사).
+  //  소득세가 1,000원 미만이면 떼지 않는다(소액부징수). 신고·납부는 다음 달 10일까지.
+  //  병원 채널은 앱이 상담사에게 지급하지 않으므로 여기 들어가지 않는다(병원이 원천징수).
+  //  사업자 상담사는 세금계산서로 대체되므로 운영자가 표에서 빼고 처리한다.
+  if (path === '/admin/withholding' && method === 'GET') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const mm = String(q('month') || '').match(/^(\d{4})-(\d{2})$/);
+    const kst = new Date(nowMs() + 9 * 3600000);
+    const y = mm ? Number(mm[1]) : kst.getUTCFullYear();
+    const mo = mm ? Number(mm[2]) : kst.getUTCMonth() + 1;
+    const from = Date.UTC(y, mo - 1, 1) - 9 * 3600000;
+    const to = Date.UTC(y, mo, 1) - 9 * 3600000;
+    const rows = [];
+    try {
+      const b = (await db.prepare(
+        "SELECT counselor_id, price, channel FROM bookings WHERE settled_at >= ? AND settled_at < ? AND status = 'done'"
+      ).bind(from, to).all()).results || [];
+      b.forEach(x => rows.push(x));
+    } catch (e) {}
+    try {
+      const c = (await db.prepare(
+        'SELECT counselor_id, billed AS price, channel FROM calls WHERE settled_at >= ? AND settled_at < ? AND billed > 0'
+      ).bind(from, to).all()).results || [];
+      c.forEach(x => rows.push(x));
+    } catch (e) {}
+    const by = {};
+    rows.forEach(x => {
+      if (x.channel === 'hospital') return;
+      const p = payoutOf(x.price || 0, 'app');
+      const k = x.counselor_id;
+      by[k] = by[k] || { counselorId: k, count: 0, gross: 0 };
+      by[k].count++;
+      by[k].gross += p.counselor;
+    });
+    const names = {};
+    try {
+      const cs = (await db.prepare('SELECT id, name, bank_holder FROM counselors').all()).results || [];
+      cs.forEach(c => { names[c.id] = { name: c.name, holder: c.bank_holder || '' }; });
+    } catch (e) {}
+    const items = Object.values(by).map(r => {
+      const w = withholdingOf(r.gross);
+      return { ...r, name: (names[r.counselorId] || {}).name || '(이름 없음)', holder: (names[r.counselorId] || {}).holder || '', ...w };
+    }).sort((a, b) => b.gross - a.gross);
+    const sum = k => items.reduce((a, x) => a + x[k], 0);
+    const dueY = mo === 12 ? y + 1 : y, dueM = mo === 12 ? 1 : mo + 1;
+    return json({
+      month: `${y}-${String(mo).padStart(2, '0')}`, due: `${dueY}-${String(dueM).padStart(2, '0')}-10`,
+      items, totals: { count: sum('count'), gross: sum('gross'), incomeTax: sum('incomeTax'), localTax: sum('localTax'), net: sum('net') }
+    }, 200, cors);
+  }
+
   if (path === '/bookings' && method === 'GET') {
     if (isAdmin(env, code)) {
       const r = await db.prepare('SELECT * FROM bookings ORDER BY when_ts DESC LIMIT 500').all();
@@ -2427,6 +2497,15 @@ async function cashBalance(db, clientId) {
 async function actOk(binding, key) {
   if (!binding || !binding.limit) return true;
   try { return (await binding.limit({ key })).success; } catch (e) { return true; }
+}
+
+// 사업소득 원천징수 3.3% — 소득세 3%(10원 미만 절사) + 지방소득세 10%(10원 미만 절사), 소득세 1,000원 미만 소액부징수
+function withholdingOf(amount) {
+  const g = Math.max(0, Math.round(amount || 0));
+  let incomeTax = Math.floor(g * 0.03 / 10) * 10;
+  if (incomeTax < 1000) incomeTax = 0;
+  const localTax = Math.floor(incomeTax * 0.1 / 10) * 10;
+  return { incomeTax, localTax, net: g - incomeTax - localTax };
 }
 
 async function channelOf(db, clientId) {

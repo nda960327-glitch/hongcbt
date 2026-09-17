@@ -2357,3 +2357,32 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 .simple-tool__txt b { font-size: 0.92rem; color: var(--text-primary); }
 .simple-tool__txt span { font-size: 0.76rem; color: var(--text-secondary); }
 .simple-tool__go { color: var(--text-muted); }
+
+/* ══ 첫 실행 동의 (js/consent.js) ══════════════════════════════════════ */
+#consent-overlay {
+  position: fixed; inset: 0; z-index: 10100; /* 모달(10080)·바텀시트(10090)보다 위 — 동의 전에는 아무것도 못 누른다 */ background: var(--bg-primary);
+  display: flex; justify-content: center; overflow-y: auto;
+  padding: calc(1.2rem + env(safe-area-inset-top, 0px)) 1.25rem calc(1.4rem + env(safe-area-inset-bottom, 0px));
+}
+.consent { width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 0.9rem; }
+.consent__head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.35rem; margin-top: 0.6rem; }
+.consent__head h2 { margin: 0.2rem 0 0; font-family: var(--font-heading); font-size: 1.25rem; color: var(--text-primary); }
+.consent__head p { margin: 0; font-size: 0.84rem; color: var(--text-secondary); line-height: 1.55; }
+.consent__all {
+  display: flex; align-items: center; gap: 0.65rem; cursor: pointer; padding: 0.85rem 1rem; border-radius: 14px;
+  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, transparent);
+  font-weight: 800; color: var(--text-primary); font-size: 0.95rem;
+}
+.consent__list { display: flex; flex-direction: column; background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 14px; }
+.consent__item { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.1rem 0.6rem; padding: 0.75rem 1rem; border-top: 1px solid var(--glass-border); }
+.consent__item:first-child { border-top: 0; }
+.consent__row { display: flex; align-items: center; gap: 0.6rem; cursor: pointer; min-width: 0; }
+.consent__t { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); }
+.consent__t em { font-style: normal; font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); margin-right: 0.15rem; }
+.consent__link { font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-decoration: underline; padding: 0.2rem 0.1rem; }
+.consent__d { grid-column: 1 / -1; margin: 0; padding-left: 1.85rem; font-size: 0.76rem; line-height: 1.5; color: var(--text-secondary); }
+.consent input[type="checkbox"] { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; accent-color: var(--accent-primary); cursor: pointer; }
+.consent input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.consent__note { margin: 0; font-size: 0.74rem; color: var(--text-muted); text-align: center; line-height: 1.5; }
+.consent__go { width: 100%; padding: 0.9rem; font-size: 0.98rem; }
+.consent__go:disabled { opacity: 0.45; cursor: not-allowed; }

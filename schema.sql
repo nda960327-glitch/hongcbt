@@ -148,3 +148,8 @@ CREATE TABLE IF NOT EXISTS clinic_sync (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS hospital_payouts (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, counselor_id TEXT NOT NULL, kind TEXT NOT NULL, ref_id TEXT NOT NULL, amount INTEGER NOT NULL, paid_at INTEGER NOT NULL, memo TEXT, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_hp_hospital ON hospital_payouts(hospital_id, paid_at);
 CREATE INDEX IF NOT EXISTS idx_hp_ref ON hospital_payouts(ref_id);
+
+-- 약관·개인정보·민감정보·국외이전 동의 기록 (js/consent.js → POST /api/consent)
+-- items 가 'withdraw' 면 철회 기록. 분쟁 대비 증빙으로만 쓴다.
+CREATE TABLE IF NOT EXISTS consents (client_id TEXT NOT NULL, ver TEXT NOT NULL, items TEXT NOT NULL, agent TEXT, ts INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_consents_client ON consents(client_id, ts);

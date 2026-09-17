@@ -1182,6 +1182,61 @@ function hospitalSettleHtml() {
       : '<div class="card"><div class="empty"><b>병원에 지급할 건이 없어요</b>병원 코드로 연결된 내담자의 상담이 생기면 여기에 쌓입니다.</div></div>'}`;
 }
 
+// ── 원천징수 ─────────────────────────────────────────────────────────
+//  앱이 개인 상담사에게 직접 지급하는 몫(앱 채널)은 사업소득 3.3% 를 떼고 보낸다.
+//  계산식은 market.js withholdingOf 와 같아야 한다.
+function withholdOf(amount) {
+  const g = Math.max(0, Math.round(amount || 0));
+  let incomeTax = Math.floor(g * 0.03 / 10) * 10;
+  if (incomeTax < 1000) incomeTax = 0;
+  const localTax = Math.floor(incomeTax * 0.1 / 10) * 10;
+  return { incomeTax, localTax, net: g - incomeTax - localTax };
+}
+let WH_MONTH = '';
+async function loadWithholding(month) {
+  WH_MONTH = month || WH_MONTH;
+  D.wh = null;
+  render();
+  const r = await adminGet('/api/admin/withholding' + (WH_MONTH ? '?month=' + encodeURIComponent(WH_MONTH) : ''));
+  D.wh = r || { error: true };
+  if (r && r.month) WH_MONTH = r.month;
+  render();
+}
+function withholdingHtml() {
+  const d = D.wh;
+  const head = `
+    <div class="sec-title" style="margin-top: 1.2rem;">원천징수 월별 합계
+      <span class="right">
+        <input id="wh-month" type="month" value="${esc(WH_MONTH)}" style="width: auto; display: inline-block;">
+        <button class="btn ghost sm" data-act="wh-load">불러오기</button>
+      </span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      지급 완료로 표시한 앱 채널 건을 상담사별로 모읍니다. <b>다음 달 10일까지</b> 홈택스에 원천징수 신고·납부하고 간이지급명세서를 내야 합니다.
+      신고에는 상담사 주민등록번호가 필요한데 앱은 받지 않으므로 별도로 받아 안전하게 보관하세요. 사업자 상담사는 이 표에서 빼고 세금계산서로 처리합니다.</p>`;
+  if (d === undefined) return head + '<div class="card"><div class="empty"><b>월을 고르고 불러오기를 누르세요</b></div></div>';
+  if (d === null) return head + loading;
+  if (d.error) return head + failed;
+  const t = d.totals || {};
+  return head + `
+    <div class="card pad0">
+      <div class="tblwrap" style="border: none; box-shadow: none;">
+        <table class="tbl">
+          <thead><tr><th>상담사</th><th>예금주</th><th style="text-align:right;">건수</th><th style="text-align:right;">지급액</th><th style="text-align:right;">소득세 3%</th><th style="text-align:right;">지방소득세</th><th style="text-align:right;">실지급액</th></tr></thead>
+          <tbody>
+            ${(d.items || []).map(x => `<tr>
+              <td>${esc(x.name)}</td><td>${esc(x.holder || '-')}</td>
+              <td style="text-align:right;">${won(x.count)}</td><td style="text-align:right;">${won(x.gross)}</td>
+              <td style="text-align:right;">${won(x.incomeTax)}</td><td style="text-align:right;">${won(x.localTax)}</td>
+              <td style="text-align:right;"><b>${won(x.net)}</b></td></tr>`).join('') || '<tr><td colspan="7" class="muted">이 달에 지급 완료한 앱 채널 건이 없어요.</td></tr>'}
+            ${(d.items || []).length ? `<tr><td><b>합계</b></td><td></td><td style="text-align:right;"><b>${won(t.count)}</b></td><td style="text-align:right;"><b>${won(t.gross)}</b></td>
+              <td style="text-align:right;"><b>${won(t.incomeTax)}</b></td><td style="text-align:right;"><b>${won(t.localTax)}</b></td><td style="text-align:right;"><b>${won(t.net)}</b></td></tr>` : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="muted" style="margin-top: 0.5rem;">${esc(d.month)} 지급분 · 신고·납부 기한 <b>${esc(d.due)}</b> · 소득세 1,000원 미만은 떼지 않습니다(소액부징수).</p>`;
+}
+
 // 회기 기록이 없어 정산이 막힌 건 — 사장님 지시로 기록을 정산 조건으로 걸었다.
 //  운영자는 여기서 '누가 기록을 안 남겼는지'를 보고 상담사에게 재촉한다. 지급 버튼은 없다.
 function blockedHtml() {
@@ -1221,6 +1276,7 @@ function viewSettle() {
   const group = ([cid, rows]) => {
     const c = rows[0];
     const sum = rows.reduce((a, x) => a + x.payout.counselor, 0);
+    const wt = withholdOf(sum);
     return `
     <div class="card">
       <div class="row wrap">
@@ -1231,6 +1287,7 @@ function viewSettle() {
         </div>
         <b style="color: var(--accent); font-size: 1rem;">${won(sum)}캐시</b>
       </div>
+      <p class="muted" style="margin: 0.3rem 0 0;">개인 상담사면 원천징수 <b>${won(wt.incomeTax + wt.localTax)}원</b>(소득세 ${won(wt.incomeTax)} · 지방소득세 ${won(wt.localTax)}) 떼고 <b style="color: var(--accent);">${won(wt.net)}원 이체</b> · 사업자면 세금계산서 받고 ${won(sum)}원</p>
       <p class="muted" style="margin: 0.4rem 0 0.3rem; ${c.bank ? '' : 'color: var(--danger);'}">
         ${c.bank ? `${esc(c.bank.bank)} ${esc(c.bank.masked)} · 예금주 ${esc(c.bank.holder)}`
                  : '계좌 미등록 — 상담사에게 등록을 요청하세요'}</p>
@@ -1264,6 +1321,7 @@ function viewSettle() {
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
     ${hospitalSettleHtml()}
     ${blockedHtml()}
+    ${withholdingHtml()}
 
     ${D.settle.length ? `
     <div class="paybar">
@@ -2291,6 +2349,7 @@ document.addEventListener('click', e => {
   if (act === 'feed-del') { feedDel(id); return; }
 
   if (act.startsWith('cl-')) { clinicAct(act, el, id); return; }
+  if (act === 'wh-load') { const mi = $('wh-month'); loadWithholding(mi ? mi.value : ''); return; }
   if (act === 'hosp-new') { HOSP_EDIT = null; HOSP_FORM = true; render(); const t = $('hp-name'); if (t) t.focus(); return; }
   if (act === 'hosp-edit') { HOSP_EDIT = id; HOSP_FORM = true; render(); window.scrollTo(0, 0); return; }
   if (act === 'hosp-cancel') { HOSP_EDIT = null; HOSP_FORM = false; render(); return; }
