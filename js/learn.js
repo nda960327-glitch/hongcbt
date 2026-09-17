@@ -197,7 +197,7 @@ window.Learn = {
         <div class="detail-woorung">
           <span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('teacher', 72) : ''}</span>
           <div class="detail-woorung__bubble">
-            <strong style="color: ${dist.color};">느루 선생님의 처방</strong>
+            <strong style="color: ${dist.color};">느루 선생님의 한마디</strong>
             <p>${dist.counter}</p>
           </div>
         </div>

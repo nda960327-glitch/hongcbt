@@ -286,7 +286,7 @@ window.Assess = {
           <span style="font-size:0.68rem;font-weight:800;color:#c9a227;background:color-mix(in srgb, #c9a227 14%, transparent);padding:0.15rem 0.5rem;border-radius:999px;">30,000캐시</span>
         </div>
         <p style="margin:0.35rem 0 0;font-size:0.78rem;line-height:1.6;color:var(--text-secondary);">
-          내 기록을 정밀 분석해 <b>2주 케어플랜</b>을 처방하고, <b>나의 변화</b>를 채워요.
+          내 기록을 정밀 분석해 <b>2주 케어플랜</b>을 짜 드리고, <b>나의 변화</b>를 채워요.
         </p>
         ${state === 'collect' ? bar : ''}
         <p style="margin:0.4rem 0 0.6rem;font-size:0.76rem;font-weight:700;color:${accent ? 'var(--accent-primary)' : 'var(--text-muted)'};">${line}</p>
@@ -398,7 +398,7 @@ window.Assess = {
           ${x.note ? `<p style="margin:0.3rem 0 0;font-size:0.68rem;opacity:0.7;line-height:1.5;">${K.md(x.note)}</p>` : ''}
         </div>`).join('')}
       </div>
-      <p style="margin:0.6rem 0 0;font-size:0.68rem;opacity:0.62;line-height:1.6;">※ 선별검사는 <b>진단이 아니라 위험도 스크리닝</b>입니다. 색 띠는 원 도구의 절단점 구간이에요.</p>`, K.C.ok) : '';
+      <p style="margin:0.6rem 0 0;font-size:0.68rem;opacity:0.62;line-height:1.6;">※ 선별검사는 <b>확정 결과가 아닌 위험도 스크리닝</b>입니다. 색 띠는 원 도구의 절단점 구간이에요.</p>`, K.C.ok) : '';
 
     // ── Ⅰ-1 표준검사 재측정 추이 (개입 효과를 보여주는 가장 신뢰할 만한 근거) ──
     const hist = (r.history && r.history.length >= 2)
@@ -513,7 +513,7 @@ window.Assess = {
     ` : '';
 
     const plan = (needList || rx || rxPlan)
-      ? sec('Ⅸ', '요약 및 제언', cp ? '읽고 끝내지 않도록 — 앞으로 2주 처방' : '오늘부터 4주, 실행 가능한 것만',
+      ? sec('Ⅸ', '요약 및 제언', cp ? '읽고 끝내지 않도록 — 앞으로 2주 계획' : '오늘부터 4주, 실행 가능한 것만',
             needList + rxPlan + rx, K.C.ok)
       : '';
 
@@ -528,7 +528,7 @@ window.Assess = {
     const chg = (window.Progress && window.Progress.reportBlock) ? window.Progress.reportBlock(K) : '';
     const change = chg ? sec('Ⅰ', '지난 리포트 이후의 변화', '같은 도구로 다시 재서 비교', chg, K.C.ok) : '';
 
-    const overall = j.overall ? sec('0', '전반적 인상', '임상적 인상 · 진단 아님',
+    const overall = j.overall ? sec('0', '전반적 인상', '관찰 요약 · 참고용',
       `<p style="margin:0;font-size:0.9rem;line-height:1.85;">${K.md(j.overall)}</p>`) : '';
 
     const tail = `
@@ -540,13 +540,13 @@ window.Assess = {
         <p style="margin:0 0 0.5rem;font-size:0.74rem;font-weight:800;">한계 및 고지</p>
         <div style="font-size:0.69rem;opacity:0.75;line-height:1.75;">
           <p style="margin:0 0 0.45rem;">${K.md(j.limits || '')}</p>
-          <p style="margin:0 0 0.45rem;"><b>① 사용 도구</b> · PHQ-9(Kroenke, Spitzer &amp; Williams, 2001), GAD-7(Spitzer 외, 2006). 공개 도구이며 원문항·원절단점을 그대로 사용했습니다. 두 도구 모두 <b>선별(screening)</b> 도구로, 점수가 높다고 진단이 되지는 않습니다.</p>
+          <p style="margin:0 0 0.45rem;"><b>① 사용 도구</b> · PHQ-9(Kroenke, Spitzer &amp; Williams, 2001), GAD-7(Spitzer 외, 2006). 공개 도구이며 원문항·원절단점을 그대로 사용했습니다. 두 도구 모두 <b>선별(screening)</b> 도구로, 점수가 높다고 특정 질환이 있다는 뜻은 아닙니다.</p>
           <p style="margin:0 0 0.45rem;"><b>② 비표준 지표</b> · 욕구·적응 자원·탐색 지표는 표준화된 심리검사가 아니며 <b>규준(비교 집단) 자료가 없습니다</b>. 절대적 수준이 아니라 상대적 경향으로만 읽어야 합니다.</p>
           <p style="margin:0 0 0.45rem;"><b>③ 재현성</b> · 해석은 생성형 AI가 작성하므로 <b>같은 기록으로 다시 만들면 표현과 강조점이 달라질 수 있습니다</b>. 재현 가능한 수치는 표준검사 점수뿐입니다.</p>
           <p style="margin:0 0 0.45rem;"><b>④ 선택 편향</b> · 앱 기록은 <b>힘들 때 더 많이 남는 경향</b>이 있어 부정 정서가 과대 표집될 수 있습니다. 기분 추이는 앱 자체 5점 척도로 검증된 도구가 아닙니다.</p>
           <p style="margin:0 0 0.45rem;"><b>⑤ 시간 단위</b> · 표준검사는 특정 2주의 <b>단면</b>, 추이 차트는 3주 <b>종단</b>입니다. 나란히 볼 때 해석에 주의가 필요합니다.</p>
           <p style="margin:0 0 0.45rem;"><b>⑥ 자동 분류·가중치</b> · 인지왜곡 태그는 대화에서 AI가 부여한 것으로 <b>분류 정확도가 검증되지 않았습니다</b>. 데이터 충분도 가중치(대화 30 · 기간 25 · 감정 15 · 기록 15 · 검진 15)는 실무적 판단에 따른 값입니다.</p>
-          <p style="margin:0;">본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며 의학적 진단·처방을 대신하지 않습니다. 위기 시 자살예방상담 <b>109</b>, 정신건강상담 <b>1577-0199</b>.</p>
+          <p style="margin:0;">본 문서는 심리평가 보고서의 구조를 참고한 <b>참고용 자료</b>이며 의사의 진료를 대신하지 않습니다. 위기 시 자살예방상담 <b>109</b>, 정신건강상담 <b>1577-0199</b>.</p>
         </div>
       </div>`;
 
@@ -575,7 +575,7 @@ window.Assess = {
     el.innerHTML = `
       <div class="glass-card" style="padding: 0.95rem; border: 1.5px solid color-mix(in srgb, #c96a5a 25%, transparent); margin-bottom: 0.8rem;">
         <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.6;">
- <b>이것은 진단이 아니라 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
+ <b>이것은 나를 이해하기 위한 참고용 리포트예요.</b> 우울·불안은 표준 선별검사(PHQ-9·GAD-7) 점수를 쓰고,
           나머지는 기록 기반의 탐색 지표입니다. 마음이 걱정되면 전문가를 만나보세요. 위기 순간엔 <b>109</b>, <b>1577-0199</b>.
         </p>
       </div>
@@ -621,7 +621,7 @@ window.Assess = {
             <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">PHQ-9 <b style="color: ${sc.phq >= 10 ? '#c96a5a' : sc.phq >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.phq}/27</b> · ${sc.phqBand}</span>
             <span style="font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary);">GAD-7 <b style="color: ${sc.gad >= 10 ? '#c96a5a' : sc.gad >= 5 ? '#c9a227' : 'var(--accent-primary)'};">${sc.gad}/21</b> · ${sc.gadBand}</span>
           </div>
-          <p style="margin: 0.4rem 0 0; font-size: 0.66rem; color: var(--text-muted);">선별검사 점수 · 진단이 아니에요. 10점 이상이면 전문가와 상담을 권해요.</p>`;
+          <p style="margin: 0.4rem 0 0; font-size: 0.66rem; color: var(--text-muted);">선별검사 점수 · 참고용이에요. 10점 이상이면 전문가와 상담을 권해요.</p>`;
         })()}
         <div id="assess-quiz"></div>
       </div>
@@ -650,7 +650,7 @@ window.Assess = {
         <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">
  지금 만들어보기 — ${this.PRICE.toLocaleString()}캐시
         </button>
-        <p style="margin: 0.45rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불 · 참고용(진단 아님)</p>
+        <p style="margin: 0.45rem 0 0; font-size: 0.68rem; color: var(--text-muted); text-align: center;">유료 · 생성 실패 시 전액 환불 · 참고용 자료</p>
       </div>
 
       <div id="assess-result" style="margin-top: 0.9rem;"></div>
@@ -866,7 +866,7 @@ window.Assess = {
     const j = r.json || {};
     if (!await window.UI.confirm('이 리포트를 상담사에게 보낼까요?\n\n주의: 리포트에는 마음 상태·검사 점수 같은 민감한 정보가 담겨 있어요.\n보내면 상담사가 내용을 볼 수 있습니다.')) return;
     const lines = [
-      '[마인드 인사이드 AI 마음 리포트 · 참고용 — 진단 아님]',
+      '[마인드 인사이드 AI 마음 리포트 · 참고용 자료]',
       r.date,
       j.headline ? '— ' + String(j.headline).replace(/\*\*/g, '') : '',
       (j.standard || []).map(x => `${x.name}: ${x.score}/${x.max} (${x.band})`).join(' · '),
@@ -924,9 +924,9 @@ b{font-weight:800}
 @media print{body{padding:0;font-size:12.5pt} section{page-break-inside:avoid}}
 </style></head><body>
 <h1> 마인드 인사이드 AI 마음 리포트</h1>
-<p class="meta">${r.date} 생성 · 참고용 리포트 (의학적 진단 아님) · 위기 시 109 / 1577-0199</p>
+<p class="meta">${r.date} 생성 · 참고용 리포트 · 위기 시 109 / 1577-0199</p>
 <div class="box">${inner}</div>
-<p style="font-size:11px;color:#8a8073">이 리포트는 마인드 인사이드 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의료적 진단이나 처방을 대신할 수 없습니다.</p>
+<p style="font-size:11px;color:#8a8073">이 리포트는 마인드 인사이드 앱의 대화·기록 데이터를 AI가 분석한 참고 자료이며, 의사의 진료를 대신할 수 없습니다.</p>
 </body></html>`;
   },
 
@@ -940,7 +940,7 @@ b{font-weight:800}
     document.body.appendChild(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
-    if (window.App) window.App.showRecordToast('진단서 파일을 저장했어요 (브라우저로 열 수 있어요)');
+    if (window.App) window.App.showRecordToast('마음 리포트 파일을 저장했어요 (브라우저로 열 수 있어요)');
   },
 
   printPdf(id) {
@@ -1082,7 +1082,7 @@ b{font-weight:800}
     } else {
       this.confirmSheet({
         title: 'AI 마음 리포트를 만들까요?',
-        lede: '표준 검진과 기록 전체를 정밀 분석해 2주 케어플랜을 처방해요.',
+        lede: '표준 검진과 기록 전체를 정밀 분석해 2주 케어플랜을 짜 드려요.',
         items: [],
         price: this.PRICE.toLocaleString() + '캐시',
         okLabel: '만들기',
@@ -1149,6 +1149,7 @@ GAD-7(불안 선별, 표준): ${sc.gad}/21 — ${sc.gadBand}`
 [태도 — 매우 중요]
 · 이 보고서는 임상심리평가 보고서의 표준 구조(배경정보 → 평가도구 → 결과 → 행동관찰 → 요약 및 제언)를 따릅니다. 격식 있는 평가 보고서 문체로 쓰되, 읽는 사람은 내담자 본인이므로 어렵지 않게.
 · 진단 금지의 범위: 병명(우울증·ADHD·양극성장애 등)뿐 아니라 "~장애가 의심됩니다", "~증상입니다" 같은 진단 시사 표현도 금지. 오직 "선별검사 점수", "관찰된 패턴", "경향" 의 언어만 사용.
+· 단어 금지: "진단", "치료", "처방", "환자" 라는 단어 자체를 결과문에 쓰지 마세요. 대신 "살펴보기", "마음 돌봄", "상담", "계획", "전문가와 이야기해보기" 로 표현.
 · 그 범위 안에서는 겁내지 마세요. "~일 수 있습니다" 남발은 무가치합니다. 관찰된 패턴은 근거와 함께 명확히 서술하세요. 기록 속 실제 표현·사건·반복을 인용해 구체적으로.
 · needs/wellbeing/signals 는 0~100 으로 주되, 앱이 이를 '낮음/보통/높음' 3단계로만 표시합니다. 정밀한 숫자처럼 서술하지 말고 경향으로만 쓰세요.
 · limits 에는 반드시 다음을 포함하세요: 앱 기록은 힘들 때 더 많이 남는 선택 편향이 있다는 점, 표준검사는 2주 단면이고 추이 차트는 3주 종단이라 시간 단위가 다르다는 점.
@@ -1222,7 +1223,7 @@ ${m.total < 60 ? '(충분도 60% 미만 — overall 첫 문장에 데이터가 �
 [carePlan 규칙 — 리포트를 처방으로 잇는 부분]
 · technique 은 반드시 다음 중 하나를 글자 그대로 쓰세요. 새로 지어내지 마세요:
   행동활성화 / 인지재구성 / 행동실험 / 걱정 시간 정하기 / 점진적 노출 / 마음챙김 호흡 /
-  자기자비 훈련 / 수면 위생 / 문제해결치료 / 대인관계 기술 / 반대 행동 / 고통 감내
+  자기자비 훈련 / 수면 위생 / 문제해결 연습 / 대인관계 기술 / 반대 행동 / 고통 감내
 · actions 는 "노력하기·신경쓰기" 같은 다짐이 아니라 관찰 가능한 행동이어야 합니다.
   나쁜 예: "긍정적으로 생각하기" / 좋은 예: "출근길 지하철에서 어제 잘한 일 한 가지 메모하기"
 · 1주차는 이 사람이 지금 상태로도 반드시 해낼 수 있는 크기로. 실패 경험을 만들면 안 됩니다.

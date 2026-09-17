@@ -23,7 +23,7 @@ window.CarePlan = {
     '마음챙김 호흡':     '지금 이 순간의 감각으로 주의를 되돌리는 방법 (MBCT)',
     '자기자비 훈련':     '자신에게 친구에게 하듯 말해주는 연습 (CFT)',
     '수면 위생':         '잠드는 조건을 정돈해 수면을 회복하는 방법',
-    '문제해결치료':      '막연한 고민을 풀 수 있는 문제로 쪼개는 방법 (PST)',
+    '문제해결 연습':     '막연한 고민을 풀 수 있는 문제로 쪼개는 방법 (PST)',
     '대인관계 기술':     '내 몫을 말하고 상대의 몫을 남기는 연습 (DBT DEAR MAN)',
     '반대 행동':         '감정이 시키는 것과 반대로 움직여보는 방법 (DBT)',
     '고통 감내':         '지금 당장 못 바꿀 때 견디는 힘을 쓰는 방법 (DBT)'
@@ -92,7 +92,7 @@ window.CarePlan = {
     if (!r) return false;
     if (!this.adopt(r)) return false;
     if (window.Sfx) window.Sfx.hit('levelup');
-    if (window.App) window.App.showRecordToast('리포트가 처방한 2주 계획을 시작했어요', null);
+    if (window.App) window.App.showRecordToast('리포트가 추천한 2주 계획을 시작했어요', null);
     this.render();
     if (window.Missions) window.Missions.renderCard();
     return true;
@@ -177,7 +177,7 @@ window.CarePlan = {
 
     general: {
       focus: '무엇이 나를 흔드는지, 2주간 관찰해서 알아내기',
-      why: '아직 데이터가 적어 방향을 좁히기 어렵습니다. 이 2주는 치료라기보다 나를 관찰하는 기간입니다.',
+      why: '아직 데이터가 적어 방향을 좁히기 어렵습니다. 이 2주는 무언가를 고치기보다 나를 관찰하는 기간입니다.',
       weeks: [
         { week: 1, goal: '매일 마음을 한 번씩 기록해 흐름 만들기', technique: '마음챙김 호흡',
           actions: ['하루 한 번 체크인하기 (10초면 끝나요)', '잠들기 전 3분 호흡하기'],
@@ -269,7 +269,7 @@ window.CarePlan = {
     '마음챙김 호흡':    ['하루 한 번, 정해진 시간에 3분 호흡하기', '답답해질 때 앱의 마음 안정 열어보기'],
     '자기자비 훈련':    ['자책이 올라오면 "친구가 이랬으면 뭐라고 할까" 떠올리기', '잠들기 전 오늘 해낸 일 하나 적기'],
     '수면 위생':        ['잘 시간 30분 전에 휴대폰 내려놓기', '아침에 같은 시각에 일어나기'],
-    '문제해결치료':     ['막막한 고민 하나를 종이에 적고 세 조각으로 쪼개기', '그중 오늘 할 수 있는 한 조각만 해보기'],
+    '문제해결 연습':    ['막막한 고민 하나를 종이에 적고 세 조각으로 쪼개기', '그중 오늘 할 수 있는 한 조각만 해보기'],
     '대인관계 기술':    ['"지금은 어려워요" 를 소리 내어 세 번 연습하기', '실제 상황에서 한 번 써보기'],
     '반대 행동':        ['숨고 싶을 때 딱 한 사람에게 연락해보기', '그때 몸이 어땠는지 한 줄 적기'],
     '고통 감내':        ['견디기 힘들 때 찬물로 손목 씻기', '5분만 버텨보고 그 뒤에 어땠는지 적기']
@@ -495,7 +495,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
           </div>
           ${rp ? `
             <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">
-              내 리포트가 처방한 2주 계획이 준비돼 있어요.
+              내 리포트가 추천한 2주 계획이 준비돼 있어요.
             </p>
             <button class="btn-primary" style="width: 100%; padding: 0.7rem; font-size: 0.87rem;"
               onclick="window.CarePlan.adoptLatest()">내 계획으로 2주 시작하기</button>
@@ -604,7 +604,7 @@ ${p.ifThen.length ? '막혔을 때 약속: ' + p.ifThen.map(x => `"${x.if}" → 
                   background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
                   border: 1px solid color-mix(in srgb, var(--accent-primary) 32%, transparent);">
         <p style="margin: 0 0 0.5rem; font-size: 0.78rem; line-height: 1.55; color: var(--text-primary); font-weight: 700;">
-          새 리포트가 처방한 2주 계획이 준비됐어요</p>
+          새 리포트가 추천한 2주 계획이 준비됐어요</p>
         <div style="display: flex; gap: 0.35rem;">
           <button class="btn-primary" style="flex: 1 1 0%; padding: 0.5rem; font-size: 0.78rem;"
             onclick="window.CarePlan.adoptLatest()">새 계획으로 바꾸기</button>

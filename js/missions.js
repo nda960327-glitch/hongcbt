@@ -288,10 +288,10 @@ window.Missions = {
       const recent = (window.Storage.getMessages() || []).slice(-16).map(x => `${x.role === 'user' ? '내담자' : '상담사'}: ${x.text}`).join('\n');
       const res = await window.LLM._chatCompletion({
         model: window.LLM.MEMORY_MODEL,
-        messages: [{ role: 'user', content: `아래는 심리상담 앱 사용자의 기록입니다. 이 사람의 최근 고민에 직접 연결되는 '오늘 실행 가능한 행동 숙제' 하나를 처방하세요.
+        messages: [{ role: 'user', content: `아래는 심리상담 앱 사용자의 기록입니다. 이 사람의 최근 고민에 직접 연결되는 '오늘 실행 가능한 행동 숙제' 하나를 골라주세요.
 
 규칙:
-- 최근 대화의 실제 주제와 연결될 것 (행동활성화·노출·경계설정·관계 연습 등 치료적 근거 있게)
+- 최근 대화의 실제 주제와 연결될 것 (행동활성화·노출·경계설정·관계 연습 등 심리학적 근거 있게)
 - 오늘 안에 30분 이내로 끝나는 구체적 행동. 측정 가능하게 ("~에게 ~라고 말해보기", "~를 10분 하기")
 - 생각 숙제 말고 행동 숙제. 위험하거나 부담 큰 것 금지
 - 출력은 JSON 한 줄만: {"emoji": "이모지1개", "text": "숙제 문장 (40자 이내)"}
@@ -425,7 +425,7 @@ ${recent}` }],
     } else {
       log[k] = Date.now();
       if (window.Sfx) window.Sfx.hit('save');
-      if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '처방 미션 완료');
+      if (window.Farm && window.Farm.addWater) window.Farm.addWater(2, '추천 미션 완료');
       if (window.Storage.markDayActive) window.Storage.markDayActive();
       // 퀘스트의 "지금 마음 체크인하기"와 케어플랜의 "하루 한 번 체크인하기"는
       //  같은 활동이다 — 여기서 체크하면 케어플랜에도 얹는다 (연동)
