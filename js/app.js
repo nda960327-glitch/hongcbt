@@ -5155,18 +5155,16 @@ ${body}
     const saved = localStorage.getItem('cbt_theme');
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    // 사용자가 명시적으로 저장한 테마가 있으면 그것을, 없으면 시스템 테마를 따름
-    const themeToApply = saved ? saved : (prefersDark ? 'dark' : 'light');
+    // 기본은 밝은 화면 — 휴대폰이 야간 모드여도 앱 고유의 색을 지킨다 (2026-09).
+    //  예전에는 시스템 설정을 따라가서, 야간 모드 사용자는 처음부터 짙은 갈색 화면을 봤다.
+    //  어두운 화면은 설정에서 직접 고른 사람에게만 (saved === 'dark').
+    void prefersDark;
+    const themeToApply = saved === 'dark' ? 'dark' : 'light';
     this.applyTheme(themeToApply);
 
     // 시스템 테마 변경 감지
     if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-        // 사용자가 수동으로 테마를 고정하지 않은 경우에만 자동 전환
-        if (!localStorage.getItem('cbt_theme')) {
-          this.applyTheme(e.matches ? 'dark' : 'light');
-        }
-      });
+      // 휴대폰 야간 모드가 켜지고 꺼져도 따라가지 않는다 — 고른 테마만 유지한다.
     }
   },
   
@@ -5178,10 +5176,16 @@ ${body}
   },
   
   applyTheme(theme) {
+    const root = document.documentElement;
+    const meta = document.querySelector('meta[name="color-scheme"]');
     if (theme === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'only light';   // 강제 어둡게 칠하기 차단
+      if (meta) meta.setAttribute('content', 'only light');
     } else {
-      document.documentElement.removeAttribute('data-theme');
+      root.removeAttribute('data-theme');
+      root.style.colorScheme = 'dark';
+      if (meta) meta.setAttribute('content', 'dark');
     }
     const btn = document.getElementById('btn-theme');
     if (btn && window.Icons) {

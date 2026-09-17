@@ -27,8 +27,9 @@
 }
 
 /* ========== WARM DARK (default :root) ========== */
+/*  기본 팔레트는 어두운 쪽이지만, 실제 기본 화면은 밝은 쪽이다(index.html 머리의 스크립트가 먼저 박는다). */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
   --bg-primary: #211c17;
   --bg-secondary: #2b251f;
@@ -82,6 +83,7 @@
 
 /* ========== WARM LIGHT ========== */
 [data-theme="light"] {
+  color-scheme: only light;   /* 휴대폰 야간 모드여도 강제로 어둡게 칠하지 못하게 */
   --bg-primary: #faf5ee;
   --bg-secondary: #ffffff;
   --bg-tertiary: #f2e9dc;
