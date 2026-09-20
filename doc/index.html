@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>마인드 인사이드 닥터 — 담당의용</title>
+  <title>마인드 인사이드 닥터 — 소장용</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#1c3027">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -509,7 +509,7 @@
     #toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
   <style>
-    /* ── 의사 앱 전용 ── */
+    /* ── 소장 앱 전용 ── */
     .wk { display: flex; align-items: flex-end; gap: 4px; height: 84px; padding: 0.2rem 0 0; }
     .wk .b { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
     .wk .b i { display: block; width: 100%; max-width: 34px; border-radius: 6px 6px 2px 2px; background: var(--accent); opacity: 0.85; }
@@ -534,20 +534,20 @@
     <div class="logo">
       <div class="mark">닥</div>
       <h1>마인드 인사이드 닥터</h1>
-      <p>담당의 전용 · 연결 환자 · 상담 기록 · 주간 상태 · 피드백</p>
+      <p>소장 전용 · 연결 내담자 · 상담 기록 · 주간 상태 · 피드백</p>
     </div>
     <div class="card" id="login-email">
-      <p style="font-weight: 700; text-align: center;">담당의 로그인</p>
+      <p style="font-weight: 700; text-align: center;">소장 로그인</p>
       <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
         운영팀에 등록한 <b>이메일</b>을 넣으면 로그인 링크를 보내드려요.<br>링크는 15분 안에 한 번만 쓸 수 있고, 한 번 들어오면 이 기기에서 30일 동안 열립니다.</p>
       <input id="email" type="email" autocomplete="email" placeholder="doctor@hospital.kr" inputmode="email">
       <p id="err" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
       <p id="sent" class="muted" style="color: var(--accent); display: none; margin-top: 0.5rem; text-align: center; font-weight: 700;"></p>
       <button class="btn" id="email-btn" style="margin-top: 0.7rem;">로그인 링크 받기</button>
-      <button class="btn ghost sm" id="to-code" style="margin-top: 0.5rem;">병원 코드로 들어가기</button>
+      <button class="btn ghost sm" id="to-code" style="margin-top: 0.5rem;">상담소 코드로 들어가기</button>
     </div>
     <div class="card" id="login-code" hidden>
-      <p style="font-weight: 700; text-align: center;">병원 코드로 로그인</p>
+      <p style="font-weight: 700; text-align: center;">상담소 코드로 로그인</p>
       <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
         운영팀이 드린 <b>H-XXXX-XXXX</b> 코드예요. 이메일이 등록돼 있다면 링크 로그인이 더 안전합니다.</p>
       <input id="code" type="text" autocomplete="off" autocapitalize="characters" placeholder="H-XXXX-XXXX" style="letter-spacing: 0.08em; text-transform: uppercase;">
@@ -556,7 +556,7 @@
       <button class="btn ghost sm" id="to-email" style="margin-top: 0.5rem;">이메일 링크로 들어가기</button>
     </div>
     <p class="muted" style="text-align: center; padding: 0 0.5rem;">
-      병원 등록·이메일 변경은 운영팀에 알려주세요 — <b>nda960327@gmail.com</b><br>
+      상담소 등록·이메일 변경은 운영팀에 알려주세요 — <b>nda960327@gmail.com</b><br>
       상담사이신가요? <a href="https://pro.neurumind.com" style="color: var(--accent); font-weight: 700;">마인드 인사이드 프로</a>로 가세요.</p>
   </div>
 

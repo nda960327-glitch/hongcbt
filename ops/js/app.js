@@ -10,7 +10,7 @@
 //   좁은 화면(<768px)에서만 하단 탭바로 바뀐다.
 //
 //  서버는 하나도 새로 만들지 않는다 — 기존 /api/* 운영 엔드포인트를 그대로 쓴다.
-//  (유일한 예외: 진단 로그 열람용 GET /api/admin/diag)
+//  (유일한 예외: 점검 로그 열람용 GET /api/admin/diag)
 // ============================================================================
 
 // /api 를 어디로 보낼지 — 같은 출처에 없으면 Cloudflare Worker 로.
@@ -107,7 +107,7 @@ let BCTEXT = '';
 
 // ── 잔손 ─────────────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
-// 서버에서 온 문자열은 전부 이걸 통과한다. 이름·병원·반려사유·진단 메시지 모두
+// 서버에서 온 문자열은 전부 이걸 통과한다. 이름·상담소·반려사유·진단 메시지 모두
 //  사람이 입력한 값이라 그대로 innerHTML 에 넣으면 스크립트가 된다.
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -131,7 +131,7 @@ function fmtDT(ts) {
   const d = new Date(ts);
   return `${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
 }
-// '3분 전' — 진단 로그는 절대 시각보다 '방금인가'가 먼저 궁금하다
+// '3분 전' — 점검 로그는 절대 시각보다 '방금인가'가 먼저 궁금하다
 function ago(ts) {
   const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
   if (s < 60) return s + '초 전';
@@ -264,10 +264,10 @@ const TITLES = {
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
   feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
-  hospitals: ['병원 관리', '담당 병원 등록 · 병원 코드 발급 · 연결 환자 수'],
+  hospitals: ['상담소 관리', '담당 상담소 등록 · 상담소 코드 발급 · 연결 내담자 수'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
-  diag: ['진단 로그', '실기기 통화 단계 추적'],
+  diag: ['점검 로그', '실기기 통화 단계 추적'],
   settings: ['설정', '접속 · 메일 · 공지 · 기록 정리']
 };
 
@@ -490,9 +490,9 @@ function viewFeed() {
       : '<div class="card"><div class="empty"><b>아직 올린 콘텐츠가 없어요</b>＋ 새 콘텐츠로 첫 영상을 올려보세요.</div></div>'}`;
 }
 
-// ── 병원 관리 ──────────────────────────────────────────────────────────
-//  병원 코드(H-XXXX-XXXX)는 진료실에서 환자에게 알려주는 값이자, 의사가 프로 앱에
-//  들어오는 열쇠다. 코드 하나가 그 병원 환자 전원의 상담 기록을 여니 상담사 코드처럼 다룬다.
+// ── 상담소 관리 ──────────────────────────────────────────────────────────
+//  상담소 코드(H-XXXX-XXXX)는 상담소에서 내담자에게 알려주는 값이자, 의사가 프로 앱에
+//  들어오는 열쇠다. 코드 하나가 그 상담소 내담자 전원의 상담 기록을 여니 상담사 코드처럼 다룬다.
 let HOSP_FORM = false, HOSP_EDIT = null;
 async function loadHospitals() {
   const r = await adminGet('/api/admin/hospitals');
@@ -506,14 +506,14 @@ function viewHospitals() {
   const editing = HOSP_EDIT ? D.hospitals.find(h => h.id === HOSP_EDIT) : null;
   const form = (h) => `
     <div class="card" id="hosp-form">
-      <div class="sec-title">${h ? '병원 정보 고치기' : '병원 등록'}<span class="right"><button class="btn ghost sm" data-act="hosp-cancel">접기</button></span></div>
-      <label class="muted">병원 이름 <input id="hp-name" type="text" maxlength="60" value="${esc(h ? h.name : '')}" placeholder="예: 마음편한 정신건강의학과의원"></label>
+      <div class="sec-title">${h ? '상담소 정보 고치기' : '상담소 등록'}<span class="right"><button class="btn ghost sm" data-act="hosp-cancel">접기</button></span></div>
+      <label class="muted">상담소 이름 <input id="hp-name" type="text" maxlength="60" value="${esc(h ? h.name : '')}" placeholder="예: 마음편한 심리상담센터"></label>
       <div class="row wrap" style="gap: 0.5rem;">
-        <label class="muted" style="flex: 1 1 160px;">진료과 <input id="hp-dept" type="text" maxlength="40" value="${esc(h ? h.dept : '')}" placeholder="정신건강의학과"></label>
-        <label class="muted" style="flex: 1 1 160px;">담당의 <input id="hp-doctor" type="text" maxlength="40" value="${esc(h ? h.doctor : '')}" placeholder="김OO"></label>
+        <label class="muted" style="flex: 1 1 160px;">전문 분야 <input id="hp-dept" type="text" maxlength="40" value="${esc(h ? h.dept : '')}" placeholder="심리상담·심리치료"></label>
+        <label class="muted" style="flex: 1 1 160px;">소장 <input id="hp-doctor" type="text" maxlength="40" value="${esc(h ? h.doctor : '')}" placeholder="김OO"></label>
       </div>
-      <label class="muted">담당의 이메일 <input id="hp-email" type="email" maxlength="160" value="${esc(h ? h.email : '')}" placeholder="doctor@hospital.kr" autocomplete="off"></label>
-      <p class="muted" style="margin: 0.2rem 0 0;">이 주소로 <b>의사 앱 로그인 링크</b>가 가고, 상담사가 '긴급'을 표시하면 <b>즉시 알림 메일</b>이 갑니다. 비워 두면 코드 로그인만 되고 긴급 알림은 가지 않아요.</p>
+      <label class="muted">소장 이메일 <input id="hp-email" type="email" maxlength="160" value="${esc(h ? h.email : '')}" placeholder="doctor@hospital.kr" autocomplete="off"></label>
+      <p class="muted" style="margin: 0.2rem 0 0;">이 주소로 <b>소장 앱 로그인 링크</b>가 가고, 상담사가 '긴급'을 표시하면 <b>즉시 알림 메일</b>이 갑니다. 비워 두면 코드 로그인만 되고 긴급 알림은 가지 않아요.</p>
       <div class="row" style="margin-top: 0.5rem;"><span class="grow"></span>
         <button class="btn" data-act="hosp-save" data-id="${esc(h ? h.id : '')}">${h ? '저장' : '등록하고 코드 받기'}</button></div>
     </div>`;
@@ -522,9 +522,9 @@ function viewHospitals() {
       <div class="row wrap" style="gap: 0.6rem;">
         <div class="grow" style="min-width: 0;">
           <b style="font-size: 0.92rem;">${esc(h.name)}</b>${h.active ? '' : ' <span class="chip">정지</span>'}
-          <div class="muted">${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '진료과·담당의 미입력')} · ${fmtDate(h.created)} 등록</div>
+          <div class="muted">${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '전문 분야·소장 미입력')} · ${fmtDate(h.created)} 등록</div>
           <div class="muted">${h.email ? esc(h.email) + (h.lastSeen ? ' · 마지막 접속 ' + fmtDate(h.lastSeen) : ' · 아직 접속 안 함') : '<span style="color: var(--danger);">이메일 없음 — 긴급 알림이 가지 않아요</span>'}</div>
-          <div style="margin-top: 0.3rem; font-size: 0.86rem;">연결 환자 <b>${h.patients}</b>명 · 보낸 피드백 <b>${h.feedbacks}</b>건</div>
+          <div style="margin-top: 0.3rem; font-size: 0.86rem;">연결 내담자 <b>${h.patients}</b>명 · 보낸 피드백 <b>${h.feedbacks}</b>건</div>
           <div style="margin-top: 0.3rem; font-family: ui-monospace, monospace; font-size: 0.9rem; letter-spacing: 0.06em;">
             ${SHOWCODE[h.id] ? esc(h.code) : '••••-••••-••••'}
             <button class="btn ghost sm" data-act="hosp-peek" data-id="${esc(h.id)}">${SHOWCODE[h.id] ? '숨기기' : '코드 보기'}</button>
@@ -540,20 +540,20 @@ function viewHospitals() {
       </div>
     </div>`;
   return `
-    <div class="sec-title">담당 병원
-      <span class="right"><button class="btn sm" data-act="hosp-new">＋ 병원 등록</button></span></div>
+    <div class="sec-title">담당 상담소
+      <span class="right"><button class="btn sm" data-act="hosp-new">＋ 상담소 등록</button></span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      등록하면 <b>H-XXXX-XXXX</b> 병원 코드가 나옵니다. 의사는 <b>의사 앱(doc.neurumind.com)</b>에 이메일 로그인 링크(또는 이 코드)로 들어와 연결된 환자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
-      환자는 앱 → 마이 → 담당 병원 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
+      등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 의사는 <b>소장 앱(doc.neurumind.com)</b>에 이메일 로그인 링크(또는 이 코드)로 들어와 연결된 내담자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
+      내담자는 앱 → 마이 → 담당 상담소 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
     ${(HOSP_FORM || editing) ? form(editing) : ''}
     ${D.hospitals.length ? D.hospitals.map(card).join('')
-      : '<div class="card"><div class="empty"><b>등록된 병원이 없어요</b>＋ 병원 등록으로 첫 병원을 추가하세요.</div></div>'}`;
+      : '<div class="card"><div class="empty"><b>등록된 상담소이 없어요</b>＋ 상담소 등록으로 첫 상담소을 추가하세요.</div></div>'}`;
 }
 
 async function hospSave(id, btn) {
   const v = k => { const el = $(k); return el ? el.value.trim() : ''; };
   const name = v('hp-name');
-  if (!name) { alertBox('이름이 필요해요', '병원 이름을 적어주세요.'); return; }
+  if (!name) { alertBox('이름이 필요해요', '상담소 이름을 적어주세요.'); return; }
   if (btn) btn.disabled = true;
   const res = id
     ? await adminPost('/api/admin/hospitals/update', { id, name, dept: v('hp-dept'), doctor: v('hp-doctor'), email: v('hp-email') })
@@ -561,7 +561,7 @@ async function hospSave(id, btn) {
   if (btn) btn.disabled = false;
   if (!res || !res.ok) { alertBox('저장하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   HOSP_FORM = false; HOSP_EDIT = null;
-  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('병원을 등록했어요', `병원 코드: ${res.code}\n\n이 코드를 병원에 전달하세요. 환자는 앱에서 이 코드로 연결하고, 의사는 doc.neurumind.com 에서 이메일 링크(또는 이 코드)로 들어옵니다.`); }
+  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('상담소을 등록했어요', `상담소 코드: ${res.code}\n\n이 코드를 상담소에 전달하세요. 내담자는 앱에서 이 코드로 연결하고, 소장은 doc.neurumind.com 에서 이메일 링크(또는 이 코드)로 들어옵니다.`); }
   else toast('저장했어요');
   loadHospitals();
 }
@@ -569,7 +569,7 @@ async function hospSave(id, btn) {
 async function hospRotate(id) {
   const h = (D.hospitals || []).find(x => x.id === id);
   if (!h) return;
-  const ok = await confirmBox({ title: '병원 코드를 재발급할까요?', body: `${h.name}\n\n지금 코드는 즉시 무효가 되고, 의사는 새 코드로 다시 로그인해야 합니다. 이미 연결된 환자는 그대로 유지돼요.`, okLabel: '재발급', danger: true });
+  const ok = await confirmBox({ title: '상담소 코드를 재발급할까요?', body: `${h.name}\n\n지금 코드는 즉시 무효가 되고, 의사는 새 코드로 다시 로그인해야 합니다. 이미 연결된 내담자는 그대로 유지돼요.`, okLabel: '재발급', danger: true });
   if (!ok) return;
   const res = await adminPost('/api/admin/hospitals/rotate', { id });
   if (!res || !res.ok) { alertBox('재발급하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
@@ -639,7 +639,7 @@ async function loadPayments() {
   if (TAB === 'payments') render();
 }
 
-// 진단 화면은 통화 사고를 '지금' 보는 화면이다. 눈을 떼도 갱신돼야 한다.
+// 점검 화면은 통화 사고를 '지금' 보는 화면이다. 눈을 떼도 갱신돼야 한다.
 let diagTimer = null;
 function startDiagTimer() {
   stopDiagTimer();
@@ -649,7 +649,7 @@ function startDiagTimer() {
 }
 function stopDiagTimer() { if (diagTimer) { clearInterval(diagTimer); diagTimer = null; } }
 
-// 통화 관제는 진단보다 더 급하다 — 지금 붙어 있는 통화를 보는 화면이라
+// 통화 관제는 점검보다 더 급하다 — 지금 붙어 있는 통화를 보는 화면이라
 //  30초는 이미 낡은 숫자다. 15초로 둔다.
 let callTimer = null;
 function startCallTimer() {
@@ -802,7 +802,7 @@ function chartsSection() {
 }
 
 // ── [폐지] 상담사 구독 — 2026-09 부터 받지 않는다 ─────────────────
-//  플랫폼 수익은 상담료 수수료다: 앱 채널은 상담사 구간제(70%/55%)와 PG 3% 를 뺀 나머지, 병원 채널 7%.
+//  플랫폼 수익은 상담료 수수료다: 앱 채널은 상담사 구간제(70%/55%)와 PG 3% 를 뺀 나머지, 상담소 채널 7%.
 //  아래 계산은 지난 구독 기록이 남은 배포를 위해 두되 화면에는 쓰지 않는다.───────────────────
 //  2026-08-18 개편: 상담료 분배는 없앴다. 플랫폼 수익은 상담사 구독료 하나뿐이다.
 //  그래서 '지금 몇 명이 구독 중인가'가 곧 이 서비스의 매출이다.
@@ -861,7 +861,7 @@ function viewDash() {
       ${sb ? `<div class="sb">${sb}</div>` : ''}
     </div>`;
 
-  // 진단 요약 — 최근 24시간 실패. '통화가 지금 깨지고 있는가'가 대시보드의 첫 질문이다.
+  // 점검 요약 — 최근 24시간 실패. '통화가 지금 깨지고 있는가'가 대시보드의 첫 질문이다.
   const fails = (D.diag || []).filter(x => /fail/.test(x.stage || '') && Date.now() - x.ts < 86400000).length;
   const liveCalls = (D.calls && D.calls.items) ? D.calls.items.filter(x => x.live).length : 0;
 
@@ -918,8 +918,8 @@ function viewDash() {
       <p class="muted" style="margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.6rem;">
         <b>플랫폼 수익 = 상담료 수수료</b> — 상담사 구독(월 99,000원)은 2026-09 부터 받지 않습니다.<br>
         <b>앱으로 온 내담자</b> — 상담사 70%(6만원 넘는 부분 55%) · 결제 수수료 3% · 나머지 마인드 인사이드. 앱이 상담사에게 직접 지급합니다.<br>
-        <b>병원을 통해 온 내담자</b> — 병원 90% · 마인드 인사이드 7% · 결제 수수료 3%.
-        앱은 <b>병원에만</b> 지급하고, 상담사에게는 병원이 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
+        <b>상담소을 통해 온 내담자</b> — 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%.
+        앱은 <b>상담소에만</b> 지급하고, 상담사에게는 상담소이 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
         <b>바로상담(캐시·30초당)</b> — 요금 = 예약 상담료 ÷60 × 1.25 (즉시성 프리미엄). 배분율은 예약 상담과 같습니다.<br>
         <b>AI 구독·캐시(인앱결제)</b> — 구글 수수료 15% 선차감 후 순액 기준. 구독 9,900원 → 순입금 8,415원(전액 플랫폼, API 원가 차감).</p>
     </div>
@@ -942,7 +942,7 @@ function viewDash() {
         <button class="btn ${liveCalls ? '' : 'ghost'} sm" data-act="goto" data-tab="calls">통화 보기</button>
       </div>
       <div class="listrow">
-        <div class="grow"><b style="font-size:0.9rem;">통화 진단</b>
+        <div class="grow"><b style="font-size:0.9rem;">통화 점검</b>
           <div class="muted">${D.diag === undefined ? '아직 불러오지 않음' : (fails ? `최근 24시간 실패 ${fails}건` : '최근 24시간 실패 없음')}</div></div>
         <button class="btn ${fails ? 'warnline' : 'ghost'} sm" data-act="goto" data-tab="diag">로그 보기</button>
       </div>
@@ -1120,12 +1120,12 @@ function viewCounselors() {
     <div class="card" style="margin-bottom: 0.7rem;">
       <b style="font-size: 0.9rem;">정산 구조</b>
       <div class="muted">상담사 구독(월 99,000원)은 <b>2026-09 부터 받지 않습니다</b>. 플랫폼 수익은 상담료 수수료입니다.<br>
-        앱으로 온 내담자: 상담사 70%(6만원 넘는 부분은 55%) · 결제 수수료 3% · 나머지 앱 &nbsp;|&nbsp; 병원을 통해 온 내담자: 병원 90% · 앱 7% · 결제 수수료 3%<br>
+        앱으로 온 내담자: 상담사 70%(6만원 넘는 부분은 55%) · 결제 수수료 3% · 나머지 앱 &nbsp;|&nbsp; 상담소을 통해 온 내담자: 상담소 90% · 앱 7% · 결제 수수료 3%<br>
         승인된 상담사는 구독과 무관하게 매칭 목록에 노출됩니다.</div>
     </div>
 
     <div class="row" style="margin-bottom: 0.7rem;">
-      <input id="cs-q" type="text" placeholder="이름 · 병원 · 이메일 · 연락처 · 주소 · ID 로 찾기" autocomplete="off">
+      <input id="cs-q" type="text" placeholder="이름 · 상담소 · 이메일 · 연락처 · 주소 · ID 로 찾기" autocomplete="off">
     </div>
     ${list.length ? list.map(row).join('')
       : `<div class="card"><div class="empty"><b>${q ? '검색 결과가 없어요' : '등록된 상담사가 없어요'}</b>${q ? '다른 말로 찾아보세요.' : '입점 심사에서 승인하면 여기에 나타납니다.'}</div></div>`}
@@ -1140,15 +1140,15 @@ function viewCounselors() {
         <input id="new-name" type="text" placeholder="이름" style="flex: 1 1 140px; width: auto;" autocomplete="off">
       </div>
       <div class="row wrap" style="gap: 0.5rem; margin-top: 0.5rem;">
-        <input id="new-hospital" type="text" placeholder="소속 병원·기관" style="flex: 1 1 180px; width: auto;" autocomplete="off">
+        <input id="new-hospital" type="text" placeholder="소속 상담소·기관" style="flex: 1 1 180px; width: auto;" autocomplete="off">
         <input id="new-email" type="email" placeholder="이메일 (선택)" style="flex: 1 1 180px; width: auto;" autocomplete="off">
       </div>
       <button class="btn" style="margin-top: 0.7rem;" data-act="add-cs">＋ 등록하고 코드 발급</button>
     </div>`;
 }
 
-// 병원을 통해 등록한 내담자의 상담 — 앱은 병원에 보내고, 상담사에게는 병원이 보낸다.
-//  앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조). 그래서 줄을 갈라 둔다.
+// 상담소을 통해 등록한 내담자의 상담 — 앱은 상담소에 보내고, 상담사에게는 상담소이 보낸다.
+//  앱이 상담사에게 직접 보내면 상담소 쪽에서 내담자 유인 소지가 생긴다(의료법 제27조). 그래서 줄을 갈라 둔다.
 function hospitalSettleHtml() {
   const rows = D.settleHosp || [];
   const sums = D.settleSums || { hospital: 0, platform: 0 };
@@ -1159,12 +1159,12 @@ function hospitalSettleHtml() {
       <div class="sec-title">이번 정산의 플랫폼 수익
         <span class="right muted">앱 몫 합계 ${won(sums.platform)}캐시</span></div>
       <p class="muted" style="margin: 0;">
-        병원 채널은 <b>병원 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 70(6만원 넘는 부분 55) · 결제 수수료 3 · 나머지 앱</b> 입니다.</p>
+        상담소 채널은 <b>상담소 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 70(6만원 넘는 부분 55) · 결제 수수료 3 · 나머지 앱</b> 입니다.</p>
     </div>
-    <div class="sec-title" style="margin-top: 1.2rem;">병원에 지급
-      <span class="right muted">${rows.length}건 · 병원 몫 합계 ${won(sums.hospital)}캐시</span></div>
+    <div class="sec-title" style="margin-top: 1.2rem;">상담소에 지급
+      <span class="right muted">${rows.length}건 · 상담소 몫 합계 ${won(sums.hospital)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      병원을 통해 등록한 내담자의 상담입니다. <b>앱은 병원에만 지급하고, 상담사에게는 병원이 지급합니다.</b>
+      상담소을 통해 등록한 내담자의 상담입니다. <b>앱은 상담소에만 지급하고, 상담사에게는 상담소이 지급합니다.</b>
       여기 있는 건을 상담사에게 직접 보내면 안 됩니다.</p>
     ${rows.length ? Object.entries(by).map(([hid, list]) => `
     <div class="card">
@@ -1181,7 +1181,7 @@ function hospitalSettleHtml() {
           <b style="min-width: 74px; text-align: right;">${won(x.payout.hospital)}</b>
         </label>`).join('')}
     </div>`).join('')
-      : '<div class="card"><div class="empty"><b>병원에 지급할 건이 없어요</b>병원 코드로 연결된 내담자의 상담이 생기면 여기에 쌓입니다.</div></div>'}`;
+      : '<div class="card"><div class="empty"><b>상담소에 지급할 건이 없어요</b>상담소 코드로 연결된 내담자의 상담이 생기면 여기에 쌓입니다.</div></div>'}`;
 }
 
 // ── 원천징수 ─────────────────────────────────────────────────────────
@@ -1318,7 +1318,7 @@ function viewSettle() {
       <span class="right muted">${D.settle.length}건 · 상담사 몫 합계 ${won(total)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
       상담사가 완료 처리하고 내담자가 확인한(또는 3일이 지나 자동 확정된) 상담 중 <b>회기 기록을 남긴 건</b>만 올라옵니다.<br>
-      여기는 <b>앱 채널</b>(상담사 70%, 6만원 넘는 부분 55%)입니다. 병원 채널은 아래 '병원에 지급'에서 따로 처리합니다.</p>
+      여기는 <b>앱 채널</b>(상담사 70%, 6만원 넘는 부분 55%)입니다. 상담소 채널은 아래 '상담소에 지급'에서 따로 처리합니다.</p>
     ${D.settle.length ? Object.entries(by).map(group).join('')
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
     ${hospitalSettleHtml()}
@@ -1357,7 +1357,7 @@ function viewSettle() {
     </div>`;
 }
 
-// ── ⑤ 진단 로그 ──────────────────────────────────────────────────────
+// ── ⑤ 점검 로그 ──────────────────────────────────────────────────────
 //  통화가 실기기에서 어느 단계에 죽는지 보는 화면. 표가 읽기 좋아야 한다.
 function stageClass(st) {
   const s = String(st || '');
@@ -1391,7 +1391,7 @@ function viewDiag() {
   if (D.diag === undefined) return head() + loading;
   if (!D.diag) return head() + `
     <div class="card"><div class="empty">
-      <b>진단 로그를 불러오지 못했어요</b>
+      <b>점검 로그를 불러오지 못했어요</b>
       워커에 <code>GET /api/admin/diag</code> 가 배포되어 있는지 확인해주세요.<br>
       (아직 배포 전이면 기록은 쌓이고 있으니 배포 후 바로 보입니다.)
     </div></div>`;
@@ -2307,7 +2307,7 @@ function logout(keepCode) {
 }
 
 // ── 이벤트 ───────────────────────────────────────────────────────────
-//  onclick 을 HTML 문자열에 심지 않는다. 이름·병원 같은 서버 문자열이
+//  onclick 을 HTML 문자열에 심지 않는다. 이름·상담소 같은 서버 문자열이
 //  그 안에 들어가면 따옴표 하나로 스크립트가 된다.
 document.addEventListener('click', e => {
   const nav = e.target.closest('[data-tab]');
@@ -2357,7 +2357,7 @@ document.addEventListener('click', e => {
   if (act === 'hosp-cancel') { HOSP_EDIT = null; HOSP_FORM = false; render(); return; }
   if (act === 'hosp-save') { hospSave(id, el); return; }
   if (act === 'hosp-peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
-  if (act === 'hosp-copy') { const h = (D.hospitals || []).find(x => x.id === id); if (h) copy(h.code, '병원 코드를 복사했어요'); return; }
+  if (act === 'hosp-copy') { const h = (D.hospitals || []).find(x => x.id === id); if (h) copy(h.code, '상담소 코드를 복사했어요'); return; }
   if (act === 'hosp-rotate') { hospRotate(id); return; }
   if (act === 'hosp-active') { hospActive(id, el.dataset.on === '1'); return; }
 
@@ -2394,7 +2394,7 @@ document.addEventListener('click', e => {
   if (act === 'call-auto') { CALLAUTO = el.checked; toast(CALLAUTO ? '15초마다 자동 새로고침합니다' : '자동 새로고침을 껐어요'); return; }
   if (act === 'rv-del') { delReview(id); return; }
 
-  if (act === 'diag-now') { loadDiag(); toast('진단 로그를 새로 받았어요'); return; }
+  if (act === 'diag-now') { loadDiag(); toast('점검 로그를 새로 받았어요'); return; }
   if (act === 'diag-fails') { DIAGQ.stage = '__fail__'; render(); return; }
   if (act === 'diag-clearf') { DIAGQ = { stage: '', q: '' }; render(); return; }
   if (act === 'diag-auto') { DIAGAUTO = el.checked; toast(DIAGAUTO ? '30초마다 자동 새로고침합니다' : '자동 새로고침을 껐어요'); return; }
@@ -2450,7 +2450,7 @@ if ('serviceWorker' in navigator) {
 
 // ── 주변 정신과 (앱 홈 "대면상담 및 진료") ───────────────────────────────
 //  앱은 D1 에 쌓인 전국 정신건강의학과를 거리순으로 보여준다 (데이터는 국립중앙의료원 공공데이터, 지도는 네이버 링크). 여기서 하는 건 둘이다.
-//   1) 제휴 병원 등록 — 배지가 붙고 맨 위에 뜬다. 담당 병원(hospitals)과 이으면 '앱 연동'.
+//   1) 제휴 병원 등록 — 배지가 붙고 맨 위에 뜬다. 담당 상담소(hospitals)과 이으면 '앱 연동'.
 //   2) 전국 수집 — 국립중앙의료원 병·의원 찾기에서 진료과목 D004(정신건강의학과) 전체를 페이지로 받아 D1 에 쌓는다.
 let CL_FORM = false, CL_EDIT = null, CL_CANDS = null, CL_PICK = null, CL_ERR = '', CL_SYNC = { running: false };
 async function loadClinics() {
@@ -2494,7 +2494,7 @@ function viewClinics() {
       <label class="muted">홈페이지·지도 링크 <input id="cl-url" type="text" maxlength="200" value="${esc(p.url || '')}"></label>
       <label class="muted">한 줄 소개 (앱 카드에 보임) <input id="cl-note" type="text" maxlength="200" value="${esc(p.note || '')}" placeholder="예: 직장인 야간 진료 (화·목 21시까지) · 초진 당일 예약 가능"></label>
       <label class="muted">태그 (쉼표) <input id="cl-tags" type="text" maxlength="120" value="${esc((p.tags || []).join(', '))}" placeholder="야간진료, 주차, 여의사, 청소년"></label>
-      <label class="muted">담당 병원과 연결 (병원 관리에 등록된 곳) <select id="cl-hosp"><option value="">연결 안 함</option>${hospOpts}</select></label>
+      <label class="muted">담당 상담소와 연결 (상담소 관리에 등록된 곳) <select id="cl-hosp"><option value="">연결 안 함</option>${hospOpts}</select></label>
       <label class="muted" style="display: flex; gap: 0.4rem; align-items: center;"><input id="cl-active" type="checkbox" ${p.active === false ? '' : 'checked'} style="width: auto;"> 앱에 노출</label>
       <input id="cl-kakao" type="hidden" value="${esc(p.kakaoId || '')}">
       <div class="row" style="margin-top: 0.5rem;"><span class="grow"></span>

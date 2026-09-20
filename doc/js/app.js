@@ -1,14 +1,14 @@
 // ============================================================================
-//  마인드 인사이드 닥터 — 담당의 전용 앱 (doc.neurumind.com)
+//  마인드 인사이드 닥터 — 소장 전용 앱 (doc.neurumind.com)
 //
-//  정신과에서 앱을 권한 환자가 병원 코드로 연결되면, 담당의는 여기서
-//   · 연결된 환자 목록 (긴급 표시 먼저)
-//   · 환자별 타임라인: 상담사 회기 기록 · 낸 숙제 · 내 피드백 · 예약
-//   · 주간 상태 요약 (환자가 동의한 숫자만: 기분 평균·체크인·미션·밤 일기·기록·연속일)
-//   · 상담사·환자에게 피드백 보내기
+//  정신과에서 앱을 권한 내담자가 상담소 코드로 연결되면, 소장는 여기서
+//   · 연결된 내담자 목록 (긴급 표시 먼저)
+//   · 내담자별 타임라인: 상담사 회기 기록 · 낸 숙제 · 내 피드백 · 예약
+//   · 주간 상태 요약 (내담자가 동의한 숫자만: 기분 평균·체크인·미션·밤 일기·기록·연속일)
+//   · 상담사·내담자에게 피드백 보내기
 //  를 본다.
 //
-//  로그인: 이메일 매직링크(상담사와 같은 방식) 또는 병원 코드(H-XXXX-XXXX).
+//  로그인: 이메일 매직링크(상담사와 같은 방식) 또는 상담소 코드(H-XXXX-XXXX).
 //  서버는 상담사 앱과 같은 Worker 를 쓴다 (/api/hospital/…). 원본 대화는 절대 오지 않는다.
 // ============================================================================
 const API_BASE = 'https://cbt-proxy.hongcbt.workers.dev';
@@ -42,7 +42,7 @@ const won = n => (Math.round(Number(n) || 0)).toLocaleString('ko-KR');
 const empty = (title, body) => `<div class="empty"><b>${title}</b>${body || ''}</div>`;
 const busy = el => !!(el && document.activeElement && el.contains(document.activeElement) && /INPUT|TEXTAREA/.test(document.activeElement.tagName));
 
-const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 의사 확인 필요' };
+const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 소장 확인 필요' };
 const RISK_CHIP = { none: '', watch: '<span class="chip gold">주의</span>', urgent: '<span class="chip bad">긴급</span>' };
 const KIND_LABEL = { booking: '예약 상담', call: '전화 상담', chat: '채팅 상담' };
 
@@ -101,13 +101,13 @@ async function verifyLink(t) {
 async function loginWithCode(v) {
   v = (v || ($('code').value || '')).trim().toUpperCase();
   showErr('err2', '');
-  if (!/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/.test(v)) { showErr('err2', 'H-XXXX-XXXX 형식의 병원 코드를 넣어주세요.'); return; }
+  if (!/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/.test(v)) { showErr('err2', 'H-XXXX-XXXX 형식의 상담소 코드를 넣어주세요.'); return; }
   if (!v.includes('-')) v = 'H-' + v.slice(1, 5) + '-' + v.slice(5);
   const btn = $('code-btn');
   btn.disabled = true; btn.textContent = '확인 중…';
   const hd = await getJson('/api/hospital/me?hcode=' + encodeURIComponent(v));
   btn.disabled = false; btn.textContent = '시작하기';
-  if (!hd || !hd.ok) { showErr('err2', '코드가 올바르지 않거나 정지된 병원이에요.'); return; }
+  if (!hd || !hd.ok) { showErr('err2', '코드가 올바르지 않거나 정지된 상담소이에요.'); return; }
   HC = v; HS = '';
   localStorage.setItem('doc_code', HC); localStorage.removeItem('doc_session');
   enter(hd.hospital);
@@ -118,7 +118,7 @@ function enter(h) {
   $('screen-login').hidden = true;
   $('app').hidden = false;
   $('me-name').textContent = h.name;
-  $('me-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '담당의 화면';
+  $('me-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '소장 화면';
   $('me-av').textContent = (h.name || '병').slice(0, 1);
   renderHosp();
   loadHospital();
@@ -166,8 +166,8 @@ function renderHosp() {
     <div class="card" style="margin-bottom:0.7rem;">
       <div class="row" style="gap:0.6rem;">
         <div class="grow">
-          <strong style="font-size:0.98rem;">연결된 환자 ${HOSP.patients.length}명</strong>
-          <p class="muted" style="margin-top:0.2rem;">환자가 앱 → 마이 → 담당 병원 연결하기에 병원 코드를 넣으면 여기에 나타납니다.</p>
+          <strong style="font-size:0.98rem;">연결된 내담자 ${HOSP.patients.length}명</strong>
+          <p class="muted" style="margin-top:0.2rem;">내담자가 앱 → 마이 → 담당 상담소 연결하기에 상담소 코드를 넣으면 여기에 나타납니다.</p>
         </div>
       </div>
       <input id="hosp-q" type="search" placeholder="이름·생년으로 찾기" value="${esc(HOSP.q)}" style="margin-top:0.6rem;">
@@ -184,13 +184,13 @@ function renderHosp() {
           <span class="muted">›</span>
         </div>
       </button>`).join('')
-      : empty(HOSP.patients.length ? '검색 결과가 없어요' : '아직 연결된 환자가 없어요', HOSP.patients.length ? '' : '진료실에서 환자에게 병원 코드를 알려주세요.<br>환자 앱 → 마이 → 담당 병원 연결하기')}`;
+      : empty(HOSP.patients.length ? '검색 결과가 없어요' : '아직 연결된 내담자가 없어요', HOSP.patients.length ? '' : '상담소에서 내담자에게 상담소 코드를 알려주세요.<br>내담자 앱 → 마이 → 담당 상담소 연결하기')}`;
 }
 
 // 주간 상태 막대 — 기분 평균(1~5). 숫자 몇 개로 '이번 주가 지난주보다 나은가'가 보이면 된다.
 function weeklyHtml(weeks, share) {
-  if (!share) return `<div class="card" style="margin-bottom:0.7rem;"><strong style="font-size:0.9rem;">주간 상태</strong><p class="muted" style="margin-top:0.3rem;">환자가 주간 상태 공유를 꺼 두었어요. 앱 → 마이 → 담당 병원에서 켤 수 있습니다.</p></div>`;
-  if (!weeks || !weeks.length) return `<div class="card" style="margin-bottom:0.7rem;"><strong style="font-size:0.9rem;">주간 상태</strong><p class="muted" style="margin-top:0.3rem;">아직 올라온 주간 요약이 없어요. 환자가 앱을 쓰면 주마다 자동으로 올라옵니다 (기분 체크인 평균·횟수 같은 숫자만).</p></div>`;
+  if (!share) return `<div class="card" style="margin-bottom:0.7rem;"><strong style="font-size:0.9rem;">주간 상태</strong><p class="muted" style="margin-top:0.3rem;">내담자가 주간 상태 공유를 꺼 두었어요. 앱 → 마이 → 담당 상담소에서 켤 수 있습니다.</p></div>`;
+  if (!weeks || !weeks.length) return `<div class="card" style="margin-bottom:0.7rem;"><strong style="font-size:0.9rem;">주간 상태</strong><p class="muted" style="margin-top:0.3rem;">아직 올라온 주간 요약이 없어요. 내담자가 앱을 쓰면 주마다 자동으로 올라옵니다 (기분 체크인 평균·횟수 같은 숫자만).</p></div>`;
   const last = weeks[weeks.length - 1];
   const prev = weeks.length > 1 ? weeks[weeks.length - 2] : null;
   const diff = last.moodAvg != null && prev && prev.moodAvg != null ? last.moodAvg - prev.moodAvg : null;
@@ -203,7 +203,7 @@ function weeklyHtml(weeks, share) {
   }).join('');
   return `
     <div class="card" style="margin-bottom:0.7rem;">
-      <div class="row" style="gap:0.5rem;"><strong class="grow" style="font-size:0.9rem;">주간 상태 <span class="pill">환자 동의</span></strong>
+      <div class="row" style="gap:0.5rem;"><strong class="grow" style="font-size:0.9rem;">주간 상태 <span class="pill">내담자 동의</span></strong>
         <span class="muted">${diff == null ? '' : diff > 0.2 ? `<b style="color:var(--accent);">지난주보다 +${diff.toFixed(1)}</b>` : diff < -0.2 ? `<b style="color:var(--danger);">지난주보다 ${diff.toFixed(1)}</b>` : '지난주와 비슷'}</span></div>
       <div class="wk">${bars}</div>
       <div class="stat" style="margin-top:0.6rem;">
@@ -212,7 +212,7 @@ function weeklyHtml(weeks, share) {
         <div><span class="muted">미션·밤일기</span><strong>${last.missions}·${last.nights}</strong></div>
         <div><span class="muted">연속 사용</span><strong>${last.streak}일</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.5rem;">막대는 주별 기분 체크인 평균(1 매우 나쁨 ~ 5 매우 좋음). 3.5 미만은 노랑, 2.5 미만은 빨강. 환자가 앱에서 고른 값이라 참고용입니다.</p>
+      <p class="muted" style="margin-top:0.5rem;">막대는 주별 기분 체크인 평균(1 매우 나쁨 ~ 5 매우 좋음). 3.5 미만은 노랑, 2.5 미만은 빨강. 내담자가 앱에서 고른 값이라 참고용입니다.</p>
     </div>`;
 }
 
@@ -224,7 +224,7 @@ function patientHtml() {
       <button class="iconbtn" data-act="back" aria-label="목록으로"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
       ${avatar(p.name)}
       <div class="grow" style="min-width:0;">
-        <strong style="font-size:1rem;">${esc(p.name || '환자')}</strong>
+        <strong style="font-size:1rem;">${esc(p.name || '내담자')}</strong>
         <div class="muted">${[p.birth, `${fmtDay(p.linkedAt || Date.now())} 연결`].filter(Boolean).join(' · ')}</div>
       </div>
       <button class="btn sm" style="width:auto; margin:0;" data-act="fb">피드백 쓰기</button>
@@ -233,7 +233,7 @@ function patientHtml() {
   const hwDone = d.homework.filter(h => h.doneAt).length;
   const lastRisk = d.notes.length ? d.notes[0].risk : 'none';
   const stats = `
-    ${lastRisk === 'urgent' ? `<div class="urgentbar"><b>긴급 — 의사 확인 필요</b><div class="muted" style="margin-top:0.2rem;">${esc(d.notes[0].counselor || '상담사')} · ${fmtDT(d.notes[0].ts)} 회기 기록에 표시됨. 담당의 이메일로도 알림이 갔습니다.</div></div>` : ''}
+    ${lastRisk === 'urgent' ? `<div class="urgentbar"><b>긴급 — 소장 확인 필요</b><div class="muted" style="margin-top:0.2rem;">${esc(d.notes[0].counselor || '상담사')} · ${fmtDT(d.notes[0].ts)} 회기 기록에 표시됨. 소장 이메일로도 알림이 갔습니다.</div></div>` : ''}
     <div class="card" style="margin-bottom:0.7rem;">
       <div class="stat">
         <div><span class="muted">상담 기록</span><strong>${d.notes.length}건</strong></div>
@@ -241,7 +241,7 @@ function patientHtml() {
         <div><span class="muted">최근 위험도</span><strong style="${lastRisk === 'urgent' ? 'color:var(--danger);' : lastRisk === 'watch' ? 'color:var(--gold);' : ''}">${lastRisk === 'none' ? '없음' : lastRisk === 'watch' ? '주의' : '긴급'}</strong></div>
         <div><span class="muted">상담사</span><strong style="font-size:0.82rem;">${esc([...new Set(d.notes.map(n => n.counselor).filter(Boolean))].join(', ') || '—')}</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.5rem;">앱 안의 대화 내용은 병원에 오지 않습니다. 여기 보이는 건 상담사가 남긴 요약·숙제, 환자가 동의한 주간 숫자, 그리고 선생님의 피드백뿐이에요.</p>
+      <p class="muted" style="margin-top:0.5rem;">앱 안의 대화 내용은 상담소에 오지 않습니다. 여기 보이는 건 상담사가 남긴 요약·숙제, 내담자가 동의한 주간 숫자, 그리고 선생님의 피드백뿐이에요.</p>
     </div>
     ${weeklyHtml(d.weekly, d.patient.shareWeekly)}`;
   const items = [];
@@ -257,11 +257,11 @@ function patientHtml() {
     <div class="card" style="margin-bottom:0.5rem;">
       <div class="row" style="gap:0.4rem;"><span class="chip ${h.doneAt ? 'ok' : 'gold'}">숙제${h.doneAt ? ' 완료' : ' 진행 중'}</span><strong style="font-size:0.88rem;">${esc(h.counselor || '상담사')}</strong><span class="muted grow" style="text-align:right;">${fmtDT(h.assignedAt)}</span></div>
       <p style="margin-top:0.4rem; font-size:0.88rem;">${esc(h.text)}</p>
-      ${h.doneAt ? `<p class="muted" style="margin-top:0.3rem;">${fmtDT(h.doneAt)} 완료${h.note ? ` · 환자 메모: ${esc(h.note)}` : ''}</p>` : ''}
+      ${h.doneAt ? `<p class="muted" style="margin-top:0.3rem;">${fmtDT(h.doneAt)} 완료${h.note ? ` · 내담자 메모: ${esc(h.note)}` : ''}</p>` : ''}
     </div>` }));
   d.feedback.forEach(f => items.push({ ts: f.ts, html: `
     <div class="card" style="margin-bottom:0.5rem; background: var(--accent-soft);">
-      <div class="row" style="gap:0.4rem;"><span class="chip new">내 피드백</span><span class="muted">${f.to === 'counselor' ? '상담사에게' : f.to === 'patient' ? '환자에게' : '상담사·환자에게'}${f.readC || f.readP ? ' · 읽음' : ''}</span><span class="muted grow" style="text-align:right;">${fmtDT(f.ts)}</span></div>
+      <div class="row" style="gap:0.4rem;"><span class="chip new">내 피드백</span><span class="muted">${f.to === 'counselor' ? '상담사에게' : f.to === 'patient' ? '내담자에게' : '상담사·내담자에게'}${f.readC || f.readP ? ' · 읽음' : ''}</span><span class="muted grow" style="text-align:right;">${fmtDT(f.ts)}</span></div>
       <p style="margin-top:0.4rem; font-size:0.88rem; white-space:pre-wrap;">${esc(f.text)}</p>
     </div>` }));
   d.bookings.forEach(b => items.push({ ts: b.whenTs, html: `
@@ -274,17 +274,17 @@ function openFeedbackSheet(noteId) {
   const p = HOSP.patients.find(x => x.clientId === HOSP.patient) || {};
   const n = noteId && HOSP.detail ? HOSP.detail.notes.find(x => x.id === noteId) : null;
   sheet(`
-    <h3 class="serif">${esc(p.name || '환자')} 님에게 피드백</h3>
+    <h3 class="serif">${esc(p.name || '내담자')} 님에게 피드백</h3>
     ${n ? `<p class="muted" style="margin-bottom:0.6rem; padding:0.5rem 0.7rem; background:var(--bg); border-radius:10px;">${fmtDT(n.ts)} ${esc(n.counselor)} 기록에 대한 피드백<br>"${esc(String(n.summary).slice(0, 80))}${n.summary.length > 80 ? '…' : ''}"</p>` : ''}
     <label><span>받는 사람</span>
       <select id="fb-to">
-        <option value="both">상담사와 환자 모두</option>
+        <option value="both">상담사와 내담자 모두</option>
         <option value="counselor">상담사에게만</option>
-        <option value="patient">환자에게만</option>
+        <option value="patient">내담자에게만</option>
       </select></label>
     <label><span>내용</span>
-      <textarea id="fb-text" rows="6" maxlength="2000" placeholder="예: 수면 문제가 계속되면 다음 진료 때 약 조정을 검토하겠습니다. 상담에서는 취침 시간 고정을 우선 다뤄주세요."></textarea></label>
-    <p class="muted" style="margin-bottom:0.8rem;">환자에게 보내는 내용은 환자 앱의 알림함과 '병원과 나누는 기록'에 그대로 뜹니다. 상담사에게는 상담사 앱 홈에 뜹니다.</p>
+      <textarea id="fb-text" rows="6" maxlength="2000" placeholder="예: 수면 문제가 계속되면 다음 상담 때 상황을 다시 살펴보기하겠습니다. 상담에서는 취침 시간 고정을 우선 다뤄주세요."></textarea></label>
+    <p class="muted" style="margin-bottom:0.8rem;">내담자에게 보내는 내용은 내담자 앱의 알림함과 '상담소과 나누는 기록'에 그대로 뜹니다. 상담사에게는 상담사 앱 홈에 뜹니다.</p>
     <button class="btn" data-act="fb-send" data-note="${esc(noteId || '')}">보내기</button>`);
   setTimeout(() => { const t = $('fb-text'); if (t) t.focus(); }, 60);
 }
@@ -302,9 +302,9 @@ async function sendFeedback(btn) {
 }
 
 // ── 정산 ────────────────────────────────────────────────────────────
-//  병원을 통해 등록한 내담자의 상담은 병원이 90 을 받고, 상담사에게는 병원이 직접 지급한다.
-//  앱이 상담사에게 직접 보내면 병원 쪽에서 환자 유인 소지가 생긴다(의료법 제27조).
-//  그래서 이 화면은 '앱에서 병원으로 들어온 돈'과 '병원이 상담사에게 보낸 돈'을 나란히 둔다.
+//  상담소을 통해 등록한 내담자의 상담은 상담소이 90 을 받고, 상담사에게는 상담소이 직접 지급한다.
+//  앱이 상담사에게 직접 보내면 상담소 쪽에서 내담자 유인 소지가 생긴다(의료법 제27조).
+//  그래서 이 화면은 '앱에서 상담소으로 들어온 돈'과 '상담소이 상담사에게 보낸 돈'을 나란히 둔다.
 let SETTLE = null;
 
 async function openSettle() {
@@ -330,7 +330,7 @@ function renderSettle() {
           ${avatar(list[0].counselor)}
           <div class="grow" style="min-width:0;">
             <strong style="font-size:0.92rem;">${esc(list[0].counselor)} 선생님</strong>
-            <div class="muted">상담 ${list.length}건 · 병원 몫 ${won(due)}원 · 지급함 ${won(paid)}원</div>
+            <div class="muted">상담 ${list.length}건 · 상담소 몫 ${won(due)}원 · 지급함 ${won(paid)}원</div>
           </div>
           ${paid >= due ? '<span class="chip ok">정산 완료</span>' : `<span class="chip gold">미지급 ${won(due - paid)}원</span>`}
         </div>
@@ -338,7 +338,7 @@ function renderSettle() {
           <div class="listrow">
             <div class="grow">
               <div class="muted">${fmtDT(x.at)} · ${esc(x.clientName || '내담자')} · ${esc(x.label)}</div>
-              <div class="muted">상담료 ${won(x.gross)}원 → 병원 ${won(x.hospital)}원${x.appPaidAt ? ' · 앱에서 입금됨' : ' · 앱 입금 대기'}</div>
+              <div class="muted">상담료 ${won(x.gross)}원 → 상담소 ${won(x.hospital)}원${x.appPaidAt ? ' · 앱에서 입금됨' : ' · 앱 입금 대기'}</div>
             </div>
             ${x.paidToCounselor ? `<span class="chip ok">${won(x.paidToCounselor)}원 지급</span>`
               : `<button class="btn sm" style="width:auto; margin:0;" data-act="pay" data-id="${esc(x.id)}" data-kind="${esc(x.kind)}" data-cid="${esc(x.counselorId)}" data-amt="${x.hospital}" data-nm="${esc(x.counselor)}">지급 기록</button>`}
@@ -350,15 +350,15 @@ function renderSettle() {
     <div class="card" style="margin-bottom:0.6rem;">
       <div class="stat">
         <div><span class="muted">상담료 합계</span><strong>${won(t.gross || 0)}원</strong></div>
-        <div><span class="muted">병원 몫(90%)</span><strong>${won(t.hospital || 0)}원</strong></div>
+        <div><span class="muted">상담소 몫(90%)</span><strong>${won(t.hospital || 0)}원</strong></div>
         <div><span class="muted">앱에서 입금됨</span><strong>${won(t.received || 0)}원</strong></div>
         <div><span class="muted">상담사에게 지급</span><strong>${won(t.paidOut || 0)}원</strong></div>
       </div>
       <p class="muted" style="margin-top:0.5rem;">
-        병원을 통해 등록한 내담자의 상담은 <b>병원 90% · 앱 7% · 결제 수수료 3%</b>로 나뉩니다.
-        앱은 병원에만 입금하고, <b>상담사에게는 병원이 직접 지급</b>합니다. 지급하신 뒤 '지급 기록'을 눌러 남겨주세요.</p>
+        상담소을 통해 등록한 내담자의 상담은 <b>상담소 90% · 앱 7% · 결제 수수료 3%</b>로 나뉩니다.
+        앱은 상담소에만 입금하고, <b>상담사에게는 상담소이 직접 지급</b>합니다. 지급하신 뒤 '지급 기록'을 눌러 남겨주세요.</p>
     </div>
-    ${rows || '<div class="empty"><b>아직 정산할 상담이 없어요</b>병원 코드로 연결된 내담자가 상담을 받으면 여기에 쌓입니다.</div>'}`);
+    ${rows || '<div class="empty"><b>아직 정산할 상담이 없어요</b>상담소 코드로 연결된 내담자가 상담을 받으면 여기에 쌓입니다.</div>'}`);
 }
 
 async function recordPayout(el) {
@@ -376,20 +376,20 @@ async function recordPayout(el) {
 function openSettings() {
   const h = HOSP.hospital || {};
   sheet(`
-    <h3 class="serif">${esc(h.name || '병원')}</h3>
+    <h3 class="serif">${esc(h.name || '상담소')}</h3>
     <p class="muted" style="margin-bottom:0.8rem;">${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · '))}<br>
-      로그인 방식: <b>${HS ? '이메일 링크 (이 기기 30일)' : '병원 코드'}</b></p>
+      로그인 방식: <b>${HS ? '이메일 링크 (이 기기 30일)' : '상담소 코드'}</b></p>
     <div class="card" style="margin-bottom:0.6rem;">
-      <b style="font-size:0.88rem;">환자를 연결하려면</b>
-      <p class="muted" style="margin-top:0.2rem;">진료실에서 환자에게 병원 코드를 알려주세요. 환자는 앱 → 마이 → <b>담당 병원 연결하기</b>에 코드와 이름을 넣습니다. 코드는 운영팀 콘솔에서 확인·재발급합니다.</p>
+      <b style="font-size:0.88rem;">내담자를 연결하려면</b>
+      <p class="muted" style="margin-top:0.2rem;">상담소에서 내담자에게 상담소 코드를 알려주세요. 내담자는 앱 → 마이 → <b>담당 상담소 연결하기</b>에 코드와 이름을 넣습니다. 코드는 운영팀 콘솔에서 확인·재발급합니다.</p>
     </div>
     <div class="card" style="margin-bottom:0.6rem;">
       <b style="font-size:0.88rem;">정산</b>
-      <p class="muted" style="margin-top:0.2rem;">병원을 통해 등록한 내담자의 상담은 병원 90% · 앱 7% · 결제 수수료 3%로 나뉩니다. 앱은 병원에 입금하고, 상담사에게는 병원이 직접 지급합니다. 위쪽 지폐 아이콘에서 확인하세요.</p>
+      <p class="muted" style="margin-top:0.2rem;">상담소을 통해 등록한 내담자의 상담은 상담소 90% · 앱 7% · 결제 수수료 3%로 나뉩니다. 앱은 상담소에 입금하고, 상담사에게는 상담소이 직접 지급합니다. 위쪽 지폐 아이콘에서 확인하세요.</p>
     </div>
     <div class="card" style="margin-bottom:0.6rem;">
       <b style="font-size:0.88rem;">긴급 알림</b>
-      <p class="muted" style="margin-top:0.2rem;">상담사가 회기 기록에 '긴급'을 표시하면 ${h.hasEmail ? '등록된 담당의 이메일로 즉시 메일이 갑니다.' : '<span style="color:var(--danger);">이메일이 등록돼 있지 않아 메일이 가지 않습니다.</span> 운영팀에 이메일 등록을 요청하세요.'}</p>
+      <p class="muted" style="margin-top:0.2rem;">상담사가 회기 기록에 '긴급'을 표시하면 ${h.hasEmail ? '등록된 소장 이메일로 즉시 메일이 갑니다.' : '<span style="color:var(--danger);">이메일이 등록돼 있지 않아 메일이 가지 않습니다.</span> 운영팀에 이메일 등록을 요청하세요.'}</p>
     </div>
     ${HS ? '<button class="btn ghost" data-act="logout-others" style="margin-bottom:0.5rem;">다른 기기 모두 로그아웃</button>' : ''}
     <button class="btn" data-act="logout">이 기기에서 로그아웃</button>`);

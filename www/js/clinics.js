@@ -261,13 +261,13 @@ window.Clinics = {
       ${this._openLabel(it)}
       ${it.note ? `<div class="feed-ov__note"><span>${esc(it.note)}</span></div>` : ''}
       ${this._hoursTable(it)}
-      ${it.hospitalId ? `<div class="feed-ov__note"><span><b>마인드 인사이드 연동 병원</b>이에요. 진료 뒤 병원 코드를 받으면 담당 선생님이 상담 기록을 함께 볼 수 있어요.</span></div>` : ''}
+      ${it.hospitalId ? `<div class="feed-ov__note"><span><b>마인드 인사이드 연동 기관</b>이에요. 상담소 코드를 받으면 담당 선생님이 상담 기록을 함께 볼 수 있어요.</span></div>` : ''}
       <div class="clinic-ov__acts">
         ${tel ? `<a class="btn-primary" href="tel:${esc(tel)}">전화 ${esc(it.tel)}</a>` : '<button class="btn-primary" disabled>전화번호 없음</button>'}
         <a class="btn-secondary" href="${this._toLink(it)}" target="_blank" rel="noopener">길찾기</a>
         <a class="btn-secondary" href="${this._mapLink(it)}" target="_blank" rel="noopener">네이버 지도에서 보기</a>
         ${it.url && !/naver\.com/.test(it.url) ? `<a class="btn-secondary" href="${esc(it.url)}" target="_blank" rel="noopener">병원 홈페이지</a>` : ''}
-        ${it.hospitalId && window.Hospital && !window.Hospital.link() ? `<button class="btn-secondary" data-clinics-link>병원 코드로 담당의 연결</button>` : ''}
+        ${it.hospitalId && window.Hospital && !window.Hospital.link() ? `<button class="btn-secondary" data-clinics-link>상담소 코드로 담당의 연결</button>` : ''}
       </div>
       <p class="feed-ov__author" style="margin-top: 0.8rem;">진료 시간·예약 가능 여부는 병원에 직접 확인해주세요. 첫 방문이면 신분증을 챙기세요.</p>`;
     ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });

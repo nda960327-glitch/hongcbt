@@ -4376,7 +4376,7 @@ ${body}
     const bank = v('creg-bank'), account = v('creg-account').replace(/[^0-9]/g, ''), holder = v('creg-holder');
 
     if (!name || !license || !price || !hospital || !addr) {
-      window.UI.alert('이름, 자격 구분, 상담료, 병원명, 병원 주소(주소 검색)는 필수입니다.');
+      window.UI.alert('이름, 자격 구분, 상담료, 상담소명, 상담소 주소(주소 검색)는 필수입니다.');
       return;
     }
     // 이메일이 없으면 승인돼도 로그인 코드를 보낼 데가 없다

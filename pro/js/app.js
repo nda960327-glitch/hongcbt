@@ -312,9 +312,9 @@ async function loginWithCode() {
   const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
   btn.disabled = false; btn.textContent = '시작하기';
   if (!r || !r.ok) {
-    // 상담사 코드가 아니면 병원(담당의) 코드일 수 있다 — 의사 앱으로 넘긴다
+    // 상담사 코드가 아니면 상담소(소장) 코드일 수 있다 — 의사 앱으로 넘긴다
     if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v)) {
-      errEl.textContent = '병원 코드네요. 의사 앱으로 이동합니다…';
+      errEl.textContent = '상담소 코드네요. 소장 앱으로 이동합니다…';
       errEl.style.display = 'block';
       setTimeout(() => { location.href = DOC_URL + '/?code=' + encodeURIComponent(v.toUpperCase()); }, 600);
       return;
@@ -1156,7 +1156,7 @@ function openRoomMenu() {
     </button>
     <button class="menurow" data-act="sn-open-room">
       ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h11l3 3v13H5z"/><path d="M8 12h8M8 16h5"/></svg>')}
-      <span class="grow">회기 기록 남기기<br><span class="ms">${(() => { const n = D.notes.filter(x => x.clientId === t.clientId).length; return n ? `이 내담자 기록 ${n}건 · 담당 병원과 공유` : '상담 요약·계획·위험도 — 담당의가 봅니다'; })()}</span></span>
+      <span class="grow">회기 기록 남기기<br><span class="ms">${(() => { const n = D.notes.filter(x => x.clientId === t.clientId).length; return n ? `이 내담자 기록 ${n}건 · 담당 상담소와 공유` : '상담 요약·계획·위험도 — 담당의가 봅니다'; })()}</span></span>
       ${D.notes.some(x => x.clientId === t.clientId) ? '<span class="chip ok">있음</span>' : ''}
     </button>
     <button class="menurow" data-act="qr-edit">
@@ -1395,7 +1395,7 @@ function renderBookings() {
 
 // ============================================================================
 //  [폐지] 구독 — 2026-09 부터 받지 않는다. 상담료 수수료로 일원화했다.
-//   (앱으로 온 내담자: 상담사 70(6만원 초과분 55) · 결제 수수료 3 · 나머지 앱 / 병원을 통해 온 내담자: 병원이 지급)
+//   (앱으로 온 내담자: 상담사 70(6만원 초과분 55) · 결제 수수료 3 · 나머지 앱 / 상담소를 통해 온 내담자: 상담소가 지급)
 //   아래 코드는 지난 구독 기록을 읽는 화면이 남아 있을 때를 대비해 두되, 화면에는 뜨지 않는다.
 //
 //  2026-08-18 개편으로 느루는 상담료에서 한 푼도 가져가지 않는다.
@@ -1504,7 +1504,7 @@ function withhold33(amount) {
 function renderMoney() {
   const el = $('view-money');
   if (busy(el)) return;
-  // 병원을 통해 등록한 내담자의 상담은 '병원이' 상담사에게 지급한다(앱은 병원에만 보낸다).
+  // 상담소를 통해 등록한 내담자의 상담은 '상담소가' 상담사에게 지급한다(앱은 상담소에만 보낸다).
   //  두 돈을 한 줄에 합치면 상담사가 '앱에서 들어올 돈'을 잘못 읽는다 — 묶음을 갈라 둔다.
   const isHosp = x => x && x.channel === 'hospital';
   const earnedAll = D.bookings.filter(isEarned);
@@ -1526,7 +1526,7 @@ function renderMoney() {
   const hospCalls = callsAll.filter(isHosp);
   //  앱 채널 배분: 6만원까지 70%, 넘는 부분 55% (market.js appCounselorOf 와 같아야 한다)
   const share = n => { const p = Math.max(0, Math.round(n || 0)); return Math.round(Math.min(p, 60000) * 70 / 100 + Math.max(0, p - 60000) * 55 / 100); };
-  //  병원 채널은 병원이 90 을 받고 그중에서 상담사에게 지급한다 — 앱은 금액을 단정하지 않는다
+  //  상담소 채널은 상담소가 90 을 받고 그중에서 상담사에게 지급한다 — 앱은 금액을 단정하지 않는다
   const hospGross = hospBookings.reduce((s, b) => s + (b.price || 0), 0) + hospCalls.reduce((s, c) => s + (c.charge || 0), 0);
   const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
   const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
@@ -1621,8 +1621,8 @@ function renderMoney() {
       <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담료 6만원까지 <b>70%</b>, 6만원 넘는 부분은 <b>55%</b>가 선생님 몫이에요. (예: 6만원 → 42,000 · 7만원 → 47,500 · 10만원 → 64,000)</p>
       ${waiting > 0 ? `<p class="muted" style="margin-top:0.3rem;">개인 상담사는 지급할 때 사업소득 3.3%를 원천징수해요. 지금 대기 금액이면 <b>약 ${won(withhold33(waiting))}원 입금</b> 예정이에요. 사업자 상담사는 세금계산서로 대체돼요.</p>` : ''}
       ${hospBookings.length + hospCalls.length ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent);">
-        <b style="font-size:0.88rem; color:var(--accent);">병원 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>
-        <p class="muted" style="margin:0.2rem 0 0;">병원을 통해 등록된 내담자의 상담이에요. 이 건은 <b>병원이 선생님께 직접 지급</b>합니다 (앱에서 입금되지 않아요). 금액과 지급일은 병원과의 계약을 따릅니다.</p>
+        <b style="font-size:0.88rem; color:var(--accent);">상담소 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>
+        <p class="muted" style="margin:0.2rem 0 0;">상담소를 통해 등록된 내담자의 상담이에요. 이 건은 <b>상담소가 선생님께 직접 지급</b>합니다 (앱에서 입금되지 않아요). 금액과 지급일은 상담소와의 계약을 따릅니다.</p>
       </div>` : ''}
       ${holdN ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:rgba(201,138,63,0.12); border:1px solid rgba(201,138,63,0.45);">
         <b style="font-size:0.88rem; color:var(--warn);">회기 기록이 없어 정산 보류 ${holdN}건 · ${won(holdSum)}캐시</b>
@@ -1879,7 +1879,7 @@ function foldProfile() {
     <p class="muted" style="margin-bottom:0.8rem;">이름은 자격 확인을 거친 값이라 바꿀 수 없어요.
       개명 등으로 바뀌었다면 운영자에게 문의해 주세요.</p>
     ${photoBlock}
-    ${f('pf-hospital', '소속 기관', ME.hospital, '예: OO 정신건강의학과 (OO점)')}
+    ${f('pf-hospital', '소속 기관', ME.hospital, '예: OO 심리상담센터 (OO점)')}
     ${telBlock}
     ${addrBlock}
     ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
@@ -2600,10 +2600,10 @@ function closeSheet() {
 
 // ============================================================================
 //  회기 기록 — 상담이 끝나면 요약·다음 계획·위험도·낸 숙제를 남긴다.
-//  담당 병원이 연결된 내담자라면 그 기록을 담당의가 본다. 기록이 없으면 의사는
+//  담당 상담소가 연결된 내담자라면 그 기록을 담당의가 본다. 기록이 없으면 의사는
 //  환자가 상담을 받았다는 사실조차 모른다 — 그래서 '기록 안 남긴 상담'을 홈에서 재촉한다.
 // ============================================================================
-const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 의사 확인 필요' };
+const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 소장 확인 필요' };
 const RISK_CHIP = { none: '', watch: '<span class="chip gold">주의</span>', urgent: '<span class="chip bad">긴급</span>' };
 const KIND_LABEL = { booking: '예약 상담', call: '전화 상담', chat: '채팅 상담' };
 const fmtDay = ts => { const d = new Date(ts); return `${d.getMonth() + 1}/${d.getDate()}`; };
@@ -2629,7 +2629,7 @@ function snHomeHtml() {
       <button class="btn ghost sm" data-act="sn-edit" data-id="${esc(n.id)}">고치기</button>
     </div>`).join('');
   return `
-    ${pend ? `<p class="muted" style="margin-bottom:0.4rem;">상담이 끝났는데 기록이 없는 건들이에요. 담당 병원이 연결된 내담자는 이 기록으로 의사가 상담 경과를 봅니다.</p>${pend}` : ''}
+    ${pend ? `<p class="muted" style="margin-bottom:0.4rem;">상담이 끝났는데 기록이 없는 건들이에요. 담당 상담소가 연결된 내담자는 이 기록으로 소장이 상담 경과를 봅니다.</p>${pend}` : ''}
     ${recent ? `<p class="muted" style="margin:${pend ? '0.8rem' : '0'} 0 0.4rem;">최근 기록</p>${recent}` : ''}
     ${!pend && !recent ? '<p class="muted">대화방 메뉴의 [회기 기록 남기기] 로 첫 기록을 남겨보세요.</p>' : ''}`;
 }
@@ -2671,7 +2671,7 @@ function openSessionNote(ctx) {
       <input id="sn-hw" type="text" maxlength="500" value="${esc(ctx.homework || '')}" placeholder="예: 잠들기 전 10분 걷기 · 매일"></label>
     <label style="display:flex; align-items:center; gap:0.5rem; margin:0.4rem 0 0.8rem;">
       <input id="sn-shared" type="checkbox" ${ctx.shared === false ? '' : 'checked'} style="width:auto;">
-      <span style="font-size:0.86rem;">담당 병원과 공유 (병원이 연결된 내담자에게만 전달돼요)</span></label>
+      <span style="font-size:0.86rem;">담당 상담소와 공유 (상담소가 연결된 내담자에게만 전달돼요)</span></label>
     <p class="muted" style="margin-bottom:0.8rem; padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
       🔒 요약은 서버에 저장되고 내담자와 담당의가 볼 수 있어요. 대화 원문은 저장되지 않습니다.</p>
     <button class="btn" data-act="sn-save" data-id="${esc(ctx.id || '')}" data-client-id="${esc(ctx.clientId || '')}" data-client-name="${esc(ctx.clientName || '')}"
@@ -2683,7 +2683,7 @@ function openSessionNoteList(t) {
   const mine = D.notes.filter(n => n.clientId === t.clientId);
   sheet(`
     <h3 class="serif">${esc(t.clientName)} 님 회기 기록</h3>
-    <p class="muted" style="margin-bottom:0.8rem;">상담이 끝날 때마다 한 번씩. 담당 병원이 연결돼 있으면 담당의가 이 기록으로 경과를 봅니다.</p>
+    <p class="muted" style="margin-bottom:0.8rem;">상담이 끝날 때마다 한 번씩. 담당 상담소가 연결돼 있으면 담당의가 이 기록으로 경과를 봅니다.</p>
     <button class="btn" data-act="sn-open" data-client-id="${esc(t.clientId)}" data-client-name="${esc(t.clientName)}" data-kind="chat" data-ts="${Date.now()}">＋ 새 기록</button>
     <div class="sec-title" style="margin-top:0.9rem;">지금까지 ${mine.length}건</div>
     ${mine.length ? mine.map(n => `
@@ -2739,7 +2739,7 @@ const ACT = {
   'sn-save': (el) => saveSessionNote(el),
   'sn-edit': (el) => { const n = D.notes.find(x => x.id === el.dataset.id); if (n) openSessionNote(n); },
 
-  // ── 병원(담당의) 모드 ──
+  // ── 상담소(소장) 모드 ──
   logout,
   fold: (el) => {
     const k = el.dataset.key;

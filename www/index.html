@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 208;</script>
+  <script>window.APP_BUILD = 209;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동 기법 기반 자기관리 도우미">
@@ -32,7 +32,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=208">
+  <link rel="stylesheet" href="css/style.css?v=209">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -731,11 +731,11 @@
         <span class="home-logo__t">전화 심리상담</span>
         <button id="wallet-chip" class="head-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기"></button>
       </header>
-      <p class="tab-lede">검증된 병원 소속 상담사와 연결해드려요</p>
+      <p class="tab-lede">검증된 상담소 소속 상담사와 연결해드려요</p>
       <div style="padding: 0 1.25rem;">
         <div style="position: relative; margin-bottom: 0.55rem;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.2" stroke-linecap="round" style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); pointer-events: none;"><circle cx="11" cy="11" r="7"/><path d="M21 21 l-4.3 -4.3"/></svg>
-          <input id="cc-search" type="search" placeholder="상담사 이름, 병원, 전문분야 검색" oninput="window.Marketplace.setQuery(this.value)"
+          <input id="cc-search" type="search" placeholder="상담사 이름, 상담소, 전문분야 검색" oninput="window.Marketplace.setQuery(this.value)"
             style="width: 100%; box-sizing: border-box; padding: 0.62rem 0.9rem 0.62rem 2.35rem; border-radius: 12px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); font-size: 0.88rem; outline: none;">
         </div>
         <div id="cc-filter-row" style="display: flex; align-items: center; gap: 0.4rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.85rem;"></div>
@@ -806,15 +806,15 @@
             </div>
           </div>
           <div style="border-top: 1px dashed var(--glass-border); padding-top: 0.6rem; margin-top: 0.2rem;">
-            <strong style="font-size: 0.85rem; color: var(--text-primary);">소속 기관(병원) 정보</strong>
+            <strong style="font-size: 0.85rem; color: var(--text-primary);">소속 기관(상담소) 정보</strong>
           </div>
-          <input id="creg-hosp-name" placeholder="병원/기관명" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-hosp-name" placeholder="상담소/기관명" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
           <div style="display: flex; gap: 0.4rem;">
             <input id="creg-hosp-addr" placeholder="주소 검색을 눌러주세요" readonly style="flex: 1; min-width: 0; padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
             <button type="button" class="btn-primary" style="width: auto; flex-shrink: 0; font-size: 0.8rem; padding: 0.5rem 0.8rem;" onclick="window.App.openAddressSearch()">주소 검색</button>
           </div>
           <input id="creg-hosp-addr2" placeholder="상세 주소 (층·호수 등)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
-          <input id="creg-hosp-tel" type="tel" inputmode="tel" maxlength="13" placeholder="병원 전화번호 (숫자만 치면 - 가 붙어요)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
+          <input id="creg-hosp-tel" type="tel" inputmode="tel" maxlength="13" placeholder="기관 전화번호 (숫자만 치면 - 가 붙어요)" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
 
           <!-- 정산 계좌 — 승인 후 상담료를 받을 곳 -->
           <p style="margin: 0.9rem 0 0.2rem; font-size: 0.8rem; font-weight: 800; color: var(--text-primary);">정산 계좌</p>
@@ -903,8 +903,8 @@
       <p class="my-sec">위기 대비</p>
       <div class="my-group" id="safetyplan-card"></div>
 
-      <!-- 담당 병원 — 정신과에서 앱을 권한 환자는 병원 코드로 담당의와 이어진다 (Hospital.render) -->
-      <p class="my-sec">담당 병원</p>
+      <!-- 담당 상담소 — 상담소에서 앱을 권한 내담자는 상담소 코드로 소장과 이어진다 (Hospital.render) -->
+      <p class="my-sec">담당 상담소</p>
       <div class="my-group" id="hospital-card"></div>
 
       <!-- 상담사가 낸 과제 — 회기 사이가 실제로 변화가 일어나는 구간 -->
@@ -1005,7 +1005,7 @@
         <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
         <div style="flex: 1; min-width: 0;">
           <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
-          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 느루에 입점하고 내담자를 만나보세요.</span>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 상담소와 함께 느루에 입점하고 내담자를 만나보세요.</span>
         </div>
         <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="window.App.openCounselorReg()">등록 신청</button>
       </div>
@@ -1451,63 +1451,63 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=208"></script>
-  <script defer src="js/storage.js?v=208"></script>
-  <script defer src="js/inbox.js?v=208"></script>
-  <script defer src="js/cards.js?v=208"></script>
-  <script defer src="js/chatviz.js?v=208"></script>
-  <script defer src="js/memory-vault.js?v=208"></script>
-  <script defer src="js/personas.js?v=208"></script>
-  <script defer src="js/stickers.js?v=208"></script>
-  <script defer src="js/ui.js?v=208"></script>
-  <script defer src="js/api.js?v=208"></script>
-  <script defer src="js/rtccall.js?v=208"></script>
-  <script defer src="js/prolink.js?v=208"></script>
-  <script defer src="js/account.js?v=208"></script>
-  <script defer src="js/freshness.js?v=208"></script>
-  <script defer src="js/i18n.js?v=208"></script>
-  <script defer src="js/wallet.js?v=208"></script>
-  <script defer src="js/pay.js?v=208"></script>
-  <script defer src="js/subscription.js?v=208"></script>
-  <script defer src="js/calltalk.js?v=208"></script>
-  <script defer src="js/calm.js?v=208"></script>
-  <script defer src="js/voice.js?v=208"></script>
-  <script defer src="js/llm.js?v=208"></script>
-  <script defer src="js/chatbot.js?v=208"></script>
-  <script defer src="js/marketplace.js?v=208"></script>
-  <script defer src="js/booking.js?v=208"></script>
-  <script defer src="js/thought-record.js?v=208"></script>
-  <script defer src="js/growth.js?v=208"></script>
-  <script defer src="js/missions.js?v=208"></script>
-  <script defer src="js/weekly.js?v=208"></script>
-  <script defer src="js/sleep.js?v=208"></script>
-  <script defer src="js/onboard.js?v=208"></script>
-  <script defer src="js/stickershop.js?v=208"></script>
-  <script defer src="js/applock.js?v=208"></script>
-  <script defer src="js/safety.js?v=208"></script>
-  <script defer src="js/admin.js?v=208"></script>
-  <script defer src="js/dashboard.js?v=208"></script>
-  <script defer src="js/learn.js?v=208"></script>
-  <script defer src="js/sfx.js?v=208"></script>
-  <script defer src="js/mail.js?v=208"></script>
-  <script defer src="js/payout.js?v=208"></script>
-  <script defer src="js/careplan.js?v=208"></script>
-  <script defer src="js/goals.js?v=208"></script>
-  <script defer src="js/progress.js?v=208"></script>
-  <script defer src="js/safetyplan.js?v=208"></script>
-  <script defer src="js/homework.js?v=208"></script>
-  <script defer src="js/feed.js?v=208"></script>
-  <script defer src="js/hospital.js?v=208"></script>
-  <script defer src="js/clinics.js?v=208"></script>
-  <script defer src="js/consent.js?v=208"></script>
-  <script defer src="js/homesimple.js?v=208"></script>
-  <script defer src="js/assess-charts.js?v=208"></script>
-  <script defer src="js/assess.js?v=208"></script>
-  <script defer src="js/game.js?v=208"></script>
-  <script defer src="js/room.js?v=208"></script>
-  <script defer src="js/farm.js?v=208"></script>
-  <script defer src="js/closet.js?v=208"></script>
-  <script defer src="js/app.js?v=208"></script>
+  <script defer src="js/icons.js?v=209"></script>
+  <script defer src="js/storage.js?v=209"></script>
+  <script defer src="js/inbox.js?v=209"></script>
+  <script defer src="js/cards.js?v=209"></script>
+  <script defer src="js/chatviz.js?v=209"></script>
+  <script defer src="js/memory-vault.js?v=209"></script>
+  <script defer src="js/personas.js?v=209"></script>
+  <script defer src="js/stickers.js?v=209"></script>
+  <script defer src="js/ui.js?v=209"></script>
+  <script defer src="js/api.js?v=209"></script>
+  <script defer src="js/rtccall.js?v=209"></script>
+  <script defer src="js/prolink.js?v=209"></script>
+  <script defer src="js/account.js?v=209"></script>
+  <script defer src="js/freshness.js?v=209"></script>
+  <script defer src="js/i18n.js?v=209"></script>
+  <script defer src="js/wallet.js?v=209"></script>
+  <script defer src="js/pay.js?v=209"></script>
+  <script defer src="js/subscription.js?v=209"></script>
+  <script defer src="js/calltalk.js?v=209"></script>
+  <script defer src="js/calm.js?v=209"></script>
+  <script defer src="js/voice.js?v=209"></script>
+  <script defer src="js/llm.js?v=209"></script>
+  <script defer src="js/chatbot.js?v=209"></script>
+  <script defer src="js/marketplace.js?v=209"></script>
+  <script defer src="js/booking.js?v=209"></script>
+  <script defer src="js/thought-record.js?v=209"></script>
+  <script defer src="js/growth.js?v=209"></script>
+  <script defer src="js/missions.js?v=209"></script>
+  <script defer src="js/weekly.js?v=209"></script>
+  <script defer src="js/sleep.js?v=209"></script>
+  <script defer src="js/onboard.js?v=209"></script>
+  <script defer src="js/stickershop.js?v=209"></script>
+  <script defer src="js/applock.js?v=209"></script>
+  <script defer src="js/safety.js?v=209"></script>
+  <script defer src="js/admin.js?v=209"></script>
+  <script defer src="js/dashboard.js?v=209"></script>
+  <script defer src="js/learn.js?v=209"></script>
+  <script defer src="js/sfx.js?v=209"></script>
+  <script defer src="js/mail.js?v=209"></script>
+  <script defer src="js/payout.js?v=209"></script>
+  <script defer src="js/careplan.js?v=209"></script>
+  <script defer src="js/goals.js?v=209"></script>
+  <script defer src="js/progress.js?v=209"></script>
+  <script defer src="js/safetyplan.js?v=209"></script>
+  <script defer src="js/homework.js?v=209"></script>
+  <script defer src="js/feed.js?v=209"></script>
+  <script defer src="js/hospital.js?v=209"></script>
+  <script defer src="js/clinics.js?v=209"></script>
+  <script defer src="js/consent.js?v=209"></script>
+  <script defer src="js/homesimple.js?v=209"></script>
+  <script defer src="js/assess-charts.js?v=209"></script>
+  <script defer src="js/assess.js?v=209"></script>
+  <script defer src="js/game.js?v=209"></script>
+  <script defer src="js/room.js?v=209"></script>
+  <script defer src="js/farm.js?v=209"></script>
+  <script defer src="js/closet.js?v=209"></script>
+  <script defer src="js/app.js?v=209"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기
