@@ -20,3 +20,6 @@ android/app/release/
 android/uroong-release.keystore
 android/keystore.properties
 android/app/google-services.json
+
+# OneDrive 충돌 사본
+*-DESKTOP-*.html
