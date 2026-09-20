@@ -1,28 +1,14 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 208;</script>
+  <script>window.APP_BUILD = 174;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동 기법 기반 자기관리 도우미">
-  <title>마인드 인사이드</title>
+  <meta name="description" content="우렁의사의 마음챙김 CBT — 인지행동치료 기반 자기관리 도우미">
+  <title>우렁의사</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#4f8a6b">
-  <meta name="color-scheme" content="only light">
-  <script>
-    // 테마는 첫 화면이 그려지기 전에 정한다 (js/app.js 의 initTheme 과 같은 규칙).
-    //  기본은 밝은 화면 — 휴대폰이 야간 모드여도 앱 고유의 색을 지킨다.
-    //  어두운 화면은 사용자가 설정에서 직접 고른 경우에만.
-    //  스타일의 기본값이 어두운 팔레트라, 여기서 먼저 밝게 박지 않으면 켤 때 어두운 화면이 번쩍인다.
-    //  "only light" 는 브라우저·웹뷰의 강제 어둡게 칠하기를 막는 신호다.
-    (function () {
-      var t = null; try { t = localStorage.getItem('cbt_theme'); } catch (e) {}
-      var d = document.documentElement;
-      var m = document.querySelector('meta[name="color-scheme"]');
-      if (t === 'dark') { d.style.colorScheme = 'dark'; if (m) m.setAttribute('content', 'dark'); }
-      else { d.setAttribute('data-theme', 'light'); d.style.colorScheme = 'only light'; }
-    })();
-  </script>
+  <meta name="color-scheme" content="light dark">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
   
@@ -32,7 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=208">
+  <link rel="stylesheet" href="css/style.css?v=174">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -57,10 +43,10 @@
   <div id="disclaimer-modal" class="modal-overlay hidden">
     <div class="modal-content glass-card">
       <div class="disclaimer-icon" data-art="mascot" data-art-size="88"></div>
-      <h2>마인드 인사이드의 마음챙김 CBT에 오신 것을 환영합니다</h2>
-      <p>이 앱은 인지행동(CBT) 기법을 기반으로 한 <strong>자기관리 보조 도구</strong>입니다.</p>
+      <h2>우렁의사의 마음챙김 CBT에 오신 것을 환영합니다</h2>
+      <p>이 앱은 인지행동치료(CBT) 기법을 기반으로 한 <strong>자기관리 보조 도구</strong>입니다.</p>
       <ul>
-        <li>병원 진료나 전문 상담을 대신하지 않습니다</li>
+        <li>전문적인 정신건강 치료를 대체하지 않습니다</li>
         <li>심각한 위기 상황에서는 전문가의 도움을 받으세요</li>
         <li>대화 내용은 기기에만 저장되며 외부로 전송되지 않습니다</li>
       </ul>
@@ -85,7 +71,7 @@
   <!-- 로그인 (카카오·구글·네이버) -->
   <div id="login-screen" class="hidden" style="position: fixed; inset: 0; z-index: 10002; background: var(--bg-primary); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem 1.6rem; max-width: 480px; margin: 0 auto;">
     <span data-sticker="joy" data-sticker-size="120" style="line-height: 0;"></span>
-    <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">마인드 인사이드</h1>
+    <h1 style="font-size: 1.6rem; margin: 0.8rem 0 0.3rem; color: var(--text-primary);">우렁의사</h1>
     <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 2rem; text-align: center;">당신을 기억하는 AI 마음 주치의</p>
     <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 0.6rem;">
       <button onclick="window.Account.login('kakao')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #FEE500; color: #191919; font-weight: 700; font-size: 0.95rem; cursor: pointer;">카카오로 시작하기</button>
@@ -93,7 +79,7 @@
       <button onclick="window.Account.login('google')" style="all: unset; box-sizing: border-box; width: 100%; text-align: center; padding: 0.85rem; border-radius: 12px; background: #fff; color: #3c4043; font-weight: 700; font-size: 0.95rem; border: 1.5px solid #dadce0; cursor: pointer;">구글로 시작하기</button>
     </div>
     <p style="font-size: 0.72rem; color: var(--text-muted); margin-top: 1.6rem; text-align: center; line-height: 1.7;">
-      기기를 바꿔도 느루의 기억과 리포트가 이어져요.<br>
+      기기를 바꿔도 우렁이의 기억과 리포트가 이어져요.<br>
       <b style="color: var(--text-secondary);">대화 내용은 이 기기에만 저장됩니다.</b></p>
     <button onclick="window.Account.scopeSheet()" style="all: unset; cursor: pointer; margin-top: 0.5rem; font-size: 0.72rem; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px;">무엇이 저장되나요?</button>
   </div>
@@ -103,7 +89,7 @@
     <div class="modal-content glass-card" style="max-width: 360px; text-align: center;">
       <span id="sub-paywall-sticker" style="display: inline-block; line-height: 0;"></span>
       <h2 id="sub-paywall-title" style="margin: 0.6rem 0 0.4rem;">일주일 무료 체험이 끝났어요</h2>
-      <p id="sub-paywall-desc" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.4rem;">느루는 당신과 나눈 이야기를 전부 기억한 채 기다리고 있어요.<br>구독하면 대화가 끊긴 적 없던 것처럼 이어집니다.</p>
+      <p id="sub-paywall-desc" style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.4rem;">우렁이는 당신과 나눈 이야기를 전부 기억한 채 기다리고 있어요.<br>구독하면 대화가 끊긴 적 없던 것처럼 이어집니다.</p>
       <p style="font-size: 1.15rem; font-weight: 800; color: var(--accent-primary); margin: 0.6rem 0 1rem;"><span id="sub-paywall-price">월 9,900원</span> <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">· 무제한 대화 + 보이스톡</span></p>
       <button class="btn-primary" style="width: 100%; margin-bottom: 0.5rem;" onclick="window.Subscription.subscribe()">구독하고 대화 이어가기</button>
       <button class="btn-secondary" style="width: 100%;" onclick="document.getElementById('sub-paywall-modal').classList.add('hidden')">나중에</button>
@@ -118,7 +104,7 @@
       <div class="header-content">
         <div class="header-left">
           <span class="app-logo" data-art="mascot" data-art-size="34"></span>
-          <h1 class="app-title">마인드 인사이드</h1>
+          <h1 class="app-title">우렁의사</h1>
         </div>
         <div class="header-right">
           <!-- 전체화면·테마는 마이페이지 설정으로, 대화 초기화는 챗봇 화면으로 이동 -->
@@ -132,89 +118,14 @@
       <!-- 홈 상단 로고 -->
       <header class="home-top">
         <span class="home-logo__mark" data-sticker="joy" data-sticker-size="32"></span>
-        <span class="home-logo__t">마인드 인사이드</span>
+        <span class="home-logo__t">우렁의사</span>
         <!-- 스트릭 칩 자리를 알림함이 물려받았다. 연속 일수는 대시보드에서 계속 보인다. -->
         <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
-      <!-- ========== 심플 홈 (A/B) — 기본은 숨김. js/homesimple.js 가 켜고 끈다 ========== -->
-      <div id="home-simple" class="hidden">
-        <div class="simple-list">
-          <button class="simple-btn" data-simple-go="chat">
-            <span class="simple-btn__ico" data-icon="chat" data-icon-size="24"></span>
-            <span class="simple-btn__txt"><b>AI 상담</b><span>느루와 24시간 대화</span></span>
-            <span class="simple-btn__go">›</span>
-          </button>
-          <button class="simple-btn" data-simple-go="call">
-            <span class="simple-btn__ico" data-icon="phone" data-icon-size="24"></span>
-            <span class="simple-btn__txt"><b>전화상담</b><span>검증된 상담사와 통화·채팅</span></span>
-            <span class="simple-btn__go">›</span>
-          </button>
-          <button class="simple-btn" data-simple-go="tools">
-            <span class="simple-btn__ico" data-icon="sparkle" data-icon-size="24"></span>
-            <span class="simple-btn__txt"><b>마음도구</b><span>사고 기록 · 호흡 · 하루 정리</span></span>
-            <span class="simple-btn__go">›</span>
-          </button>
-          <button class="simple-btn" data-simple-go="clinic">
-            <span class="simple-btn__ico" data-icon="hospital" data-icon-size="24"></span>
-            <span class="simple-btn__txt"><b>대면진료</b><span>가까운 정신건강의학과 찾기</span></span>
-            <span class="simple-btn__go">›</span>
-          </button>
-          <button class="simple-btn" data-simple-go="report">
-            <span class="simple-btn__ico" data-icon="record" data-icon-size="24"></span>
-            <span class="simple-btn__txt"><b>AI 마음리포트</b><span>검사 결과와 대화로 보는 내 마음</span></span>
-            <span class="simple-btn__go">›</span>
-          </button>
-        </div>
-        <p class="simple-note">천천히 둘러보세요. 아무거나 눌러도 괜찮아요.</p>
-      </div>
 
-      <div id="home-classic">
-
-      <!-- ========== 오늘 ========== -->
-      <div class="home-sec"><h3>오늘</h3></div>
-
-      <!-- 원탭 기분 체크인 — 오늘 체크했으면 같은 카드가 7일 추이로 바뀐다 (App.renderMoodCard) -->
-      <div class="glass-card home-card" id="home-mood-card">
-        <div id="home-mood-pick">
-        <p class="home-card__t">지금 마음은 어때요? <button id="home-mood-back" class="mood-trend__re hidden" onclick="window.App.showMoodTrend()">추이 보기 ›</button></p>
-        <div id="quick-mood-row" class="home-mood" data-mood-row>
- <button class="home-mood__btn"data-emo="기쁨"onclick="window.App.quickMood(5,'기쁨','')">
-            <span data-sticker="joy" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">기쁨</span>
-          </button>
- <button class="home-mood__btn"data-emo="편안"onclick="window.App.quickMood(4,'편안','')">
-            <span data-sticker="empathy" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">편안</span>
-          </button>
- <button class="home-mood__btn"data-emo="보통"onclick="window.App.quickMood(3,'보통','')">
-            <span data-sticker="blank" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">보통</span>
-          </button>
- <button class="home-mood__btn"data-emo="불안"onclick="window.App.quickMood(2,'불안','')">
-            <span data-sticker="surprise" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">불안/불편</span>
-          </button>
- <button class="home-mood__btn"data-emo="우울"onclick="window.App.quickMood(1.5,'우울','')">
-            <span data-sticker="sad" data-sticker-size="46"></span>
-            <span class="home-mood__lbl">우울/고통</span>
-          </button>
-        </div>
-        </div>
-        <div id="home-mood-trend" class="hidden"></div>
-      </div>
-
-      <!-- 오늘의 마음가짐·오늘의 느루 카드는 뺐다 (2026-08-11 사장님 지시 — 홈이 번잡해서).
-           렌더 함수(App.renderIntentCard·Cards.render)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
-
-      <!-- 오늘 할 일 — 체크인·오늘의 미션·케어플랜 할 일을 체크리스트 한 장에 (Missions.renderTodo).
-           '퀘스트 더 받기'·'맞춤 숙제 받기'는 홈에서 빼고 대시보드 › 퀘스트 탭에만 둔다. -->
-      <div class="glass-card home-card">
-        <div class="home-card__head">
-          <p class="home-card__t" data-ic="quest" data-ic-size="15">오늘 할 일</p>
-          <span class="home-card__hint" id="todo-progress"></span>
-        </div>
-        <div id="todo-card-body" data-todo-card></div>
-      </div>
+      <!-- 오늘의 마음가짐·오늘의 우렁 카드(2026-08-11)에 이어 기분 체크인·우렁 미션 카드도 뺐다
+           (2026-09-01 사장님 지시 — 홈이 번잡해서). 체크인·퀘스트는 대시보드(우렁이 세계)에서 계속 된다.
+           렌더 함수(Missions.renderCard 등)는 컨테이너가 없으면 조용히 접으므로 그대로 둔다. -->
 
       <!-- 야간 루틴: 오늘 하루 정리 (저녁 8시~새벽 2시, 미완료 시에만 표시) -->
       <div id="night-card" class="hidden" style="margin: 0 1.25rem 0.7rem; border-radius: 18px; overflow: hidden; background: linear-gradient(135deg, #232f3b 0%, #141c24 100%); color: #f0ead9; box-shadow: var(--shadow-sm); position: relative;">
@@ -223,18 +134,31 @@
           <span data-sticker="sleepy" data-sticker-size="54" style="line-height: 0; flex-shrink: 0;"></span>
           <span style="flex: 1; min-width: 0; text-align: left;">
             <strong style="display: block; font-size: 0.98rem; color: #ffffff;">오늘 하루, 정리하고 잘까요?</strong>
-            <span style="font-size: 0.8rem; color: #ded6c3;">자기 전 딱 3분, 느루가 오늘을 같이 돌아봐드려요</span>
+            <span style="font-size: 0.8rem; color: #ded6c3;">자기 전 딱 3분, 우렁이가 오늘을 같이 돌아봐드려요</span>
           </span>
           <span style="width: 30px; height: 30px; border-radius: 50%; background: #f0ead9; color: #232f3b; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0;">›</span>
         </button>
       </div>
 
-      <!-- ========== 내 마음 도구 ========== -->
-      <div class="home-sec"><h3>내 마음 도구</h3><button id="home-feed-all" class="home-sec__link hidden" data-feed-all>전체 보기 ›</button></div>
-      <!-- 추천 콘텐츠 — '내 마음 도구' 맨 위. 운영자 콘솔에서 올린 영상·글 (Feed.render). 없으면 카드와 '전체 보기'를 함께 숨긴다 -->
-      <div id="home-feed-sec" class="hidden">
-        <div id="home-feed" class="feed-scroll"></div>
+      <!-- ========== 상담 시작하기 ========== -->
+      <div class="home-sec"><h3>상담 시작하기</h3></div>
+      <div class="home-start">
+        <button class="home-start__card home-start__card--ai" onclick="window.App.switchTab('chat')">
+          <span class="home-start__ico" data-icon="chat" data-icon-size="22"></span>
+          <span class="home-start__t">AI 심리상담</span>
+          <span class="home-start__d">24시간 언제든 편하게 대화</span>
+          <span class="home-start__go">대화 시작<span class="home-start__arrow">›</span></span>
+        </button>
+        <button class="home-start__card home-start__card--human" onclick="window.App.switchTab('counselors')">
+          <span class="home-start__ico" data-icon="counselor" data-icon-size="22"></span>
+          <span class="home-start__t">전문 상담사</span>
+          <span class="home-start__d">의료진 소속 검증 상담사 예약</span>
+          <span class="home-start__go">둘러보기<span class="home-start__arrow">›</span></span>
+        </button>
       </div>
+
+      <!-- ========== 내 마음 도구 ========== -->
+      <div class="home-sec"><h3>내 마음 도구</h3></div>
       <div class="home-tools">
         <button class="home-tool" onclick="window.App.switchTab('record')">
           <span class="home-tool__ico" data-icon="note" data-icon-size="20"></span>
@@ -266,14 +190,13 @@
         </button>
       </div>
 
-
       <!-- 앱 설치 안내 (설치 가능할 때만 자동 표시) -->
       <div id="pwa-install-banner" class="glass-card" style="margin: 1rem 1.25rem 0; padding: 0; overflow: hidden; border: 1.5px solid color-mix(in srgb, var(--accent-primary) 40%, transparent); display: none; flex-direction: column;">
         <div style="display: flex; gap: 0.9rem; align-items: center; padding: 1rem 1.1rem 0.8rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent-primary) 14%, var(--bg-secondary)), var(--bg-secondary));">
           <span data-sticker="hero" data-sticker-size="56" style="line-height: 0; flex-shrink: 0;"></span>
           <div style="min-width: 0;">
-            <h3 style="margin: 0; color: var(--text-primary); font-size: 1.02rem;">느루를 폰에 앉혀주세요</h3>
-            <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5;">홈 화면에서 한 번에 열리고, 느루가 먼저 안부를 물어요</p>
+            <h3 style="margin: 0; color: var(--text-primary); font-size: 1.02rem;">우렁의사를 폰에 앉혀주세요</h3>
+            <p style="margin: 0.2rem 0 0 0; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.5;">홈 화면에서 한 번에 열리고, 우렁이가 먼저 안부를 물어요</p>
           </div>
         </div>
         <div style="display: flex; gap: 0.5rem; padding: 0.75rem 1.1rem 1rem;">
@@ -285,14 +208,38 @@
         </div>
       </div>
 
-      <!-- ========== 대면상담 및 진료 — 내 주변 정신건강의학과 (js/clinics.js) ========== -->
+      <!-- ========== 추천 제휴 콘텐츠 ========== -->
       <div class="home-sec">
         <h3>대면상담 및 진료</h3>
-        <button class="home-sec__link" data-clinics-all>전체 보기 ›</button>
+        <span class="home-sec__sub">제휴</span>
       </div>
-      <div id="home-clinics"></div>
+      <div class="home-ads">
+        <div class="glass-card home-ad" onclick="alert('제휴 병원 예약 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adHospital"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: var(--accent-primary); font-weight: bold; border: 1px solid var(--accent-primary); padding: 0.1rem 0.4rem; border-radius: 6px;">제휴병원</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">서울 마음그린 정신건강의학과</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">직장인을 위한 평일 야간 진료 개시!</p>
           </div>
-</section>
+        </div>
+        <div class="glass-card home-ad" onclick="alert('수면클리닉 안내 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adSleep"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: #6f97ab; font-weight: bold; border: 1px solid #6f97ab; padding: 0.1rem 0.4rem; border-radius: 6px;">수면클리닉</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">굿나잇 수면클리닉 기획전</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">수면다원검사로 불면의 원인을 찾아드립니다.</p>
+          </div>
+        </div>
+        <div class="glass-card home-ad" onclick="alert('도서 구매 페이지로 이동합니다.')">
+          <div class="ad-art" data-art="adBook"></div>
+          <div style="padding: 0.9rem;">
+            <span style="font-size: 0.68rem; color: var(--accent-secondary); font-weight: bold; border: 1px solid var(--accent-secondary); padding: 0.1rem 0.4rem; border-radius: 6px;">추천도서</span>
+            <h4 style="margin: 0.45rem 0 0.25rem 0; font-size: 0.92rem;">내 마음을 안아주는 연습</h4>
+            <p style="margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4;">인지심리학자의 따뜻한 위로와 솔루션.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- CHAT TAB -->
     <section id="tab-chat" class="tab-content active">
@@ -301,7 +248,7 @@
         <div style="display: flex; align-items: center; gap: 0.55rem;">
           <span id="persona-bar-avatar" style="display: inline-flex; flex: 0 0 auto; line-height: 0;"></span>
           <div style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center;">
-            <span id="persona-bar-name" style="font-weight: 700; font-size: 0.92rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">느루</span>
+            <span id="persona-bar-name" style="font-weight: 700; font-size: 0.92rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">우렁의사</span>
             <span id="persona-bar-tagline" style="font-size: 0.72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">다정하고 능청스러운 동네 주치의</span>
           </div>
           <button id="btn-voice-call" title="보이스톡 (30초당 150캐시)" onclick="window.CallTalk && window.CallTalk.start(window.Personas.getActive().id)"
@@ -436,7 +383,7 @@
 
 
       <div class="dashboard-grid">
- <!-- 느루 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
+ <!-- 우렁이 세계 — 방·농장·옷장·퀘스트·훈장·서재가 들어있는 단일 게임 -->
         <div class="dash-card glass-card" style="grid-column: 1 / -1; padding: 0.85rem 0.9rem 0.5rem;">
           <div id="game-hud" style="margin-bottom: 0.75rem;"></div>
 
@@ -444,7 +391,7 @@
  <!-- 방 -->
             <div class="game-view" id="gv-room">
               <div id="room-body"></div>
-              <!-- 느루를 보면서 오늘 할 일도 같이 보이게.
+              <!-- 우렁이를 보면서 오늘 할 일도 같이 보이게.
                    renderCard() 가 [data-mission-card] 를 전부 채우므로
                    여기 칸만 두면 홈·퀘스트 화면과 같은 내용이 그려진다. -->
               <div style="margin-top: 1rem; padding-top: 0.9rem; border-top: 1px solid var(--glass-border);">
@@ -463,7 +410,7 @@
 
  <!-- 옷장 -->
             <div class="game-view hidden" id="gv-closet">
-              <p class="game-view-tip">입힌 옷은 방 안의 느루와 앱 곳곳의 느루에게 전부 적용돼요.</p>
+              <p class="game-view-tip">입힌 옷은 방 안의 우렁이와 앱 곳곳의 우렁이에게 전부 적용돼요.</p>
               <div id="closet-body"></div>
             </div>
 
@@ -491,7 +438,7 @@
  <!-- 훈장 (방의 하위 화면 — 방의 버튼으로 진입) -->
             <div class="game-view hidden" id="gv-medal">
               <button onclick="window.Game && window.Game.show('room')" style="all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.55rem;">‹ 방으로 돌아가기</button>
- <strong style="display: block; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;"> 느루 훈장</strong>
+ <strong style="display: block; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0.5rem;"> 우렁이 훈장</strong>
               <div id="badge-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.5rem;"></div>
               <div id="shield-shop" style="margin: 0.7rem 0 0;"></div>
               <div id="shield-row" class="hidden" style="display: none;"></div>
@@ -512,7 +459,7 @@
                 <button onclick="window.App.toggleLib('lib-mail', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
                   <span class="lib-ico" data-ic="letter" data-ic-size="23"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
-                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">느루네 우편함</strong>
+                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">우렁이네 우편함</strong>
                     <span style="display: block; margin-top: 0.1rem; font-size: 0.79rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">우표 붙여 보내면 답장이 와요</span>
                   </span>
                   <span class="lib-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
@@ -525,7 +472,7 @@
                 <button onclick="window.App.toggleLib('lib-weekly', this)" style="all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.75rem 0.85rem; cursor: pointer;">
                   <span class="lib-ico" data-ic="checkin" data-ic-size="23"></span>
                   <span style="flex: 1 1 0%; width: 0; min-width: 0;">
-                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">느루의 주간 편지</strong>
+                    <strong style="display: block; font-size: 0.95rem; color: var(--text-primary); letter-spacing: -0.01em;">우렁이의 주간 편지</strong>
                     <span style="display: block; margin-top: 0.1rem; font-size: 0.79rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">일주일을 모아 써주는 편지</span>
                   </span>
                   <span class="lib-chev" style="color: var(--text-muted); font-weight: 800; flex-shrink: 0; transition: transform 0.15s;">›</span>
@@ -554,9 +501,9 @@
                 </div>
 
                 <button class="btn-primary" style="width: 100%; padding: 0.78rem; font-size: 0.92rem;"
-                  onclick="window.Growth && window.Growth.startNight()">느루와 하루 정리하기</button>
+                  onclick="window.Growth && window.Growth.startNight()">우렁이와 하루 정리하기</button>
                 <p style="margin: 0.3rem 0 0.55rem; font-size: 0.71rem; color: var(--text-muted); text-align: center; line-height: 1.5;">
-                  느루가 세 가지만 물어봐요 · 3분
+                  우렁이가 세 가지만 물어봐요 · 3분
                 </p>
                 <button class="btn-secondary" style="width: 100%; padding: 0.6rem; font-size: 0.83rem;"
                   onclick="window.Growth && window.Growth.writeDiary()">그냥 내 마음대로 쓸래요</button>
@@ -573,7 +520,7 @@
                 <details style="margin-top: 0.8rem;">
                   <summary style="cursor: pointer; font-size: 0.74rem; font-weight: 700; color: var(--text-muted);">지난 일기 찾아보기 · 내보내기</summary>
                   <div style="margin-top: 0.55rem;">
-                    <input id="diary-search" type="search" placeholder="내용이나 느루 답글로 검색"
+                    <input id="diary-search" type="search" placeholder="내용이나 우렁이 답글로 검색"
                       oninput="window.Growth._diaryQuery = this.value.trim(); window.Growth.renderNightList();"
                       style="width: 100%; box-sizing: border-box; margin-bottom: 0.45rem; padding: 0.55rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.82rem;">
                     <div style="display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.5rem;">
@@ -610,10 +557,10 @@
 
           <nav id="game-nav"></nav>
 
- <!-- 나의 느루 — 방 화면에서만 표시 -->
+ <!-- 나의 우렁이 — 방 화면에서만 표시 -->
           <div id="my-snail-panel" style="margin-top: 0.55rem; padding-top: 0.6rem; border-top: 1px solid var(--glass-border);">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 0.45rem;">
-              <strong style="font-size: 0.84rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.35rem;" data-ic="sprout" data-ic-size="17">나의 느루</strong>
+              <strong style="font-size: 0.84rem; color: var(--text-primary); display: inline-flex; align-items: center; gap: 0.35rem;" data-ic="sprout" data-ic-size="17">나의 우렁이</strong>
               <button onclick="window.Room && window.Room.openIdleBook()" class="head-chip" style="margin-left: auto;">할 수 있는 일 ›</button>
               <span id="growth-streak-line" style="font-size: 0.74rem; font-weight: 800; color: #e8590c;"></span>
             </div>
@@ -626,7 +573,7 @@
         <div class="my-group" style="grid-column: 1 / -1; margin: 0;">
           <button class="my-row" onclick="window.App.switchTab('record')">
             <span class="my-row__ico" data-ic="note" data-ic-size="20"></span>
-            <span class="my-row__txt"><b>사고 기록지</b><span>느루가 대화에서 정리해둔 마음 기록</span></span>
+            <span class="my-row__txt"><b>사고 기록지</b><span>우렁이가 대화에서 정리해둔 마음 기록</span></span>
             <span class="my-row__go">›</span>
           </button>
 
@@ -647,11 +594,11 @@
         <div style="display:none;">
         </div>
 
-        <!-- AI 마음 리포트 전체화면 오버레이 -->
+        <!-- AI 진단서 전체화면 오버레이 -->
         <div id="assess-overlay" class="hidden" style="position: fixed; inset: 0; z-index: 900; background: var(--bg-primary); overflow-y: auto; padding-bottom: 2.5rem;">
           <div style="position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 0.55rem; padding: 0.85rem 1rem; background: var(--bg-secondary); border-bottom: 1px solid var(--glass-border);">
             <button onclick="window.Assess.close()" style="all: unset; box-sizing: border-box; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.3rem; color: var(--text-primary);">←</button>
- <strong style="font-size: 1.05rem; color: var(--text-primary);"> AI 마음 리포트 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 자료</span></strong>
+ <strong style="font-size: 1.05rem; color: var(--text-primary);"> AI 마음 리포트 <span style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">참고용 · 진단 아님</span></strong>
           </div>
           <div id="assess-body" style="padding: 1rem;"></div>
         </div>
@@ -680,7 +627,7 @@
             <div id="chat-insights-content" style="margin-top: 0.8rem;"></div>
             <p style="margin: 1.1rem 0 0.5rem; font-size: 0.78rem; font-weight: 800; color: var(--text-muted);">지난 리포트 — 누르면 펼쳐져요</p>
             <div id="report-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
-            <p id="report-list-note" class="hidden" style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; text-align: center;">리포트는 최근 30개까지 보관되며 오래된 것부터 자동 정리돼요.<br>정리된 리포트의 이야기도 느루의 기억에는 모두 남아있어요.</p>
+            <p id="report-list-note" class="hidden" style="font-size: 0.72rem; color: var(--text-muted); margin: 0.5rem 0 0; text-align: center;">리포트는 최근 30개까지 보관되며 오래된 것부터 자동 정리돼요.<br>정리된 리포트의 이야기도 우렁이의 기억에는 모두 남아있어요.</p>
           </div>
         </div>
       </div>
@@ -698,11 +645,11 @@
         <p class="tab-subtitle">우리 마음의 10가지 생각 함정을 알아보세요</p>
       </div>
 
-      <!-- 느루 선생님 히어로 -->
+      <!-- 우렁 선생님 히어로 -->
       <div class="learn-hero">
         <span data-sticker="teacher" data-sticker-size="96" style="line-height: 0; flex-shrink: 0;"></span>
         <div class="learn-hero__bubble">
-          <strong>느루 선생님의 마음 수업</strong>
+          <strong>우렁 선생님의 마음 수업</strong>
           <p>생각의 함정에 이름을 붙이면 빠져나오기 쉬워져요.</p>
         </div>
       </div>
@@ -728,7 +675,7 @@
     <section id="tab-counselors" class="tab-content">
       <header class="home-top">
         <span class="home-logo__mark" data-sticker="counselor" data-sticker-size="32"></span>
-        <span class="home-logo__t">전화 심리상담</span>
+        <span class="home-logo__t">상담사 매칭</span>
         <button id="wallet-chip" class="head-chip" onclick="window.App.switchTab('mypage')" title="캐시 충전하러 가기"></button>
       </header>
       <p class="tab-lede">검증된 병원 소속 상담사와 연결해드려요</p>
@@ -756,7 +703,7 @@
              같은 값이어야 한다. 한때 여기만 55/35/10 으로 남아 있어서, 상담사가
              가입할 때 본 조건과 실제로 받는 금액이 달랐다.
              2026-08-18 개편: 분배 폐지 → 상담사 구독제. -->
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">상담료는 카드결제(PG)로 받아 결제 수수료 3%를 제외한 <b>97%가 전액 상담사님 몫</b>입니다. 느루는 상담료에서 가져가지 않고, <b>월 99,000원 구독료</b>(첫 1개월 무료)로 운영됩니다.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">상담료는 카드결제(PG)로 받아 결제 수수료 3%를 제외한 <b>97%가 전액 상담사님 몫</b>입니다. 우렁의사는 상담료에서 가져가지 않고, <b>월 99,000원 구독료</b>(첫 1개월 무료)로 운영됩니다.</p>
         <div data-payout-notice="100000" style="margin-bottom: 1rem;"></div>
         <div style="display: flex; flex-direction: column; gap: 0.6rem;">
           <input id="creg-name" placeholder="이름" style="padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none;">
@@ -872,12 +819,12 @@
         <button class="head-chip" onclick="window.App.openSettings()" title="설정">설정</button>
       </header>
 
-      <!-- 프로필 헤더 — 느루 아바타 + 이름 + 레벨/스트릭 -->
+      <!-- 프로필 헤더 — 우렁이 아바타 + 이름 + 레벨/스트릭 -->
       <div class="my-hero">
         <span class="my-hero__ava" data-sticker="proud" data-sticker-size="62"></span>
         <div class="my-hero__txt">
           <strong id="my-name">나</strong>
-          <span id="my-sub">느루와 함께한 기록</span>
+          <span id="my-sub">우렁이와 함께한 기록</span>
         </div>
         <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정" aria-label="프로필 수정"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15.6 4.4 19.6 8.4 8.6 19.4l-4.8.8.8-4.8Z"/><path d="m14.2 5.8 4 4"/></svg></button>
       </div>
@@ -893,7 +840,7 @@
           <div id="sub-card-body"></div>
         </div>
         <div class="my-money__card">
-          <p class="my-money__t" data-ic="cash" data-ic-size="16">느루 캐시</p>
+          <p class="my-money__t" data-ic="cash" data-ic-size="16">우렁 캐시</p>
           <div id="wallet-card-body"></div>
           <p class="my-money__note">예약 결제·보이스톡(30초 150캐시)에 사용돼요.</p>
         </div>
@@ -902,10 +849,6 @@
       <!-- 위기 대비 — 괜찮을 때 미리 적어두는 안전계획 -->
       <p class="my-sec">위기 대비</p>
       <div class="my-group" id="safetyplan-card"></div>
-
-      <!-- 담당 병원 — 정신과에서 앱을 권한 환자는 병원 코드로 담당의와 이어진다 (Hospital.render) -->
-      <p class="my-sec">담당 병원</p>
-      <div class="my-group" id="hospital-card"></div>
 
       <!-- 상담사가 낸 과제 — 회기 사이가 실제로 변화가 일어나는 구간 -->
       <p class="my-sec">상담 숙제</p>
@@ -944,8 +887,6 @@
       <!-- 앱 -->
       <p class="my-sec">앱</p>
       <div class="my-group">
-        <div class="my-row my-row--static" id="home-variant-row"></div>
-        <div class="my-row my-row--static" id="consent-row"></div>
         <button class="my-row" onclick="window.App.openSettings()">
           <span class="my-row__ico" data-ic="settings" data-ic-size="19"></span>
           <span class="my-row__txt"><b>설정</b><span>프로필 · 테마 · 알림 · 앱 잠금 · 백업</span></span>
@@ -953,7 +894,7 @@
         </button>
         <div class="my-row my-row--static my-row--privacy">
           <span class="my-row__ico" data-ic="lock" data-ic-size="19"></span>
-          <span class="my-row__txt"><b>느루와의 비밀</b><span>여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 누구에게도 공유되지 않아요.</span></span>
+          <span class="my-row__txt"><b>우렁이와의 비밀</b><span>여기서 나눈 이야기는 <b>오직 이 휴대폰 안에만</b> 저장돼요. 어떤 서버에도 쌓이지 않고, 누구에게도 공유되지 않아요.</span></span>
         </div>
       </div>
 
@@ -1005,22 +946,22 @@
         <span data-sticker="cheer" data-sticker-size="52" style="line-height: 0; flex-shrink: 0;"></span>
         <div style="flex: 1; min-width: 0;">
           <strong style="font-size: 0.92rem; color: var(--text-primary); display: block;">상담사이신가요?</strong>
-          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 느루에 입점하고 내담자를 만나보세요.</span>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">소속 병원과 함께 우렁의사에 입점하고 내담자를 만나보세요.</span>
         </div>
         <button class="btn-primary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="window.App.openCounselorReg()">등록 신청</button>
       </div>
 
-      <!-- 느루의 기억 (백업/복원) -->
+      <!-- 우렁이의 기억 (백업/복원) -->
       <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
         <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;">
           <span data-sticker="love" data-sticker-size="52" style="flex-shrink: 0; line-height: 0;"></span>
           <div>
-            <h3 style="margin: 0;">느루의 기억</h3>
-            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">걱정 마세요, 느루는 당신을 잊지 않아요.</p>
+            <h3 style="margin: 0;">우렁이의 기억</h3>
+            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">걱정 마세요, 우렁이는 당신을 잊지 않아요.</p>
           </div>
         </div>
-        <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.6;">대화를 지워도 느루의 기억은 남아요.</p>
-        <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.55;">다만 <b>휴대폰을 바꾸거나 앱을 완전히 삭제할 때</b>를 대비해, 기억을 파일 하나로 간직해둘 수 있어요. 새 폰에서 이 파일을 불러오면 느루는 당신을 처음처럼이 아니라 <b>어제처럼</b> 기억해냅니다. 파일은 봉인되어 느루만 읽을 수 있어요.</p>
+        <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 0.5rem; line-height: 1.6;">대화를 지워도 우렁이의 기억은 남아요.</p>
+        <p style="font-size: 0.76rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.55;">다만 <b>휴대폰을 바꾸거나 앱을 완전히 삭제할 때</b>를 대비해, 기억을 파일 하나로 간직해둘 수 있어요. 새 폰에서 이 파일을 불러오면 우렁이는 당신을 처음처럼이 아니라 <b>어제처럼</b> 기억해냅니다. 파일은 봉인되어 우렁이만 읽을 수 있어요.</p>
         <div style="display: flex; gap: 0.5rem;">
           <button id="btn-memory-export" class="btn-primary" style="flex: 1;">기억 간직하기 (백업)</button>
           <button id="btn-memory-import" class="btn-secondary" style="flex: 1;">기억 불러오기 (복원)</button>
@@ -1087,8 +1028,8 @@
           <!-- 알림음 -->
           <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 10px; border: 1px solid var(--glass-border);">
             <div>
-              <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;" data-ic="bubble" data-ic-size="16">알림음 (느루!)</strong>
-              <span style="font-size: 0.78rem; color: var(--text-muted);">답장·예약·편지 도착 시 느루 차임을 울려요. (진동은 유지)</span>
+              <strong style="font-size: 0.9rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;" data-ic="bubble" data-ic-size="16">알림음 (우렁!)</strong>
+              <span style="font-size: 0.78rem; color: var(--text-muted);">답장·예약·편지 도착 시 우렁 차임을 울려요. (진동은 유지)</span>
             </div>
             <input type="checkbox" id="setting-sound" checked onchange="window.Storage._safeSet('cbt_sound_on', this.checked)" style="width: 18px; height: 18px; accent-color: var(--accent-primary);">
           </div>
@@ -1143,7 +1084,7 @@
               <strong style="font-size: 0.9rem; color: var(--text-primary); display: block;">문의하기</strong>
               <span style="font-size: 0.78rem; color: var(--text-muted);">불편한 점, 제안, 결제 문의 모두 환영해요.</span>
             </div>
-            <a href="mailto:nda960327@gmail.com?subject=%5B마인드 인사이드%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
+            <a href="mailto:nda960327@gmail.com?subject=%5B우렁의사%5D%20문의" class="btn-secondary" style="width: auto; padding: 0.4rem 0.85rem; font-size: 0.82rem; text-decoration: none; text-align: center;">메일 보내기</a>
           </div>
 
           <!-- 로그아웃 -->
@@ -1211,7 +1152,7 @@
         <div class="my-group">
           <a href="./privacy.html" target="_blank" rel="noopener" class="my-row" style="text-decoration: none;">
             <span class="my-row__ico" data-ic="lock" data-ic-size="19"></span>
-            <span class="my-row__txt"><b>개인정보처리방침</b><span>무엇을 어디에 저장하고 누구와 나누는지</span></span>
+            <span class="my-row__txt"><b>개인정보처리방침</b><span>기록은 이 기기에만 저장돼요</span></span>
             <span class="my-row__go">›</span>
           </a>
           <a href="./terms.html" target="_blank" rel="noopener" class="my-row" style="text-decoration: none;">
@@ -1230,10 +1171,10 @@
         <div style="margin-top: 0.9rem; border-radius: 14px; padding: 0.85rem 0.95rem;
                     background: color-mix(in srgb, #c9a227 8%, transparent);
                     border: 1px solid color-mix(in srgb, #c9a227 26%, transparent);">
-          <strong style="font-size: 0.82rem; color: var(--text-primary);">느루는 의료기기가 아니에요</strong>
+          <strong style="font-size: 0.82rem; color: var(--text-primary);">우렁의사는 의료기기가 아니에요</strong>
           <p style="margin: 0.35rem 0 0; font-size: 0.76rem; line-height: 1.7; color: var(--text-secondary);">
-            AI 상담과 표준 자가검사 결과(PHQ-9·GAD-7), AI 마음 리포트는 <b>참고용</b>이에요.
-            의사·임상심리사의 판단을 대신할 수 없어요.
+            AI 상담과 표준 검진 결과(PHQ-9·GAD-7), AI 마음 리포트는 <b>참고용</b>이에요.
+            진단이 아니고 의사·임상심리사의 판단을 대신할 수 없어요.
             힘든 상태가 이어지면 꼭 전문가와 상의해주세요.
           </p>
         </div>
@@ -1259,7 +1200,7 @@
         </div>
 
         <p style="text-align: center; margin: 1rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
-          마인드 인사이드 <span id="app-version">v1.0.0</span> <span id="app-build" style="opacity: 0.75;"></span>
+          우렁의사 <span id="app-version">v1.0.0</span> <span id="app-build" style="opacity: 0.75;"></span>
         </p>
 
         <!-- 최후의 수단.
@@ -1356,7 +1297,7 @@
           <h4 style="margin: 0 0 1rem 0; color: #d97706; display: flex; align-items: center; gap: 0.5rem;"><span class="h-ico" data-icon="quote" data-icon-size="18"></span>주요 대화 발췌 (상담 참고용)</h4>
           <div style="font-size: 0.85rem; color: var(--text-secondary); border-left: 3px solid #fbd38d; padding-left: 1rem;">
             <strong style="color: var(--text-primary);">내담자:</strong> "발표 준비를 아무리 해도 불안해요. 무대에서 실수할 게 뻔해요."<br><br>
-            <strong style="color: var(--accent-primary);">느루:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요?"<br><br>
+            <strong style="color: var(--accent-primary);">우렁의사:</strong> "실수할 것이라고 확신하시는군요. 과거에 발표에서 실수했을 때 실제로 어떤 일이 일어났었나요?"<br><br>
             <strong style="color: var(--text-primary);">내담자:</strong> "사실 실수한 적은 있었지만, 사람들이 크게 신경 쓰지는 않았던 것 같아요."
           </div>
         </div>
@@ -1369,9 +1310,9 @@
     <div id="global-install-modal" class="modal-overlay hidden" style="z-index: 9999;">
       <div class="modal-content glass-card" style="text-align: center;">
         <div style="margin-bottom: 0.5rem; animation: float 3s ease-in-out infinite; display: flex; justify-content: center;"><span data-sticker="cheer" data-sticker-size="92"></span></div>
-        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">마인드 인사이드 앱 다운로드</h2>
+        <h2 style="margin-bottom: 0.5rem; font-family: var(--font-heading); color: var(--text-primary);">우렁의사 앱 다운로드</h2>
         <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.4;">
-          바탕화면에 느루를 설치하고<br>언제든 빠르게 마음을 돌보세요!
+          바탕화면에 우렁의사를 설치하고<br>언제든 빠르게 마음을 돌보세요!
         </p>
         <button id="btn-global-install" class="btn-primary" style="margin-bottom: 0.8rem; box-shadow: var(--shadow-glow);">무료 앱 설치하기</button>
         <button class="btn-secondary" onclick="closeGlobalInstallModal()">다음에 할게요</button>
@@ -1437,7 +1378,7 @@
       </button>
       <button class="nav-item" data-tab="counselors">
         <span class="nav-ico" data-icon="counselor" data-icon-size="23"></span>
-        <span data-i18n="nav.counselors">전화 심리상담</span>
+        <span data-i18n="nav.counselors">상담사 매칭</span>
       </button>
       <button class="nav-item" data-tab="dashboard">
         <span class="nav-ico" data-icon="dashboard" data-icon-size="23"></span>
@@ -1451,63 +1392,58 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=208"></script>
-  <script defer src="js/storage.js?v=208"></script>
-  <script defer src="js/inbox.js?v=208"></script>
-  <script defer src="js/cards.js?v=208"></script>
-  <script defer src="js/chatviz.js?v=208"></script>
-  <script defer src="js/memory-vault.js?v=208"></script>
-  <script defer src="js/personas.js?v=208"></script>
-  <script defer src="js/stickers.js?v=208"></script>
-  <script defer src="js/ui.js?v=208"></script>
-  <script defer src="js/api.js?v=208"></script>
-  <script defer src="js/rtccall.js?v=208"></script>
-  <script defer src="js/prolink.js?v=208"></script>
-  <script defer src="js/account.js?v=208"></script>
-  <script defer src="js/freshness.js?v=208"></script>
-  <script defer src="js/i18n.js?v=208"></script>
-  <script defer src="js/wallet.js?v=208"></script>
-  <script defer src="js/pay.js?v=208"></script>
-  <script defer src="js/subscription.js?v=208"></script>
-  <script defer src="js/calltalk.js?v=208"></script>
-  <script defer src="js/calm.js?v=208"></script>
-  <script defer src="js/voice.js?v=208"></script>
-  <script defer src="js/llm.js?v=208"></script>
-  <script defer src="js/chatbot.js?v=208"></script>
-  <script defer src="js/marketplace.js?v=208"></script>
-  <script defer src="js/booking.js?v=208"></script>
-  <script defer src="js/thought-record.js?v=208"></script>
-  <script defer src="js/growth.js?v=208"></script>
-  <script defer src="js/missions.js?v=208"></script>
-  <script defer src="js/weekly.js?v=208"></script>
-  <script defer src="js/sleep.js?v=208"></script>
-  <script defer src="js/onboard.js?v=208"></script>
-  <script defer src="js/stickershop.js?v=208"></script>
-  <script defer src="js/applock.js?v=208"></script>
-  <script defer src="js/safety.js?v=208"></script>
-  <script defer src="js/admin.js?v=208"></script>
-  <script defer src="js/dashboard.js?v=208"></script>
-  <script defer src="js/learn.js?v=208"></script>
-  <script defer src="js/sfx.js?v=208"></script>
-  <script defer src="js/mail.js?v=208"></script>
-  <script defer src="js/payout.js?v=208"></script>
-  <script defer src="js/careplan.js?v=208"></script>
-  <script defer src="js/goals.js?v=208"></script>
-  <script defer src="js/progress.js?v=208"></script>
-  <script defer src="js/safetyplan.js?v=208"></script>
-  <script defer src="js/homework.js?v=208"></script>
-  <script defer src="js/feed.js?v=208"></script>
-  <script defer src="js/hospital.js?v=208"></script>
-  <script defer src="js/clinics.js?v=208"></script>
-  <script defer src="js/consent.js?v=208"></script>
-  <script defer src="js/homesimple.js?v=208"></script>
-  <script defer src="js/assess-charts.js?v=208"></script>
-  <script defer src="js/assess.js?v=208"></script>
-  <script defer src="js/game.js?v=208"></script>
-  <script defer src="js/room.js?v=208"></script>
-  <script defer src="js/farm.js?v=208"></script>
-  <script defer src="js/closet.js?v=208"></script>
-  <script defer src="js/app.js?v=208"></script>
+  <script defer src="js/icons.js?v=174"></script>
+  <script defer src="js/storage.js?v=174"></script>
+  <script defer src="js/inbox.js?v=174"></script>
+  <script defer src="js/cards.js?v=174"></script>
+  <script defer src="js/chatviz.js?v=174"></script>
+  <script defer src="js/memory-vault.js?v=174"></script>
+  <script defer src="js/personas.js?v=174"></script>
+  <script defer src="js/stickers.js?v=174"></script>
+  <script defer src="js/ui.js?v=174"></script>
+  <script defer src="js/api.js?v=174"></script>
+  <script defer src="js/rtccall.js?v=174"></script>
+  <script defer src="js/prolink.js?v=174"></script>
+  <script defer src="js/account.js?v=174"></script>
+  <script defer src="js/freshness.js?v=174"></script>
+  <script defer src="js/i18n.js?v=174"></script>
+  <script defer src="js/wallet.js?v=174"></script>
+  <script defer src="js/pay.js?v=174"></script>
+  <script defer src="js/subscription.js?v=174"></script>
+  <script defer src="js/calltalk.js?v=174"></script>
+  <script defer src="js/calm.js?v=174"></script>
+  <script defer src="js/voice.js?v=174"></script>
+  <script defer src="js/llm.js?v=174"></script>
+  <script defer src="js/chatbot.js?v=174"></script>
+  <script defer src="js/marketplace.js?v=174"></script>
+  <script defer src="js/booking.js?v=174"></script>
+  <script defer src="js/thought-record.js?v=174"></script>
+  <script defer src="js/growth.js?v=174"></script>
+  <script defer src="js/missions.js?v=174"></script>
+  <script defer src="js/weekly.js?v=174"></script>
+  <script defer src="js/sleep.js?v=174"></script>
+  <script defer src="js/onboard.js?v=174"></script>
+  <script defer src="js/stickershop.js?v=174"></script>
+  <script defer src="js/applock.js?v=174"></script>
+  <script defer src="js/safety.js?v=174"></script>
+  <script defer src="js/admin.js?v=174"></script>
+  <script defer src="js/dashboard.js?v=174"></script>
+  <script defer src="js/learn.js?v=174"></script>
+  <script defer src="js/sfx.js?v=174"></script>
+  <script defer src="js/mail.js?v=174"></script>
+  <script defer src="js/payout.js?v=174"></script>
+  <script defer src="js/careplan.js?v=174"></script>
+  <script defer src="js/goals.js?v=174"></script>
+  <script defer src="js/progress.js?v=174"></script>
+  <script defer src="js/safetyplan.js?v=174"></script>
+  <script defer src="js/homework.js?v=174"></script>
+  <script defer src="js/assess-charts.js?v=174"></script>
+  <script defer src="js/assess.js?v=174"></script>
+  <script defer src="js/game.js?v=174"></script>
+  <script defer src="js/room.js?v=174"></script>
+  <script defer src="js/farm.js?v=174"></script>
+  <script defer src="js/closet.js?v=174"></script>
+  <script defer src="js/app.js?v=174"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기
