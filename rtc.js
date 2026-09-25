@@ -281,8 +281,13 @@ async function logCallToChat(db, env, ctx, call, line, sender) {
 
 // 이 통화가 병원을 통해 온 내담자인지 — 만들어지는 순간에 정하고 이후 바뀌지 않는다.
 //  정산 배분이 여기서 갈린다 (market.js payoutOf 참고).
-async function callChannel(db, clientId) {
+async function callChannel(db, clientId, counselorId) {
   try {
+    // 소속 상담소가 있는 상담사의 통화는 그 상담소 채널 (market.js channelOf 와 같은 규칙)
+    if (counselorId) {
+      const c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first();
+      if (c && c.hospital_id) return { channel: 'hospital', hospitalId: c.hospital_id };
+    }
     const x = await db.prepare(
       'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
     ).bind(clientId).first();
@@ -420,7 +425,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       } catch (e) {}
     }
     const id = rid('call');
-    const cch = await callChannel(db, clientId);
+    const cch = await callChannel(db, clientId, counselorId);
     await db.prepare(
       "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir, channel, hospital_id) VALUES (?,?,?,?,?,?,?,'to-counselor',?,?)"
     ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t, cch.channel, cch.hospitalId).run();
@@ -491,7 +496,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       return json({ error: 'busy', message: '지금 다른 통화가 진행 중이에요. 그 통화를 끝내고 다시 걸어주세요.' }, 409, cors);
     }
     const id = rid('call');
-    const cch2 = await callChannel(db, clientId);
+    const cch2 = await callChannel(db, clientId, me.id);
     // 상담사 발신은 요금 0 — 내담자에게 과금할 수 없다
     try {
       await db.prepare(

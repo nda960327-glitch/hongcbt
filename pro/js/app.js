@@ -65,6 +65,8 @@ let FCM_TOKEN = localStorage.getItem('pro_fcm_token') || '';
 //  이걸 안 두면 알림이 멀쩡히 켜져 있는데도 '알림이 꺼져 있어요' 카드가 계속 뜬다.
 let NOTI_NATIVE = '';
 let ME = null;                      // /api/me 프로필
+let HOSPS = null;                   // 제휴 상담소 목록 (소속 드롭다운용)
+async function loadHospList() { const d = await getJson('/api/community/hospitals'); if (d && Array.isArray(d.items)) HOSPS = d.items; }
 let TAB = 'home';
 let ROOM = null;                    // 열려 있는 대화방 key
 const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '',
@@ -555,6 +557,7 @@ async function loadMe() {
   const d = await getJson('/api/me?' + authQS());
   if (d && d.ok) {
     ME = d.me;
+    if (HOSPS === null) loadHospList();
     $('me-name').textContent = ME.name || '상담사';
     $('me-sub').textContent = [ME.hospital || '소속 미입력', ME.license || ''].filter(Boolean).join(' · ');
     // 올린 사진은 맨 위 아바타에도 바로 보인다 — '저장이 됐나?'를 확인하려고
@@ -1650,7 +1653,10 @@ function renderMoney() {
 function syncProfileForm() {
   if (!ME || !$('pf-hospital')) return;
   const g = id => ($(id) || {}).value || '';
-  ME.hospital = g('pf-hospital'); ME.addr = g('pf-addr'); ME.tel = g('pf-tel');
+  const hs = $('pf-hospital');
+  ME.hospitalId = hs ? hs.value : (ME.hospitalId || '');
+  ME.hospital = (hs && hs.value) ? (hs.options[hs.selectedIndex].textContent.split(' · ')[0] || '') : '';
+  ME.addr = g('pf-addr'); ME.tel = g('pf-tel');
   ME.addrDetail = g('pf-addr2');
   ME.license = g('pf-license'); ME.intro = g('pf-intro');
   ME.price = parseInt(g('pf-price'), 10) || 0;
@@ -1879,7 +1885,13 @@ function foldProfile() {
     <p class="muted" style="margin-bottom:0.8rem;">이름은 자격 확인을 거친 값이라 바꿀 수 없어요.
       개명 등으로 바뀌었다면 운영자에게 문의해 주세요.</p>
     ${photoBlock}
-    ${f('pf-hospital', '소속 기관', ME.hospital, '예: OO 심리상담센터 (OO점)')}
+    <label><span>소속 기관</span>
+      <select id="pf-hospital">
+        <option value="">소속기관 없음 (개인 상담사)</option>
+        ${(HOSPS || []).map(h => `<option value="${esc(h.id)}" ${h.id === ME.hospitalId ? 'selected' : ''}>${esc(h.name)}${h.dept ? ' · ' + esc(h.dept) : ''}</option>`).join('')}
+        ${ME.hospitalId && !(HOSPS || []).some(h => h.id === ME.hospitalId) ? `<option value="${esc(ME.hospitalId)}" selected>${esc(ME.hospital || '소속 상담소')}</option>` : ''}
+      </select>
+      <span class="muted" style="margin-top:0.2rem;">제휴 상담소 소속이면 상담료가 상담소로 정산되고 상담소가 지급해요. 소속이 없으면 아래 정산 계좌로 받아요.</span></label>
     ${telBlock}
     ${addrBlock}
     ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
@@ -2028,6 +2040,9 @@ async function loadDevices(force) {
 
 function foldPayout() {
   if (!ME) return '';
+  // 소속 상담소가 있으면 상담료는 상담소로 가고 상담소가 지급한다 — 상담사 계좌는 받지 않는다
+  if (ME.hospitalId) return fold('payout', '정산', `${esc(ME.hospital || '소속 상담소')}가 지급`, `
+    <p class="muted" style="margin-top:0.8rem;">선생님의 상담료는 소속 상담소(<b>${esc(ME.hospital || '')}</b>)로 정산되고, 선생님께는 상담소가 직접 지급해요. 앱에서 따로 계좌를 받지 않아요.<br>소속을 없애면 정산 계좌를 등록하는 칸이 생겨요.</p>`);
   const p = ME.payout || { set: false };
   return fold('payout', '정산 계좌',
     p.set ? `${esc(p.bank)} ${esc(p.masked)}` : '<b style="color:var(--danger);">미등록 — 정산 보류</b>', `
@@ -2952,7 +2967,7 @@ const ACT = {
     syncProfileForm();
     el.disabled = true; el.textContent = '저장 중…';
     const r = await postJson('/api/me', authBody({
-      hospital: ME.hospital, addr: ME.addr, addrDetail: ME.addrDetail || '',
+      hospital: ME.hospital, hospitalId: ME.hospitalId || '', addr: ME.addr, addrDetail: ME.addrDetail || '',
       tel: ME.tel, license: ME.license,
       intro: ME.intro, price: ME.price, callRate: ME.callRate, tags: ME.tags || [],
       // 사진은 항상 보낸다. '안 보냄'은 서버에서 '그대로 두기'로 해석되므로,

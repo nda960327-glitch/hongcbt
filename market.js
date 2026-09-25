@@ -852,7 +852,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
         return json({ error: 'no-cash', message: '결제 기록이 확인되지 않아요. 캐시를 충전한 뒤 다시 예약해주세요.', balance: Math.max(0, bal), price }, 402, cors);
     }
     // 이 예약이 병원을 통해 온 것인지 지금 정한다 — 나중에 연결이 바뀌어도 이 값은 그대로다
-    const ch = await channelOf(db, clientId);
+    const ch = await channelOf(db, clientId, counselorId);
     await db.prepare(
       `INSERT INTO bookings
        (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created, channel, hospital_id)
@@ -1577,7 +1577,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (!me) return json({ error: 'bad-code' }, 403, cors);
 
     if (method === 'GET') {
-      const COLS = `id,name,hospital,email,tel,addr,addr_detail,intro,tags,price,call_rate,license,
+      const COLS = `id,name,hospital,hospital_id,email,tel,addr,addr_detail,intro,tags,price,call_rate,license,
                 photo,lat,lng,geo_at,slots,offdays,bank,bank_no,bank_holder,available,updated`;
       // 구독 상태는 상담사 앱이 매번 알아야 한다 — 만료되면 새 내담자에게 안 보이는데,
       //  본인만 그 사실을 모르는 상황이 제일 나쁘다.
@@ -1602,7 +1602,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
       const sets = [], vals = [];
       const put = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
 
-      if (has('hospital')) put('hospital', s(body.hospital, 120));
+      // 소속 상담소: id 를 보내면 이름은 상담소 것으로 맞춘다. 빈 값이면 '소속 없음'.
+      if (has('hospitalId')) {
+        const hid = s(body.hospitalId, 64).replace(/[^\w-]/g, '');
+        const hosp = hid ? await db.prepare('SELECT id, name FROM hospitals WHERE id = ? AND active = 1').bind(hid).first() : null;
+        if (hid && !hosp) return json({ error: '소속 상담소를 다시 골라주세요' }, 400, cors);
+        put('hospital_id', hosp ? hosp.id : null);
+        put('hospital', hosp ? s(hosp.name, 120) : (has('hospital') ? s(body.hospital, 120) : ''));
+      } else if (has('hospital')) put('hospital', s(body.hospital, 120));
       if (has('intro'))    put('intro', s(body.intro, 600));
       if (has('license'))  put('license', s(body.license, 80));
       if (has('price'))    put('price', Math.max(0, Math.min(1000000, num(body.price))));
@@ -1732,8 +1739,17 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const clientId = s(body.clientId, MAX.id);
     const name = s(body.name).trim();
     if (!clientId || !name) return json({ error: '이름을 확인해주세요' }, 400, cors);
-    const acct = s(body.bankNo, 40).replace(/[^0-9-]/g, '');
-    if (!s(body.bank, 40).trim() || !acct || !s(body.bankHolder, 40).trim()) {
+    // 소속 상담소(드롭다운에서 고른 제휴 상담소). 있으면 이름·주소·전화는 상담소 것을 쓰고 계좌는 받지 않는다 —
+    //  이 상담사의 상담료는 전부 상담소로 가고(상담소 채널), 상담사에게는 상담소가 지급한다.
+    const hospitalId = s(body.hospitalId, 64).replace(/[^\w-]/g, '');
+    let hosp = null;
+    if (hospitalId) {
+      hosp = await db.prepare('SELECT id, name, profile FROM hospitals WHERE id = ? AND active = 1').bind(hospitalId).first();
+      if (!hosp) return json({ error: '소속 상담소를 다시 골라주세요' }, 400, cors);
+    }
+    const hospProf = (() => { try { return hosp && hosp.profile ? JSON.parse(hosp.profile) : {}; } catch (e) { return {}; } })();
+    const acct = hosp ? '' : s(body.bankNo, 40).replace(/[^0-9-]/g, '');
+    if (!hosp && (!s(body.bank, 40).trim() || !acct || !s(body.bankHolder, 40).trim())) {
       return json({ error: '정산 계좌를 모두 적어주세요' }, 400, cors);
     }
     // 같은 기기에서 심사 중인 신청이 이미 있으면 막는다 (중복 접수 방지).
@@ -1751,13 +1767,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
     await db.prepare(
       `INSERT INTO applications
        (id, client_id, name, license, career, price, intro, hospital, addr, tel, email,
-        tags, photo, bank, bank_no, bank_holder, status, ts)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`
+        tags, photo, bank, bank_no, bank_holder, status, ts, hospital_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`
     ).bind(id, clientId, name, s(body.license, 80), s(body.career, 20),
-      num(body.price), s(body.intro, 600), s(body.hospital, 120), s(body.addr, 200),
-      s(body.tel, 40), s(body.email, 160).toLowerCase(), tags,
+      num(body.price), s(body.intro, 600), hosp ? s(hosp.name, 120) : s(body.hospital, 120),
+      hosp ? s(hospProf.addr || body.addr, 200) : s(body.addr, 200),
+      hosp ? s(hospProf.tel || body.tel, 40) : s(body.tel, 40), s(body.email, 160).toLowerCase(), tags,
       s(body.photo, 200000) || null,           // 256px 리사이즈본이라 넉넉히
-      s(body.bank, 40), acct, s(body.bankHolder, 40), nowMs()).run();
+      hosp ? '' : s(body.bank, 40), acct, hosp ? '' : s(body.bankHolder, 40), nowMs(), hosp ? hosp.id : null).run();
 
     // 접수됐다는 걸 바로 알려준다. 아무 소식이 없으면 또 신청하거나 잊는다.
     //  응답보다 뒤로 보낸다 — 메일이 느려도 신청 화면은 기다리지 않는다.
@@ -1803,11 +1820,11 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const t0 = nowMs();
     const subUntil = t0 + PRO_SUB_FREE_MS;
     const COLS = `id, name, hospital, email, code, available, busy_until, active, created,
-                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated`;
+                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated, hospital_id`;
     const args = [cid, a.name, a.hospital, a.email || null, newCode, t0,
       telClean(a.tel), a.addr, a.intro, a.tags, a.price, a.license,
       apPhoto.ok ? apPhoto.photo : '',
-      a.bank, a.bank_no, a.bank_holder, t0];
+      a.bank, a.bank_no, a.bank_holder, t0, a.hospital_id || null];
     try {
       await db.prepare(
         `INSERT INTO counselors (${COLS}, sub_until, sub_started)
@@ -2519,8 +2536,13 @@ function withholdingOf(amount) {
   return { incomeTax, localTax, net: g - incomeTax - localTax };
 }
 
-async function channelOf(db, clientId) {
+async function channelOf(db, clientId, counselorId) {
   try {
+    // 상담사가 제휴 상담소 소속이면 그 상담소 채널 — 상담사에게 직접 줄 계좌가 없고, 상담소가 지급한다
+    if (counselorId) {
+      const c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first();
+      if (c && c.hospital_id) return { channel: 'hospital', hospitalId: c.hospital_id };
+    }
     const r = await db.prepare(
       'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
     ).bind(clientId).first();
@@ -2533,7 +2555,7 @@ async function channelOf(db, clientId) {
 //  심사에 필요한 건 '계좌가 있다'는 사실이지 번호 자체가 아니다.
 //  실제 번호는 승인 시 서버 안에서 상담사 계정으로 바로 옮겨진다.
 const rowApp = (a, admin) => ({
-  id: a.id, name: a.name, license: a.license || '', career: a.career || '',
+  id: a.id, name: a.name, hospitalId: a.hospital_id || '', license: a.license || '', career: a.career || '',
   price: a.price || 0, intro: a.intro || '', hospital: a.hospital || '',
   addr: a.addr || '', tel: a.tel || '', email: a.email || '',
   tags: safeJson(a.tags, []), photo: a.photo || null,
@@ -2553,7 +2575,7 @@ const rowHw = h => ({
 function rowProfile(c) {
   if (!c) return null;
   return {
-    id: c.id, name: c.name, hospital: c.hospital || '', email: c.email || '',
+    id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hospital_id || '', email: c.email || '',
     tel: c.tel || '', addr: c.addr || '', addrDetail: c.addr_detail || '',
     intro: c.intro || '',
     // 본인 화면에는 사진 원본을 그대로 돌려준다 — 미리보기와 [사진 삭제]가

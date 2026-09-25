@@ -73,7 +73,7 @@
     .sec-title .right { margin-left: auto; font-weight: 600; }
 
     input[type=text], input[type=password], input[type=number], input[type=tel],
-    input[type=email], input:not([type]), textarea {
+    input[type=email], input:not([type]), textarea, select#pf-hospital {
       width: 100%; padding: 0.72rem 0.9rem; border-radius: 12px; border: 1.5px solid var(--line);
       background: #fff; outline: none; transition: border-color 0.15s;
     }
@@ -521,7 +521,7 @@
       <p style="font-weight: 700; text-align: center;">상담사 로그인</p>
       <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
         입점 승인 시 <b>이메일로 보내드린 코드</b>를 입력하세요.<br>한 번 입력하면 이 기기에서는 계속 열립니다.<br>
-        <span style="color: var(--accent); font-weight: 700;">병원(담당의)</span>은 <a href="https://doc.neurumind.com" style="color: var(--accent); font-weight: 700;">소장 앱(doc.neurumind.com)</a>에서 이메일로 들어오세요.</p>
+        <span style="color: var(--accent); font-weight: 700;">상담소(소장)</span>는 <a href="https://doc.neurumind.com" style="color: var(--accent); font-weight: 700;">소장 앱(doc.neurumind.com)</a>에서 이메일로 들어오세요.</p>
       <input id="code" type="password" autocomplete="off" placeholder="열람 코드" inputmode="text">
       <p id="err" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
       <button class="btn" id="code-btn" style="margin-top: 0.7rem;">시작하기</button>
@@ -660,7 +660,7 @@
 
   <div id="toast"></div>
 
-  <script src="js/rtccall.js?v=212"></script>
-  <script src="js/app.js?v=212"></script>
+  <script src="js/rtccall.js?v=213"></script>
+  <script src="js/app.js?v=213"></script>
 </body>
 </html>

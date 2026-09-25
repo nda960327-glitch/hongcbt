@@ -4346,8 +4346,34 @@ ${body}
   // ==========================================================================
   _regAsAdmin: false,
 
+  // 소속 상담소 드롭다운 — 제휴 상담소 목록을 서버에서 받아 채운다. 고르면 주소·전화·계좌 칸이 사라진다
+  //  (상담료가 상담소로 정산되므로 상담사 계좌가 필요 없다). '소속기관 없음'이면 계좌가 필수.
+  async loadCregHospitals() {
+    const sel = document.getElementById('creg-hosp');
+    if (!sel) return;
+    const d = await window.Api.json('/api/community/hospitals');
+    const items = (d && Array.isArray(d.items)) ? d.items : [];
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">소속기관 없음 (개인 상담사)</option>'
+      + items.map(h => `<option value="${h.id}">${String(h.name).replace(/</g, '&lt;')}${h.dept ? ' · ' + String(h.dept).replace(/</g, '&lt;') : ''}</option>`).join('');
+    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+    this.onCregHospChange();
+  },
+  onCregHospChange() {
+    const sel = document.getElementById('creg-hosp');
+    const box = document.getElementById('creg-indep');
+    const note = document.getElementById('creg-hosp-note');
+    if (!sel || !box) return;
+    const affiliated = !!sel.value;
+    box.style.display = affiliated ? 'none' : '';
+    if (note) note.textContent = affiliated
+      ? '상담료는 이 상담소로 정산되고, 선생님께는 상담소가 지급해요. 주소·전화는 상담소 정보를 써요.'
+      : '제휴 상담소 소속이면 골라주세요. 소속이 없으면 상담료를 받을 정산 계좌가 필요해요.';
+  },
+
   openCounselorReg(asAdmin) {
     this._regAsAdmin = !!asAdmin;
+    this.loadCregHospitals();
     const t = document.getElementById('creg-title');
     const lead = document.getElementById('creg-lead');
     const btn = document.getElementById('creg-submit');
@@ -4374,11 +4400,14 @@ ${body}
     const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
     const name = v('creg-name'), email = v('creg-email').toLowerCase();
     const license = v('creg-license'), price = v('creg-price');
-    const hospital = v('creg-hosp-name'), addr = v('creg-hosp-addr');
+    const hospSel = document.getElementById('creg-hosp');
+    const hospitalId = hospSel ? hospSel.value : '';
+    const hospital = hospitalId ? (hospSel.options[hospSel.selectedIndex].textContent.split(' · ')[0] || '') : '';
+    const addr = v('creg-hosp-addr');
     const bank = v('creg-bank'), account = v('creg-account').replace(/[^0-9]/g, ''), holder = v('creg-holder');
 
-    if (!name || !license || !price || !hospital || !addr) {
-      window.UI.alert('이름, 자격 구분, 상담료, 상담소명, 상담소 주소(주소 검색)는 필수입니다.');
+    if (!name || !license || !price) {
+      window.UI.alert('이름, 자격 구분, 상담료는 필수입니다.');
       return;
     }
     // 이메일이 없으면 승인돼도 로그인 코드를 보낼 데가 없다
@@ -4390,23 +4419,25 @@ ${body}
       window.UI.alert('이메일 형식을 다시 확인해주세요.');
       return;
     }
-    // 정산 계좌가 없으면 승인돼도 돈을 보낼 수 없다
-    if (!bank || !account || !holder) {
-      window.UI.alert('정산 계좌(은행·계좌번호·예금주)를 입력해주세요.\n승인 후 상담료를 보내드릴 곳이에요.');
-      return;
-    }
-    if (account.length < 8) {
-      window.UI.alert('계좌번호를 다시 확인해주세요.');
-      return;
+    // 소속 없는 상담사는 정산 계좌가 없으면 승인돼도 돈을 보낼 수 없다. 소속이 있으면 상담소가 지급한다.
+    if (!hospitalId) {
+      if (!bank || !account || !holder) {
+        window.UI.alert('정산 계좌(은행·계좌번호·예금주)를 입력해주세요.\n소속 상담소가 없으면 승인 후 상담료를 이 계좌로 보내드려요.');
+        return;
+      }
+      if (account.length < 8) {
+        window.UI.alert('계좌번호를 다시 확인해주세요.');
+        return;
+      }
     }
 
     const tags = [...document.querySelectorAll('#creg-tags button[data-on="1"]')].map(b => b.dataset.tag);
     const payload = {
       clientId: this.clientId(), name, email, license,
       career: v('creg-career'), price: parseInt(price, 10), intro: v('creg-intro'),
-      hospital, addr: (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: v('creg-hosp-tel'),
+      hospital, hospitalId, addr: hospitalId ? '' : (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: hospitalId ? '' : v('creg-hosp-tel'),
       tags, photo: this._cregPhoto || null,
-      bank, bankNo: account, bankHolder: holder
+      bank: hospitalId ? '' : bank, bankNo: hospitalId ? '' : account, bankHolder: hospitalId ? '' : holder
     };
     // 운영자가 대신 넣을 때는 운영자 코드를 같이 보낸다.
     //  같은 기기에서 여러 명을 등록하는 게 정상이라 중복 접수 검사를 건너뛴다.
@@ -4459,14 +4490,14 @@ ${body}
     const apps = window.Storage._safeGet('cbt_counselor_apps', []) || [];
     apps.unshift({ id: r.id, ts: Date.now(), status: 'pending', ...payload });
     window.Storage._safeSet('cbt_counselor_apps', apps.slice(0, 10));
-    window.UI.alert(`등록 신청이 접수되었습니다!\n\n자격·소속기관 검수 후 승인되면\n${email} 으로 상담사 앱 로그인 코드를 보내드려요.`);
+    window.UI.alert(`등록 신청이 접수되었습니다!\n\n자격·소속 검수 후 승인되면\n${email} 으로 상담사 앱 로그인 코드를 보내드려요.`);
     this.renderCounselorApps();
     this.switchTab('mypage');
   },
 
   _clearCregForm() {
     ['creg-name','creg-email','creg-license','creg-career','creg-price','creg-intro',
-     'creg-hosp-name','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel',
+     'creg-hosp','creg-hosp-addr','creg-hosp-addr2','creg-hosp-tel',
      'creg-bank','creg-account','creg-holder','creg-bizno']
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.querySelectorAll('#creg-tags button[data-on="1"]').forEach(b => b.click());

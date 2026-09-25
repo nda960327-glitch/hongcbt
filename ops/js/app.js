@@ -1017,7 +1017,7 @@ function viewApply() {
         <dt>상담료</dt><dd>30분 ${won(a.price)}원</dd>
         <dt>정산 계좌</dt><dd>${a.bank
           ? `${esc(a.bank.bank)} ${esc(a.bank.masked)} · 예금주 ${esc(a.bank.holder)}`
-          : '<b style="color: var(--danger);">미등록</b>'}</dd>
+          : a.hospitalId ? '소속 상담소가 지급 (계좌 없음)' : '<b style="color: var(--danger);">미등록</b>'}</dd>
         <dt>전문 분야</dt><dd>${(a.tags || []).length ? (a.tags || []).map(t => `<span class="chip off" style="margin-right:0.2rem;">${esc(t)}</span>`).join('') : '(없음)'}</dd>
         <dt>신청일</dt><dd>${fmtDT(a.ts)}</dd>
       </dl>

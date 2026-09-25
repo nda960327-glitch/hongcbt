@@ -166,3 +166,6 @@ CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 
 -- 글 사진: images = JSON 배열(data:image/jpeg, 긴 변 640px·각 100KB 이하·4장까지), thumb = 첫 사진 240px 미리보기
 -- ALTER TABLE posts ADD COLUMN images TEXT; ALTER TABLE posts ADD COLUMN thumb TEXT;
+
+-- 상담사 소속 상담소 (hospitals.id). 있으면 그 상담사의 상담은 모두 상담소 채널로 정산하고 계좌를 받지 않는다
+-- ALTER TABLE applications ADD COLUMN hospital_id TEXT; ALTER TABLE counselors ADD COLUMN hospital_id TEXT;

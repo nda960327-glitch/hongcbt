@@ -119,6 +119,11 @@ export async function handleCommunity(request, env, cors, path) {
     return json({ items: rows.map(r => rowPost(r, likes.has(r.id))), next: more ? rows[rows.length - 1].created : 0 }, 200, cors);
   }
 
+  if (path === '/community/hospitals' && method === 'GET') {
+    const rows = (await db.prepare('SELECT id, name, dept, profile FROM hospitals WHERE active = 1 ORDER BY name').all()).results || [];
+    return json({ items: rows.map(h => ({ id: h.id, name: h.name, dept: h.dept || '', addr: profileOf(h).addr })) }, 200, cors);
+  }
+
   if (path === '/community/post' && method === 'GET') {
     const id = cleanId(q('id')), cid = cleanId(q('clientId'));
     if (!id) return json({ error: 'missing' }, 400, cors);
