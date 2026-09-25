@@ -1,14 +1,14 @@
 // ============================================================================
-//  구독 — 7일 무료 체험 후: 무료 플랜(챗봇 하루 30회) / 구독(무제한 + 보이스톡)
+//  구독 — 7일 무료 체험(대화 무제한) 후: 구독(무제한 + 보이스톡). 체험이 끝나면 대화는 잠긴다.
 //  · 가격 미정: 아래 PRICE 숫자 하나만 바꾸면 앱 전체(문구·결제)에 반영된다.
 //  · 결제는 느루 캐시로 처리 (플레이스토어 구독 연동 지점은 subscribe() 하나)
-//  · 챗봇: 체험·구독 중 무제한, 그 외 하루 10회 무료
+//  · 챗봇: 체험·구독 중 무제한. 체험 뒤 무료 횟수는 없다 (2026-09 결정 — 횟수 제한 대신 기간 제한)
 //  · 보이스톡(AI 전화): 체험·구독 전용
 // ============================================================================
 window.Subscription = {
   PRICE: 9900,      // 월 구독가 (원) — 미정이라 임시값, 여기만 수정하면 됨
   TRIAL_DAYS: 7,
-  FREE_DAILY_CHATS: 10, // 비구독자 하루 무료 대화 횟수 (체험 종료 후)
+  FREE_DAILY_CHATS: 0,  // 체험 종료 후 무료 대화 없음 — 횟수 제한이 아니라 일주일 기간 제한
 
   // 구독은 '무제한'이지만 실제로는 한계가 있다.
   //  실측: 한 턴 3.17원 + 기억 정리. 하루 84턴을 넘으면 그 사람은 구독료보다
@@ -38,7 +38,7 @@ window.Subscription = {
       if (d <= 3) msg = `구독이 ${d}일 후 만료돼요. 마이페이지에서 연장할 수 있어요`;
     } else if (this.hasAccess()) {
       const d = this.trialDaysLeft();
-      if (d <= 2) msg = `무료 체험이 ${d}일 남았어요. 이후엔 매일 30회 무료 대화로 전환돼요`;
+      if (d <= 2) msg = `무료 체험이 ${d}일 남았어요. 이후에는 구독해야 느루와 대화할 수 있어요`;
     }
     if (msg) {
       window.Storage._safeSet('cbt_sub_nudged', today);
@@ -95,7 +95,7 @@ window.Subscription = {
     }
   },
 
-  // 챗봇 진입 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+  // 챗봇 진입 관문: 체험·구독은 무제한, 체험이 끝나면 구독 안내
   // 구독자도 오늘 몇 턴 썼는지는 센다 (예전엔 무료 사용자만 셌다)
   todayTurns() {
     const d = window.Storage._safeGet('cbt_turns_today', null);
@@ -174,12 +174,9 @@ window.Subscription = {
       if (kind === 'call') {
         title.textContent = '보이스톡은 구독 전용이에요';
         desc.innerHTML = '느루와 목소리로 나누는 통화는<br>구독하면 바로 이용할 수 있어요.';
-      } else if (kind === 'chat') {
-        title.textContent = `오늘 무료 대화 ${this.FREE_DAILY_CHATS}회를 다 썼어요`;
-        desc.innerHTML = `내일이 되면 다시 ${this.FREE_DAILY_CHATS}회가 채워져요.<br>구독하면 횟수 걱정 없이 계속 이야기할 수 있어요.`;
       } else {
         title.textContent = '일주일 무료 체험이 끝났어요';
-        desc.innerHTML = `이제 매일 ${this.FREE_DAILY_CHATS}회 무료로 대화할 수 있어요.<br>구독하면 무제한 대화 + 보이스톡이 열립니다.`;
+        desc.innerHTML = '그동안 나눈 기록과 기억은 그대로 남아 있어요.<br>구독하면 무제한 대화 + 보이스톡이 다시 열립니다.';
       }
     }
     m.classList.remove('hidden');
@@ -196,7 +193,7 @@ window.Subscription = {
       el.textContent = `체험 D-${this.trialDaysLeft()}`;
       el.style.cssText += ';background: #f5c74e33; color: #b98a1a;';
     } else {
-      el.textContent = `무료 · 오늘 ${this.chatLeft()}/${this.FREE_DAILY_CHATS}회`;
+      el.textContent = '체험 종료';
       el.style.cssText += ';background: #e05d5d22; color: #c14a4a;';
     }
   },
@@ -217,7 +214,7 @@ window.Subscription = {
         <p style="margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--text-muted);">체험이 끝나도 기록·기억은 그대로 남아요. 대화만 잠겨요.</p>`;
     } else {
       el.innerHTML = `
-        <p style="margin: 0 0 0.35rem; font-size: 0.9rem; color: var(--text-primary);"><b style="color: #c14a4a;">무료 플랜</b> · 오늘 대화 ${this.chatUsedToday()}/${this.FREE_DAILY_CHATS}회 사용</p>
+        <p style="margin: 0 0 0.35rem; font-size: 0.9rem; color: var(--text-primary);"><b style="color: #c14a4a;">체험 종료</b> · 구독하면 대화가 다시 열려요. 기록·기억은 그대로예요.</p>
         <button class="btn-primary" style="width: 100%; font-size: 0.85rem;" onclick="window.Subscription.subscribe()">구독 시작하기 (월 ${this.PRICE.toLocaleString()}원)</button>`;
     }
   }

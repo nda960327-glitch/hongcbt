@@ -601,7 +601,7 @@ window.App = {
   },
 
   async sendMessage() {
-    // 구독 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+    // 구독 관문: 체험·구독은 무제한, 체험이 끝나면 구독 안내
     if (window.Subscription && !window.Subscription.guardChat()) return;
 
     const inputEl = document.getElementById('chat-input');
