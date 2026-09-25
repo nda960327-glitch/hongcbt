@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 209;</script>
+  <script>window.APP_BUILD = 210;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동 기법 기반 자기관리 도우미">
@@ -32,7 +32,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=209">
+  <link rel="stylesheet" href="css/style.css?v=210">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -152,6 +152,11 @@
           <button class="simple-btn" data-simple-go="tools">
             <span class="simple-btn__ico" data-icon="sparkle" data-icon-size="24"></span>
             <span class="simple-btn__txt"><b>마음도구</b><span>사고 기록 · 호흡 · 하루 정리</span></span>
+            <span class="simple-btn__go">›</span>
+          </button>
+          <button class="simple-btn" data-simple-go="community">
+            <span class="simple-btn__ico" data-icon="note" data-icon-size="24"></span>
+            <span class="simple-btn__txt"><b>상담소 소식</b><span>제휴 상담소의 글 · 좋아요 · 댓글</span></span>
             <span class="simple-btn__go">›</span>
           </button>
           <button class="simple-btn" data-simple-go="clinic">
@@ -284,6 +289,13 @@
           <button onclick="this.closest('#pwa-install-banner').style.display='none'" class="btn-secondary" style="width: auto; font-size: 0.8rem; padding: 0.5rem 0.9rem;">나중에</button>
         </div>
       </div>
+
+      <!-- ========== 상담소 소식 — 제휴 상담소가 올리는 글, 이용자는 좋아요·댓글 (js/community.js) ========== -->
+      <div class="home-sec">
+        <h3>상담소 소식</h3>
+        <button class="home-sec__link" data-cm-all>전체 보기 ›</button>
+      </div>
+      <div id="home-community"></div>
 
       <!-- ========== 대면상담 및 진료 — 내 주변 정신건강의학과 (js/clinics.js) ========== -->
       <div class="home-sec">
@@ -1451,63 +1463,64 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=209"></script>
-  <script defer src="js/storage.js?v=209"></script>
-  <script defer src="js/inbox.js?v=209"></script>
-  <script defer src="js/cards.js?v=209"></script>
-  <script defer src="js/chatviz.js?v=209"></script>
-  <script defer src="js/memory-vault.js?v=209"></script>
-  <script defer src="js/personas.js?v=209"></script>
-  <script defer src="js/stickers.js?v=209"></script>
-  <script defer src="js/ui.js?v=209"></script>
-  <script defer src="js/api.js?v=209"></script>
-  <script defer src="js/rtccall.js?v=209"></script>
-  <script defer src="js/prolink.js?v=209"></script>
-  <script defer src="js/account.js?v=209"></script>
-  <script defer src="js/freshness.js?v=209"></script>
-  <script defer src="js/i18n.js?v=209"></script>
-  <script defer src="js/wallet.js?v=209"></script>
-  <script defer src="js/pay.js?v=209"></script>
-  <script defer src="js/subscription.js?v=209"></script>
-  <script defer src="js/calltalk.js?v=209"></script>
-  <script defer src="js/calm.js?v=209"></script>
-  <script defer src="js/voice.js?v=209"></script>
-  <script defer src="js/llm.js?v=209"></script>
-  <script defer src="js/chatbot.js?v=209"></script>
-  <script defer src="js/marketplace.js?v=209"></script>
-  <script defer src="js/booking.js?v=209"></script>
-  <script defer src="js/thought-record.js?v=209"></script>
-  <script defer src="js/growth.js?v=209"></script>
-  <script defer src="js/missions.js?v=209"></script>
-  <script defer src="js/weekly.js?v=209"></script>
-  <script defer src="js/sleep.js?v=209"></script>
-  <script defer src="js/onboard.js?v=209"></script>
-  <script defer src="js/stickershop.js?v=209"></script>
-  <script defer src="js/applock.js?v=209"></script>
-  <script defer src="js/safety.js?v=209"></script>
-  <script defer src="js/admin.js?v=209"></script>
-  <script defer src="js/dashboard.js?v=209"></script>
-  <script defer src="js/learn.js?v=209"></script>
-  <script defer src="js/sfx.js?v=209"></script>
-  <script defer src="js/mail.js?v=209"></script>
-  <script defer src="js/payout.js?v=209"></script>
-  <script defer src="js/careplan.js?v=209"></script>
-  <script defer src="js/goals.js?v=209"></script>
-  <script defer src="js/progress.js?v=209"></script>
-  <script defer src="js/safetyplan.js?v=209"></script>
-  <script defer src="js/homework.js?v=209"></script>
-  <script defer src="js/feed.js?v=209"></script>
-  <script defer src="js/hospital.js?v=209"></script>
-  <script defer src="js/clinics.js?v=209"></script>
-  <script defer src="js/consent.js?v=209"></script>
-  <script defer src="js/homesimple.js?v=209"></script>
-  <script defer src="js/assess-charts.js?v=209"></script>
-  <script defer src="js/assess.js?v=209"></script>
-  <script defer src="js/game.js?v=209"></script>
-  <script defer src="js/room.js?v=209"></script>
-  <script defer src="js/farm.js?v=209"></script>
-  <script defer src="js/closet.js?v=209"></script>
-  <script defer src="js/app.js?v=209"></script>
+  <script defer src="js/icons.js?v=210"></script>
+  <script defer src="js/storage.js?v=210"></script>
+  <script defer src="js/inbox.js?v=210"></script>
+  <script defer src="js/cards.js?v=210"></script>
+  <script defer src="js/chatviz.js?v=210"></script>
+  <script defer src="js/memory-vault.js?v=210"></script>
+  <script defer src="js/personas.js?v=210"></script>
+  <script defer src="js/stickers.js?v=210"></script>
+  <script defer src="js/ui.js?v=210"></script>
+  <script defer src="js/api.js?v=210"></script>
+  <script defer src="js/rtccall.js?v=210"></script>
+  <script defer src="js/prolink.js?v=210"></script>
+  <script defer src="js/account.js?v=210"></script>
+  <script defer src="js/freshness.js?v=210"></script>
+  <script defer src="js/i18n.js?v=210"></script>
+  <script defer src="js/wallet.js?v=210"></script>
+  <script defer src="js/pay.js?v=210"></script>
+  <script defer src="js/subscription.js?v=210"></script>
+  <script defer src="js/calltalk.js?v=210"></script>
+  <script defer src="js/calm.js?v=210"></script>
+  <script defer src="js/voice.js?v=210"></script>
+  <script defer src="js/llm.js?v=210"></script>
+  <script defer src="js/chatbot.js?v=210"></script>
+  <script defer src="js/marketplace.js?v=210"></script>
+  <script defer src="js/booking.js?v=210"></script>
+  <script defer src="js/thought-record.js?v=210"></script>
+  <script defer src="js/growth.js?v=210"></script>
+  <script defer src="js/missions.js?v=210"></script>
+  <script defer src="js/weekly.js?v=210"></script>
+  <script defer src="js/sleep.js?v=210"></script>
+  <script defer src="js/onboard.js?v=210"></script>
+  <script defer src="js/stickershop.js?v=210"></script>
+  <script defer src="js/applock.js?v=210"></script>
+  <script defer src="js/safety.js?v=210"></script>
+  <script defer src="js/admin.js?v=210"></script>
+  <script defer src="js/dashboard.js?v=210"></script>
+  <script defer src="js/learn.js?v=210"></script>
+  <script defer src="js/sfx.js?v=210"></script>
+  <script defer src="js/mail.js?v=210"></script>
+  <script defer src="js/payout.js?v=210"></script>
+  <script defer src="js/careplan.js?v=210"></script>
+  <script defer src="js/goals.js?v=210"></script>
+  <script defer src="js/progress.js?v=210"></script>
+  <script defer src="js/safetyplan.js?v=210"></script>
+  <script defer src="js/homework.js?v=210"></script>
+  <script defer src="js/feed.js?v=210"></script>
+  <script defer src="js/hospital.js?v=210"></script>
+  <script defer src="js/clinics.js?v=210"></script>
+  <script defer src="js/community.js?v=210"></script>
+  <script defer src="js/consent.js?v=210"></script>
+  <script defer src="js/homesimple.js?v=210"></script>
+  <script defer src="js/assess-charts.js?v=210"></script>
+  <script defer src="js/assess.js?v=210"></script>
+  <script defer src="js/game.js?v=210"></script>
+  <script defer src="js/room.js?v=210"></script>
+  <script defer src="js/farm.js?v=210"></script>
+  <script defer src="js/closet.js?v=210"></script>
+  <script defer src="js/app.js?v=210"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

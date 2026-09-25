@@ -807,6 +807,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
     // 내 주변 정신과 — 병원을 권할 때 실제 이름·거리를 댈 수 있게
     const clinicCtx = (window.Clinics && window.Clinics.promptContext()) || '';
     if (clinicCtx) tail += '\n\n' + clinicCtx;
+    const cmCtx = (window.Community && window.Community.promptContext()) || '';
+    if (cmCtx) tail += '\n\n' + cmCtx;
 
     // 먼저 꺼낼 후속 질문 — 안부가 아니라 리포트에서 세운 가설의 확인이다
     const fu = (window.CarePlan && window.CarePlan.dueFollowUp && window.CarePlan.dueFollowUp()) || null;

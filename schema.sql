@@ -153,3 +153,13 @@ CREATE INDEX IF NOT EXISTS idx_hp_ref ON hospital_payouts(ref_id);
 -- items 가 'withdraw' 면 철회 기록. 분쟁 대비 증빙으로만 쓴다.
 CREATE TABLE IF NOT EXISTS consents (client_id TEXT NOT NULL, ver TEXT NOT NULL, items TEXT NOT NULL, agent TEXT, ts INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_consents_client ON consents(client_id, ts);
+
+-- 상담소 소식(커뮤니티) — 상담소가 쓰는 글, 이용자의 좋아요·댓글 (community.js)
+CREATE TABLE IF NOT EXISTS posts (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, tags TEXT, published INTEGER NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0, hidden INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_posts_pub ON posts(published, hidden, created);
+CREATE INDEX IF NOT EXISTS idx_posts_hosp ON posts(hospital_id, created);
+CREATE TABLE IF NOT EXISTS post_likes (post_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (post_id, client_id));
+CREATE TABLE IF NOT EXISTS post_comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL, client_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, by_hospital INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
+-- 상담소 페이지 프로필(소개·전화·주소·홈페이지·운영시간) — JSON 한 칸
+-- ALTER TABLE hospitals ADD COLUMN profile TEXT;

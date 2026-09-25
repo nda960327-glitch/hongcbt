@@ -265,6 +265,7 @@ const TITLES = {
   feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
   hospitals: ['상담소 관리', '담당 상담소 등록 · 상담소 코드 발급 · 연결 내담자 수'],
+  community: ['상담소 소식', '상담소가 올린 글 · 부적절한 글 숨기기'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
   diag: ['점검 로그', '실기기 통화 단계 추적'],
@@ -282,6 +283,7 @@ const LAZY = {
   feed: ['feed', () => loadFeed()],
   clinics: ['clinics', () => loadClinics()],
   hospitals: ['hospitals', () => loadHospitals()],
+  community: ['community', () => loadCommunity()],
   payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
   settings: ['maillog', () => loadMaillog()]
@@ -500,6 +502,43 @@ async function loadHospitals() {
   if (TAB === 'hospitals') render();
 }
 
+
+// ── 상담소 소식(커뮤니티) 관리 — 상담소가 올린 글 전체. 부적절한 글은 숨긴다 (community.js) ──
+async function loadCommunity() {
+  const r = await adminGet('/api/admin/community');
+  D.community = r ? (r.items || []) : null;
+  if (TAB === 'community') render();
+}
+function viewCommunity() {
+  if (D.community === undefined) return loading;
+  if (!D.community) return failed;
+  const list = D.community;
+  const byHosp = {};
+  list.forEach(it => { byHosp[it.hospital] = (byHosp[it.hospital] || 0) + 1; });
+  return `
+    <div class="card" style="margin-bottom: 0.8rem;">
+      <b style="font-size: 0.9rem;">상담소 소식</b>
+      <div class="muted" style="margin-top: 0.2rem;">상담소(소장 앱)가 올린 글이 이용자 앱 홈 '상담소 소식'에 보입니다. 이용자는 좋아요·댓글만 답니다.
+        글은 상담소가 직접 쓰고 고치고, 운영팀은 부적절한 글을 <b>숨기기</b>만 합니다(상담소 화면에는 '운영팀 숨김'으로 표시).<br>
+        전체 ${list.length}개 · 공개 ${list.filter(x => x.published && !x.hidden).length}개 · 상담소 ${Object.keys(byHosp).length}곳</div>
+    </div>
+    ${list.length ? list.map(it => `
+      <div class="card"${it.hidden ? ' style="opacity: 0.55; border-color: rgba(207,107,96,0.35);"' : !it.published ? ' style="opacity: 0.7;"' : ''}>
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;">
+          <b style="font-size: 0.9rem;">${esc(it.title)}</b>
+          ${it.hidden ? '<span class="chip bad">숨김</span>' : it.published ? '<span class="chip ok">공개</span>' : '<span class="chip off">초안</span>'}
+          ${it.pinned ? '<span class="chip gold">고정</span>' : ''}
+          <span class="right muted">${fmtDate(it.created)}</span>
+        </div>
+        <div class="muted">${esc(it.hospital)}${it.dept ? ' · ' + esc(it.dept) : ''} · 좋아요 ${it.likes || 0} · 댓글 ${it.comments || 0}${(it.tags || []).length ? ' · ' + esc(it.tags.join(', ')) : ''}</div>
+        <div class="muted" style="margin-top: 0.25rem;">${esc(it.excerpt || '')}</div>
+        <div class="row" style="justify-content: flex-end; margin-top: 0.4rem;">
+          <button class="btn ghost sm" data-act="cm-hide" data-id="${esc(it.id)}" data-hidden="${it.hidden ? 0 : 1}">${it.hidden ? '다시 보이기' : '숨기기'}</button>
+        </div>
+      </div>`).join('')
+    : '<div class="card"><div class="empty"><b>아직 올라온 글이 없어요</b>상담소가 소장 앱(연필 아이콘)에서 글을 올리면 여기에 보입니다.</div></div>'}`;
+}
+
 function viewHospitals() {
   if (D.hospitals === undefined) return loading;
   if (!D.hospitals) return failed;
@@ -674,7 +713,7 @@ function render() {
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
     clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
-    feed: viewFeed, clinics: viewClinics, hospitals: viewHospitals, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
+    feed: viewFeed, clinics: viewClinics, hospitals: viewHospitals, community: viewCommunity, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
   if (fn) {
@@ -2319,6 +2358,7 @@ document.addEventListener('click', e => {
   const id = el.dataset.id || '';
 
   if (act === 'goto') { go(el.dataset.tab); return; }
+  if (act === 'cm-hide') { adminPost('/api/admin/community/hide', { id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '숨겼어요' : '다시 보여요'); loadCommunity(); }); return; }
   if (act === 'install') { doInstall(); return; }
   if (act === 'refresh') {
     // 지금 보고 있는 화면부터 새로 받는다. 통화 관제에서 새로고침을 눌렀는데
@@ -2326,7 +2366,7 @@ document.addEventListener('click', e => {
     const only = {
       diag: loadDiag, calls: loadCalls, clients: loadClients,
       usage: loadUsage, contact: loadContact, reviews: loadReviews,
-      payments: loadPayments, feed: loadFeed, clinics: loadClinics, hospitals: loadHospitals
+      payments: loadPayments, feed: loadFeed, clinics: loadClinics, hospitals: loadHospitals, community: loadCommunity
     }[TAB];
     if (only) only(); else loadAll();
     toast('새로고침했어요'); return;

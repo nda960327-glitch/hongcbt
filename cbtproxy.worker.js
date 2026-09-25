@@ -31,6 +31,7 @@ const MAX_TTS_CHARS = 2000;
 import { handleMarket } from "./market.js";
 import { handleFeed } from "./feed.js";
 import { handleHospital } from "./hospital.js";
+import { handleCommunity } from "./community.js";
 import { handleClinics } from "./clinics.js";
 import { resolveCounselor } from "./auth.js";
 export { ChatHub } from "./hub.js";
@@ -249,7 +250,12 @@ const APP = {
       const r = await handleClinics(request, env, cors, path, ctx);
       if (r) return r;
     }
-    // 병원(담당의) 연동 — 환자 연결·회기 기록·의사 피드백
+    // 상담소 소식(커뮤니티) — 상담소 글·좋아요·댓글·상담소 페이지. /hospital/posts… 는 hospital.js 보다 먼저 본다.
+    if (/^\/(community|hospital\/(posts|comments|profile)|admin\/community)/.test(path)) {
+      const r = await handleCommunity(request, env, cors, path);
+      if (r) return r;
+    }
+    // 상담소(소장) 연동 — 내담자 연결·회기 기록·소장 피드백
     if (/^\/(patient\/|session-notes|hospital\/|admin\/hospitals|doctor-feedback)/.test(path)) {
       const r = await handleHospital(request, env, cors, path, ctx);
       if (r) return r;

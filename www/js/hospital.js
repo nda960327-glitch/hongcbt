@@ -133,6 +133,11 @@ window.Hospital = {
           <span class="my-row__txt"><b>${esc(h.name)}</b><span>${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '담당 상담소')} · ${this._md(lk.linkedAt)} 연결</span></span>
           <button class="my-row__btn" data-hosp-unlink>연결 해제</button>
         </div>
+        <button class="my-row" data-cm-hosp="${esc(h.id)}">
+          <span class="my-row__ico" data-ic="note" data-ic-size="19"></span>
+          <span class="my-row__txt"><b>상담소 페이지</b><span>소개 · 운영시간 · 상담소가 올린 소식</span></span>
+          <span class="my-row__go">›</span>
+        </button>
         <button class="my-row" data-hosp-records>
           <span class="my-row__ico" data-ic="note" data-ic-size="19"></span>
           <span class="my-row__txt"><b>상담소와 나누는 기록</b><span>상담 요약 ${rec.notes.length}건 · 소장 피드백 ${rec.feedback.length}건${unread ? ` · <b style="color: var(--accent-primary);">새 피드백 ${unread}</b>` : ''}</span></span>

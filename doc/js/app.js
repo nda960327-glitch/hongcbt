@@ -66,7 +66,7 @@ let HC = localStorage.getItem('doc_code') || '';
 const authQS = () => HS ? 'hsession=' + encodeURIComponent(HS) : 'hcode=' + encodeURIComponent(HC);
 const authBody = (o) => Object.assign(HS ? { hsession: HS } : { hcode: HC }, o || {});
 
-const HOSP = { hospital: null, patients: [], patient: null, detail: null, q: '' };
+const HOSP = { hospital: null, patients: [], patient: null, detail: null, q: '', mode: 'patients' };
 
 function showErr(id, msg) { const e = $(id); if (!e) return; e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
 
@@ -154,6 +154,7 @@ function renderHosp() {
   const el = $('view-hosp');
   if (!el || !HOSP.hospital) return;
   if (busy(el)) return;
+  if (HOSP.mode === 'posts') { el.innerHTML = postsHtml(); return; }
   if (HOSP.patient) { el.innerHTML = patientHtml(); return; }
   const q = HOSP.q.trim();
   const list = HOSP.patients
@@ -395,6 +396,153 @@ function openSettings() {
     <button class="btn" data-act="logout">이 기기에서 로그아웃</button>`);
 }
 
+// ── 소식(블로그) — 상담소가 글을 쓰고, 댓글을 관리하고, 상담소 페이지(프로필)를 고친다 ──
+//  글은 이용자 앱 홈 '상담소 소식'에 보이고, 이용자는 좋아요·댓글만 단다. 서버: community.js
+const POSTS = { items: [], profile: null, loaded: false, comments: null, cmPost: null };
+
+async function loadPosts() {
+  const d = await getJson('/api/hospital/posts?' + authQS());
+  if (d && Array.isArray(d.items)) { POSTS.items = d.items; POSTS.profile = d.profile || {}; POSTS.loaded = true; }
+  renderHosp();
+}
+
+function postsHtml() {
+  const p = POSTS.profile || {};
+  const filled = p.intro || p.tel || p.addr || p.hours;
+  const list = POSTS.items;
+  const intro = (p.intro || '').split('\n')[0];
+  return `
+    <button class="btn ghost sm" data-act="posts-back" style="margin-bottom:0.6rem;">‹ 내담자 목록</button>
+    <div class="card" style="margin-bottom:0.7rem;">
+      <div class="row" style="gap:0.6rem; align-items:flex-start;">
+        <div class="grow" style="min-width:0;">
+          <strong style="font-size:0.98rem;">상담소 페이지</strong>
+          <p class="muted" style="margin-top:0.2rem;">${filled ? esc(intro.slice(0, 80)) + (intro.length > 80 ? '…' : '') : '소개·운영시간·전화·주소를 적으면 이용자 앱의 상담소 페이지에 보여요.'}</p>
+          ${p.hours ? `<div class="muted">운영시간 · ${esc(p.hours)}</div>` : ''}${p.tel ? `<div class="muted">전화 · ${esc(p.tel)}</div>` : ''}
+        </div>
+        <button class="btn soft sm" data-act="profile-edit">${filled ? '고치기' : '작성'}</button>
+      </div>
+    </div>
+    <div class="row" style="margin-bottom:0.6rem;">
+      <strong class="grow" style="font-size:0.95rem;">내 소식 ${list.length ? list.length + '개' : ''}</strong>
+      <button class="btn sm" data-act="post-new">＋ 새 글</button>
+    </div>
+    ${!POSTS.loaded ? empty('불러오는 중…') : list.length ? list.map(it => `
+      <div class="card" style="margin-bottom:0.5rem; ${it.hidden ? 'opacity:0.6;' : ''}">
+        <div class="row" style="gap:0.4rem; flex-wrap:wrap;">
+          ${it.hidden ? '<span class="chip bad">운영팀 숨김</span>' : it.published ? '<span class="chip ok">공개</span>' : '<span class="chip off">초안</span>'}
+          ${it.pinned ? '<span class="chip gold">상단 고정</span>' : ''}
+          <span class="muted" style="margin-left:auto;">${fmtDay(it.created)}</span>
+        </div>
+        <strong style="display:block; font-size:0.95rem; margin-top:0.35rem; line-height:1.4;">${esc(it.title)}</strong>
+        <p class="muted" style="margin-top:0.15rem;">${esc(it.excerpt || '')}</p>
+        <div class="row" style="gap:0.4rem; margin-top:0.5rem; flex-wrap:wrap;">
+          <span class="muted">♥ ${it.likes || 0} · 댓글 ${it.comments || 0}</span>
+          <span class="grow"></span>
+          <button class="btn ghost sm" data-act="post-comments" data-id="${esc(it.id)}">댓글</button>
+          <button class="btn ghost sm" data-act="post-edit" data-id="${esc(it.id)}">수정</button>
+          <button class="btn ghost sm" data-act="post-del" data-id="${esc(it.id)}" style="color:var(--danger);">삭제</button>
+        </div>
+      </div>`).join('')
+    : empty('아직 올린 글이 없어요', '마음 돌봄 이야기, 상담소 안내, 프로그램 소식을 올려보세요.<br>공개한 글은 이용자 앱 홈 <b>상담소 소식</b>에 바로 보여요.')}`;
+}
+
+function openPostEditor(id) {
+  const it = id ? POSTS.items.find(x => x.id === id) : null;
+  sheet(`
+    <h3 class="serif">${it ? '글 고치기' : '새 글'}</h3>
+    <p class="muted" style="margin-bottom:0.7rem;">이용자 앱에 그대로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 본문에서 **굵게** 표시를 쓸 수 있어요.</p>
+    <label class="muted">제목<input id="po-title" maxlength="80" value="${esc(it ? it.title : '')}" placeholder="예: 잠이 안 오는 밤, 이렇게 해보세요"></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">본문<textarea id="po-body" rows="10" maxlength="6000" placeholder="문단은 빈 줄로 나눠주세요.">${esc(it ? it.body : '')}</textarea></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">태그 (쉼표로 구분, 5개까지)<input id="po-tags" maxlength="80" value="${esc(it ? (it.tags || []).join(', ') : '')}" placeholder="수면, 불안, 상담소 안내"></label>
+    <div class="row" style="gap:1rem; margin-top:0.7rem; flex-wrap:wrap;">
+      <label class="row" style="gap:0.4rem; font-size:0.86rem;"><input type="checkbox" id="po-pub" ${!it || it.published ? 'checked' : ''}> 공개</label>
+      <label class="row" style="gap:0.4rem; font-size:0.86rem;"><input type="checkbox" id="po-pin" ${it && it.pinned ? 'checked' : ''}> 상담소 페이지 상단 고정</label>
+    </div>
+    <p id="po-err" class="muted" style="color:var(--danger); display:none; margin-top:0.4rem;"></p>
+    <button class="btn" data-act="post-save" data-id="${esc(it ? it.id : '')}" style="margin-top:0.8rem;">${it ? '저장' : '올리기'}</button>`);
+}
+
+async function savePost(btn) {
+  const title = ($('po-title').value || '').trim(), body = ($('po-body').value || '').trim();
+  if (!title || !body) { showErr('po-err', '제목과 본문을 적어주세요.'); return; }
+  btn.disabled = true; btn.textContent = '저장 중…';
+  const r = await postJson('/api/hospital/posts/save', authBody({ post: {
+    id: btn.dataset.id || '', title, body, tags: ($('po-tags').value || '').split(','),
+    published: $('po-pub').checked, pinned: $('po-pin').checked } }));
+  btn.disabled = false; btn.textContent = '저장';
+  if (!r || !r.ok) { showErr('po-err', r && r.error === 'too-many' ? '오늘은 글을 더 올릴 수 없어요.' : '저장하지 못했어요. 잠시 뒤 다시 해주세요.'); return; }
+  closeSheet(); toast(r.post.published ? '공개했어요 — 이용자 앱에 바로 보여요' : '초안으로 저장했어요');
+  await loadPosts();
+}
+
+async function deletePost(id) {
+  if (!confirm('이 글을 지울까요? 좋아요와 댓글도 함께 지워져요.')) return;
+  const r = await postJson('/api/hospital/posts/delete', authBody({ id }));
+  toast(r && r.ok ? '지웠어요' : '지우지 못했어요');
+  await loadPosts();
+}
+
+async function openComments(id) {
+  POSTS.cmPost = id; POSTS.comments = null;
+  renderComments();
+  const d = await getJson('/api/hospital/comments?' + authQS() + '&id=' + encodeURIComponent(id));
+  POSTS.comments = d && Array.isArray(d.comments) ? d.comments : [];
+  renderComments();
+}
+function renderComments() {
+  const it = POSTS.items.find(x => x.id === POSTS.cmPost) || {};
+  const cm = POSTS.comments;
+  sheet(`
+    <h3 class="serif" style="font-size:1rem;">${esc(it.title || '댓글')}</h3>
+    <p class="muted" style="margin-bottom:0.6rem;">이용자 댓글이에요. 숨기면 이용자 앱에서 보이지 않아요. 상담소 이름으로 답글을 달 수 있어요.</p>
+    ${cm === null ? empty('불러오는 중…') : cm.length ? cm.map(c => `
+      <div class="card flat" style="margin-bottom:0.4rem; padding:0.6rem 0.8rem; ${c.hidden ? 'opacity:0.55;' : ''} ${c.byHospital ? 'border-color: var(--accent);' : ''}">
+        <div class="row" style="gap:0.4rem;"><strong style="font-size:0.84rem;">${esc(c.name)}</strong>${c.byHospital ? '<span class="chip ok">상담소</span>' : ''}${c.hidden ? '<span class="chip off">숨김</span>' : ''}<span class="muted" style="margin-left:auto;">${fmtDT(c.ts)}</span></div>
+        <p style="margin:0.25rem 0 0; font-size:0.86rem; line-height:1.55; white-space:pre-wrap;">${esc(c.text)}</p>
+        ${c.byHospital ? '' : `<div class="row" style="justify-content:flex-end; margin-top:0.3rem;"><button class="btn ghost sm" data-act="cm-hide" data-cid="${esc(c.id)}" data-hidden="${c.hidden ? 0 : 1}">${c.hidden ? '다시 보이기' : '숨기기'}</button></div>`}
+      </div>`).join('') : empty('아직 댓글이 없어요')}
+    <div class="row" style="gap:0.4rem; margin-top:0.6rem; align-items:flex-end;">
+      <textarea id="cm-reply" rows="2" maxlength="500" placeholder="상담소 이름으로 답글 남기기" style="flex:1;"></textarea>
+      <button class="btn sm" data-act="cm-reply">답글</button>
+    </div>`);
+}
+async function hideComment(cid, hidden) {
+  const r = await postJson('/api/hospital/comments/hide', authBody({ cid, hidden: !!hidden }));
+  if (r && r.ok && POSTS.comments) { const c = POSTS.comments.find(x => x.id === cid); if (c) c.hidden = !!hidden; renderComments(); }
+  else toast('처리하지 못했어요');
+}
+async function replyComment(btn) {
+  const ta = $('cm-reply'); const text = (ta.value || '').trim();
+  if (!text) { ta.focus(); return; }
+  btn.disabled = true;
+  const r = await postJson('/api/hospital/comments/reply', authBody({ id: POSTS.cmPost, text }));
+  btn.disabled = false;
+  if (r && r.ok) { POSTS.comments = (POSTS.comments || []).concat([r.comment]); renderComments(); toast('답글을 남겼어요'); }
+  else toast('답글을 남기지 못했어요');
+}
+
+function openProfileEditor() {
+  const p = POSTS.profile || {};
+  sheet(`
+    <h3 class="serif">상담소 페이지</h3>
+    <p class="muted" style="margin-bottom:0.7rem;">이용자 앱에서 상담소 이름을 누르면 보이는 소개예요. 이름·전문 분야는 운영팀 콘솔에서 바꿔요.</p>
+    <label class="muted">소개<textarea id="pf-intro" rows="6" maxlength="600" placeholder="어떤 고민을 함께 다루는지, 어떤 분위기인지 편하게 적어주세요.">${esc(p.intro || '')}</textarea></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">운영시간<input id="pf-hours" maxlength="200" value="${esc(p.hours || '')}" placeholder="평일 10:00–20:00 · 토 10:00–15:00"></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">전화<input id="pf-tel" maxlength="30" value="${esc(p.tel || '')}" placeholder="02-000-0000" inputmode="tel"></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">주소<input id="pf-addr" maxlength="120" value="${esc(p.addr || '')}" placeholder="서울시 ○○구 ○○로 00, 3층"></label>
+    <label class="muted" style="display:block; margin-top:0.5rem;">홈페이지·블로그<input id="pf-url" maxlength="200" value="${esc(p.url || '')}" placeholder="https://" inputmode="url"></label>
+    <button class="btn" data-act="profile-save" style="margin-top:0.8rem;">저장</button>`);
+}
+async function saveProfile(btn) {
+  btn.disabled = true;
+  const r = await postJson('/api/hospital/profile', authBody({ profile: {
+    intro: $('pf-intro').value, hours: $('pf-hours').value, tel: $('pf-tel').value, addr: $('pf-addr').value, url: $('pf-url').value } }));
+  btn.disabled = false;
+  if (r && r.ok) { POSTS.profile = r.profile; closeSheet(); toast('상담소 페이지를 저장했어요'); renderHosp(); }
+  else toast('저장하지 못했어요');
+}
+
 // ── 이벤트 ───────────────────────────────────────────────────────────
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');
@@ -404,8 +552,19 @@ document.addEventListener('click', async e => {
   else if (act === 'back') { if (history.state && history.state.p) history.back(); else { HOSP.patient = null; HOSP.detail = null; renderHosp(); } }
   else if (act === 'fb') openFeedbackSheet(el.dataset.note || '');
   else if (act === 'fb-send') sendFeedback(el);
-  else if (act === 'refresh') { await loadHospital(); toast('새로고침했어요'); }
+  else if (act === 'refresh') { if (HOSP.mode === 'posts') await loadPosts(); else await loadHospital(); toast('새로고침했어요'); }
   else if (act === 'settings') openSettings();
+  else if (act === 'posts') { HOSP.mode = 'posts'; HOSP.patient = null; renderHosp(); if (!POSTS.loaded) loadPosts(); }
+  else if (act === 'posts-back') { HOSP.mode = 'patients'; renderHosp(); }
+  else if (act === 'post-new') openPostEditor('');
+  else if (act === 'post-edit') openPostEditor(el.dataset.id);
+  else if (act === 'post-save') savePost(el);
+  else if (act === 'post-del') deletePost(el.dataset.id);
+  else if (act === 'post-comments') openComments(el.dataset.id);
+  else if (act === 'cm-hide') hideComment(el.dataset.cid, el.dataset.hidden === '1');
+  else if (act === 'cm-reply') replyComment(el);
+  else if (act === 'profile-edit') openProfileEditor();
+  else if (act === 'profile-save') saveProfile(el);
   else if (act === 'settle') openSettle();
   else if (act === 'pay') recordPayout(el);
   else if (act === 'sheet-close') closeSheet();
@@ -445,7 +604,7 @@ $('to-email').addEventListener('click', () => { $('login-code').hidden = true; $
 })();
 
 // 화면이 켜져 있으면 3분마다 조용히 새로고침 — 긴급 표시가 늦게 보이면 안 된다
-setInterval(() => { if (HOSP.hospital && !document.hidden && !HOSP.patient) loadHospital(); }, 3 * 60 * 1000);
+setInterval(() => { if (HOSP.hospital && !document.hidden && !HOSP.patient && HOSP.mode !== 'posts') loadHospital(); }, 3 * 60 * 1000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && HOSP.hospital) loadHospital(); });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});

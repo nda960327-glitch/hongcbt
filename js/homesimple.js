@@ -67,6 +67,7 @@ window.HomeSimple = {
     if (what === 'chat') { if (A) A.switchTab('chat'); return; }
     if (what === 'call') { if (A) A.switchTab('counselors'); return; }
     if (what === 'tools') { this.openTools(); return; }
+    if (what === 'community') { if (A) A.switchTab('home'); if (window.Community) window.Community.openAll(); return; }
     if (what === 'clinic') {
       if (A) A.switchTab('home');
       const C = window.Clinics;
