@@ -200,7 +200,7 @@
       .replace(/\[(그림|스티커|이동|주제리포트|세션끝)[^\]]*\]/g, '')
       .replace(/위험감지/g, '')
       .replace(/\[[^\]]*$/, '')          // 꼬리에서 아직 안 닫힌 마커
-      .replace(/\s*\|{2,}\s*/g, '\n')    // ||| → 줄바꿈
+      .replace(/\s*\|+\s*/g, '\n')       // ||| → 줄바꿈 (DeepSeek 는 | 하나만 쓰기도 한다)
       .replace(/\|+\s*$/, '')
       .replace(/^\[\d+\s*\/\s*\d+\]\s*/, ''); // 첫 줄의 [3/6] 단계 표시
   },
@@ -1089,7 +1089,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
         setTimeout(() => { try { window.App.switchTab(_nav); } catch (e) {} }, 1800);
       }
 
-      let parts = botText.split(/\s*\|{2,}\s*/)
+      // 구분자는 ||| 가 원칙이지만 DeepSeek(우렁의사)는 | 하나로 줄여 쓴다 — 파이프가 몇 개든 전부 말풍선 경계로 본다
+      let parts = botText.split(/\s*\|+\s*/)
         .map(s => s.replace(/^[|\s]+/, '').replace(/[|\s]+$/, '').trim())
         .filter(Boolean);
       if (parts.length === 0) parts = [botText.replace(/\|/g, ' ').trim()];
