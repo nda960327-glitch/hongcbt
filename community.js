@@ -6,6 +6,7 @@
 //  · 상담소 페이지(프로필: 소개·전화·주소·홈페이지·운영시간)는 hospitals 표의 profile 칸(JSON)에 둔다.
 //  · 댓글은 짧고(500자) 연락처를 지운다 — 플랫폼 밖 직거래 유도를 막는 규칙은 채팅과 같다.
 //
+//  본문 표기(앱·소장 앱이 같은 규칙으로 그린다): **굵게** · '# ' 큰 글씨 · '## ' 제목 · {red|글}(색: red orange green blue purple gray) · [img:0] 사진
 //  경로 (앱은 /api/… 로 부르고 Worker 가 /api 를 뗀다)
 //    공개   GET  /community?clientId=&cursor=&hospital=      글 목록(발행된 것만) + 내 좋아요
 //           GET  /community/post?id=&clientId=               글 하나 + 댓글
@@ -45,9 +46,24 @@ function profileOf(h) {
 }
 const hospPublic = h => h ? { id: h.id, name: h.name, dept: h.dept || '', doctor: h.doctor || '', profile: profileOf(h) } : null;
 
+// 화면 표기 기호를 뗀 순수 글 — 목록 발췌문과 검색용
+const plainOf = b => String(b || '')
+  .replace(/\[img:\d+\]/g, '').replace(/\{(red|orange|green|blue|purple|gray)\|([^{}]*)\}/g, '$2')
+  .replace(/\*\*/g, '').replace(/^#{1,2}\s+/gm, '').replace(/\s+/g, ' ').trim();
+const parseImages = v => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, IMG_MAX) : []; } catch (e) { return []; } };
+// 사진: 앱이 긴 변 640px·JPEG 로 줄여 보낸다. 서버가 다시 막는 이유는 상담사 사진(market.js checkPhoto)과 같다 —
+//  fetch 한 줄이면 원본을 그대로 밀어 넣을 수 있고, 그러면 목록 응답이 통째로 무거워진다.
+const IMG_MAX = 4, IMG_BYTES = 110 * 1024, THUMB_BYTES = 24 * 1024;
+const jpegOk = (v, max) => typeof v === 'string' && /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(v) && v.length <= max;
+function checkImages(list) {
+  const arr = Array.isArray(list) ? list.slice(0, IMG_MAX) : [];
+  for (const v of arr) if (!jpegOk(v, IMG_BYTES)) return null;
+  return arr;
+}
+
 const rowPost = (r, mine) => ({
   id: r.id, hospitalId: r.hospital_id, hospital: r.hospital_name || '', dept: r.hospital_dept || '',
-  title: r.title, body: r.body || '', excerpt: String(r.body || '').replace(/\*\*/g, '').replace(/\s+/g, ' ').slice(0, 120),
+  title: r.title, body: r.body || '', excerpt: plainOf(r.body).slice(0, 120), thumb: r.thumb || '', images: r.images === undefined ? undefined : parseImages(r.images),
   tags: String(r.tags || '').split(',').filter(Boolean),
   published: !!r.published, pinned: !!r.pinned, hidden: !!r.hidden,
   likes: r.likes || 0, comments: r.comments || 0, mine: !!mine,
@@ -58,7 +74,8 @@ const rowComment = c => ({
   ts: c.ts, hidden: !!c.hidden, byHospital: !!c.by_hospital
 });
 
-const LIST_SQL = `SELECT p.*, h.name AS hospital_name, h.dept AS hospital_dept,
+const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb';
+const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospital_dept,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likes,
   (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id AND c.hidden = 0) AS comments
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
@@ -105,7 +122,7 @@ export async function handleCommunity(request, env, cors, path) {
   if (path === '/community/post' && method === 'GET') {
     const id = cleanId(q('id')), cid = cleanId(q('clientId'));
     if (!id) return json({ error: 'missing' }, 400, cors);
-    const r = await db.prepare(LIST_SQL + ' WHERE p.id = ? AND p.published = 1 AND p.hidden = 0').bind(id).first();
+    const r = await db.prepare(LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images') + ' WHERE p.id = ? AND p.published = 1 AND p.hidden = 0').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
     const likes = await myLikes(cid, [id]);
     const cm = (await db.prepare('SELECT * FROM post_comments WHERE post_id = ? AND hidden = 0 ORDER BY ts ASC LIMIT 200').bind(id).all()).results || [];
@@ -171,7 +188,7 @@ export async function handleCommunity(request, env, cors, path) {
 
     if (path === '/hospital/posts' && method === 'GET') {
       let rows = [];
-      try { rows = (await db.prepare(LIST_SQL + ' WHERE p.hospital_id = ? ORDER BY p.pinned DESC, p.created DESC LIMIT 200').bind(h.id).all()).results || []; }
+      try { rows = (await db.prepare(LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images') + ' WHERE p.hospital_id = ? ORDER BY p.pinned DESC, p.created DESC LIMIT 200').bind(h.id).all()).results || []; }
       catch (e) { if (noTable(e)) return json({ items: [], profile: profileOf(h), missing: true }, 200, cors); throw e; }
       return json({ ok: true, items: rows.map(r => rowPost(r, false)), profile: profileOf(h) }, 200, cors);
     }
@@ -182,20 +199,24 @@ export async function handleCommunity(request, env, cors, path) {
       if (!title || !text) return json({ error: 'missing' }, 400, cors);
       const tags = tagsOf(it.tags).join(',');
       const published = it.published ? 1 : 0, pinned = it.pinned ? 1 : 0;
+      const images = checkImages(it.images);
+      if (!images) return json({ error: 'bad-image' }, 400, cors);
+      const thumb = jpegOk(it.thumb, THUMB_BYTES) ? it.thumb : '';
+      const imagesJson = images.length ? JSON.stringify(images) : null;
       let id = cleanId(it.id);
       if (id) {
         const own = await db.prepare('SELECT id FROM posts WHERE id = ? AND hospital_id = ?').bind(id, h.id).first();
         if (!own) return json({ error: 'not-found' }, 404, cors);
-        await db.prepare('UPDATE posts SET title = ?, body = ?, tags = ?, published = ?, pinned = ?, updated = ? WHERE id = ?')
-          .bind(title, text, tags, published, pinned, nowMs(), id).run();
+        await db.prepare('UPDATE posts SET title = ?, body = ?, tags = ?, published = ?, pinned = ?, updated = ?, images = ?, thumb = ? WHERE id = ?')
+          .bind(title, text, tags, published, pinned, nowMs(), imagesJson, thumb, id).run();
       } else {
         const today = await db.prepare('SELECT COUNT(*) n FROM posts WHERE hospital_id = ? AND created > ?').bind(h.id, nowMs() - 86400000).first();
         if ((today && today.n) >= POST_PER_DAY) return json({ error: 'too-many' }, 429, cors);
         id = rid('po');
-        await db.prepare('INSERT INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated) VALUES (?,?,?,?,?,?,?,0,?,?)')
-          .bind(id, h.id, title, text, tags, published, pinned, nowMs(), nowMs()).run();
+        await db.prepare('INSERT INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, images, thumb) VALUES (?,?,?,?,?,?,?,0,?,?,?,?)')
+          .bind(id, h.id, title, text, tags, published, pinned, nowMs(), nowMs(), imagesJson, thumb).run();
       }
-      const r = await db.prepare(LIST_SQL + ' WHERE p.id = ?').bind(id).first();
+      const r = await db.prepare(LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images') + ' WHERE p.id = ?').bind(id).first();
       return json({ ok: true, post: rowPost(r, false) }, 200, cors);
     }
 

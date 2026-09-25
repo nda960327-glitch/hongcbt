@@ -265,7 +265,7 @@ const TITLES = {
   feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
   hospitals: ['상담소 관리', '담당 상담소 등록 · 상담소 코드 발급 · 연결 내담자 수'],
-  community: ['상담소 소식', '상담소가 올린 글 · 부적절한 글 숨기기'],
+  community: ['커뮤니티', '상담소가 올린 글 · 부적절한 글 숨기기'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
   contact: ['연락처 감사', '플랫폼 밖 직거래 유도 감시'],
   diag: ['점검 로그', '실기기 통화 단계 추적'],
@@ -517,8 +517,8 @@ function viewCommunity() {
   list.forEach(it => { byHosp[it.hospital] = (byHosp[it.hospital] || 0) + 1; });
   return `
     <div class="card" style="margin-bottom: 0.8rem;">
-      <b style="font-size: 0.9rem;">상담소 소식</b>
-      <div class="muted" style="margin-top: 0.2rem;">상담소(소장 앱)가 올린 글이 이용자 앱 홈 '상담소 소식'에 보입니다. 이용자는 좋아요·댓글만 답니다.
+      <b style="font-size: 0.9rem;">커뮤니티</b>
+      <div class="muted" style="margin-top: 0.2rem;">상담소(소장 앱)가 올린 글이 이용자 앱 홈 '커뮤니티'에 보입니다. 이용자는 좋아요·댓글만 답니다.
         글은 상담소가 직접 쓰고 고치고, 운영팀은 부적절한 글을 <b>숨기기</b>만 합니다(상담소 화면에는 '운영팀 숨김'으로 표시).<br>
         전체 ${list.length}개 · 공개 ${list.filter(x => x.published && !x.hidden).length}개 · 상담소 ${Object.keys(byHosp).length}곳</div>
     </div>

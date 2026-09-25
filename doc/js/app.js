@@ -397,7 +397,7 @@ function openSettings() {
 }
 
 // ── 소식(블로그) — 상담소가 글을 쓰고, 댓글을 관리하고, 상담소 페이지(프로필)를 고친다 ──
-//  글은 이용자 앱 홈 '상담소 소식'에 보이고, 이용자는 좋아요·댓글만 단다. 서버: community.js
+//  글은 이용자 앱 홈 '커뮤니티'에 보이고, 이용자는 좋아요·댓글만 단다. 서버: community.js
 const POSTS = { items: [], profile: null, loaded: false, comments: null, cmPost: null };
 
 async function loadPosts() {
@@ -434,6 +434,7 @@ function postsHtml() {
           ${it.pinned ? '<span class="chip gold">상단 고정</span>' : ''}
           <span class="muted" style="margin-left:auto;">${fmtDay(it.created)}</span>
         </div>
+        ${it.thumb ? `<img src="${esc(it.thumb)}" alt="" style="display:block; width:100%; max-height:120px; object-fit:cover; border-radius:10px; margin-top:0.4rem;">` : ''}
         <strong style="display:block; font-size:0.95rem; margin-top:0.35rem; line-height:1.4;">${esc(it.title)}</strong>
         <p class="muted" style="margin-top:0.15rem;">${esc(it.excerpt || '')}</p>
         <div class="row" style="gap:0.4rem; margin-top:0.5rem; flex-wrap:wrap;">
@@ -444,16 +445,82 @@ function postsHtml() {
           <button class="btn ghost sm" data-act="post-del" data-id="${esc(it.id)}" style="color:var(--danger);">삭제</button>
         </div>
       </div>`).join('')
-    : empty('아직 올린 글이 없어요', '마음 돌봄 이야기, 상담소 안내, 프로그램 소식을 올려보세요.<br>공개한 글은 이용자 앱 홈 <b>상담소 소식</b>에 바로 보여요.')}`;
+    : empty('아직 올린 글이 없어요', '마음 돌봄 이야기, 상담소 안내, 프로그램 소식을 올려보세요.<br>공개한 글은 이용자 앱 홈 <b>커뮤니티</b>에 바로 보여요.')}`;
 }
+
+// ── 글 본문 표기 — 내담자 앱(js/community.js _body)과 같은 규칙. 여기서는 미리보기에 쓴다 ──
+//  '# ' 큰 글씨 · '## ' 제목 · **굵게** · {red|글}(색) · [img:0] 사진. HTML 은 전부 이스케이프.
+function renderPostBody(text, images) {
+  const imgs = Array.isArray(images) ? images : [];
+  const inline = t => esc(t)
+    .replace(/\{(red|orange|green|blue|purple|gray)\|([^{}]*)\}/g, '<span class="pc pc-$1">$2</span>')
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/\n/g, '<br>');
+  const fig = n => imgs[n] ? `<figure class="pfig"><img src="${esc(imgs[n])}" alt=""></figure>` : '';
+  return String(text || '').split(/\n{2,}/).map(p => {
+    const t = p.trim();
+    if (!t) return '';
+    const im = t.match(/^\[img:(\d+)\]$/);
+    if (im) return fig(+im[1]);
+    if (/^## /.test(t)) return '<h4 class="ph">' + inline(t.slice(3)) + '</h4>';
+    if (/^# /.test(t)) return '<p class="pbig">' + inline(t.slice(2)) + '</p>';
+    return '<p>' + inline(t).replace(/\[img:(\d+)\]/g, (m, n) => imgs[+n] ? '</p>' + fig(+n) + '<p>' : '') + '</p>';
+  }).join('').replace(/<p><\/p>/g, '');
+}
+
+// 사진은 앱에서 먼저 작게 줄인다 — 서버(D1)에 원본을 두면 글 목록이 통째로 무거워진다.
+//  긴 변 640px, 품질 0.72 → 보통 40~80KB. 그래도 100KB 를 넘으면 품질·크기를 더 깎는다.
+const POST_IMG_PX = 640, POST_IMG_BUDGET = 100 * 1024, POST_IMG_MAX = 4;
+const POST_THUMB_PX = 240, POST_THUMB_BUDGET = 22 * 1024;
+async function decodeImage(file) {
+  if (window.createImageBitmap) { try { return await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) {} }
+  return new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = no; im.src = URL.createObjectURL(file); });
+}
+function drawScaled(img, px, budget, q0) {
+  const w = img.width || img.naturalWidth, h = img.height || img.naturalHeight;
+  const cv = document.createElement('canvas'); const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high';
+  for (const side of [px, Math.round(px * 0.75), Math.round(px * 0.5)]) {
+    const sc = Math.min(1, side / Math.max(w, h));
+    cv.width = Math.max(1, Math.round(w * sc)); cv.height = Math.max(1, Math.round(h * sc));
+    cx.drawImage(img, 0, 0, cv.width, cv.height);
+    for (let q = q0; q >= 0.45; q -= 0.09) { const url = cv.toDataURL('image/jpeg', q); if (url.length <= budget) return url; }
+  }
+  return null;
+}
+async function shrinkPostImage(file) {
+  const img = await decodeImage(file);
+  const full = drawScaled(img, POST_IMG_PX, POST_IMG_BUDGET, 0.72);
+  const thumb = drawScaled(img, POST_THUMB_PX, POST_THUMB_BUDGET, 0.7);
+  if (img.close) img.close();
+  if (!full) throw new Error('too-big');
+  return { full, thumb: thumb || '' };
+}
+
+const DRAFT = { images: [], thumbs: [] };   // 편집 중인 글의 사진 (저장할 때 함께 보낸다)
 
 function openPostEditor(id) {
   const it = id ? POSTS.items.find(x => x.id === id) : null;
+  DRAFT.images = (it && Array.isArray(it.images)) ? it.images.slice() : [];
+  DRAFT.thumbs = DRAFT.images.map(() => '');
+  if (it && it.thumb && DRAFT.images.length) DRAFT.thumbs[0] = it.thumb;
+  const swatch = c => `<button type="button" class="ptool ptool-c pc-${c}" data-act="po-wrap" data-open="{${c}|" data-close="}" title="${c}">가</button>`;
   sheet(`
     <h3 class="serif">${it ? '글 고치기' : '새 글'}</h3>
-    <p class="muted" style="margin-bottom:0.7rem;">이용자 앱에 그대로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 본문에서 **굵게** 표시를 쓸 수 있어요.</p>
+    <p class="muted" style="margin-bottom:0.6rem;">이용자 앱에 그대로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요.</p>
     <label class="muted">제목<input id="po-title" maxlength="80" value="${esc(it ? it.title : '')}" placeholder="예: 잠이 안 오는 밤, 이렇게 해보세요"></label>
-    <label class="muted" style="display:block; margin-top:0.5rem;">본문<textarea id="po-body" rows="10" maxlength="6000" placeholder="문단은 빈 줄로 나눠주세요.">${esc(it ? it.body : '')}</textarea></label>
+    <div class="muted" style="margin-top:0.5rem;">본문</div>
+    <div class="ptools">
+      <button type="button" class="ptool" data-act="po-line" data-prefix="## " title="제목 줄">제목</button>
+      <button type="button" class="ptool" data-act="po-line" data-prefix="# " title="큰 글씨 줄">큰 글씨</button>
+      <button type="button" class="ptool" data-act="po-wrap" data-open="**" data-close="**" title="굵게"><b>굵게</b></button>
+      ${['red', 'orange', 'green', 'blue', 'purple', 'gray'].map(swatch).join('')}
+      <button type="button" class="ptool" data-act="po-photo" title="사진 넣기">📷 사진</button>
+      <button type="button" class="ptool" data-act="po-preview" title="미리보기">미리보기</button>
+    </div>
+    <textarea id="po-body" rows="10" maxlength="6000" placeholder="문단은 빈 줄로 나눠주세요. 글자를 드래그해 고른 뒤 위 버튼을 누르면 굵게·색이 들어가요.">${esc(it ? it.body : '')}</textarea>
+    <input id="po-file" type="file" accept="image/*" hidden>
+    <div id="po-imgs" class="pimgs"></div>
+    <div id="po-preview" class="card flat pprev" hidden></div>
     <label class="muted" style="display:block; margin-top:0.5rem;">태그 (쉼표로 구분, 5개까지)<input id="po-tags" maxlength="80" value="${esc(it ? (it.tags || []).join(', ') : '')}" placeholder="수면, 불안, 상담소 안내"></label>
     <div class="row" style="gap:1rem; margin-top:0.7rem; flex-wrap:wrap;">
       <label class="row" style="gap:0.4rem; font-size:0.86rem;"><input type="checkbox" id="po-pub" ${!it || it.published ? 'checked' : ''}> 공개</label>
@@ -461,6 +528,74 @@ function openPostEditor(id) {
     </div>
     <p id="po-err" class="muted" style="color:var(--danger); display:none; margin-top:0.4rem;"></p>
     <button class="btn" data-act="post-save" data-id="${esc(it ? it.id : '')}" style="margin-top:0.8rem;">${it ? '저장' : '올리기'}</button>`);
+  renderDraftImages();
+}
+
+// 텍스트 영역의 선택 부분을 기호로 감싼다 (선택이 없으면 기호만 넣고 커서를 그 사이에 둔다)
+function wrapSelection(open, close) {
+  const ta = $('po-body'); if (!ta) return;
+  const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
+  const sel = v.slice(a, b);
+  ta.value = v.slice(0, a) + open + sel + close + v.slice(b);
+  ta.focus();
+  const pos = sel ? a + open.length + sel.length + close.length : a + open.length;
+  ta.setSelectionRange(pos, pos);
+}
+// 커서가 있는 줄 앞에 표기를 붙인다 (이미 있으면 뗀다)
+function prefixLine(prefix) {
+  const ta = $('po-body'); if (!ta) return;
+  const v = ta.value, a = ta.selectionStart;
+  const ls = v.lastIndexOf('\n', a - 1) + 1;
+  const le = v.indexOf('\n', a); const end = le < 0 ? v.length : le;
+  let line = v.slice(ls, end).replace(/^#{1,2} /, '');
+  const had = v.slice(ls, end).startsWith(prefix);
+  line = had ? line : prefix + line;
+  ta.value = v.slice(0, ls) + line + v.slice(end);
+  ta.focus(); ta.setSelectionRange(ls + line.length, ls + line.length);
+}
+function insertAtCursor(text) {
+  const ta = $('po-body'); if (!ta) return;
+  const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
+  const before = v.slice(0, a), after = v.slice(b);
+  const pad1 = before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '';
+  const pad2 = after && !/^\n\n/.test(after) ? (/^\n/.test(after) ? '\n' : '\n\n') : '';
+  ta.value = before + pad1 + text + pad2 + after;
+  const pos = (before + pad1 + text + pad2).length;
+  ta.focus(); ta.setSelectionRange(pos, pos);
+}
+function renderDraftImages() {
+  const box = $('po-imgs'); if (!box) return;
+  box.innerHTML = DRAFT.images.map((src, i) => `
+    <div class="pimg"><img src="${esc(src)}" alt=""><span>[img:${i}]</span>
+      <button type="button" class="btn ghost sm" data-act="po-img-del" data-i="${i}">빼기</button></div>`).join('')
+    + (DRAFT.images.length < POST_IMG_MAX ? '' : '<p class="muted">사진은 글 하나에 4장까지예요.</p>');
+}
+async function addDraftImage(file) {
+  if (!file) return;
+  if (DRAFT.images.length >= POST_IMG_MAX) { toast('사진은 4장까지 넣을 수 있어요'); return; }
+  toast('사진을 줄이는 중…');
+  try {
+    const r = await shrinkPostImage(file);
+    DRAFT.images.push(r.full); DRAFT.thumbs.push(r.thumb);
+    insertAtCursor('[img:' + (DRAFT.images.length - 1) + ']');
+    renderDraftImages();
+    toast(`사진을 넣었어요 (${Math.round(r.full.length / 1024)}KB)`);
+  } catch (e) { toast('이 사진은 넣을 수 없어요. 다른 사진으로 해주세요'); }
+}
+function removeDraftImage(i) {
+  DRAFT.images.splice(i, 1); DRAFT.thumbs.splice(i, 1);
+  const ta = $('po-body');
+  if (ta) {
+    // 번호가 밀리므로 본문의 [img:n] 도 같이 고친다
+    ta.value = ta.value.replace(/\[img:(\d+)\]/g, (m, n) => { n = +n; if (n === i) return ''; return n > i ? '[img:' + (n - 1) + ']' : m; }).replace(/\n{3,}/g, '\n\n');
+  }
+  renderDraftImages();
+}
+function togglePreview() {
+  const pv = $('po-preview'); if (!pv) return;
+  if (!pv.hidden) { pv.hidden = true; return; }
+  pv.innerHTML = renderPostBody($('po-body').value, DRAFT.images) || '<p class="muted">본문이 비어 있어요.</p>';
+  pv.hidden = false;
 }
 
 async function savePost(btn) {
@@ -469,10 +604,11 @@ async function savePost(btn) {
   btn.disabled = true; btn.textContent = '저장 중…';
   const r = await postJson('/api/hospital/posts/save', authBody({ post: {
     id: btn.dataset.id || '', title, body, tags: ($('po-tags').value || '').split(','),
-    published: $('po-pub').checked, pinned: $('po-pin').checked } }));
+    published: $('po-pub').checked, pinned: $('po-pin').checked,
+    images: DRAFT.images, thumb: DRAFT.thumbs.find(Boolean) || '' } }));
   btn.disabled = false; btn.textContent = '저장';
-  if (!r || !r.ok) { showErr('po-err', r && r.error === 'too-many' ? '오늘은 글을 더 올릴 수 없어요.' : '저장하지 못했어요. 잠시 뒤 다시 해주세요.'); return; }
-  closeSheet(); toast(r.post.published ? '공개했어요 — 이용자 앱에 바로 보여요' : '초안으로 저장했어요');
+  if (!r || !r.ok) { showErr('po-err', r && r.error === 'too-many' ? '오늘은 글을 더 올릴 수 없어요.' : r && r.error === 'bad-image' ? '사진이 너무 커요. 사진을 빼고 다시 넣어주세요.' : '저장하지 못했어요. 잠시 뒤 다시 해주세요.'); return; }
+  closeSheet(); toast(r.post.published ? '공개했어요 — 이용자 앱 커뮤니티에 바로 보여요' : '초안으로 저장했어요');
   await loadPosts();
 }
 
@@ -559,6 +695,11 @@ document.addEventListener('click', async e => {
   else if (act === 'post-new') openPostEditor('');
   else if (act === 'post-edit') openPostEditor(el.dataset.id);
   else if (act === 'post-save') savePost(el);
+  else if (act === 'po-wrap') wrapSelection(el.dataset.open, el.dataset.close);
+  else if (act === 'po-line') prefixLine(el.dataset.prefix);
+  else if (act === 'po-photo') { const f = $('po-file'); if (f) { f.value = ''; f.click(); } }
+  else if (act === 'po-img-del') removeDraftImage(+el.dataset.i);
+  else if (act === 'po-preview') togglePreview();
   else if (act === 'post-del') deletePost(el.dataset.id);
   else if (act === 'post-comments') openComments(el.dataset.id);
   else if (act === 'cm-hide') hideComment(el.dataset.cid, el.dataset.hidden === '1');
@@ -573,6 +714,9 @@ document.addEventListener('click', async e => {
 });
 window.addEventListener('popstate', () => {
   if (HOSP.patient) { HOSP.patient = null; HOSP.detail = null; renderHosp(); }
+});
+document.addEventListener('change', e => {
+  if (e.target && e.target.id === 'po-file' && e.target.files && e.target.files[0]) addDraftImage(e.target.files[0]);
 });
 document.addEventListener('input', e => {
   if (!e.target || e.target.id !== 'hosp-q') return;

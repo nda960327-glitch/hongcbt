@@ -135,7 +135,7 @@ window.Hospital = {
         </div>
         <button class="my-row" data-cm-hosp="${esc(h.id)}">
           <span class="my-row__ico" data-ic="note" data-ic-size="19"></span>
-          <span class="my-row__txt"><b>상담소 페이지</b><span>소개 · 운영시간 · 상담소가 올린 소식</span></span>
+          <span class="my-row__txt"><b>상담소 페이지</b><span>소개 · 운영시간 · 상담소가 올린 글</span></span>
           <span class="my-row__go">›</span>
         </button>
         <button class="my-row" data-hosp-records>

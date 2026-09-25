@@ -676,7 +676,7 @@ window.Admin = {
           </div>
           <div style="margin-top: 0.7rem; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.7rem 0.9rem; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.7;">
  <b style="color: var(--text-primary);"> 이 기기 사용자</b> ·
-            ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `무료 플랜 (오늘 ${window.Subscription.chatLeft()}/${window.Subscription.FREE_DAILY_CHATS}회 남음)`) : '-'}
+            ${window.Subscription ? (window.Subscription.isSubscribed() ? `<b style="color: var(--accent-primary);">구독중</b> (${new Date(window.Subscription.subUntil()).toLocaleDateString('ko-KR')}까지)` : window.Subscription.hasAccess() ? `체험 D-${window.Subscription.trialDaysLeft()}` : `체험 종료 (구독 전)`) : '-'}
             · 누적 대화 ${(S._safeGet('cbt_total_chats', 0) || 0).toLocaleString()}회 · 체크인 ${((S._safeGet('cbt_mood_log', []) || []).length).toLocaleString()}회 · 심사 대기 ${pending.length}건
           </div>
           <p style="font-size: 0.66rem; color: var(--text-muted); margin: 0.4rem 0 0;">※ 가입자·구독자 정확 집계는 회원 서버 구축 후 가능 — 지금은 서버에 기록을 남긴 기기 수를 이용자 수로 셉니다.</p>

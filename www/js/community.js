@@ -59,15 +59,31 @@ window.Community = {
   _bubble(sz) {
     return `<svg width="${sz || 13}" height="${sz || 13}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-6l-5 4v-4H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>`;
   },
-  // 본문: 문단 + 줄바꿈 + **굵게** 만. HTML 은 전부 이스케이프.
-  _body(text) {
-    return String(text || '').split(/\n{2,}/).map(p =>
-      '<p>' + this._esc(p).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>') + '</p>').join('');
+  // 본문 표기 — 소장 앱(doc/js/app.js renderPostBody)과 같은 규칙이어야 한다. HTML 은 전부 이스케이프.
+  //  문단은 빈 줄로 나눈다. '# ' 큰 글씨, '## ' 제목, **굵게**, {red|글}(색), [img:0] 사진.
+  _body(text, images) {
+    const esc = this._esc;
+    const imgs = Array.isArray(images) ? images : [];
+    const inline = t => esc(t)
+      .replace(/\{(red|orange|green|blue|purple|gray)\|([^{}]*)\}/g, '<span class="cm-c cm-c--$1">$2</span>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\n/g, '<br>');
+    return String(text || '').split(/\n{2,}/).map(p => {
+      const s = p.trim();
+      if (!s) return '';
+      const im = s.match(/^\[img:(\d+)\]$/);
+      if (im) { const src = imgs[+im[1]]; return src ? `<figure class="cm-fig"><img src="${esc(src)}" alt="" loading="lazy"></figure>` : ''; }
+      if (/^## /.test(s)) return '<h4 class="cm-h">' + inline(s.slice(3)) + '</h4>';
+      if (/^# /.test(s)) return '<p class="cm-big">' + inline(s.slice(2)) + '</p>';
+      // 문단 안에 낀 사진 표기는 그 자리에서 사진으로
+      return '<p>' + inline(s).replace(/\[img:(\d+)\]/g, (m, n) => imgs[+n] ? `</p><figure class="cm-fig"><img src="${esc(imgs[+n])}" alt="" loading="lazy"></figure><p>` : '') + '</p>';
+    }).join('').replace(/<p><\/p>/g, '');
   },
 
   _card(it, row) {
     const esc = this._esc;
     const inner = `
+      ${it.thumb ? `<span class="cm-card__thumb"><img src="${esc(it.thumb)}" alt="" loading="lazy"></span>` : ''}
       <span class="cm-card__hosp">${esc(it.hospital)}${it.pinned ? ' <em>고정</em>' : ''}</span>
       <span class="cm-card__t">${esc(it.title)}</span>
       <span class="cm-card__ex">${esc(it.excerpt || '')}</span>
@@ -86,7 +102,7 @@ window.Community = {
     const items = (this._items || []).filter(it => it && it.id);
     if (!items.length) {
       el.innerHTML = `<div class="glass-card clinic-prompt"><div class="clinic-prompt__ico" data-ic="note" data-ic-size="22"></div>
-        <div class="clinic-prompt__txt"><b>아직 올라온 소식이 없어요</b><span>제휴 상담소가 마음 돌봄 이야기와 안내를 올리면 여기에 보여요.</span></div></div>`;
+        <div class="clinic-prompt__txt"><b>아직 올라온 글이 없어요</b><span>제휴 상담소가 마음 돌봄 이야기와 안내를 올리면 여기에 보여요.</span></div></div>`;
       if (window.App && window.App.hydrateInlineIcons) window.App.hydrateInlineIcons(el);
       return;
     }
@@ -101,7 +117,7 @@ window.Community = {
     ov.innerHTML = `
       <div class="feed-all__head">
         <button class="feed-all__back" data-cm-all-close aria-label="닫기">‹</button>
-        <h2>상담소 소식</h2>
+        <h2>커뮤니티</h2>
       </div>
       <div class="feed-all__list" data-cm-list></div>`;
     document.body.appendChild(ov);
@@ -114,7 +130,7 @@ window.Community = {
     if (!ov) return;
     const list = ov.querySelector('[data-cm-list]');
     const items = (this._items || []);
-    if (!items.length) { list.innerHTML = '<p class="feed-all__empty">아직 올라온 소식이 없어요.</p>'; return; }
+    if (!items.length) { list.innerHTML = '<p class="feed-all__empty">아직 올라온 글이 없어요.</p>'; return; }
     list.innerHTML = items.map(it => this._card(it, true)).join('')
       + (this._next ? `<button class="feed-all__more" data-cm-more>${this._loading ? '불러오는 중…' : '더 보기'}</button>` : '');
   },
@@ -129,7 +145,7 @@ window.Community = {
     ov.innerHTML = `
       <div class="feed-all__head">
         <button class="feed-all__back" data-cm-close aria-label="닫기">‹</button>
-        <h2 class="ell">${cached ? this._esc(cached.hospital) : '상담소 소식'}</h2>
+        <h2 class="ell">${cached ? this._esc(cached.hospital) : '커뮤니티'}</h2>
       </div>
       <div class="feed-all__list cm-view__body" data-cm-body>${cached ? this._postHtml({ post: cached, comments: null, hospital: null }) : '<p class="feed-all__empty">불러오는 중…</p>'}</div>`;
     document.body.appendChild(ov);
@@ -160,7 +176,7 @@ window.Community = {
         <h3>${esc(p.title)}</h3>
         <p class="cm-post__date">${this._md(p.created)}${p.updated && p.updated - p.created > 60000 ? ' · 수정됨' : ''}</p>
         ${(p.tags || []).length ? `<div class="cm-post__tags">${p.tags.map(t => `<span class="feed-tag">${esc(t)}</span>`).join('')}</div>` : ''}
-        <div class="feed-ov__body">${this._body(p.body)}</div>
+        <div class="feed-ov__body">${this._body(p.body, p.images)}</div>
         <div class="cm-post__act">
           <button class="cm-like${p.mine ? ' on' : ''}" data-cm-like>${this._heart(16)} 좋아요 <b data-cm-likes>${p.likes || 0}</b></button>
           <span class="cm-card__n">${this._bubble(15)} 댓글 <b data-cm-ccount>${comments ? comments.length : (p.comments || 0)}</b></span>
@@ -304,8 +320,8 @@ window.Community = {
           ${linkedHere ? '<span class="cm-hosp__linked">내 담당 상담소</span>' : (window.Hospital && !lk ? '<button class="btn-secondary" data-cm-hosp-link>상담소 코드로 연결</button>' : '')}
         </div>
       </div>
-      <p class="cm-hosp__sec">${esc(h.name)}의 소식 ${d.items.length ? d.items.length + '개' : ''}</p>
-      ${d.items.length ? d.items.map(it => this._card(it, true)).join('') : '<p class="feed-all__empty">아직 올린 소식이 없어요.</p>'}`;
+      <p class="cm-hosp__sec">${esc(h.name)}의 글 ${d.items.length ? d.items.length + '개' : ''}</p>
+      ${d.items.length ? d.items.map(it => this._card(it, true)).join('') : '<p class="feed-all__empty">아직 올린 글이 없어요.</p>'}`;
   },
   closeHospital() { const ov = document.getElementById('cm-hosp'); if (ov) ov.remove(); },
 
@@ -313,7 +329,7 @@ window.Community = {
   promptContext() {
     const items = (this._items || []).slice(0, 5);
     if (!items.length) return '';
-    return '[상담소 소식 — 제휴 상담소가 올린 글, 홈 "상담소 소식"에 있음]\n'
+    return '[커뮤니티 — 제휴 상담소가 올린 글, 홈 "커뮤니티"에 있음]\n'
       + items.map(it => `- ${it.hospital}: ${it.title}`).join('\n')
       + '\n사용자 고민과 정말 맞을 때만 하나를 자연스럽게 권하세요. 없는 글을 지어내지 마세요.';
   }

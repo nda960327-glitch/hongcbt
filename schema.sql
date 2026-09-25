@@ -163,3 +163,6 @@ CREATE TABLE IF NOT EXISTS post_comments (id TEXT PRIMARY KEY, post_id TEXT NOT 
 CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 -- 상담소 페이지 프로필(소개·전화·주소·홈페이지·운영시간) — JSON 한 칸
 -- ALTER TABLE hospitals ADD COLUMN profile TEXT;
+
+-- 글 사진: images = JSON 배열(data:image/jpeg, 긴 변 640px·각 100KB 이하·4장까지), thumb = 첫 사진 240px 미리보기
+-- ALTER TABLE posts ADD COLUMN images TEXT; ALTER TABLE posts ADD COLUMN thumb TEXT;

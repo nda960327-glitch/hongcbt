@@ -309,7 +309,7 @@ window.App = {
     if (window.Feed) window.Feed.init();
     if (window.Hospital) window.Hospital.init();
     if (window.Clinics) window.Clinics.init();
-    if (window.Community) window.Community.init();   // 상담소 소식 (대면상담 위)
+    if (window.Community) window.Community.init();   // 커뮤니티 (대면상담 위)
     if (window.HomeSimple) window.HomeSimple.init();   // 홈 모양(기본/심플) 적용 — A/B 비교용   // 내 주변 정신과 (홈 맨 아래)
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
@@ -601,7 +601,7 @@ window.App = {
   },
 
   async sendMessage() {
-    // 구독 관문: 체험·구독은 무제한, 무료 플랜은 하루 30회
+    // 구독 관문: 체험·구독은 무제한, 체험이 끝나면 구독 안내
     if (window.Subscription && !window.Subscription.guardChat()) return;
 
     const inputEl = document.getElementById('chat-input');
