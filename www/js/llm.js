@@ -725,9 +725,12 @@ DBT 대인관계 효율 기술이 여기 있습니다 — DEAR MAN(원하는 걸
       const d = new Date();
       const h = d.getHours();
       const part = h < 5 ? '새벽' : h < 9 ? '아침' : h < 12 ? '오전' : h < 18 ? '한낮/오후' : h < 21 ? '저녁' : '밤';
+      // 시각은 두 가지로 적는다. "오후 10:47" 하나만 주면 모델이 "11시쯤"으로 뭉뚱그리기도 한다(특히 DeepSeek).
+      //  이 시각은 사용자 기기의 시계다 — 모델 회사가 어느 나라든 상관없다.
+      const hh = String(h).padStart(2, '0'), mm = String(d.getMinutes()).padStart(2, '0');
       nowStr = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
         + ' ' + d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
-        + ` — 지금은 ${part}입니다`;
+        + ` (24시간제 ${hh}:${mm}, 한국 시간) — 지금은 ${part}입니다. 시각을 말할 때는 이 숫자를 그대로 쓰고 반올림하지 마세요`;
     } catch (e) {}
 
     // ── 항상: 핵심 정체성·상담 원칙 ──
