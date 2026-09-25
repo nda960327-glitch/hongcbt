@@ -16,7 +16,8 @@
 //   POST /tts   (또는 /api/tts)                      → 음성 합성 (mp3)
 // -------------------------------------------------------------
 
-const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o"];
+// deepseek-chat 은 비교용 상담사 '우렁의사' 전용 — DeepSeek 의 OpenAI 호환 API 로 보낸다 (시크릿 DEEPSEEK_API_KEY)
+const ALLOWED_MODELS = ["gpt-4o-mini", "gpt-4o", "deepseek-chat"];
 const ALLOWED_TTS_MODELS = ["gpt-4o-mini-tts", "tts-1", "tts-1-hd"];
 const ALLOWED_VOICES = ["coral", "nova", "shimmer", "sage", "alloy", "echo", "ash", "onyx", "fable"];
 // 상한을 1500 으로 두었더니 배포본에서 간판 기능이 통째로 죽어 있었습니다.
@@ -315,11 +316,14 @@ async function handleChat(body, env, cors) {
   const wantStream = body.stream === true;
   if (wantStream) payload.stream = true;
 
-  const upstream = await fetch("https://api.openai.com/v1/chat/completions", {
+  // 모델에 따라 보낼 곳이 갈린다. DeepSeek 는 요청·응답 형식이 OpenAI 와 같아서 payload 를 그대로 쓴다.
+  const isDeepSeek = model.startsWith("deepseek");
+  if (isDeepSeek && !env.DEEPSEEK_API_KEY) return json({ error: "deepseek-key-missing" }, 503, cors);
+  const upstream = await fetch(isDeepSeek ? "https://api.deepseek.com/chat/completions" : "https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${env.OPENAI_API_KEY}`,
+      "Authorization": `Bearer ${isDeepSeek ? env.DEEPSEEK_API_KEY : env.OPENAI_API_KEY}`,
     },
     body: JSON.stringify(payload),
   });

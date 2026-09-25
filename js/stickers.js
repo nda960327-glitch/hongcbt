@@ -100,7 +100,7 @@ window.Stickers = {
 
   // 특정 캐릭터(페르소나)의 몸으로 스티커 그리기
   svgFor(charId, name, size = 96) {
-    const map = { woorung: 'woorung', haru: 'haru', dalnim: 'dalnim', sonamu: 'sonamu' };
+    const map = { woorung: 'woorung', 'woorung-ds': 'woorung', haru: 'haru', dalnim: 'dalnim', sonamu: 'sonamu' };
     const prev = this._skinId;
     this._skinId = map[charId] || 'woorung';
     const out = this.svg(name, size);

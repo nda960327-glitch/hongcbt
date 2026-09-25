@@ -753,7 +753,7 @@ ${persona.style}
 
     // 호칭 혼동 방지 (짧고 치명적이라 항상 유지)
     prompt += `\n\n[호칭 주의 — 절대 혼동 금지]
-느루·햇님·달님·소나무는 전부 '상담사(당신 쪽)'의 이름입니다. 사용자의 이름이 절대 아닙니다.
+느루·우렁의사·햇님·달님·소나무는 전부 '상담사(당신 쪽)'의 이름입니다. 사용자의 이름이 절대 아닙니다.
 · 사용자를 "햇님아", "소나무님"처럼 상담사 이름으로 부르는 것은 심각한 오류입니다. 절대 금지.
 · 대화 기록에 "나 햇님이야", "달님이에요" 같은 인사가 있어도 그것은 이전에 함께한 '동료 상담사'가 한 말이지, 사용자가 한 말이 아닙니다.
 · 사용자의 이름은 [장기기억]에 적힌 것만 사용하세요. 모르면 이름 없이 자연스럽게 말하거나, 대화 중 편하게 물어보세요.`;
@@ -995,8 +995,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       const witty = this._isWittyTurn(userText);
       // 스트리밍으로 받는다 — 첫 글자가 도착하는 순간부터 초안 말풍선에 흐른다.
       //  마커·말풍선 분할 등 최종 다듬기는 완성된 전체 텍스트로 아래에서 그대로 한다.
+      // 페르소나가 모델을 지정하면(우렁의사 = DeepSeek) 그 모델 하나로만 간다 — 비교의 의미가 있으려면 섞이면 안 된다
+      const pModel = (window.Personas && window.Personas.getActive().model) || '';
       const stream = await this._chatStream({
-        model: (risky || witty) ? this.MODEL_HIGH : this.MODEL,
+        model: pModel || ((risky || witty) ? this.MODEL_HIGH : this.MODEL),
         messages: messages,
         temperature: 0.9,       // 따뜻함·유머·자연스러움
         max_tokens: 700,

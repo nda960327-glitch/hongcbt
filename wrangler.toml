@@ -5,6 +5,7 @@ compatibility_date = "2024-11-01"
 # 비밀값은 파일에 두지 말고 반드시 secret 으로 넣으세요:
 #   wrangler secret put OPENAI_API_KEY
 #   wrangler secret put ADMIN_CODE       (운영자 마스터 코드 — 전체 열람)
+#   wrangler secret put DEEPSEEK_API_KEY (비교용 상담사 우렁의사 — DeepSeek)
 #   wrangler secret put ALLOWED_ORIGIN   (선택)
 
 #   wrangler secret put VAPID_PRIVATE    (웹 푸시 서명키 — 절대 코드에 두지 말 것)
