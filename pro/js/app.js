@@ -73,7 +73,7 @@ const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls
   notes: [], pending: [], dfb: [] };   // 회기 기록 · 기록 안 남긴 상담 · 담당의 피드백
 
 // 의사(담당의)는 이제 별도 앱(doc.neurumind.com)을 쓴다. H- 코드를 여기 넣으면 그리로 보낸다.
-const DOC_URL = 'https://doc.neurumind.com';
+const DOC_URL = 'https://doc.mindinsideapp.com';
 localStorage.removeItem('hospital_code');   // 예전 의사 모드 흔적 정리
 const OPEN = {};                    // 접이식 섹션 열림 상태
 let SEEN = {};                      // 스레드별 '여기까지 읽음' ts

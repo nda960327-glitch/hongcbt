@@ -264,7 +264,7 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
         from: encodeFrom(env), to: [to], reply_to: OPS_REPLY,
         subject: '마인드 인사이드 입점 승인 · 상담사 페이지 접속 코드 (계약서 첨부)',
         html,
-        attachments: [{ filename: '마인드인사이드_상담사_입점계약서.docx', path: String(env.APP_URL || 'https://neurumind.com').replace(/\/+$/, '') + '/legal/counselor-agreement.docx' }]
+        attachments: [{ filename: '마인드인사이드_상담사_입점계약서.docx', path: String(env.APP_URL || 'https://mindinsideapp.com').replace(/\/+$/, '') + '/legal/counselor-agreement.docx' }]
       })
     });
     const res = r.ok ? { sent: true, reason: '' }
@@ -446,7 +446,7 @@ export async function sendApplicationToOps(env, db, subject, intro, rows, extra)
   const html = mailWrap('마인드 인사이드 운영팀', subject, `
     <p style="font-size:14px;line-height:1.8;margin:0 0 14px;">${intro}</p>
     ${table}
-    <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:14px 0 0;">운영자 콘솔 <a href="https://ops.neurumind.com" style="color:#4f8a6b;">ops.neurumind.com</a> 에서 승인·반려할 수 있습니다. 이 메일은 앱이 자동으로 보냈습니다.</p>`);
+    <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:14px 0 0;">운영자 콘솔 <a href="https://ops.mindinsideapp.com" style="color:#4f8a6b;">ops.mindinsideapp.com</a> 에서 승인·반려할 수 있습니다. 이 메일은 앱이 자동으로 보냈습니다.</p>`);
   return sendHtml(env, db, to, '[신청] ' + subject, html, extra);
 }
 

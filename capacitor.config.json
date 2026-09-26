@@ -3,10 +3,16 @@
   "appName": "마인드 인사이드",
   "webDir": "www",
   "server": {
-    "url": "https://neurumind.com",
+    "url": "https://mindinsideapp.com",
     "androidScheme": "https",
     "cleartext": false,
-    "errorPath": "offline.html"
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "mindinsideapp.com",
+      "*.mindinsideapp.com",
+      "neurumind.com",
+      "*.neurumind.com"
+    ]
   },
   "android": {
     "allowMixedContent": false,

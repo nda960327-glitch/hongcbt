@@ -140,6 +140,9 @@ const APP = {
     //  내 워커를 함부로 부르는' 크로스사이트만 차단한다.
     const reqOrigin = request.headers.get("Origin") || "";
     const ALLOW_ORIGINS = [
+      "https://mindinsideapp.com", "https://www.mindinsideapp.com",
+      "https://pro.mindinsideapp.com", "https://ops.mindinsideapp.com", "https://doc.mindinsideapp.com",
+      // 옛 도메인 — 안드로이드 앱(capacitor server.url)과 옛 링크가 아직 여기로 온다
       "https://neurumind.com", "https://www.neurumind.com",
       "https://pro.neurumind.com", "https://ops.neurumind.com", "https://doc.neurumind.com",
       "https://neurumind.pages.dev", "https://neurumind-pro.pages.dev",
@@ -153,7 +156,7 @@ const APP = {
       || /^https:\/\/localhost$/.test(reqOrigin);
     // 허용되면 그 Origin 을 그대로 echo(자격증명 없는 API 라 * 대신 정확히),
     //  Origin 이 없으면 * (네이티브는 CORS 검사를 안 하므로 무해).
-    const allowOrigin = reqOrigin ? (originOk ? reqOrigin : "https://neurumind.com") : "*";
+    const allowOrigin = reqOrigin ? (originOk ? reqOrigin : "https://mindinsideapp.com") : "*";
     const cors = {
       "Access-Control-Allow-Origin": allowOrigin,
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -243,7 +246,7 @@ const APP = {
       }
       return json({
         ok: true, admin: env.ADMIN_CODE || "", hospital, counselor,
-        urls: { app: env.APP_URL || "https://neurumind.com", pro: env.PRO_URL || "https://pro.neurumind.com", doc: env.DOC_URL || "https://doc.neurumind.com", ops: "https://ops.neurumind.com" }
+        urls: { app: env.APP_URL || "https://mindinsideapp.com", pro: env.PRO_URL || "https://pro.mindinsideapp.com", doc: env.DOC_URL || "https://doc.mindinsideapp.com", ops: "https://ops.mindinsideapp.com" }
       }, 200, cors);
     }
     // 대면상담 및 진료 — 내 주변 정신건강의학과 (카카오 로컬 + D1)

@@ -29,12 +29,12 @@ VAPID_PUBLIC = "BG_UE9SHpc89xc3kpLthgs4q1oFPHzA_6xUm25mxOYPaSnirh-hbUxEKThUB3iRY
 VAPID_SUBJECT = "mailto:help@neurumind.com"
 
 # 상담사 앱(마인드 인사이드 프로)의 주소. 메일에 넣는 로그인 링크가 여기로 간다.
-#  Pages 프로젝트는 neurumind-pro, 커스텀 도메인은 pro.neurumind.com.
-PRO_URL = "https://pro.neurumind.com"
+#  Pages 프로젝트는 neurumind-pro, 커스텀 도메인은 pro.mindinsideapp.com (옛 pro.neurumind.com 도 붙어 있다).
+PRO_URL = "https://pro.mindinsideapp.com"
 
 # 의사(담당의) 앱 주소. 매직링크 메일과 긴급 알림 메일의 버튼이 여기로 간다.
-#  Pages 프로젝트는 neurumind-doc, 커스텀 도메인은 doc.neurumind.com.
-DOC_URL = "https://doc.neurumind.com"
+#  Pages 프로젝트는 neurumind-doc, 커스텀 도메인은 doc.mindinsideapp.com.
+DOC_URL = "https://doc.mindinsideapp.com"
 
 # 소개 페이지(neurumind.com/intro/)에서 팀원이 테스트 코드를 열어보는 비밀번호.
 #  진짜 비밀이 아니라 '팀원끼리 아는 번호' 수준이다. 운영자 코드가 같이 열리니 새면 ADMIN_CODE 를 돌려라.

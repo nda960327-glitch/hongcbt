@@ -1575,7 +1575,7 @@ window.App = {
 
   proAppUrl() {
     const h = location.hostname;
-    if (/(^|\.)neurumind\.com$/.test(h)) return 'https://pro.neurumind.com/';
+    if (/(^|\.)(mindinsideapp\\.com|neurumind\.com)$/.test(h)) return 'https://pro.mindinsideapp.com/';
     if (/\.pages\.dev$/.test(h)) return 'https://neurumind-pro.pages.dev/';
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
   },

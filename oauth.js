@@ -96,10 +96,10 @@ function safeBack(env, want) {
   //  앱은 계속 로그아웃 상태가 된다 — 앱이 '안 되는' 것처럼 보이던 진짜 이유.
   //  우리 앱의 스킴만 허용한다 (아무 스킴이나 열어주면 오픈 리디렉터가 된다).
   if (/^com\.uroong\.(cbt|pro):\/\//.test(w)) return w;
-  const allow = [env.APP_URL, env.PRO_URL, 'https://neurumind.com', 'https://www.neurumind.com']
+  const allow = [env.APP_URL, env.PRO_URL, 'https://mindinsideapp.com', 'https://www.mindinsideapp.com', 'https://neurumind.com', 'https://www.neurumind.com']
     .filter(Boolean).map(x => String(x).replace(/\/+$/, ''));
   if (w && allow.some(a => w === a || w.startsWith(a + '/'))) return w;
-  return allow[0] || 'https://neurumind.com';
+  return allow[0] || 'https://mindinsideapp.com';
 }
 
 async function upsertUser(db, provider, prof) {

@@ -142,7 +142,7 @@ export async function handleCommunity(request, env, cors, path) {
       <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">보내주신 상담소 정보를 확인하고 있습니다.<br><b>2~3일 안에</b> 승인 여부를 이 주소로 알려드릴게요.</p>
       <div style="background:#f6f1e7;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
         <p style="font-size:13px;font-weight:700;margin:0 0 8px;">승인되면 이렇게 진행돼요</p>
-        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">1. 이 주소로 <b>소장 앱(doc.neurumind.com) 로그인 안내</b>와 상담소 코드가 갑니다<br>2. 내담자는 앱에서 상담소 코드로 상담소와 연결됩니다<br>3. 소속 상담사는 등록할 때 이 상담소를 고를 수 있고, 상담료는 상담소로 정산됩니다(상담소 90% · 앱 7% · 결제 수수료 3%)<br>4. 제휴계약서는 승인 메일과 함께 보내드립니다</p>
+        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">1. 이 주소로 <b>소장 앱(doc.mindinsideapp.com) 로그인 안내</b>와 상담소 코드가 갑니다<br>2. 내담자는 앱에서 상담소 코드로 상담소와 연결됩니다<br>3. 소속 상담사는 등록할 때 이 상담소를 고를 수 있고, 상담료는 상담소로 정산됩니다(상담소 90% · 앱 7% · 결제 수수료 3%)<br>4. 제휴계약서는 승인 메일과 함께 보내드립니다</p>
       </div>
       <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
     sendApplicationToOps(env, db, `상담소 제휴 신청 — ${name}`, `${name}(소장 ${doctor})이 앱에서 제휴를 신청했습니다. 사업자등록증을 첨부했습니다.`,
@@ -333,7 +333,7 @@ export async function handleCommunity(request, env, cors, path) {
           .bind(hid, a.name, a.dept || '심리상담', a.doctor, a.email, code, nowMs(), profile, a.bizno || ''),
         db.prepare("UPDATE hospital_apps SET status = 'approved', hospital_id = ?, decided = ? WHERE id = ?").bind(hid, nowMs(), a.id)
       ]);
-      const docUrl = String(env.DOC_URL || 'https://doc.neurumind.com').replace(/\/+$/, '');
+      const docUrl = String(env.DOC_URL || 'https://doc.mindinsideapp.com').replace(/\/+$/, '');
       sendHtml(env, db, a.email, '[마인드 인사이드] 상담소 제휴가 승인됐습니다', mailWrap('마인드 인사이드', a.name + ' 제휴가 승인됐습니다', `
         <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">${a.doctor} 소장님, 환영합니다. 아래 순서로 시작하세요.</p>
         <div style="background:#f6f1e7;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
@@ -349,7 +349,7 @@ export async function handleCommunity(request, env, cors, path) {
           <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">첨부한 심리상담사업자 제휴계약서를 읽어보시고, 동의하시면 <b>이 메일에 "동의합니다"라고 회신</b>해 주세요. 수정이 필요한 조항은 같은 메일로 알려주시면 협의합니다. 회신은 <a href="mailto:${OPS_REPLY}" style="color:#4f8a6b;">${OPS_REPLY}</a> 로 갑니다.</p>
         </div>
         <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`),
-        { replyTo: OPS_REPLY, attachments: [{ filename: '마인드인사이드_심리상담사업자_제휴계약서.docx', path: String(env.APP_URL || 'https://neurumind.com').replace(/\/+$/, '') + '/legal/partner-agreement.docx' }] }).catch(() => {});
+        { replyTo: OPS_REPLY, attachments: [{ filename: '마인드인사이드_심리상담사업자_제휴계약서.docx', path: String(env.APP_URL || 'https://mindinsideapp.com').replace(/\/+$/, '') + '/legal/partner-agreement.docx' }] }).catch(() => {});
       return json({ ok: true, hospitalId: hid, code }, 200, cors);
     }
     if (path === '/admin/hospital-apps/reject' && method === 'POST') {

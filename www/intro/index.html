@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="ko">
 <head>
+  <!-- 도메인 이전(2026-09): 새 주소 DNS 가 살아나면 옛 주소 → 새 주소 이동 스크립트를 여기 넣는다 (scratchpad/edit-domain.js REDIRECT) -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>마인드 인사이드 소개 — 정신과와 함께 쓰는 마음 돌봄 앱</title>
@@ -131,10 +132,10 @@
   <h2><span class="n">0</span>30초 요약</h2>
   <p class="sub">이 한 그림만 이해하면 나머지는 전부 세부사항입니다.</p>
   <div class="flow">
-    <div class="box"><i>🧑</i><b>내담자 앱</b><span>neurumind.com<br>느루와 대화 · 기분 체크인 · 미션 · 기록 · 상담 예약 · 담당 상담소 연결</span></div>
-    <div class="box"><i>🧑‍⚕️</i><b>상담사 앱 (프로)</b><span>pro.neurumind.com<br>예약 · 채팅 · 통화 · 숙제 · <b>회기 기록</b> · 정산</span></div>
-    <div class="box"><i>🩺</i><b>소장 앱 (닥터)</b><span>doc.neurumind.com<br>연결 내담자 · 상담 기록 열람 · 주간 상태 · 피드백 · 긴급 알림</span></div>
-    <div class="box"><i>🛠️</i><b>운영자 콘솔</b><span>ops.neurumind.com<br>상담사 승인 · 정산 · 결제 · 추천 콘텐츠 · 상담소 등록</span></div>
+    <div class="box"><i>🧑</i><b>내담자 앱</b><span>mindinsideapp.com<br>느루와 대화 · 기분 체크인 · 미션 · 기록 · 상담 예약 · 담당 상담소 연결</span></div>
+    <div class="box"><i>🧑‍⚕️</i><b>상담사 앱 (프로)</b><span>pro.mindinsideapp.com<br>예약 · 채팅 · 통화 · 숙제 · <b>회기 기록</b> · 정산</span></div>
+    <div class="box"><i>🩺</i><b>소장 앱 (닥터)</b><span>doc.mindinsideapp.com<br>연결 내담자 · 상담 기록 열람 · 주간 상태 · 피드백 · 긴급 알림</span></div>
+    <div class="box"><i>🛠️</i><b>운영자 콘솔</b><span>ops.mindinsideapp.com<br>상담사 승인 · 정산 · 결제 · 추천 콘텐츠 · 상담소 등록</span></div>
   </div>
   <div class="card">
     <b>서버는 하나</b>입니다. 네 앱 모두 같은 Cloudflare Worker(<code>/api/…</code>)와 같은 데이터베이스(D1)를 씁니다.
@@ -149,7 +150,7 @@
   </div>
 
   <!-- ───────────────────────── 내담자 ───────────────────────── -->
-  <h2 id="patient"><span class="n">1</span>내담자 입장 <span class="tag p">neurumind.com</span></h2>
+  <h2 id="patient"><span class="n">1</span>내담자 입장 <span class="tag p">mindinsideapp.com</span></h2>
   <p class="sub">정신과에서 "이 앱 써보세요"라고 권해서 깔았거나, 스스로 찾아 깔았거나 — 둘 다 같은 앱입니다.</p>
 
   <div class="card who">
@@ -199,7 +200,7 @@
   </div>
 
   <!-- ───────────────────────── 상담사 ───────────────────────── -->
-  <h2 id="counselor"><span class="n" style="background:var(--c);">2</span>상담사 입장 <span class="tag c">pro.neurumind.com</span></h2>
+  <h2 id="counselor"><span class="n" style="background:var(--c);">2</span>상담사 입장 <span class="tag c">pro.mindinsideapp.com</span></h2>
   <p class="sub">심리상담사가 입점해서 예약을 받고 상담하고 정산받는 곳. 진료 사이 3분에 답장하는 사람을 위해 설계했습니다.</p>
 
   <div class="card who c">
@@ -222,7 +223,7 @@
   </div>
 
   <!-- ───────────────────────── 소장 ───────────────────────── -->
-  <h2 id="doctor"><span class="n" style="background:var(--d);">3</span>소장 입장 <span class="tag d">doc.neurumind.com</span></h2>
+  <h2 id="doctor"><span class="n" style="background:var(--d);">3</span>소장 입장 <span class="tag d">doc.mindinsideapp.com</span></h2>
   <p class="sub">상담소 소장이 PC 에서 쓰는 관리 콘솔. 내담자 경과·소속 상담사·정산·커뮤니티를 한 화면에서 다룹니다. 폰에서도 열리지만 표와 캘린더는 PC 가 편합니다.</p>
 
   <div class="card who d">
@@ -245,7 +246,7 @@
   </div>
 
   <!-- ───────────────────────── 관리자 ───────────────────────── -->
-  <h2 id="admin"><span class="n" style="background:var(--a);">4</span>관리자 입장 <span class="tag a">ops.neurumind.com</span></h2>
+  <h2 id="admin"><span class="n" style="background:var(--a);">4</span>관리자 입장 <span class="tag a">ops.mindinsideapp.com</span></h2>
   <p class="sub">운영팀이 쓰는 콘솔. 운영자 코드 하나로 들어갑니다 (이 페이지 맨 아래 테스트 코드 참고).</p>
 
   <div class="card who a">
@@ -280,7 +281,7 @@
       <span class="tag p">내담자</span>
       <h3>마인드 인사이드</h3>
       <p class="muted">느루와 대화 · 체크인 · 미션 · 상담 · 담당 상담소 연결</p>
-      <a class="btn" href="https://neurumind.com/" target="_blank" rel="noopener">앱 열기 (웹)</a>
+      <a class="btn" href="https://mindinsideapp.com/" target="_blank" rel="noopener">앱 열기 (웹)</a>
       <a class="btn ghost" id="play-link" href="https://play.google.com/store/search?q=%EB%A7%88%EC%9D%B8%EB%93%9C%20%EC%9D%B8%EC%82%AC%EC%9D%B4%EB%93%9C&c=apps" target="_blank" rel="noopener">Google Play 에서 찾기</a>
       <div class="howto"><b>홈 화면에 추가</b> · 안드로이드 Chrome: ⋮ → '홈 화면에 추가' · iPhone Safari: 공유 → '홈 화면에 추가'</div>
     </div>
@@ -288,26 +289,26 @@
       <span class="tag c">상담사</span>
       <h3>마인드 인사이드 프로</h3>
       <p class="muted">예약 · 채팅 · 통화 · 숙제 · 회기 기록 · 정산</p>
-      <a class="btn c" href="https://pro.neurumind.com/" target="_blank" rel="noopener">프로 앱 열기</a>
+      <a class="btn c" href="https://pro.mindinsideapp.com/" target="_blank" rel="noopener">프로 앱 열기</a>
       <div class="howto">입점 승인 메일의 코드 또는 이메일 링크로 로그인. 전화 알림을 받으려면 앱 안의 '앱으로 설치하기'를 누르세요.</div>
     </div>
     <div class="card">
       <span class="tag d">소장</span>
       <h3>마인드 인사이드 닥터</h3>
       <p class="muted">연결 내담자 · 상담 기록 · 주간 상태 · 피드백 · 긴급 알림</p>
-      <a class="btn d" href="https://doc.neurumind.com/" target="_blank" rel="noopener">닥터 앱 열기</a>
+      <a class="btn d" href="https://doc.mindinsideapp.com/" target="_blank" rel="noopener">닥터 앱 열기</a>
       <div class="howto">운영팀에 등록된 이메일로 로그인 링크를 받거나, 상담소 코드(H-…)로 들어갑니다.</div>
     </div>
     <div class="card">
       <span class="tag a">관리자</span>
       <h3>운영자 콘솔</h3>
       <p class="muted">승인 · 정산 · 결제 · 추천 콘텐츠 · 상담소 관리 · 점검</p>
-      <a class="btn a" href="https://ops.neurumind.com/" target="_blank" rel="noopener">콘솔 열기</a>
+      <a class="btn a" href="https://ops.mindinsideapp.com/" target="_blank" rel="noopener">콘솔 열기</a>
       <div class="howto">운영자 코드로 로그인. PC 브라우저를 권장합니다.</div>
     </div>
   </div>
   <details><summary>Google Play 에 아직 안 보이면</summary>
-    <p class="muted">스토어 심사·게시 상태에 따라 검색에 안 잡힐 수 있습니다. 그 사이엔 위 '앱 열기 (웹)'로 들어가 홈 화면에 추가하면 같은 앱을 쓸 수 있습니다. 안드로이드 앱은 내부적으로 neurumind.com 을 그대로 띄우므로 기능이 같습니다.</p>
+    <p class="muted">스토어 심사·게시 상태에 따라 검색에 안 잡힐 수 있습니다. 그 사이엔 위 '앱 열기 (웹)'로 들어가 홈 화면에 추가하면 같은 앱을 쓸 수 있습니다. 안드로이드 앱은 내부적으로 mindinsideapp.com 을 그대로 띄우므로 기능이 같습니다.</p>
   </details>
 
   <!-- ───────────────────────── 테스트 코드 ───────────────────────── -->
