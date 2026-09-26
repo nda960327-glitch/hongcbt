@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <script>window.APP_BUILD = 220;</script>
+  <script>window.APP_BUILD = 221;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드 인사이드의 마음챙김 CBT — 인지행동 기법 기반 자기관리 도우미">
@@ -32,7 +32,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=220">
+  <link rel="stylesheet" href="css/style.css?v=221">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -851,6 +851,19 @@
               <input type="file" id="creg-photo-file" accept="image/*" style="display: none;">
             </div>
           </div>
+          <!-- 자격증 사진 — 필수. 운영팀(개인) 또는 소속 상담소(소속)가 보고 승인한다 -->
+          <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <div id="creg-lic-preview" style="width: 64px; height: 64px; border-radius: 12px; background: var(--bg-tertiary); border: 1.5px dashed var(--glass-border); display: flex; align-items: center; justify-content: center; font-size: 0.66rem; color: var(--text-muted); overflow: hidden; flex-shrink: 0;">자격증</div>
+            <div style="flex: 1;">
+              <strong style="font-size: 0.85rem; color: var(--text-primary); display: block;">자격증 사진 *</strong>
+              <span style="font-size: 0.72rem; color: var(--text-muted);">자격증(또는 수료증) 전체가 보이게 찍어주세요. 심사에만 쓰고 공개되지 않아요.</span>
+              <div style="display: flex; gap: 0.4rem; margin-top: 0.4rem;">
+                <button type="button" class="btn-secondary" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="document.getElementById('creg-lic-file').click()">사진 선택</button>
+                <button type="button" id="creg-lic-remove" class="btn-secondary hidden" style="width: auto; font-size: 0.76rem; padding: 0.35rem 0.7rem;" onclick="window.App.clearCregLicense()">삭제</button>
+              </div>
+              <input type="file" id="creg-lic-file" accept="image/*" style="display: none;">
+            </div>
+          </div>
           <div style="border-top: 1px dashed var(--glass-border); padding-top: 0.6rem; margin-top: 0.2rem;">
             <strong style="font-size: 0.85rem; color: var(--text-primary);">소속 기관(상담소) 정보</strong>
           </div>
@@ -1510,64 +1523,64 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=220"></script>
-  <script defer src="js/storage.js?v=220"></script>
-  <script defer src="js/inbox.js?v=220"></script>
-  <script defer src="js/cards.js?v=220"></script>
-  <script defer src="js/chatviz.js?v=220"></script>
-  <script defer src="js/memory-vault.js?v=220"></script>
-  <script defer src="js/personas.js?v=220"></script>
-  <script defer src="js/stickers.js?v=220"></script>
-  <script defer src="js/ui.js?v=220"></script>
-  <script defer src="js/api.js?v=220"></script>
-  <script defer src="js/rtccall.js?v=220"></script>
-  <script defer src="js/prolink.js?v=220"></script>
-  <script defer src="js/account.js?v=220"></script>
-  <script defer src="js/freshness.js?v=220"></script>
-  <script defer src="js/i18n.js?v=220"></script>
-  <script defer src="js/wallet.js?v=220"></script>
-  <script defer src="js/pay.js?v=220"></script>
-  <script defer src="js/subscription.js?v=220"></script>
-  <script defer src="js/calltalk.js?v=220"></script>
-  <script defer src="js/calm.js?v=220"></script>
-  <script defer src="js/voice.js?v=220"></script>
-  <script defer src="js/llm.js?v=220"></script>
-  <script defer src="js/chatbot.js?v=220"></script>
-  <script defer src="js/marketplace.js?v=220"></script>
-  <script defer src="js/booking.js?v=220"></script>
-  <script defer src="js/thought-record.js?v=220"></script>
-  <script defer src="js/growth.js?v=220"></script>
-  <script defer src="js/missions.js?v=220"></script>
-  <script defer src="js/weekly.js?v=220"></script>
-  <script defer src="js/sleep.js?v=220"></script>
-  <script defer src="js/onboard.js?v=220"></script>
-  <script defer src="js/stickershop.js?v=220"></script>
-  <script defer src="js/applock.js?v=220"></script>
-  <script defer src="js/safety.js?v=220"></script>
-  <script defer src="js/admin.js?v=220"></script>
-  <script defer src="js/dashboard.js?v=220"></script>
-  <script defer src="js/learn.js?v=220"></script>
-  <script defer src="js/sfx.js?v=220"></script>
-  <script defer src="js/mail.js?v=220"></script>
-  <script defer src="js/payout.js?v=220"></script>
-  <script defer src="js/careplan.js?v=220"></script>
-  <script defer src="js/goals.js?v=220"></script>
-  <script defer src="js/progress.js?v=220"></script>
-  <script defer src="js/safetyplan.js?v=220"></script>
-  <script defer src="js/homework.js?v=220"></script>
-  <script defer src="js/feed.js?v=220"></script>
-  <script defer src="js/hospital.js?v=220"></script>
-  <script defer src="js/clinics.js?v=220"></script>
-  <script defer src="js/community.js?v=220"></script>
-  <script defer src="js/consent.js?v=220"></script>
-  <script defer src="js/homesimple.js?v=220"></script>
-  <script defer src="js/assess-charts.js?v=220"></script>
-  <script defer src="js/assess.js?v=220"></script>
-  <script defer src="js/game.js?v=220"></script>
-  <script defer src="js/room.js?v=220"></script>
-  <script defer src="js/farm.js?v=220"></script>
-  <script defer src="js/closet.js?v=220"></script>
-  <script defer src="js/app.js?v=220"></script>
+  <script defer src="js/icons.js?v=221"></script>
+  <script defer src="js/storage.js?v=221"></script>
+  <script defer src="js/inbox.js?v=221"></script>
+  <script defer src="js/cards.js?v=221"></script>
+  <script defer src="js/chatviz.js?v=221"></script>
+  <script defer src="js/memory-vault.js?v=221"></script>
+  <script defer src="js/personas.js?v=221"></script>
+  <script defer src="js/stickers.js?v=221"></script>
+  <script defer src="js/ui.js?v=221"></script>
+  <script defer src="js/api.js?v=221"></script>
+  <script defer src="js/rtccall.js?v=221"></script>
+  <script defer src="js/prolink.js?v=221"></script>
+  <script defer src="js/account.js?v=221"></script>
+  <script defer src="js/freshness.js?v=221"></script>
+  <script defer src="js/i18n.js?v=221"></script>
+  <script defer src="js/wallet.js?v=221"></script>
+  <script defer src="js/pay.js?v=221"></script>
+  <script defer src="js/subscription.js?v=221"></script>
+  <script defer src="js/calltalk.js?v=221"></script>
+  <script defer src="js/calm.js?v=221"></script>
+  <script defer src="js/voice.js?v=221"></script>
+  <script defer src="js/llm.js?v=221"></script>
+  <script defer src="js/chatbot.js?v=221"></script>
+  <script defer src="js/marketplace.js?v=221"></script>
+  <script defer src="js/booking.js?v=221"></script>
+  <script defer src="js/thought-record.js?v=221"></script>
+  <script defer src="js/growth.js?v=221"></script>
+  <script defer src="js/missions.js?v=221"></script>
+  <script defer src="js/weekly.js?v=221"></script>
+  <script defer src="js/sleep.js?v=221"></script>
+  <script defer src="js/onboard.js?v=221"></script>
+  <script defer src="js/stickershop.js?v=221"></script>
+  <script defer src="js/applock.js?v=221"></script>
+  <script defer src="js/safety.js?v=221"></script>
+  <script defer src="js/admin.js?v=221"></script>
+  <script defer src="js/dashboard.js?v=221"></script>
+  <script defer src="js/learn.js?v=221"></script>
+  <script defer src="js/sfx.js?v=221"></script>
+  <script defer src="js/mail.js?v=221"></script>
+  <script defer src="js/payout.js?v=221"></script>
+  <script defer src="js/careplan.js?v=221"></script>
+  <script defer src="js/goals.js?v=221"></script>
+  <script defer src="js/progress.js?v=221"></script>
+  <script defer src="js/safetyplan.js?v=221"></script>
+  <script defer src="js/homework.js?v=221"></script>
+  <script defer src="js/feed.js?v=221"></script>
+  <script defer src="js/hospital.js?v=221"></script>
+  <script defer src="js/clinics.js?v=221"></script>
+  <script defer src="js/community.js?v=221"></script>
+  <script defer src="js/consent.js?v=221"></script>
+  <script defer src="js/homesimple.js?v=221"></script>
+  <script defer src="js/assess-charts.js?v=221"></script>
+  <script defer src="js/assess.js?v=221"></script>
+  <script defer src="js/game.js?v=221"></script>
+  <script defer src="js/room.js?v=221"></script>
+  <script defer src="js/farm.js?v=221"></script>
+  <script defer src="js/closet.js?v=221"></script>
+  <script defer src="js/app.js?v=221"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

@@ -4324,6 +4324,38 @@ ${body}
     }
   },
 
+  // 자격증 사진 — 긴 변 1000px, 250KB 이하로 줄여서 보낸다. 글자가 읽혀야 하므로 프로필 사진보다 크게.
+  _bindCregLicense() {
+    const file = document.getElementById('creg-lic-file');
+    if (!file || file.dataset.bound) return;
+    file.dataset.bound = '1';
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      const img = new Image();
+      img.onload = () => {
+        const sc = Math.min(1, 1000 / Math.max(img.width, img.height));
+        const cv = document.createElement('canvas');
+        cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+        cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+        let q = 0.82, url = cv.toDataURL('image/jpeg', q);
+        while (url.length > 250 * 1024 && q > 0.4) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
+        this._cregLicense = url.length <= 250 * 1024 ? url : '';
+        const pv = document.getElementById('creg-lic-preview');
+        if (pv) pv.innerHTML = this._cregLicense ? `<img src="${this._cregLicense}" style="width: 100%; height: 100%; object-fit: cover;">` : '너무 큼';
+        const rm = document.getElementById('creg-lic-remove'); if (rm) rm.classList.toggle('hidden', !this._cregLicense);
+        URL.revokeObjectURL(img.src);
+      };
+      img.src = URL.createObjectURL(f);
+    });
+  },
+  clearCregLicense() {
+    this._cregLicense = '';
+    const pv = document.getElementById('creg-lic-preview'); if (pv) pv.textContent = '자격증';
+    const rm = document.getElementById('creg-lic-remove'); if (rm) rm.classList.add('hidden');
+    const f = document.getElementById('creg-lic-file'); if (f) f.value = '';
+  },
+
   clearCregPhoto() {
     this._cregPhoto = null;
     const pv = document.getElementById('creg-photo-preview');
@@ -4374,6 +4406,7 @@ ${body}
   openCounselorReg(asAdmin) {
     this._regAsAdmin = !!asAdmin;
     this.loadCregHospitals();
+    this._bindCregLicense();
     const t = document.getElementById('creg-title');
     const lead = document.getElementById('creg-lead');
     const btn = document.getElementById('creg-submit');
@@ -4473,6 +4506,11 @@ ${body}
       window.UI.alert('이름, 자격 구분, 상담료는 필수입니다.');
       return;
     }
+    // 자격증 사진은 필수 — 개인 상담사는 운영팀이, 소속 상담사는 상담소가 이 사진을 보고 승인한다 (운영자 대신 등록은 예외)
+    if (!this._cregLicense && !this._regAsAdmin) {
+      window.UI.alert('자격증 사진을 첨부해주세요.\n자격 확인이 끝나야 입점이 승인돼요.');
+      return;
+    }
     // 이메일이 없으면 승인돼도 로그인 코드를 보낼 데가 없다
     if (!email) {
       window.UI.alert('이메일을 입력해주세요.\n승인되면 이 주소로 상담사 앱 로그인 코드를 보내드려요.');
@@ -4499,7 +4537,7 @@ ${body}
       clientId: this.clientId(), name, email, license,
       career: v('creg-career'), price: parseInt(price, 10), intro: v('creg-intro'),
       hospital, hospitalId, addr: hospitalId ? '' : (addr + ' ' + v('creg-hosp-addr2')).trim(), tel: hospitalId ? '' : v('creg-hosp-tel'),
-      tags, photo: this._cregPhoto || null,
+      tags, photo: this._cregPhoto || null, licensePhoto: this._cregLicense || '',
       bank: hospitalId ? '' : bank, bankNo: hospitalId ? '' : account, bankHolder: hospitalId ? '' : holder
     };
     // 운영자가 대신 넣을 때는 운영자 코드를 같이 보낸다.
@@ -4565,6 +4603,7 @@ ${body}
       .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     document.querySelectorAll('#creg-tags button[data-on="1"]').forEach(b => b.click());
     this.clearCregPhoto();
+    this.clearCregLicense();
   },
 
   // ==========================================================================

@@ -1108,7 +1108,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const all = items.map(x => ({ ...x, kind: 'booking' })).concat(callItems);
     // 병원 채널은 앱이 상담사에게 보내지 않는다 — 병원에 보내고, 병원이 상담사에게 보낸다.
     const toCounselor = all.filter(x => x.payout.payTo === 'counselor');
-    const toHospital = all.filter(x => x.payout.payTo === 'hospital');
+    // 소개 채널 건은 두 목록에 다 들어간다 — 상담사에게 70%, 상담소에게 20% 를 각각 보낸다
+    const toHospital = all.filter(x => x.payout.hospital > 0);
     const sum = toCounselor.reduce((a, x) => a + x.payout.counselor, 0);
     const hospitalSum = toHospital.reduce((a, x) => a + x.payout.hospital, 0);
     const platformSum = all.reduce((a, x) => a + x.payout.platform, 0);
@@ -1842,6 +1843,9 @@ export async function handleMarket(request, env, cors, path, ctx) {
       if (!hosp) return json({ error: '소속 상담소를 다시 골라주세요' }, 400, cors);
     }
     const hospProf = (() => { try { return hosp && hosp.profile ? JSON.parse(hosp.profile) : {}; } catch (e) { return {}; } })();
+    // 자격증 사진 — 필수(운영자 대신 등록은 예외). 심사자가 본다. 앱이 1000px 로 줄여 보내고 서버는 350KB 까지만 받는다.
+    const licensePhoto = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(String(body.licensePhoto || '')) && String(body.licensePhoto).length <= 350 * 1024 ? String(body.licensePhoto) : '';
+    if (!licensePhoto && !isAdmin(env, code)) return json({ error: '자격증 사진을 첨부해주세요' }, 400, cors);
     const acct = hosp ? '' : s(body.bankNo, 40).replace(/[^0-9-]/g, '');
     if (!hosp && (!s(body.bank, 40).trim() || !acct || !s(body.bankHolder, 40).trim())) {
       return json({ error: '정산 계좌를 모두 적어주세요' }, 400, cors);
@@ -1861,14 +1865,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
     await db.prepare(
       `INSERT INTO applications
        (id, client_id, name, license, career, price, intro, hospital, addr, tel, email,
-        tags, photo, bank, bank_no, bank_holder, status, ts, hospital_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?)`
+        tags, photo, bank, bank_no, bank_holder, status, ts, hospital_id, license_photo)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?,?,?)`
     ).bind(id, clientId, name, s(body.license, 80), s(body.career, 20),
       num(body.price), s(body.intro, 600), hosp ? s(hosp.name, 120) : s(body.hospital, 120),
       hosp ? s(hospProf.addr || body.addr, 200) : s(body.addr, 200),
       hosp ? s(hospProf.tel || body.tel, 40) : s(body.tel, 40), s(body.email, 160).toLowerCase(), tags,
       s(body.photo, 200000) || null,           // 256px 리사이즈본이라 넉넉히
-      hosp ? '' : s(body.bank, 40), acct, hosp ? '' : s(body.bankHolder, 40), nowMs(), hosp ? hosp.id : null).run();
+      hosp ? '' : s(body.bank, 40), acct, hosp ? '' : s(body.bankHolder, 40), nowMs(), hosp ? hosp.id : null, licensePhoto || null).run();
 
     // 접수됐다는 걸 바로 알려준다. 아무 소식이 없으면 또 신청하거나 잊는다.
     //  응답보다 뒤로 보낸다 — 메일이 느려도 신청 화면은 기다리지 않는다.
@@ -2519,12 +2523,15 @@ function maskAcct(n) {
 //  js/payout.js 의 SPLITS 와 한 글자도 다르면 안 된다 — 화면 금액과 입금액이 갈라진다.
 //  app 은 구간제(2026-09 회의): 상담료 tierAt(6만원)까지 counselor%(70), 넘는 부분은 counselorOver%(55).
 //  PG 3% 를 떼고 남는 전부가 앱 몫이다. platform 값(27)은 6만원 이하일 때의 앱 비율 — 표시용.
+//  referral(소개, 2026-09-27): 상담소 코드로 연결된 내담자가 '소속 없는 개인 상담사'와 상담. 상담사 몫은 앱 채널과 같고,
+//            내담자를 보내 준 상담소가 20%, 앱은 나머지(6만원 기준 7%). 상담사·상담소 둘 다 앱이 지급한다.
 const SPLITS = {
   app:      { counselor: 70, hospital: 0,  pg: 3, platform: 27, tierAt: 60000, counselorOver: 55 },
+  referral: { counselor: 70, hospital: 20, pg: 3, platform: 7,  tierAt: 60000, counselorOver: 55 },
   hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
 };
 const SPLIT = SPLITS.app;   // 옛 이름 — 채널을 모르는 오래된 호출부를 위해 남긴다
-const splitOf = ch => SPLITS[ch === 'hospital' ? 'hospital' : 'app'];
+const splitOf = ch => SPLITS[ch === 'hospital' ? 'hospital' : ch === 'referral' ? 'referral' : 'app'];
 
 // 앱 채널 상담사 몫 — js/payout.js · pro/js/app.js 의 같은 계산과 한 글자도 다르면 안 된다
 function appCounselorOf(p) {
@@ -2536,7 +2543,7 @@ function appCounselorOf(p) {
 function payoutOf(price, channel) {
   const p = Math.max(0, Math.round(price || 0));
   const S = splitOf(channel);
-  const ch = S === SPLITS.hospital ? 'hospital' : 'app';
+  const ch = S === SPLITS.hospital ? 'hospital' : S === SPLITS.referral ? 'referral' : 'app';
   // 실비·정액 몫만 반올림하고, 나머지 전부를 '받는 사람'이 가져간다.
   //  받는 사람은 앱 채널이면 상담사, 병원 채널이면 병원이다. 반올림 잔돈도 거기로 간다.
   const pg = Math.round(p * S.pg / 100);
@@ -2546,6 +2553,12 @@ function payoutOf(price, channel) {
     return { gross: p, counselor: 0, hospital, pg, platform, channel: ch, payTo: 'hospital', split: S };
   }
   const counselor = appCounselorOf(p);
+  if (ch === 'referral') {
+    // 상담소 소개료 20% — 상담사 몫은 그대로, 앱이 상담소 몫만큼 덜 가져간다
+    const hospital = Math.round(p * S.hospital / 100);
+    const platform = Math.max(0, p - pg - counselor - hospital);
+    return { gross: p, counselor, hospital, pg, platform, channel: ch, payTo: 'counselor', hospitalPayTo: 'hospital', split: S };
+  }
   const platform = Math.max(0, p - pg - counselor);   // 반올림 잔돈은 앱 몫
   return { gross: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor', split: S };
 }
@@ -2599,10 +2612,11 @@ async function channelOf(db, clientId, counselorId) {
       catch (e) { c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first(); if (c) c.hospital_ok = 1; }
       if (c && c.hospital_id && c.hospital_ok) return { channel: 'hospital', hospitalId: c.hospital_id };
     }
+    // 상담사는 소속이 없는데 내담자가 상담소와 연결돼 있으면 '소개 채널' — 상담소가 20% 소개료를 받는다
     const r = await db.prepare(
       'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
     ).bind(clientId).first();
-    if (r && r.hospital_id) return { channel: 'hospital', hospitalId: r.hospital_id };
+    if (r && r.hospital_id) return { channel: 'referral', hospitalId: r.hospital_id };
   } catch (e) {}
   return { channel: 'app', hospitalId: null };
 }
@@ -2614,7 +2628,7 @@ const rowApp = (a, admin) => ({
   id: a.id, name: a.name, hospitalId: a.hospital_id || '', license: a.license || '', career: a.career || '',
   price: a.price || 0, intro: a.intro || '', hospital: a.hospital || '',
   addr: a.addr || '', tel: a.tel || '', email: a.email || '',
-  tags: safeJson(a.tags, []), photo: a.photo || null,
+  tags: safeJson(a.tags, []), photo: a.photo || null, licensePhoto: admin ? (a.license_photo || '') : '',
   status: a.status, rejectWhy: a.reject_why || '',
   counselorId: a.counselor_id || '', ts: a.ts, decidedAt: a.decided_at || 0,
   bank: a.bank_no ? { bank: a.bank || '', holder: a.bank_holder || '', masked: maskAcct(a.bank_no) } : null,

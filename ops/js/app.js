@@ -1073,7 +1073,9 @@ function viewApply() {
           : a.hospitalId ? '소속 상담소가 지급 (계좌 없음)' : '<b style="color: var(--danger);">미등록</b>'}</dd>
         <dt>전문 분야</dt><dd>${(a.tags || []).length ? (a.tags || []).map(t => `<span class="chip off" style="margin-right:0.2rem;">${esc(t)}</span>`).join('') : '(없음)'}</dd>
         <dt>신청일</dt><dd>${fmtDT(a.ts)}</dd>
+        <dt>자격증</dt><dd>${a.licensePhoto ? `<button class="btn ghost sm" data-act="ap-lic" data-id="${esc(a.id)}">자격증 사진 보기</button>` : '<b style="color: var(--danger);">첨부 없음</b> — 사진 없이는 승인하지 마세요'}</dd>
       </dl>
+      <div id="ap-lic-${esc(a.id)}"></div>
       ${a.intro ? `<p class="muted" style="margin-top: 0.6rem; border-top: 1px dashed var(--line); padding-top: 0.5rem; white-space: pre-wrap;">${esc(a.intro)}</p>` : ''}
       ${a.hospitalId ? `<p class="muted" style="margin-top: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 8px; background: var(--accent-soft); color: var(--accent);"><b>소속 상담소(${esc(a.hospital)})가 소장 앱에서 승인</b>합니다. 승인되면 상담사에게 로그인 코드가 가고 상담료는 상담소로 정산돼요. 상담소가 오래 처리하지 않을 때만 아래 버튼으로 대신 승인하세요.</p>` : ''}
       <div class="row" style="margin-top: 0.8rem; gap: 0.45rem;">
@@ -1252,13 +1254,14 @@ function hospitalSettleHtml() {
       <div class="sec-title">이번 정산의 플랫폼 수익
         <span class="right muted">앱 몫 합계 ${won(sums.platform)}캐시</span></div>
       <p class="muted" style="margin: 0;">
-        상담소 채널은 <b>상담소 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널은 <b>상담사 70(6만원 넘는 부분 55) · 결제 수수료 3 · 나머지 앱</b> 입니다.</p>
+        상담소 채널(소속 상담사)은 <b>상담소 90 · 앱 7 · 결제 수수료 3</b>, 앱 채널(개인 상담사)은 <b>상담사 70(6만원 넘는 부분 55) · 결제 수수료 3 · 나머지 앱</b>,
+        소개 채널(상담소와 연결된 내담자 + 개인 상담사)은 <b>상담사 70/55 · 상담소 20 · 결제 수수료 3 · 나머지 앱</b> 입니다.</p>
     </div>
     <div class="sec-title" style="margin-top: 1.2rem;">상담소에 지급
       <span class="right muted">${rows.length}건 · 상담소 몫 합계 ${won(sums.hospital)}캐시</span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      상담소을 통해 등록한 내담자의 상담입니다. <b>앱은 상담소에만 지급하고, 상담사에게는 상담소이 지급합니다.</b>
-      여기 있는 건을 상담사에게 직접 보내면 안 됩니다.</p>
+      <b>상담소 채널</b>(소속 상담사) 건은 앱이 상담소에 90%를 보내고 상담사에게는 상담소가 지급합니다 — 상담사에게 직접 보내면 안 됩니다.
+      <b>소개</b> 건은 상담소가 보내 준 내담자를 개인 상담사가 상담한 것이라, 상담소에 20% 소개료를 보내고 상담사 몫(70/55)은 위 '상담사에게 지급'에서 따로 보냅니다.</p>
     ${rows.length ? Object.entries(by).map(([hid, list]) => `
     <div class="card">
       <div class="row wrap"><div class="pav ${avaColor(list[0].hospitalName)}">${initial(list[0].hospitalName)}</div>
@@ -1269,7 +1272,7 @@ function hospitalSettleHtml() {
         <label class="payrow">
           <input type="checkbox" data-act="pick" data-id="${esc(x.id)}" ${PICK[x.id] ? 'checked' : ''}>
           <span class="grow muted" style="color: var(--text);">${esc(x.clientName || '내담자')} · ${esc(x.time || '')}
-            <span class="chip">${esc(x.counselor || '상담사')}</span></span>
+            <span class="chip">${esc(x.counselor || '상담사')}</span>${x.channel === 'referral' ? '<span class="chip gold">소개 20%</span>' : '<span class="chip ok">소속 90%</span>'}</span>
           <span class="muted">결제 ${won(x.price)}</span>
           <b style="min-width: 74px; text-align: right;">${won(x.payout.hospital)}</b>
         </label>`).join('')}
@@ -2453,6 +2456,7 @@ document.addEventListener('click', e => {
   if (act === 'ha-approve') { haApprove(id, el); return; }
   if (act === 'ha-reject') { haReject(id); return; }
   if (act === 'ha-doc') { haDoc(id); return; }
+  if (act === 'ap-lic') { const a = (D.apps || []).find(x => x.id === id); const box = $('ap-lic-' + id); if (a && box) box.innerHTML = box.innerHTML ? '' : `<img src="${a.licensePhoto}" alt="자격증" style="max-width: 100%; border-radius: 8px; margin: 0.4rem 0; border: 1px solid var(--line);">`; return; }
   if (act === 'hosp-peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
   if (act === 'hosp-copy') { const h = (D.hospitals || []).find(x => x.id === id); if (h) copy(h.code, '상담소 코드를 복사했어요'); return; }
   if (act === 'hosp-rotate') { hospRotate(id); return; }

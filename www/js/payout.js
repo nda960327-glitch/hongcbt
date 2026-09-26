@@ -24,6 +24,7 @@ window.Payout = {
   //  app:      앱으로 그냥 들어온 내담자. 앱이 상담사에게 지급한다.
   SPLITS: {
     app:      { counselor: 70, hospital: 0,  pg: 3, platform: 27, tierAt: 60000, counselorOver: 55 },
+    referral: { counselor: 70, hospital: 20, pg: 3, platform: 7,  tierAt: 60000, counselorOver: 55 },   // 연결된 내담자 + 개인 상담사
     hospital: { counselor: 0,  hospital: 90, pg: 3, platform: 7  }
   },
   get SPLIT() { return this.SPLITS.app; },   // 옛 이름 — 채널을 모르는 화면용
@@ -52,7 +53,7 @@ window.Payout = {
   //  실제로 입금되는 금액이 갈라지면 그 차이는 전부 문의로 돌아온다.
   breakdown(price, channel) {
     const p = Math.max(0, Math.round(Number(price) || 0));
-    const ch = channel === 'hospital' ? 'hospital' : 'app';
+    const ch = channel === 'hospital' ? 'hospital' : channel === 'referral' ? 'referral' : 'app';
     const s = this.SPLITS[ch];
     const pg = Math.round(p * s.pg / 100);
     // 반올림 잔돈은 병원 채널은 병원, 앱 채널은 앱 몫으로
@@ -64,6 +65,11 @@ window.Payout = {
     // 구간제: 6만원까지 70%, 넘는 부분 55% (market.js appCounselorOf 와 같은 식)
     const base = Math.min(p, s.tierAt), over = Math.max(0, p - s.tierAt);
     const counselor = Math.round(base * s.counselor / 100 + over * s.counselorOver / 100);
+    if (ch === 'referral') {
+      const hospital = Math.round(p * s.hospital / 100);
+      const platform = Math.max(0, p - pg - counselor - hospital);
+      return { total: p, counselor, hospital, pg, platform, channel: ch, payTo: 'counselor' };
+    }
     const platform = Math.max(0, p - pg - counselor);
     return { total: p, counselor, hospital: 0, pg, platform, channel: ch, payTo: 'counselor' };
   },

@@ -283,15 +283,19 @@ async function logCallToChat(db, env, ctx, call, line, sender) {
 //  정산 배분이 여기서 갈린다 (market.js payoutOf 참고).
 async function callChannel(db, clientId, counselorId) {
   try {
-    // 소속 상담소가 있는 상담사의 통화는 그 상담소 채널 (market.js channelOf 와 같은 규칙)
+    // 소속 상담소가 승인(hospital_ok=1)한 상담사의 통화는 그 상담소 채널 (market.js channelOf 와 같은 규칙).
+    //  hospital_ok 칸이 없는 배포에서는 예전처럼 hospital_id 만 본다.
     if (counselorId) {
-      const c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first();
-      if (c && c.hospital_id) return { channel: 'hospital', hospitalId: c.hospital_id };
+      let c = null;
+      try { c = await db.prepare('SELECT hospital_id, hospital_ok FROM counselors WHERE id = ?').bind(counselorId).first(); }
+      catch (e) { c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first(); if (c) c.hospital_ok = 1; }
+      if (c && c.hospital_id && c.hospital_ok) return { channel: 'hospital', hospitalId: c.hospital_id };
     }
     const x = await db.prepare(
       'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
     ).bind(clientId).first();
-    if (x && x.hospital_id) return { channel: 'hospital', hospitalId: x.hospital_id };
+    // 소속 없는 상담사 + 연결된 내담자 = 소개 채널 (상담소 20%) — market.js channelOf 와 같은 규칙
+    if (x && x.hospital_id) return { channel: 'referral', hospitalId: x.hospital_id };
   } catch (e) {}
   return { channel: 'app', hospitalId: null };
 }

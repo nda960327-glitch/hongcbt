@@ -1891,7 +1891,10 @@ function foldProfile() {
         ${(HOSPS || []).map(h => `<option value="${esc(h.id)}" ${h.id === ME.hospitalId ? 'selected' : ''}>${esc(h.name)}${h.dept ? ' · ' + esc(h.dept) : ''}</option>`).join('')}
         ${ME.hospitalId && !(HOSPS || []).some(h => h.id === ME.hospitalId) ? `<option value="${esc(ME.hospitalId)}" selected>${esc(ME.hospital || '소속 상담소')}</option>` : ''}
       </select>
-      <span class="muted" style="margin-top:0.2rem;">제휴 상담소 소속이면 상담료가 상담소로 정산되고 상담소가 지급해요. 소속이 없으면 아래 정산 계좌로 받아요.</span></label>
+      <span class="muted" style="margin-top:0.2rem;">제휴 상담소 소속이면 상담료가 상담소로 정산되고 상담소가 지급해요. 소속이 없으면 아래 정산 계좌로 받아요.</span>
+      ${ME.hospitalId ? (ME.hospitalOk
+        ? '<span class="muted" style="display:block; margin-top:0.25rem; color:var(--accent); font-weight:700;">상담소 승인됨 — 상담료가 상담소로 정산돼요</span>'
+        : '<span class="muted" style="display:block; margin-top:0.25rem; color:var(--gold); font-weight:700;">상담소 승인 대기 중 — 승인 전에는 앱 채널로 정산돼요(계좌 필요)</span>') : ''}</label>
     ${telBlock}
     ${addrBlock}
     ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
@@ -2040,12 +2043,16 @@ async function loadDevices(force) {
 
 function foldPayout() {
   if (!ME) return '';
-  // 소속 상담소가 있으면 상담료는 상담소로 가고 상담소가 지급한다 — 상담사 계좌는 받지 않는다
-  if (ME.hospitalId) return fold('payout', '정산', `${esc(ME.hospital || '소속 상담소')}가 지급`, `
+  // 소속 상담소가 승인했으면 상담료는 상담소로 가고 상담소가 지급한다 — 상담사 계좌는 받지 않는다.
+  //  승인 대기 중에는 앱 채널(상담사 계좌)로 정산되므로 계좌 칸을 보여준다.
+  if (ME.hospitalId && ME.hospitalOk) return fold('payout', '정산', `${esc(ME.hospital || '소속 상담소')}가 지급`, `
     <p class="muted" style="margin-top:0.8rem;">선생님의 상담료는 소속 상담소(<b>${esc(ME.hospital || '')}</b>)로 정산되고, 선생님께는 상담소가 직접 지급해요. 앱에서 따로 계좌를 받지 않아요.<br>소속을 없애면 정산 계좌를 등록하는 칸이 생겨요.</p>`);
   const p = ME.payout || { set: false };
+  const pendingNote = ME.hospitalId && !ME.hospitalOk
+    ? `<p class="muted" style="margin-top:0.8rem; padding:0.6rem 0.8rem; background:rgba(245,199,78,0.16); border-radius:10px;"><b>${esc(ME.hospital || '소속 상담소')}</b>의 승인을 기다리는 중이에요. 승인 전까지는 상담료가 앱에서 선생님 계좌로 직접 정산되므로 계좌가 필요해요. 승인되면 상담소가 지급하고 이 칸은 사라져요.</p>` : '';
   return fold('payout', '정산 계좌',
     p.set ? `${esc(p.bank)} ${esc(p.masked)}` : '<b style="color:var(--danger);">미등록 — 정산 보류</b>', `
+    ${pendingNote}
     <div style="margin-top:0.8rem;"></div>
     ${p.set
       ? `<p style="margin-bottom:0.6rem;"><b>${esc(p.bank)}</b> ${esc(p.masked)} <span class="muted">· 예금주 ${esc(p.holder)}</span></p>

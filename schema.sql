@@ -170,9 +170,27 @@ CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 -- 상담사 소속 상담소 (hospitals.id). 있으면 그 상담사의 상담은 모두 상담소 채널로 정산하고 계좌를 받지 않는다
 -- ALTER TABLE applications ADD COLUMN hospital_id TEXT; ALTER TABLE counselors ADD COLUMN hospital_id TEXT;
 
+-- 소장 콘솔 PC 개편 (2026-09, doc/ · hospital.js). 적용 SQL 은 doc-migration2.sql 참고.
+--  counselors.hospital_ok  소속 상담소가 소장 콘솔에서 승인했는지(1). 상담사가 소속을 고르거나 바꾸면 0 으로 돌아가고,
+--                          승인 전에는 그 상담사의 상담이 앱 채널(상담사 계좌)로 정산된다 (market.js channelOf · rtc.js callChannel).
+--                          상담소가 입점 신청을 직접 승인하면(/hospital/applications/approve) 곧바로 1.
+--  hospitals.bank/bank_no/bank_holder  상담소 정산 계좌 — 앱이 상담소 몫(90%)을 보내는 곳. 없으면 콘솔에 빨간 안내.
+--  hospitals.bizno         사업자등록번호(숫자 10자리). 소장이 한 번만 적을 수 있고 이후는 운영팀이 고친다.
+-- ALTER TABLE counselors ADD COLUMN hospital_ok INTEGER NOT NULL DEFAULT 0;
+-- ALTER TABLE hospitals ADD COLUMN bank TEXT; ALTER TABLE hospitals ADD COLUMN bank_no TEXT; ALTER TABLE hospitals ADD COLUMN bank_holder TEXT;
+-- ALTER TABLE hospitals ADD COLUMN bizno TEXT;
+-- 상담소 전용 내담자 메모 — 상담사·내담자에게 가지 않는다
+CREATE TABLE IF NOT EXISTS hospital_notes (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, client_id TEXT NOT NULL, text TEXT NOT NULL, ts INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_hn_client ON hospital_notes(hospital_id, client_id, ts);
+-- 긴급 표시 회기 기록을 소장이 '확인했다'고 표시한 기록
+CREATE TABLE IF NOT EXISTS hospital_urgent_ack (hospital_id TEXT NOT NULL, note_id TEXT NOT NULL, acked_at INTEGER NOT NULL, PRIMARY KEY (hospital_id, note_id));
+
 -- 상담소(심리상담사업자) 직접 제휴 신청 — 승인하면 hospitals 로 옮긴다 (community.js /community/hospital-apply, /admin/hospital-apps)
 CREATE TABLE IF NOT EXISTS hospital_apps (id TEXT PRIMARY KEY, client_id TEXT, name TEXT NOT NULL, doctor TEXT NOT NULL, email TEXT NOT NULL, tel TEXT, addr TEXT, bizno TEXT, dept TEXT, intro TEXT, hours TEXT, url TEXT, doc TEXT, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, decided INTEGER, reason TEXT, hospital_id TEXT);
 CREATE INDEX IF NOT EXISTS idx_hospapps_status ON hospital_apps(status, ts);
 
 -- 상담소 사업자등록번호 (제휴 승인 시 신청서에서 복사, 소장 콘솔에서 수정)
 -- ALTER TABLE hospitals ADD COLUMN bizno TEXT;
+
+-- 상담사 신청서 자격증 사진(필수, 앱에서 긴 변 1000px JPEG 로 줄임) — 운영자·소장이 심사할 때 본다
+-- ALTER TABLE applications ADD COLUMN license_photo TEXT;
