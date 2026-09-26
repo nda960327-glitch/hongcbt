@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <!-- 도메인 이전(2026-09): 새 주소 DNS 가 살아나면 옛 주소 → 새 주소 이동 스크립트를 여기 넣는다 (scratchpad/edit-domain.js REDIRECT) -->
+  <!-- 도메인 이전(2026-09): 옛 주소는 새 주소로 — 안드로이드 앱 웹뷰는 제외 -->
+  <script>(function(){try{var h=location.hostname;if(/(^|\.)neurumind\.com$/.test(h)&&!window.Capacitor&&!/\bwv\b/.test(navigator.userAgent)){location.replace('https://'+h.replace(/neurumind\.com$/,'mindinsideapp.com')+location.pathname+location.search+location.hash);}}catch(e){}})();</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>마인드 인사이드 운영자 콘솔</title>

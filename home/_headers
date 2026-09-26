@@ -1,0 +1,12 @@
+# 홈페이지(mindinside.kr)는 정적 한 장. 고쳐 배포하면 바로 반영되게 index 는 no-cache.
+/index.html
+  Cache-Control: no-cache
+
+/robots.txt
+  Cache-Control: no-cache
+
+/sitemap.xml
+  Cache-Control: no-cache
+
+/*.png
+  Cache-Control: public, max-age=604800
