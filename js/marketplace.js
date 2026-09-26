@@ -91,6 +91,14 @@
     return this.favs().includes(id);
   },
 
+  // 내 담당 상담소(마이 → 담당 상담소)에 소속이 승인된 상담사인가.
+  //  이름이 아니라 id 로만 본다 — 상담소 이름은 누구나 똑같이 적을 수 있다.
+  isMyClinic(c) {
+    const lk = window.Storage && window.Storage._safeGet('cbt_hospital_link', null);
+    const hid = lk && lk.hospital && lk.hospital.id;
+    return !!(hid && c && c.hospitalId && c.hospitalId === hid);
+  },
+
   toggleFav(id) {
     if (window.Sfx) window.Sfx.hit('pop');
     let f = this.favs();
@@ -197,9 +205,12 @@
         (c.tags || []).some(t => t.toLowerCase().includes(q)));
     }
 
- // 1순위: 즐겨찾기, 2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
+ // 0순위: 내 담당 상담소 소속 상담사 (무조건 맨 위), 1순위: 즐겨찾기,
+ //  2순위: 지금 걸 수 있는 사람 (가능 → 통화 중 → 부재), 3순위: 선택한 정렬
     const stateRank = { avail: 0, busy: 1, off: 2 };
     filtered.sort((a, b) => {
+      const m = (this.isMyClinic(a) ? 0 : 1) - (this.isMyClinic(b) ? 0 : 1);
+      if (m !== 0) return m;
       const f = (this.isFav(a.id) ? 0 : 1) - (this.isFav(b.id) ? 0 : 1);
       if (f !== 0) return f;
       const r = stateRank[this.liveState(a)] - stateRank[this.liveState(b)];
@@ -248,7 +259,7 @@
           </div>
           <div class="cc2-info">
             <div class="cc2-name">${this._esc(c.name)}${c.isNew ? ' <span class="cc2-new">NEW</span>' : ''}</div>
-            <div class="cc2-hosp">${this._esc(c.hospital)}</div>
+            <div class="cc2-hosp">${this._esc(c.hospital)}${this.isMyClinic(c) ? ' <span class="cc2-new" style="background: var(--accent-soft, #eef6f0); color: var(--accent-primary, #4f8a6b);">내 상담소</span>' : ''}</div>
             <div class="cc2-meta">
               <span role="button" onclick="event.stopPropagation(); window.Marketplace.openReviews('${c.id}')" style="cursor: pointer; text-decoration: underline; text-decoration-color: var(--glass-border); text-underline-offset: 3px;">${window.Icons ? window.Icons.svg('star', { size: 13 }) : ''} <b>${c.rating}</b> (${c.reviews})</span>
               ${c.distance == null ? '' : `<span>${window.Icons ? window.Icons.svg('pinloc', { size: 13 }) : ''} ${c.distance}km</span>`}
@@ -531,7 +542,7 @@
       }
     } catch (e) {}
     this._server = d.items.map(c => ({
-      id: c.id, name: c.name, hospital: c.hospital || '', addr: c.addr || '',
+      id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hospitalId || '', addr: c.addr || '',
       tags: c.tags || [], price: c.price || 40000,
       callRate: c.callRate || this.callRateFor({ price: c.price }),
       // 얼굴과 좌표. 전에는 이 둘을 안 받아서, 서버 상담사는 전부 그림 아바타에

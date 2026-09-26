@@ -671,8 +671,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
               photo, lat, lng, available, busy_until`;
     let r;
     try {
+      // 소속 상담소 id 도 같이 준다 — 앱이 '내 담당 상담소 상담사'를 맨 위에 올린다.
+      //  소장이 소속을 승인한(hospital_ok) 경우만. 승인 전엔 아무 상담소나 골라 적을 수 있으니 믿지 않는다.
       r = await db.prepare(
-        `SELECT ${COLS} FROM counselors
+        `SELECT ${COLS}, CASE WHEN hospital_ok = 1 THEN hospital_id ELSE NULL END AS hosp_id FROM counselors
           WHERE active = 1 AND (1 = 1 OR COALESCE(sub_until, 0) > ?) ORDER BY created DESC`
       ).bind(nowMs()).all();
     } catch (e) {
@@ -684,7 +686,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
     return json({
       items: (r.results || []).map(c => ({
-        id: c.id, name: c.name, hospital: c.hospital || '',
+        id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hosp_id || '',
         // 도로명 + 상세(층·호)를 여기서 합친다. 나눠 두는 건 지오코딩 때문이지
         //  사람에게 보여줄 때까지 나눠 놓을 이유는 없다.
         addr: [c.addr || '', c.addr_detail || ''].filter(Boolean).join(' '),
