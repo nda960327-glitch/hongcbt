@@ -4387,6 +4387,67 @@ ${body}
     if (window.Payout && window.Payout.render) window.Payout.render();
   },
 
+  // ── 상담소(심리상담사업자) 제휴 신청 ──
+  //  상담사 등록과 별개로 상담소가 직접 낸다. 심사는 운영자 콘솔 '상담소 관리', 서버는 community.js.
+  openHospReg() {
+    document.getElementById('hosp-reg-modal').classList.remove('hidden');
+    const file = document.getElementById('hreg-doc-file');
+    if (file && !file.dataset.bound) {
+      file.dataset.bound = '1';
+      file.addEventListener('change', () => {
+        const f = file.files && file.files[0];
+        if (!f) return;
+        const img = new Image();
+        img.onload = () => {
+          // 긴 변 900px — 사업자등록증 글자가 읽힐 만큼만. 서버 한도 200KB.
+          const sc = Math.min(1, 900 / Math.max(img.width, img.height));
+          const cv = document.createElement('canvas');
+          cv.width = Math.round(img.width * sc); cv.height = Math.round(img.height * sc);
+          cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+          let q = 0.8, url = cv.toDataURL('image/jpeg', q);
+          while (url.length > 200 * 1024 && q > 0.4) { q -= 0.1; url = cv.toDataURL('image/jpeg', q); }
+          this._hregDoc = url.length <= 200 * 1024 ? url : '';
+          const pv = document.getElementById('hreg-doc-preview');
+          if (pv) pv.innerHTML = this._hregDoc ? `<img src="${this._hregDoc}" style="width: 100%; height: 100%; object-fit: cover;">` : '너무 큼';
+          const rm = document.getElementById('hreg-doc-remove'); if (rm) rm.classList.toggle('hidden', !this._hregDoc);
+          URL.revokeObjectURL(img.src);
+        };
+        img.src = URL.createObjectURL(f);
+      });
+    }
+  },
+  clearHregDoc() {
+    this._hregDoc = '';
+    const pv = document.getElementById('hreg-doc-preview'); if (pv) pv.textContent = '서류';
+    const rm = document.getElementById('hreg-doc-remove'); if (rm) rm.classList.add('hidden');
+    const f = document.getElementById('hreg-doc-file'); if (f) f.value = '';
+  },
+  closeHospReg() { document.getElementById('hosp-reg-modal').classList.add('hidden'); },
+  async submitHospReg() {
+    const v = id => (document.getElementById(id) ? document.getElementById(id).value.trim() : '');
+    const name = v('hreg-name'), doctor = v('hreg-doctor'), email = v('hreg-email').toLowerCase();
+    if (!name || !doctor) { window.UI.alert('상담소 이름과 소장 이름은 필수입니다.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { window.UI.alert('소장 이메일을 확인해주세요.\n승인 안내와 소장 앱 로그인 링크가 이 주소로 가요.'); return; }
+    const btn = document.getElementById('hreg-submit');
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '접수 중…'; }
+    let ok = false, msg = '';
+    try {
+      const r = await window.Api.post('/api/community/hospital-apply', {
+        clientId: this.clientId(), name, doctor, email, tel: v('hreg-tel'), bizno: v('hreg-bizno'), dept: v('hreg-dept'),
+        addr: v('hreg-addr'), hours: v('hreg-hours'), url: v('hreg-url'), intro: v('hreg-intro'), doc: this._hregDoc || ''
+      });
+      const d = r ? await r.json().catch(() => ({})) : {};
+      ok = !!(d && d.ok); msg = (d && d.message) || '';
+    } catch (e) {}
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.textContent = '신청하기'; }
+    if (!ok) { window.UI.alert(msg || '접수하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+    this.closeHospReg();
+    ['hreg-name', 'hreg-doctor', 'hreg-email', 'hreg-tel', 'hreg-bizno', 'hreg-dept', 'hreg-addr', 'hreg-hours', 'hreg-url', 'hreg-intro']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    this.clearHregDoc();
+    window.UI.alert(`제휴 신청이 접수되었습니다!\n\n사업자 정보를 확인한 뒤 2~3일 안에\n${email} 으로 결과를 알려드려요.`);
+  },
+
   closeCounselorReg() {
     this._regAsAdmin = false;
     document.getElementById('counselor-reg-modal').classList.add('hidden');

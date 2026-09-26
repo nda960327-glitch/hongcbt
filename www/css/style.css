@@ -2460,3 +2460,7 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 .feed-ov__body .cm-big { font-size: 1.12rem; font-weight: 700; line-height: 1.6; }
 .cm-c--red { color: #c9463d; } .cm-c--orange { color: #d97a1c; } .cm-c--green { color: #2f7d4f; }
 .cm-c--blue { color: #2d64a8; } .cm-c--purple { color: #7a4fb0; } .cm-c--gray { color: var(--text-muted); }
+
+/* 상담소 제휴 신청 폼 */
+.hreg-in { padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; width: 100%; box-sizing: border-box; font-family: inherit; }
+.hreg-in:focus { border-color: var(--accent-primary); }

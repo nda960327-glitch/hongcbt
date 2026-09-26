@@ -497,9 +497,60 @@ function viewFeed() {
 //  들어오는 열쇠다. 코드 하나가 그 상담소 내담자 전원의 상담 기록을 여니 상담사 코드처럼 다룬다.
 let HOSP_FORM = false, HOSP_EDIT = null;
 async function loadHospitals() {
-  const r = await adminGet('/api/admin/hospitals');
+  const [r, a] = await Promise.all([adminGet('/api/admin/hospitals'), adminGet('/api/admin/hospital-apps')]);
   D.hospitals = r ? (r.items || []) : null;
+  D.hospApps = a ? (a.items || []) : [];
   if (TAB === 'hospitals') render();
+}
+// 상담소가 앱에서 직접 낸 제휴 신청 — 승인하면 hospitals 에 들어가고 소장에게 코드·로그인 안내 메일이 간다
+function hospAppsHtml() {
+  const apps = (D.hospApps || []);
+  const pending = apps.filter(x => x.status === 'pending');
+  const done = apps.filter(x => x.status !== 'pending').slice(0, 20);
+  const card = a => `
+    <div class="card" style="${a.status === 'pending' ? 'border-color: var(--gold);' : 'opacity: 0.75;'}">
+      <div class="row wrap" style="gap: 0.5rem;">
+        <b style="font-size: 0.92rem;">${esc(a.name)}</b>
+        <span class="chip ${a.status === 'pending' ? 'gold' : a.status === 'approved' ? 'ok' : 'off'}">${a.status === 'pending' ? '심사 대기' : a.status === 'approved' ? '승인' : '보류'}</span>
+        <span class="right muted">${fmtDT(a.ts)}</span>
+      </div>
+      <div class="muted" style="margin-top: 0.25rem;">소장 ${esc(a.doctor)} · ${esc(a.email)}${a.tel ? ' · ' + esc(a.tel) : ''}${a.bizno ? ' · 사업자 ' + esc(a.bizno) : ' · <span style="color: var(--danger);">사업자번호 없음</span>'}</div>
+      <div class="muted">${esc([a.dept, a.addr, a.hours].filter(Boolean).join(' · ') || '분야·주소·운영시간 미입력')}${a.url ? ' · <a href="' + esc(a.url) + '" target="_blank" rel="noopener">홈페이지</a>' : ''}</div>
+      ${a.intro ? `<div class="muted" style="margin-top: 0.25rem; white-space: pre-wrap;">${esc(a.intro)}</div>` : ''}
+      ${a.reason ? `<div class="muted" style="margin-top: 0.25rem;">보류 사유: ${esc(a.reason)}</div>` : ''}
+      <div class="row wrap" style="gap: 0.4rem; margin-top: 0.5rem;">
+        ${a.hasDoc ? `<button class="btn ghost sm" data-act="ha-doc" data-id="${esc(a.id)}">사업자등록증 보기</button>` : '<span class="muted">사업자등록증 첨부 없음</span>'}
+        <span class="grow"></span>
+        ${a.status === 'pending' ? `<button class="btn ghost sm" data-act="ha-reject" data-id="${esc(a.id)}">보류</button><button class="btn sm" data-act="ha-approve" data-id="${esc(a.id)}">승인하고 코드 발급</button>` : ''}
+      </div>
+      <div id="ha-doc-${esc(a.id)}"></div>
+    </div>`;
+  return `
+    <div class="sec-title">제휴 신청 <span class="muted" style="font-weight: 400;">— 상담소가 앱에서 직접 낸 신청</span><span class="right muted">대기 ${pending.length}건</span></div>
+    ${pending.length ? pending.map(card).join('') : '<div class="card"><div class="empty"><b>심사 대기 중인 신청이 없어요</b>상담소가 앱 → 마이 → 상담소 제휴 신청에서 내면 여기에 보입니다.</div></div>'}
+    ${done.length ? '<div class="sec-title" style="margin-top: 0.8rem;">처리된 신청</div>' + done.map(card).join('') : ''}`;
+}
+async function haApprove(id, btn) {
+  const ok = await confirmBox({ title: '이 상담소를 승인할까요?', body: '상담소 계정이 만들어지고 소장 이메일로 코드와 로그인 안내가 갑니다.', okLabel: '승인' });
+  if (!ok) return;
+  if (btn) btn.disabled = true;
+  const r = await adminPost('/api/admin/hospital-apps/approve', { id });
+  if (btn) btn.disabled = false;
+  if (r && r.ok) { toast('승인했어요 — 코드 ' + r.code); await loadHospitals(); }
+  else alertBox('승인하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.');
+}
+async function haReject(id) {
+  const reason = prompt('보류 사유 (신청자에게 메일로 전달돼요)', '');
+  if (reason === null) return;
+  const r = await adminPost('/api/admin/hospital-apps/reject', { id, reason });
+  if (r && r.ok) { toast('보류 처리했어요'); await loadHospitals(); } else toast('처리하지 못했어요');
+}
+async function haDoc(id) {
+  const box = $('ha-doc-' + id); if (!box) return;
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  box.innerHTML = '<p class="muted">불러오는 중…</p>';
+  const r = await adminGet('/api/admin/hospital-apps/doc?id=' + encodeURIComponent(id));
+  box.innerHTML = r && r.doc ? `<img src="${r.doc}" alt="사업자등록증" style="max-width: 100%; border-radius: 8px; margin-top: 0.5rem; border: 1px solid var(--line);">` : '<p class="muted">첨부가 없어요</p>';
 }
 
 
@@ -585,6 +636,8 @@ function viewHospitals() {
       등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 의사는 <b>소장 앱(doc.neurumind.com)</b>에 이메일 로그인 링크(또는 이 코드)로 들어와 연결된 내담자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
       내담자는 앱 → 마이 → 담당 상담소 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
     ${(HOSP_FORM || editing) ? form(editing) : ''}
+    ${hospAppsHtml()}
+    <div class="sec-title" style="margin-top: 0.8rem;">등록된 상담소</div>
     ${D.hospitals.length ? D.hospitals.map(card).join('')
       : '<div class="card"><div class="empty"><b>등록된 상담소이 없어요</b>＋ 상담소 등록으로 첫 상담소을 추가하세요.</div></div>'}`;
 }
@@ -1022,8 +1075,9 @@ function viewApply() {
         <dt>신청일</dt><dd>${fmtDT(a.ts)}</dd>
       </dl>
       ${a.intro ? `<p class="muted" style="margin-top: 0.6rem; border-top: 1px dashed var(--line); padding-top: 0.5rem; white-space: pre-wrap;">${esc(a.intro)}</p>` : ''}
+      ${a.hospitalId ? `<p class="muted" style="margin-top: 0.6rem; padding: 0.5rem 0.7rem; border-radius: 8px; background: var(--accent-soft); color: var(--accent);"><b>소속 상담소(${esc(a.hospital)})가 소장 앱에서 승인</b>합니다. 승인되면 상담사에게 로그인 코드가 가고 상담료는 상담소로 정산돼요. 상담소가 오래 처리하지 않을 때만 아래 버튼으로 대신 승인하세요.</p>` : ''}
       <div class="row" style="margin-top: 0.8rem; gap: 0.45rem;">
-        <button class="btn" style="flex: 1;" data-act="approve" data-id="${esc(a.id)}">승인하고 코드 발급</button>
+        <button class="btn ${a.hospitalId ? 'ghost' : ''}" style="flex: 1;" data-act="approve" data-id="${esc(a.id)}">${a.hospitalId ? '운영팀이 대신 승인' : '승인하고 코드 발급'}</button>
         <button class="btn warnline sm" data-act="reject" data-id="${esc(a.id)}">반려</button>
       </div>
     </div>`;
@@ -2396,6 +2450,9 @@ document.addEventListener('click', e => {
   if (act === 'hosp-edit') { HOSP_EDIT = id; HOSP_FORM = true; render(); window.scrollTo(0, 0); return; }
   if (act === 'hosp-cancel') { HOSP_EDIT = null; HOSP_FORM = false; render(); return; }
   if (act === 'hosp-save') { hospSave(id, el); return; }
+  if (act === 'ha-approve') { haApprove(id, el); return; }
+  if (act === 'ha-reject') { haReject(id); return; }
+  if (act === 'ha-doc') { haDoc(id); return; }
   if (act === 'hosp-peek') { SHOWCODE[id] = !SHOWCODE[id]; render(); return; }
   if (act === 'hosp-copy') { const h = (D.hospitals || []).find(x => x.id === id); if (h) copy(h.code, '상담소 코드를 복사했어요'); return; }
   if (act === 'hosp-rotate') { hospRotate(id); return; }

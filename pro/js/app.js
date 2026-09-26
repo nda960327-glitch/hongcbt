@@ -1621,7 +1621,7 @@ function renderMoney() {
         <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
         <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
-      <p class="muted" style="margin-top:0.6rem;">앱으로 온 내담자: 상담료 6만원까지 <b>70%</b>, 6만원 넘는 부분은 <b>55%</b>가 선생님 몫이에요. (예: 6만원 → 42,000 · 7만원 → 47,500 · 10만원 → 64,000)</p>
+      <p class="muted" style="margin-top:0.6rem;">정산 조건은 입점 때 이메일로 안내드린 내용을 따라요. 건별 지급액은 아래 목록에서 확인하세요.</p>
       ${waiting > 0 ? `<p class="muted" style="margin-top:0.3rem;">개인 상담사는 지급할 때 사업소득 3.3%를 원천징수해요. 지금 대기 금액이면 <b>약 ${won(withhold33(waiting))}원 입금</b> 예정이에요. 사업자 상담사는 세금계산서로 대체돼요.</p>` : ''}
       ${hospBookings.length + hospCalls.length ? `<div style="margin-top:0.7rem; padding:0.6rem 0.75rem; border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent);">
         <b style="font-size:0.88rem; color:var(--accent);">상담소 정산 ${hospBookings.length + hospCalls.length}건 · 상담료 합계 ${won(hospGross)}캐시</b>

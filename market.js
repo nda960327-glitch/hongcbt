@@ -1780,7 +1780,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  응답보다 뒤로 보낸다 — 메일이 느려도 신청 화면은 기다리지 않는다.
     const mail = s(body.email, 160).toLowerCase();
     if (mail) {
-      const receipt = sendApplyReceipt(env, db, mail, name).catch(() => {});
+      const receipt = sendApplyReceipt(env, db, mail, name, !hosp).catch(() => {});
       if (ctx && ctx.waitUntil) ctx.waitUntil(receipt); else await receipt;
     }
     return json({ ok: true, id }, 200, cors);
@@ -1828,14 +1828,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
     try {
       await db.prepare(
         `INSERT INTO counselors (${COLS}, sub_until, sub_started)
-         VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).bind(...args, subUntil, t0).run();
     } catch (e) {
       // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용).
       //  구독 칸 하나 때문에 승인 자체가 막히면 안 된다 — 예전 모양으로 넣는다.
       //  (마이그레이션 UPDATE 가 나중에 유예 기간을 채워 준다)
       await db.prepare(
-        `INSERT INTO counselors (${COLS}) VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?)`
+        `INSERT INTO counselors (${COLS}) VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       ).bind(...args).run();
     }
     // 무료로 준 달도 기록에 남긴다 — '공짜로 준 달'과 '돈 받은 달'을 못 나누면

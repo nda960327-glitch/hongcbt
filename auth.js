@@ -153,7 +153,20 @@ async function sendMail(env, to, link, name) {
 //  신청하고 나면 아무 소식이 없어서 '접수가 된 건가?' 하고 다시 신청하거나
 //  그냥 잊어버린다. 접수됐다는 사실과 언제쯤 연락이 갈지를 바로 알려준다.
 //  이 메일이 실패해도 신청 자체는 이미 저장돼 있다 — 막지 않는다.
-export async function sendApplyReceipt(env, db, to, name) {
+// 정산 조건은 앱 화면에 적지 않고(2026-09-26 지시) 신청서를 제출한 개인 상담사에게만 이 메일로 알린다.
+//  소속 상담소가 있는 상담사는 상담소가 지급하므로 이 부분이 빠진다.
+export const SETTLE_TERMS_HTML = `
+  <div style="background:#eef4ef;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
+    <p style="font-size:13px;font-weight:700;margin:0 0 8px;color:#3f352a;">상담료 정산 조건 (개인 상담사)</p>
+    <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">
+      · 상담료 60,000원까지는 <b>70%</b>, 60,000원을 넘는 부분은 <b>55%</b>가 선생님 몫입니다<br>
+      · 결제 수수료(약 3%)와 나머지는 마인드 인사이드가 부담·수취합니다. 월 구독료나 입점비는 없습니다<br>
+      · 예: 60,000원 상담 → 42,000원 · 70,000원 → 47,500원 · 100,000원 → 64,000원<br>
+      · 개인은 지급 시 사업소득세 3.3%를 원천징수하고, 사업자는 세금계산서로 대체합니다<br>
+      · 상담 완료·회기 기록 작성 후 7일 뒤 등록 계좌로 입금됩니다<br>
+      · 자세한 조건은 입점계약서에 따르며, 승인 시 계약서를 보내드립니다</p>
+  </div>`;
+export async function sendApplyReceipt(env, db, to, name, withTerms) {
   if (!env.RESEND_API_KEY || !to) return { sent: false, reason: 'no-api-key' };
   if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   const html = `
@@ -170,6 +183,7 @@ export async function sendApplyReceipt(env, db, to, name) {
       2. 마인드 인사이드 프로에서 코드를 한 번 넣으면 그 기기에서 계속 열려요<br>
       3. 예약 가능 시간과 정산 계좌를 확인하면 상담을 받을 수 있습니다</p>
   </div>
+  ${withTerms ? SETTLE_TERMS_HTML : ''}
   <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
     서류 보완이 필요하면 사유와 함께 알려드립니다. 보완 후 다시 신청하실 수 있어요.</p>
   <hr style="border:0;border-top:1px solid #e8ddcd;margin:22px 0 12px;">
@@ -384,7 +398,7 @@ export async function handleAuth(request, env, cors, path, body, url) {
 //  병원(담당의) 메일 — 로그인 링크 · 긴급 위험 알림
 //  상담사 메일과 같은 발신자·같은 로그를 쓴다. 의사 앱(DOC_URL)은 별도 도메인이다.
 // ============================================================================
-async function sendHtml(env, db, to, subject, html) {
+export async function sendHtml(env, db, to, subject, html) {
   if (!env.RESEND_API_KEY) return { sent: false, reason: 'no-api-key' };
   if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   let res;
@@ -407,7 +421,7 @@ async function sendHtml(env, db, to, subject, html) {
   return res;
 }
 
-const mailWrap = (kicker, title, inner) => `
+export const mailWrap = (kicker, title, inner) => `
 <div style="font-family:'Noto Sans KR',-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:28px 22px;color:#3f352a;">
   <p style="font-size:13px;letter-spacing:.08em;color:#8a7b68;margin:0 0 6px;">${kicker}</p>
   <h1 style="font-size:20px;margin:0 0 14px;letter-spacing:-.02em;">${title}</h1>

@@ -24,6 +24,7 @@
 //           POST /admin/community/comment/hide {code, cid, hidden}
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 import { resolveHospital } from './hospital.js';
+import { sendHtml, mailWrap } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
 const PAGE = 20;
@@ -81,7 +82,7 @@ const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospit
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
 
 export async function handleCommunity(request, env, cors, path) {
-  if (!/^\/(community|hospital\/(posts|comments|profile)|admin\/community)/.test(path)) return null;
+  if (!/^\/(community|hospital\/(posts|comments|profile)|admin\/community|admin\/hospital-apps)/.test(path)) return null;
   const db = env.DB;
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
 
@@ -117,6 +118,30 @@ export async function handleCommunity(request, env, cors, path) {
     if (more) rows.pop();
     const likes = await myLikes(cid, rows.map(r => r.id));
     return json({ items: rows.map(r => rowPost(r, likes.has(r.id))), next: more ? rows[rows.length - 1].created : 0 }, 200, cors);
+  }
+
+  // ── 상담소 직접 등록 신청 (공개) ──
+  //  운영자가 콘솔에서 대신 넣던 것을 상담소가 앱에서 직접 낸다. 심사 뒤 승인하면 hospitals 에 들어가고 소장에게 로그인 안내가 간다.
+  if (path === '/community/hospital-apply' && method === 'POST') {
+    const name = s(body.name, 60).trim(), doctor = s(body.doctor, 40).trim(), email = s(body.email, 160).trim().toLowerCase();
+    if (!name || !doctor || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: 'missing' }, 400, cors);
+    const cid = cleanId(body.clientId) || 'anon';
+    const dup = await db.prepare("SELECT id FROM hospital_apps WHERE lower(email) = ? AND status = 'pending'").bind(email).first();
+    if (dup) return json({ error: 'dup', message: '이미 심사 중인 신청이 있어요' }, 409, cors);
+    const doc = jpegOk(body.doc, 200 * 1024) ? body.doc : '';
+    const id = rid('ha');
+    await db.prepare(`INSERT INTO hospital_apps (id, client_id, name, doctor, email, tel, addr, bizno, dept, intro, hours, url, doc, status, ts)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`)
+      .bind(id, cid, name, doctor, email, s(body.tel, 30).replace(/[^0-9-+ ]/g, ''), s(body.addr, 200).trim(), s(body.bizno, 20).replace(/[^0-9-]/g, ''),
+        s(body.dept, 40).trim(), s(body.intro, 600).trim(), s(body.hours, 200).trim(), s(body.url, 200).trim(), doc, nowMs()).run();
+    sendHtml(env, db, email, '[마인드 인사이드] 상담소 제휴 신청이 접수됐습니다', mailWrap('마인드 인사이드', name + ' 제휴 신청이 접수됐습니다', `
+      <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">보내주신 상담소 정보를 확인하고 있습니다.<br><b>2~3일 안에</b> 승인 여부를 이 주소로 알려드릴게요.</p>
+      <div style="background:#f6f1e7;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
+        <p style="font-size:13px;font-weight:700;margin:0 0 8px;">승인되면 이렇게 진행돼요</p>
+        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">1. 이 주소로 <b>소장 앱(doc.neurumind.com) 로그인 안내</b>와 상담소 코드가 갑니다<br>2. 내담자는 앱에서 상담소 코드로 상담소와 연결됩니다<br>3. 소속 상담사는 등록할 때 이 상담소를 고를 수 있고, 상담료는 상담소로 정산됩니다(상담소 90% · 앱 7% · 결제 수수료 3%)<br>4. 제휴계약서는 승인 메일과 함께 보내드립니다</p>
+      </div>
+      <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
+    return json({ ok: true, id }, 200, cors);
   }
 
   if (path === '/community/hospitals' && method === 'GET') {
@@ -268,6 +293,61 @@ export async function handleCommunity(request, env, cors, path) {
       if (prof.url && !/^https?:\/\//i.test(prof.url)) prof.url = 'https://' + prof.url;
       await db.prepare('UPDATE hospitals SET profile = ? WHERE id = ?').bind(JSON.stringify(prof), h.id).run();
       return json({ ok: true, profile: prof }, 200, cors);
+    }
+    return null;
+  }
+
+  // ══════════════ 운영자 — 상담소 신청 심사 ══════════════
+  if (path.startsWith('/admin/hospital-apps')) {
+    if (!isAdmin(env, s(body.code || q('code'), 64))) return json({ error: 'bad-code' }, 403, cors);
+    const rowApp = a => ({ id: a.id, name: a.name, doctor: a.doctor, email: a.email, tel: a.tel || '', addr: a.addr || '', bizno: a.bizno || '',
+      dept: a.dept || '', intro: a.intro || '', hours: a.hours || '', url: a.url || '', hasDoc: !!a.doc, status: a.status, ts: a.ts, reason: a.reason || '', hospitalId: a.hospital_id || '' });
+    if (path === '/admin/hospital-apps' && method === 'GET') {
+      let rows = [];
+      try { rows = (await db.prepare('SELECT id, client_id, name, doctor, email, tel, addr, bizno, dept, intro, hours, url, (doc IS NOT NULL AND doc != \'\') AS doc, status, ts, reason, hospital_id FROM hospital_apps ORDER BY ts DESC LIMIT 200').all()).results || []; }
+      catch (e) { if (noTable(e)) return json({ items: [], missing: true }, 200, cors); throw e; }
+      return json({ items: rows.map(rowApp) }, 200, cors);
+    }
+    if (path === '/admin/hospital-apps/doc' && method === 'GET') {
+      const a = await db.prepare('SELECT doc FROM hospital_apps WHERE id = ?').bind(cleanId(q('id'))).first();
+      return json({ doc: (a && a.doc) || '' }, 200, cors);
+    }
+    if (path === '/admin/hospital-apps/approve' && method === 'POST') {
+      const a = await db.prepare("SELECT * FROM hospital_apps WHERE id = ? AND status = 'pending'").bind(cleanId(body.id)).first();
+      if (!a) return json({ error: 'not-found' }, 404, cors);
+      // hospital.js 의 코드 규칙과 같다 (H-XXXX-XXXX)
+      const AB = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; const b = new Uint8Array(8); crypto.getRandomValues(b);
+      let code = 'H-'; for (let i = 0; i < 8; i++) { code += AB[b[i] % AB.length]; if (i === 3) code += '-'; }
+      const hid = rid('hp');
+      const profile = JSON.stringify({ intro: a.intro || '', tel: a.tel || '', addr: a.addr || '', url: a.url || '', hours: a.hours || '' });
+      await db.batch([
+        db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created, profile) VALUES (?,?,?,?,?,?,1,?,?)')
+          .bind(hid, a.name, a.dept || '심리상담', a.doctor, a.email, code, nowMs(), profile),
+        db.prepare("UPDATE hospital_apps SET status = 'approved', hospital_id = ?, decided = ? WHERE id = ?").bind(hid, nowMs(), a.id)
+      ]);
+      const docUrl = String(env.DOC_URL || 'https://doc.neurumind.com').replace(/\/+$/, '');
+      sendHtml(env, db, a.email, '[마인드 인사이드] 상담소 제휴가 승인됐습니다', mailWrap('마인드 인사이드', a.name + ' 제휴가 승인됐습니다', `
+        <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">${a.doctor} 소장님, 환영합니다. 아래 순서로 시작하세요.</p>
+        <div style="background:#f6f1e7;border-radius:12px;padding:16px 18px;margin:0 0 18px;">
+          <p style="font-size:13px;line-height:1.9;color:#6b5f50;margin:0;">
+            1. <a href="${docUrl}" style="color:#4f8a6b;font-weight:700;">소장 앱 ${docUrl.replace(/^https?:\/\//, '')}</a> 에서 이 이메일 주소로 로그인 링크를 받으세요<br>
+            2. 상담소 코드: <b style="font-family:ui-monospace,monospace;font-size:16px;letter-spacing:.06em;">${code}</b><br>
+            &nbsp;&nbsp;&nbsp;내담자에게 알려주면 앱 → 마이 → 담당 상담소 연결하기에 넣어 연결됩니다. 소장 앱 비상 로그인에도 쓰이니 밖으로 새지 않게 관리해 주세요<br>
+            3. 소장 앱에서 상담소 페이지(소개·운영시간)를 확인하고, 소속 상담사의 등록을 안내해 주세요</p>
+        </div>
+        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">정산: 상담소 채널 상담료는 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%로 나뉘고, 소속 상담사에게는 상담소가 지급합니다. 제휴계약서는 별도 메일로 보내드립니다.</p>
+        <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
+      return json({ ok: true, hospitalId: hid, code }, 200, cors);
+    }
+    if (path === '/admin/hospital-apps/reject' && method === 'POST') {
+      const a = await db.prepare("SELECT * FROM hospital_apps WHERE id = ? AND status = 'pending'").bind(cleanId(body.id)).first();
+      if (!a) return json({ error: 'not-found' }, 404, cors);
+      const reason = s(body.reason, 300).trim();
+      await db.prepare("UPDATE hospital_apps SET status = 'rejected', reason = ?, decided = ? WHERE id = ?").bind(reason, nowMs(), a.id).run();
+      sendHtml(env, db, a.email, '[마인드 인사이드] 상담소 제휴 신청 결과', mailWrap('마인드 인사이드', a.name + ' 제휴 신청을 보류합니다', `
+        <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">보내주신 신청을 검토했으나 이번에는 승인하지 못했습니다.${reason ? '<br><br><b>사유:</b> ' + reason.replace(/</g, '&lt;') : ''}</p>
+        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">보완이 가능하면 다시 신청해 주세요. 문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
+      return json({ ok: true }, 200, cors);
     }
     return null;
   }

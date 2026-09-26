@@ -169,3 +169,7 @@ CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 
 -- 상담사 소속 상담소 (hospitals.id). 있으면 그 상담사의 상담은 모두 상담소 채널로 정산하고 계좌를 받지 않는다
 -- ALTER TABLE applications ADD COLUMN hospital_id TEXT; ALTER TABLE counselors ADD COLUMN hospital_id TEXT;
+
+-- 상담소(심리상담사업자) 직접 제휴 신청 — 승인하면 hospitals 로 옮긴다 (community.js /community/hospital-apply, /admin/hospital-apps)
+CREATE TABLE IF NOT EXISTS hospital_apps (id TEXT PRIMARY KEY, client_id TEXT, name TEXT NOT NULL, doctor TEXT NOT NULL, email TEXT NOT NULL, tel TEXT, addr TEXT, bizno TEXT, dept TEXT, intro TEXT, hours TEXT, url TEXT, doc TEXT, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, decided INTEGER, reason TEXT, hospital_id TEXT);
+CREATE INDEX IF NOT EXISTS idx_hospapps_status ON hospital_apps(status, ts);
