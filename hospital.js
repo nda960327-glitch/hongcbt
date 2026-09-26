@@ -23,8 +23,15 @@
 //   의사   POST /hospital/auth/request · /hospital/auth/verify · /hospital/auth/logout
 //          GET  /hospital/me · /hospital/patients · /hospital/patient · POST /hospital/feedback
 //          (hsession 또는 hcode 로 인증)
+//   소장 콘솔(doc/, 2026-09 PC 개편) — 같은 인증
+//          GET  /hospital/dashboard · /hospital/notes · /hospital/counselors · /hospital/applications
+//               /hospital/bookings?from&to · /hospital/stats · /hospital/urgent · /hospital/memo?clientId · /hospital/info · /hospital/bank
+//          POST /hospital/counselors/approve|remove {id} · /hospital/applications/approve|reject {id, reason}
+//               /hospital/urgent/ack {noteId} · /hospital/memo/save {id?, clientId, text} · /hospital/memo/delete {id}
+//               /hospital/info {bizno, tel, addr} · /hospital/bank {bank, bankNo, holder}
+//          소속 상담사(counselors.hospital_id)는 상담소가 승인(hospital_ok=1)해야 상담소 채널로 정산된다.
 //   운영자 GET /admin/hospitals · POST /admin/hospitals · /admin/hospitals/update · /active · /rotate
-import { json, isAdmin, verifyClient, s, nowMs, payoutOf } from './market.js';
+import { json, isAdmin, verifyClient, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication } from './market.js';
 import { resolveCounselor, sendHospitalLoginMail, sendUrgentMail } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -388,26 +395,27 @@ export async function handleHospital(request, env, cors, path, ctx) {
       const since = nowMs() - 400 * 86400000;
       const rows = [];
       const bk = (await db.prepare(
-        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at
-           FROM bookings WHERE hospital_id = ? AND channel = 'hospital' AND status = 'done' AND when_ts >= ?
+        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at, channel
+           FROM bookings WHERE hospital_id = ? AND channel IN ('hospital', 'referral') AND status = 'done' AND when_ts >= ?
           ORDER BY done_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
       bk.forEach(x => rows.push({ kind: 'booking', id: x.id, counselorId: x.counselor_id, counselor: x.counselor_name || '상담사',
         clientId: x.client_id, clientName: x.client_name || '', label: x.time_label || '', gross: x.price || 0,
-        at: x.done_at || 0, appPaidAt: x.settled_at || 0 }));
+        at: x.done_at || 0, appPaidAt: x.settled_at || 0, channel: x.channel || 'hospital' }));
       try {
         const cl = (await db.prepare(
-          `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.settled_at, k.name cname
+          `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.settled_at, c.channel, k.name cname
              FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
-            WHERE c.hospital_id = ? AND c.channel = 'hospital' AND c.billed > 0 AND c.end_at >= ?
+            WHERE c.hospital_id = ? AND c.channel IN ('hospital', 'referral') AND c.billed > 0 AND c.end_at >= ?
             ORDER BY c.end_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
         cl.forEach(x => {
           const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
           rows.push({ kind: 'call', id: x.id, counselorId: x.counselor_id, counselor: x.cname || '상담사',
             clientId: x.client_id, clientName: '', label: '전화 상담 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
-            gross: x.billed || 0, at: x.end_at || 0, appPaidAt: x.settled_at || 0 });
+            gross: x.billed || 0, at: x.end_at || 0, appPaidAt: x.settled_at || 0, channel: x.channel || 'hospital' });
         });
       } catch (e) {}
-      rows.forEach(r => { const p = payoutOf(r.gross, 'hospital'); r.hospital = p.hospital; r.platform = p.platform; r.pg = p.pg; });
+      // 소개 채널(referral)은 상담소가 20% 소개료만 받고 상담사에게는 앱이 지급한다 — 지급 기록 칸이 없다
+      rows.forEach(r => { const p = payoutOf(r.gross, r.channel); r.hospital = p.hospital; r.platform = p.platform; r.pg = p.pg; r.counselorByApp = r.channel === 'referral'; });
       rows.sort((a, b) => b.at - a.at);
       const paid = (await db.prepare(
         'SELECT * FROM hospital_payouts WHERE hospital_id = ? ORDER BY paid_at DESC LIMIT 500').bind(h.id).all()).results || [];
@@ -460,6 +468,339 @@ export async function handleHospital(request, env, cors, path, ctx) {
         VALUES (?,?,?,?,?,?,?,?,?,0,0)`)
         .bind(id, h.id, h.name, h.doctor || '', cid, s(body.noteId, 64), TO.includes(body.to) ? body.to : 'both', text, nowMs()).run();
       return json({ ok: true, id }, 200, cors);
+    }
+
+    // ══════ 소장 콘솔 (2026-09 PC 개편) ══════
+    //  아래 경로들은 모두 이 상담소(h.id)의 것만 본다. 새 칸·새 표가 아직 없는 배포에서는
+    //  '없다'고 조용히 답하거나 { error: 'migrate' } 로 알린다 — 콘솔 전체가 안 뜨면 안 된다.
+    const tNow = nowMs();
+    const KST = 9 * 3600000;
+    const kstNow = new Date(tNow + KST);
+    const monthStartOf = (y, m) => Date.UTC(y, m, 1) - KST;        // KST 기준 그 달 1일 0시
+    const monthStart = monthStartOf(kstNow.getUTCFullYear(), kstNow.getUTCMonth());
+    const monthKeyOf = ts => { const d = new Date(ts + KST); return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0'); };
+    const noCol = e => /no such column/i.test(String(e && e.message || e));
+    const noTable = e => /no such table/i.test(String(e && e.message || e));
+    const maskEmail = e => { const m = String(e || '').match(/^([^@])[^@]*(@.+)$/); return m ? m[1] + '***' + m[2] : (e ? '***' : ''); };
+    const safeJson = (v, d) => { try { const x = JSON.parse(v); return x == null ? d : x; } catch (e) { return d; } };
+    const profileJson = () => { try { return h.profile ? JSON.parse(h.profile) : {}; } catch (e) { return {}; } };
+    // 이 상담소 소속 상담사 id — 예약 캘린더·통계에서 '상담소 채널이 아닌 소속 상담사의 상담'도 함께 본다
+    const affiliatedIds = async () => {
+      try { return ((await db.prepare('SELECT id FROM counselors WHERE hospital_id = ?').bind(h.id).all()).results || []).map(x => x.id); }
+      catch (e) { return []; }
+    };
+    const inList = ids => ids.length ? ids.map(() => '?').join(',') : "''";
+
+    // ── 대시보드 숫자 ──
+    if (path === '/hospital/dashboard' && method === 'GET') {
+      const weekAgo = tNow - 7 * 86400000;
+      const one = async (sql, ...args) => { try { const r = await db.prepare(sql).bind(...args).first(); return r ? Number(r.n) || 0 : 0; } catch (e) { return 0; } };
+      const patients = await one('SELECT COUNT(*) n FROM patient_links WHERE hospital_id = ? AND unlinked_at = 0', h.id);
+      const urgentWeek = await one(
+        `SELECT COUNT(DISTINCT n.client_id) n FROM session_notes n
+          WHERE n.risk = 'urgent' AND n.ts >= ? AND n.client_id IN (SELECT client_id FROM patient_links WHERE hospital_id = ? AND unlinked_at = 0)`, weekAgo, h.id);
+      const notes7d = await one(
+        `SELECT COUNT(*) n FROM session_notes n WHERE n.shared = 1 AND n.ts >= ?
+           AND n.client_id IN (SELECT client_id FROM patient_links WHERE hospital_id = ? AND unlinked_at = 0)`, weekAgo, h.id);
+      let cOk = 0, cPending = 0;
+      try {
+        const r = await db.prepare('SELECT COALESCE(hospital_ok, 0) ok, COUNT(*) n FROM counselors WHERE hospital_id = ? AND active = 1 GROUP BY COALESCE(hospital_ok, 0)').bind(h.id).all();
+        (r.results || []).forEach(x => { if (Number(x.ok)) cOk += x.n; else cPending += x.n; });
+      } catch (e) { cOk = await one('SELECT COUNT(*) n FROM counselors WHERE hospital_id = ? AND active = 1', h.id); }
+      const appsPending = await one("SELECT COUNT(*) n FROM applications WHERE hospital_id = ? AND status = 'pending'", h.id);
+      // 이번 달 상담소 채널 완료 상담 — 예약 + 통화
+      let monthDone = 0, monthGross = 0, received = 0;
+      try {
+        const bk = (await db.prepare(`SELECT price, done_at, settled_at FROM bookings WHERE hospital_id = ? AND channel = 'hospital' AND status = 'done' AND done_at >= ?`).bind(h.id, tNow - 400 * 86400000).all()).results || [];
+        bk.forEach(x => { if (x.done_at >= monthStart) { monthDone++; monthGross += x.price || 0; } if (x.settled_at) received += payoutOf(x.price || 0, 'hospital').hospital; });
+      } catch (e) {}
+      try {
+        const cl = (await db.prepare(`SELECT billed, end_at, settled_at FROM calls WHERE hospital_id = ? AND channel = 'hospital' AND billed > 0 AND end_at >= ?`).bind(h.id, tNow - 400 * 86400000).all()).results || [];
+        cl.forEach(x => { if (x.end_at >= monthStart) { monthDone++; monthGross += x.billed || 0; } if (x.settled_at) received += payoutOf(x.billed || 0, 'hospital').hospital; });
+      } catch (e) {}
+      const paidOut = await one('SELECT COALESCE(SUM(amount), 0) n FROM hospital_payouts WHERE hospital_id = ?', h.id);
+      const newComments = await one(
+        `SELECT COUNT(*) n FROM post_comments c JOIN posts p ON p.id = c.post_id
+          WHERE p.hospital_id = ? AND c.ts >= ? AND c.hidden = 0 AND c.by_hospital = 0`, h.id, weekAgo);
+      let urgentUnacked = 0;
+      try {
+        urgentUnacked = await one(
+          `SELECT COUNT(*) n FROM session_notes n
+            WHERE n.risk = 'urgent' AND n.ts >= ? AND n.client_id IN (SELECT client_id FROM patient_links WHERE hospital_id = ? AND unlinked_at = 0)
+              AND NOT EXISTS (SELECT 1 FROM hospital_urgent_ack a WHERE a.note_id = n.id AND a.hospital_id = ?)`, tNow - 90 * 86400000, h.id, h.id);
+      } catch (e) { urgentUnacked = 0; }
+      let bankSet = false; try { bankSet = !!h.bank_no; } catch (e) {}
+      return json({ ok: true, now: tNow, monthStart,
+        patients, urgentWeek, urgentUnacked, notes7d,
+        counselors: { ok: cOk, pending: cPending }, appsPending,
+        month: { done: monthDone, gross: monthGross, hospital: payoutOf(monthGross, 'hospital').hospital },
+        received, paidOut, newComments, bankSet, hasEmail: !!h.email }, 200, cors);
+    }
+
+    // ── 회기 기록 타임라인 (연결 내담자 전체, 공유된 것만) ──
+    if (path === '/hospital/notes' && method === 'GET') {
+      const limit = Math.max(1, Math.min(300, Number(q('limit')) || 100));
+      const r = await db.prepare(
+        `SELECT n.*, l.name AS link_name FROM session_notes n
+           JOIN patient_links l ON l.client_id = n.client_id AND l.hospital_id = ? AND l.unlinked_at = 0
+          WHERE n.shared = 1 ORDER BY n.ts DESC LIMIT ?`).bind(h.id, limit).all();
+      return json({ ok: true, items: (r.results || []).map(n => Object.assign(rowNote(n), { clientName: n.link_name || n.client_name || '' })) }, 200, cors);
+    }
+
+    // ── 소속 상담사 ──
+    if (path === '/hospital/counselors' && method === 'GET') {
+      const SEL = `c.id, c.name, c.license, c.email, c.tel, c.photo, c.available, c.active, c.created,
+        (SELECT COUNT(*) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'done' AND b.done_at >= ?) AS m_done,
+        (SELECT COUNT(*) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'done') AS all_done,
+        (SELECT COUNT(*) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'confirmed' AND b.when_ts > ?) AS upcoming,
+        (SELECT COALESCE(SUM(b.price), 0) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'done' AND b.done_at >= ?) AS m_gross,
+        (SELECT MAX(b.done_at) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'done') AS last_done,
+        (SELECT COUNT(*) FROM bookings b WHERE b.counselor_id = c.id AND b.status = 'done'
+            AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)) AS no_note`;
+      let rows = [], hasOkCol = true;
+      try {
+        rows = (await db.prepare(`SELECT ${SEL}, c.hospital_ok FROM counselors c WHERE c.hospital_id = ? ORDER BY COALESCE(c.hospital_ok, 0) ASC, c.active DESC, c.name`)
+          .bind(monthStart, tNow, monthStart, h.id).all()).results || [];
+      } catch (e) {
+        if (!noCol(e)) throw e;
+        hasOkCol = false;
+        rows = (await db.prepare(`SELECT ${SEL} FROM counselors c WHERE c.hospital_id = ? ORDER BY c.active DESC, c.name`)
+          .bind(monthStart, tNow, monthStart, h.id).all()).results || [];
+        rows.forEach(x => { x.hospital_ok = 1; });
+      }
+      // 이번 달 통화 상담료도 합친다 (통화 표가 없는 배포는 건너뛴다)
+      const callG = {};
+      try {
+        const ids = rows.map(x => x.id);
+        if (ids.length) {
+          const cl = (await db.prepare(`SELECT counselor_id, COALESCE(SUM(billed), 0) g, COUNT(*) n, MAX(end_at) last FROM calls WHERE counselor_id IN (${inList(ids)}) AND billed > 0 AND end_at >= ? GROUP BY counselor_id`)
+            .bind(...ids, monthStart).all()).results || [];
+          cl.forEach(x => { callG[x.counselor_id] = x; });
+        }
+      } catch (e) {}
+      return json({ ok: true, now: tNow, monthStart, migrated: hasOkCol, items: rows.map(c => ({
+        id: c.id, name: c.name, license: c.license || '', email: maskEmail(c.email), tel: c.tel || '', photo: c.photo || '',
+        available: !!c.available, active: !!c.active, created: c.created, hospitalOk: !!c.hospital_ok,
+        stats: {
+          monthDone: (c.m_done || 0) + ((callG[c.id] || {}).n || 0), allDone: c.all_done || 0, upcoming: c.upcoming || 0,
+          monthGross: (c.m_gross || 0) + ((callG[c.id] || {}).g || 0),
+          lastDone: Math.max(c.last_done || 0, (callG[c.id] || {}).last || 0), noNote: c.no_note || 0
+        }
+      })) }, 200, cors);
+    }
+    if (path === '/hospital/counselors/approve' && method === 'POST') {
+      const id = cleanId(body.id);
+      try {
+        const r = await db.prepare('UPDATE counselors SET hospital_ok = 1 WHERE id = ? AND hospital_id = ?').bind(id, h.id).run();
+        if (!(r.meta && r.meta.changes)) return json({ error: 'not-found' }, 404, cors);
+      } catch (e) { if (noCol(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+      return json({ ok: true }, 200, cors);
+    }
+    if (path === '/hospital/counselors/remove' && method === 'POST') {
+      const id = cleanId(body.id);
+      let r;
+      try { r = await db.prepare("UPDATE counselors SET hospital_id = NULL, hospital_ok = 0, hospital = '', updated = ? WHERE id = ? AND hospital_id = ?").bind(tNow, id, h.id).run(); }
+      catch (e) { if (!noCol(e)) throw e; r = await db.prepare("UPDATE counselors SET hospital_id = NULL, hospital = '', updated = ? WHERE id = ? AND hospital_id = ?").bind(tNow, id, h.id).run(); }
+      if (!(r.meta && r.meta.changes)) return json({ error: 'not-found' }, 404, cors);
+      return json({ ok: true }, 200, cors);
+    }
+
+    // ── 입점 신청 (이 상담소 소속으로 낸 것) — 상담소가 직접 승인·반려한다 ──
+    if (path === '/hospital/applications' && method === 'GET') {
+      let rows = [];
+      // 사진·자격증 사진은 심사 중(pending)인 것만 실어 보낸다 — 지난 신청까지 다 실으면 응답이 무거워진다.
+      const APP_COLS = `id, name, license, career, price, intro, email, tel, tags, status, ts, reject_why, decided_at, counselor_id,
+            CASE WHEN status = 'pending' THEN photo ELSE '' END AS photo`;
+      try {
+        try {
+          rows = (await db.prepare(`SELECT ${APP_COLS}, CASE WHEN status = 'pending' THEN license_photo ELSE '' END AS license_photo
+            FROM applications WHERE hospital_id = ? ORDER BY ts DESC LIMIT 100`).bind(h.id).all()).results || [];
+        } catch (e) {
+          if (!noCol(e) || !/license_photo/.test(String(e && e.message))) throw e;
+          rows = (await db.prepare(`SELECT ${APP_COLS} FROM applications WHERE hospital_id = ? ORDER BY ts DESC LIMIT 100`).bind(h.id).all()).results || [];
+        }
+      } catch (e) { if (noTable(e) || noCol(e)) return json({ ok: true, items: [], missing: true }, 200, cors); throw e; }
+      return json({ ok: true, items: rows.map(a => ({
+        id: a.id, name: a.name, license: a.license || '', career: a.career || '', price: a.price || 0, intro: a.intro || '',
+        email: maskEmail(a.email), tel: a.tel || '', tags: safeJson(a.tags, []), photo: a.photo || '', licensePhoto: a.license_photo || '',
+        status: a.status, ts: a.ts, rejectWhy: a.reject_why || '', decidedAt: a.decided_at || 0, counselorId: a.counselor_id || '', hasBank: false
+      })) }, 200, cors);
+    }
+    if (path === '/hospital/applications/approve' && method === 'POST') {
+      const r = await approveApplication(env, db, body.id, { ctx, hospitalId: h.id, hospitalOk: true });
+      if (!r.ok) return json({ error: r.error }, r.status || 400, cors);
+      return json({ ok: true, counselorId: r.counselorId, name: r.name, code: r.code, mailed: r.mailed }, 200, cors);
+    }
+    if (path === '/hospital/applications/reject' && method === 'POST') {
+      const r = await rejectApplication(env, db, body.id, body.reason || body.why, { hospitalId: h.id });
+      if (!r.ok) return json({ error: r.error }, r.status || 400, cors);
+      return json({ ok: true }, 200, cors);
+    }
+
+    // ── 예약 캘린더 — 상담소 채널 예약 + 소속 상담사의 모든 예약 ──
+    if (path === '/hospital/bookings' && method === 'GET') {
+      const from = Number(q('from')) || (tNow - 7 * 86400000);
+      const to = Number(q('to')) || (from + 14 * 86400000);
+      const ids = await affiliatedIds();
+      let rows = [];
+      try {
+        rows = (await db.prepare(
+          `SELECT b.id, b.counselor_id, b.counselor_name, b.client_id, b.client_name, b.when_ts, b.time_label, b.price, b.status, b.done_at, b.channel,
+                  (SELECT l.name FROM patient_links l WHERE l.client_id = b.client_id AND l.hospital_id = ? AND l.unlinked_at = 0) AS link_name
+             FROM bookings b WHERE (b.hospital_id = ? OR b.counselor_id IN (${inList(ids)})) AND b.when_ts >= ? AND b.when_ts < ?
+            ORDER BY b.when_ts ASC LIMIT 500`).bind(h.id, h.id, ...ids, from, to).all()).results || [];
+      } catch (e) { if (noCol(e)) rows = []; else throw e; }
+      return json({ ok: true, from, to, items: rows.map(b => ({
+        id: b.id, counselorId: b.counselor_id, counselor: b.counselor_name || '', clientId: b.client_id,
+        clientName: b.link_name || b.client_name || '', linked: !!b.link_name, whenTs: b.when_ts, time: b.time_label || '',
+        price: b.price || 0, status: b.status, doneAt: b.done_at || 0, channel: b.channel === 'hospital' ? 'hospital' : 'app'
+      })) }, 200, cors);
+    }
+
+    // ── 월별 통계 (최근 6개월, KST) ──
+    if (path === '/hospital/stats' && method === 'GET') {
+      const months = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(Date.UTC(kstNow.getUTCFullYear(), kstNow.getUTCMonth() - i, 1));
+        months.push({ key: d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0'), done: 0, gross: 0, hospitalGross: 0, newPatients: 0, urgent: 0, notes: 0 });
+      }
+      const byKey = {}; months.forEach(m => { byKey[m.key] = m; });
+      const start = monthStartOf(kstNow.getUTCFullYear(), kstNow.getUTCMonth() - 5);
+      const ids = await affiliatedIds();
+      try {
+        const bk = (await db.prepare(`SELECT price, done_at, channel FROM bookings WHERE (hospital_id = ? OR counselor_id IN (${inList(ids)})) AND status = 'done' AND done_at >= ?`)
+          .bind(h.id, ...ids, start).all()).results || [];
+        bk.forEach(x => { const m = byKey[monthKeyOf(x.done_at)]; if (!m) return; m.done++; m.gross += x.price || 0; if (x.channel === 'hospital') m.hospitalGross += x.price || 0; });
+      } catch (e) {}
+      try {
+        const cl = (await db.prepare(`SELECT billed, end_at, channel FROM calls WHERE (hospital_id = ? OR counselor_id IN (${inList(ids)})) AND billed > 0 AND end_at >= ?`)
+          .bind(h.id, ...ids, start).all()).results || [];
+        cl.forEach(x => { const m = byKey[monthKeyOf(x.end_at)]; if (!m) return; m.done++; m.gross += x.billed || 0; if (x.channel === 'hospital') m.hospitalGross += x.billed || 0; });
+      } catch (e) {}
+      try {
+        const pl = (await db.prepare('SELECT linked_at FROM patient_links WHERE hospital_id = ? AND linked_at >= ?').bind(h.id, start).all()).results || [];
+        pl.forEach(x => { const m = byKey[monthKeyOf(x.linked_at)]; if (m) m.newPatients++; });
+      } catch (e) {}
+      try {
+        const sn = (await db.prepare(`SELECT ts, risk, shared FROM session_notes WHERE ts >= ? AND client_id IN (SELECT client_id FROM patient_links WHERE hospital_id = ? AND unlinked_at = 0)`).bind(start, h.id).all()).results || [];
+        sn.forEach(x => { const m = byKey[monthKeyOf(x.ts)]; if (!m) return; if (x.risk === 'urgent') m.urgent++; if (x.shared) m.notes++; });
+      } catch (e) {}
+      return json({ ok: true, months }, 200, cors);
+    }
+
+    // ── 긴급 알림 로그 (최근 90일) + 확인 표시 ──
+    if (path === '/hospital/urgent' && method === 'GET') {
+      const since = tNow - 90 * 86400000;
+      let rows = [], hasAck = true;
+      try {
+        rows = (await db.prepare(
+          `SELECT n.*, l.name AS link_name, (SELECT a.acked_at FROM hospital_urgent_ack a WHERE a.note_id = n.id AND a.hospital_id = ?) AS acked_at
+             FROM session_notes n JOIN patient_links l ON l.client_id = n.client_id AND l.hospital_id = ? AND l.unlinked_at = 0
+            WHERE n.risk = 'urgent' AND n.ts >= ? ORDER BY n.ts DESC LIMIT 200`).bind(h.id, h.id, since).all()).results || [];
+      } catch (e) {
+        if (!noTable(e)) throw e;
+        hasAck = false;
+        rows = (await db.prepare(
+          `SELECT n.*, l.name AS link_name FROM session_notes n JOIN patient_links l ON l.client_id = n.client_id AND l.hospital_id = ? AND l.unlinked_at = 0
+            WHERE n.risk = 'urgent' AND n.ts >= ? ORDER BY n.ts DESC LIMIT 200`).bind(h.id, since).all()).results || [];
+      }
+      // 공유하지 않은 기록은 '누가·언제·긴급'만 — 요약은 비운다 (메일과 같은 규칙)
+      return json({ ok: true, migrated: hasAck, items: rows.map(n => {
+        const o = rowNote(n);
+        if (!n.shared) { o.summary = ''; o.plan = ''; o.homework = ''; }
+        return Object.assign(o, { clientName: n.link_name || n.client_name || '', ackedAt: n.acked_at || 0 });
+      }) }, 200, cors);
+    }
+    if (path === '/hospital/urgent/ack' && method === 'POST') {
+      const nid = cleanId(body.noteId);
+      const n = await db.prepare(
+        `SELECT n.id FROM session_notes n JOIN patient_links l ON l.client_id = n.client_id AND l.hospital_id = ? AND l.unlinked_at = 0 WHERE n.id = ?`).bind(h.id, nid).first();
+      if (!n) return json({ error: 'not-found' }, 404, cors);
+      try {
+        if (body.undo) await db.prepare('DELETE FROM hospital_urgent_ack WHERE hospital_id = ? AND note_id = ?').bind(h.id, nid).run();
+        else await db.prepare('INSERT OR REPLACE INTO hospital_urgent_ack (hospital_id, note_id, acked_at) VALUES (?,?,?)').bind(h.id, nid, tNow).run();
+      } catch (e) { if (noTable(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+      return json({ ok: true, ackedAt: body.undo ? 0 : tNow }, 200, cors);
+    }
+
+    // ── 상담소 쪽에서 내담자 연결을 끊는다 (내담자 앱의 /patient/unlink 와 같은 결과) ──
+    if (path === '/hospital/patient/unlink' && method === 'POST') {
+      const cid = cleanId(body.clientId);
+      const r = await db.prepare('UPDATE patient_links SET unlinked_at = ? WHERE client_id = ? AND hospital_id = ? AND unlinked_at = 0').bind(tNow, cid, h.id).run();
+      if (!(r.meta && r.meta.changes)) return json({ error: 'not-linked' }, 404, cors);
+      // 연결이 끝났으니 올라와 있던 주간 숫자도 지운다 (동의가 끝났다)
+      await db.prepare('DELETE FROM patient_weekly WHERE client_id = ?').bind(cid).run();
+      return json({ ok: true }, 200, cors);
+    }
+
+    // ── 내담자 메모 (상담소만 본다. 상담사·내담자에게 가지 않는다) ──
+    if (path === '/hospital/memo' && method === 'GET') {
+      const cid = cleanId(q('clientId'));
+      let rows = [];
+      try { rows = (await db.prepare('SELECT * FROM hospital_notes WHERE hospital_id = ? AND client_id = ? ORDER BY ts DESC LIMIT 100').bind(h.id, cid).all()).results || []; }
+      catch (e) { if (noTable(e)) return json({ ok: true, items: [], missing: true }, 200, cors); throw e; }
+      return json({ ok: true, items: rows.map(m => ({ id: m.id, clientId: m.client_id, text: m.text, ts: m.ts, updated: m.updated || m.ts })) }, 200, cors);
+    }
+    if (path === '/hospital/memo/save' && method === 'POST') {
+      const cid = cleanId(body.clientId), text = s(body.text, 2000).trim();
+      if (!cid || !text) return json({ error: 'missing' }, 400, cors);
+      const l = await db.prepare('SELECT 1 AS ok FROM patient_links WHERE client_id = ? AND hospital_id = ? AND unlinked_at = 0').bind(cid, h.id).first();
+      if (!l) return json({ error: 'not-linked' }, 403, cors);
+      let id = cleanId(body.id);
+      try {
+        if (id) {
+          const r = await db.prepare('UPDATE hospital_notes SET text = ?, updated = ? WHERE id = ? AND hospital_id = ?').bind(text, tNow, id, h.id).run();
+          if (!(r.meta && r.meta.changes)) return json({ error: 'not-found' }, 404, cors);
+        } else {
+          id = rid('hm');
+          await db.prepare('INSERT INTO hospital_notes (id, hospital_id, client_id, text, ts, updated) VALUES (?,?,?,?,?,?)').bind(id, h.id, cid, text, tNow, tNow).run();
+        }
+      } catch (e) { if (noTable(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+      const m = await db.prepare('SELECT * FROM hospital_notes WHERE id = ?').bind(id).first();
+      return json({ ok: true, memo: { id: m.id, clientId: m.client_id, text: m.text, ts: m.ts, updated: m.updated || m.ts } }, 200, cors);
+    }
+    if (path === '/hospital/memo/delete' && method === 'POST') {
+      try { await db.prepare('DELETE FROM hospital_notes WHERE id = ? AND hospital_id = ?').bind(cleanId(body.id), h.id).run(); }
+      catch (e) { if (noTable(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+      return json({ ok: true }, 200, cors);
+    }
+
+    // ── 상담소 정보(사업자등록번호·전화·주소) · 정산 계좌 ──
+    //  bizno 는 한 번만 적을 수 있다 — 이미 있으면 운영팀이 고친다. tel·addr 는 상담소 페이지(profile JSON)와 같은 칸이다.
+    const bankOf = () => h.bank_no ? { bank: h.bank || '', holder: h.bank_holder || '', masked: maskAcct(h.bank_no), set: true } : { set: false };
+    const infoOf = () => { const p = profileJson(); return {
+      id: h.id, name: h.name, dept: h.dept || '', doctor: h.doctor || '', email: h.email || '', hasEmail: !!h.email, created: h.created,
+      code: h.code || '',        // 내담자 연결용 상담소 코드 — 소장 본인 화면에서만 보여준다(복사 버튼)
+      bizno: h.bizno || '', biznoLocked: !!h.bizno, tel: p.tel || '', addr: p.addr || '', bank: bankOf(), migrated: h.bizno !== undefined && h.bank_no !== undefined
+    }; };
+    if (path === '/hospital/info' && method === 'GET') return json({ ok: true, info: infoOf() }, 200, cors);
+    if (path === '/hospital/info' && method === 'POST') {
+      const has = k => Object.prototype.hasOwnProperty.call(body, k);
+      const p = profileJson();
+      if (has('tel')) p.tel = s(body.tel, 30).replace(/[^0-9-+ ]/g, '').trim();
+      if (has('addr')) p.addr = s(body.addr, 120).trim();
+      const prof = { intro: p.intro || '', tel: p.tel || '', addr: p.addr || '', url: p.url || '', hours: p.hours || '' };
+      await db.prepare('UPDATE hospitals SET profile = ? WHERE id = ?').bind(JSON.stringify(prof), h.id).run();
+      h.profile = JSON.stringify(prof);
+      if (has('bizno')) {
+        const bz = s(body.bizno, 20).replace(/[^0-9]/g, '');
+        if (bz && !/^\d{10}$/.test(bz)) return json({ error: 'bad-bizno' }, 400, cors);
+        if (h.bizno && bz !== h.bizno) return json({ error: 'locked' }, 400, cors);
+        if (!h.bizno && bz) {
+          try { await db.prepare('UPDATE hospitals SET bizno = ? WHERE id = ?').bind(bz, h.id).run(); h.bizno = bz; }
+          catch (e) { if (noCol(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+        }
+      }
+      return json({ ok: true, info: infoOf() }, 200, cors);
+    }
+    if (path === '/hospital/bank' && method === 'GET') return json({ ok: true, bank: bankOf(), migrated: h.bank_no !== undefined }, 200, cors);
+    if (path === '/hospital/bank' && method === 'POST') {
+      const bank = s(body.bank, 40).trim(), no = s(body.bankNo || body.no, 40).replace(/[^0-9-]/g, ''), holder = s(body.holder || body.bankHolder, 40).trim();
+      if (!bank || no.replace(/-/g, '').length < 6 || !holder) return json({ error: 'missing' }, 400, cors);
+      try { await db.prepare('UPDATE hospitals SET bank = ?, bank_no = ?, bank_holder = ? WHERE id = ?').bind(bank, no, holder, h.id).run(); }
+      catch (e) { if (noCol(e)) return json({ error: 'migrate' }, 503, cors); throw e; }
+      h.bank = bank; h.bank_no = no; h.bank_holder = holder;
+      return json({ ok: true, bank: bankOf() }, 200, cors);
     }
     return null;
   }
