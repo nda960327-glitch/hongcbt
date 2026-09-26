@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+# 팀 내부 소개 페이지(테스트 코드)는 검색 제외
+Disallow: /intro/
+
+Sitemap: https://mindinsideapp.com/sitemap.xml
