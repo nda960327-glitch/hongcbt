@@ -4428,6 +4428,8 @@ ${body}
     const name = v('hreg-name'), doctor = v('hreg-doctor'), email = v('hreg-email').toLowerCase();
     if (!name || !doctor) { window.UI.alert('상담소 이름과 소장 이름은 필수입니다.'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { window.UI.alert('소장 이메일을 확인해주세요.\n승인 안내와 소장 앱 로그인 링크가 이 주소로 가요.'); return; }
+    if (v('hreg-bizno').replace(/[^0-9]/g, '').length !== 10) { window.UI.alert('사업자등록번호 10자리를 입력해주세요.\n상담소 제휴에는 사업자 확인이 꼭 필요해요.'); return; }
+    if (!this._hregDoc) { window.UI.alert('사업자등록증 사진을 첨부해주세요.'); return; }
     const btn = document.getElementById('hreg-submit');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '접수 중…'; }
     let ok = false, msg = '';

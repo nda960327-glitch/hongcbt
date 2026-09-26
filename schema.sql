@@ -173,3 +173,6 @@ CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 -- 상담소(심리상담사업자) 직접 제휴 신청 — 승인하면 hospitals 로 옮긴다 (community.js /community/hospital-apply, /admin/hospital-apps)
 CREATE TABLE IF NOT EXISTS hospital_apps (id TEXT PRIMARY KEY, client_id TEXT, name TEXT NOT NULL, doctor TEXT NOT NULL, email TEXT NOT NULL, tel TEXT, addr TEXT, bizno TEXT, dept TEXT, intro TEXT, hours TEXT, url TEXT, doc TEXT, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, decided INTEGER, reason TEXT, hospital_id TEXT);
 CREATE INDEX IF NOT EXISTS idx_hospapps_status ON hospital_apps(status, ts);
+
+-- 상담소 사업자등록번호 (제휴 승인 시 신청서에서 복사, 소장 콘솔에서 수정)
+-- ALTER TABLE hospitals ADD COLUMN bizno TEXT;

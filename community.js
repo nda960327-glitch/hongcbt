@@ -125,14 +125,18 @@ export async function handleCommunity(request, env, cors, path) {
   if (path === '/community/hospital-apply' && method === 'POST') {
     const name = s(body.name, 60).trim(), doctor = s(body.doctor, 40).trim(), email = s(body.email, 160).trim().toLowerCase();
     if (!name || !doctor || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: 'missing' }, 400, cors);
+    // 상담소는 사업자등록번호와 사업자등록증이 필수다(2026-09-26 지시) — 제휴계약·세금계산서·정산에 필요
+    const bizno = s(body.bizno, 20).replace(/[^0-9]/g, '');
+    if (bizno.length !== 10) return json({ error: 'bizno', message: '사업자등록번호 10자리를 확인해주세요' }, 400, cors);
+    if (!jpegOk(body.doc, 200 * 1024)) return json({ error: 'doc', message: '사업자등록증 사진을 첨부해주세요' }, 400, cors);
     const cid = cleanId(body.clientId) || 'anon';
     const dup = await db.prepare("SELECT id FROM hospital_apps WHERE lower(email) = ? AND status = 'pending'").bind(email).first();
     if (dup) return json({ error: 'dup', message: '이미 심사 중인 신청이 있어요' }, 409, cors);
-    const doc = jpegOk(body.doc, 200 * 1024) ? body.doc : '';
+    const doc = body.doc;
     const id = rid('ha');
     await db.prepare(`INSERT INTO hospital_apps (id, client_id, name, doctor, email, tel, addr, bizno, dept, intro, hours, url, doc, status, ts)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`)
-      .bind(id, cid, name, doctor, email, s(body.tel, 30).replace(/[^0-9-+ ]/g, ''), s(body.addr, 200).trim(), s(body.bizno, 20).replace(/[^0-9-]/g, ''),
+      .bind(id, cid, name, doctor, email, s(body.tel, 30).replace(/[^0-9-+ ]/g, ''), s(body.addr, 200).trim(), bizno.replace(/^(d{3})(d{2})(d{5})$/, '$1-$2-$3'),
         s(body.dept, 40).trim(), s(body.intro, 600).trim(), s(body.hours, 200).trim(), s(body.url, 200).trim(), doc, nowMs()).run();
     sendHtml(env, db, email, '[마인드 인사이드] 상담소 제휴 신청이 접수됐습니다', mailWrap('마인드 인사이드', name + ' 제휴 신청이 접수됐습니다', `
       <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">보내주신 상담소 정보를 확인하고 있습니다.<br><b>2~3일 안에</b> 승인 여부를 이 주소로 알려드릴게요.</p>
@@ -321,8 +325,8 @@ export async function handleCommunity(request, env, cors, path) {
       const hid = rid('hp');
       const profile = JSON.stringify({ intro: a.intro || '', tel: a.tel || '', addr: a.addr || '', url: a.url || '', hours: a.hours || '' });
       await db.batch([
-        db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created, profile) VALUES (?,?,?,?,?,?,1,?,?)')
-          .bind(hid, a.name, a.dept || '심리상담', a.doctor, a.email, code, nowMs(), profile),
+        db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created, profile, bizno) VALUES (?,?,?,?,?,?,1,?,?,?)')
+          .bind(hid, a.name, a.dept || '심리상담', a.doctor, a.email, code, nowMs(), profile, a.bizno || ''),
         db.prepare("UPDATE hospital_apps SET status = 'approved', hospital_id = ?, decided = ? WHERE id = ?").bind(hid, nowMs(), a.id)
       ]);
       const docUrl = String(env.DOC_URL || 'https://doc.neurumind.com').replace(/\/+$/, '');
