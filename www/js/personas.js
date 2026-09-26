@@ -21,22 +21,6 @@ window.Personas = {
       style: '' // 기본 정체성(CORE_PROMPT) 그대로
     },
     {
-      // 비교용 — 느루와 성격·프롬프트가 같고 답을 만드는 AI 만 다르다(DeepSeek). 나중에 둘 중 하나를 지운다.
-      id: 'woorung-ds',
-      name: '우렁의사',
-      tagline: '느루의 쌍둥이 — 다른 AI 로 답해요 (비교용)',
-      tags: ['#비교용', '#통합상담', '#DeepSeek'],
-      color: '#3f7fa6',
-      desc: '느루와 똑같은 성격과 상담 방식인데, 답을 만드는 AI 가 달라요(DeepSeek). 같은 말을 걸어 보고 어느 쪽이 더 마음에 드는지 비교해보세요.',
-      fit: '느루와 나란히 써 보고 싶을 때. 어느 쪽이 더 자연스러운지 팀에서 비교하는 중이에요.',
-      method: '통합 상담 (CBT+DBT+MBCT) · DeepSeek',
-      why: '같은 프롬프트에 다른 AI 를 붙여 답의 결이 어떻게 달라지는지 보기 위한 상담사.',
-      howto: ['느루에게 했던 말을 똑같이 해보세요', '답이 더 자연스러운 쪽을 팀에 알려주세요', '나중에 둘 중 하나만 남아요'],
-      lesson: null,
-      model: 'deepseek-chat',
-      style: `당신의 이름은 '우렁의사'입니다. 성격·말투·상담 방식은 기본 정체성(느루)과 완전히 같습니다. 다만 자신을 소개할 때는 '느루' 대신 '우렁의사'라고 하세요.`
-    },
-    {
       id: 'haru',
       name: '햇님',
       tagline: '생각의 그늘을 밝혀주는 CBT 선생님',
@@ -225,6 +209,7 @@ window.Personas = {
   },
 
   get(id) {
+    if (id === 'woorung-ds') id = 'woorung';   // 비교용 상담사(DeepSeek 시험)는 느루에 합쳐졌다
     return this.list.find(p => p.id === id) || this.list[0];
   },
 
@@ -245,7 +230,7 @@ window.Personas = {
   // 간단한 얼굴 아바타 SVG (외부 이미지 없이 자체 렌더링)
   // 페르소나 아바타 — 실제 캐릭터 스티커를 원형 배경 위에 올린다.
   //  (밋밋한 표정 아이콘 대신 느루·햇님·달님·소나무 본체를 그대로 씀)
-  AVATAR_POSE: { woorung: 'joy', 'woorung-ds': 'think', haru: 'cheer', dalnim: 'empathy', sonamu: 'think' },
+  AVATAR_POSE: { woorung: 'joy', haru: 'cheer', dalnim: 'empathy', sonamu: 'think' },
 
   avatarSvg(id, size = 48) {
     const p = this.get(id);

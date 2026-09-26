@@ -698,7 +698,7 @@ window.Admin = {
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
-              구글 수수료 15% 선차감 후 <b>순액 기준</b> 정산 — 구독 9,900원 → 순입금 8,415원 (전액 플랫폼, API 원가 차감)
+              구글 수수료 15% 선차감 후 <b>순액 기준</b> 정산 — 1개월 구독 9,900원 → 순입금 8,415원 · 12개월 79,000원 → 67,150원 (전액 플랫폼, API 원가 차감)
             </div>
           </div>
         </div>
