@@ -244,6 +244,12 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">
     예약 가능 시간 설정 · 내 정보 수정 · 정산 계좌 등록<br>
     예약 확인과 상담 완료 처리 · 내담자에게 숙제 내주기 · 받은 상담 자료 열람</p>
+  <div style="background:#eef4ef;border-radius:12px;padding:14px 18px;margin:0 0 18px;">
+    <p style="font-size:13px;font-weight:700;margin:0 0 6px;color:#3f352a;">입점계약서를 첨부했습니다 — 회신 부탁드려요</p>
+    <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">
+      첨부한 상담사 입점계약서를 읽어보시고, 동의하시면 <b>이 메일에 "동의합니다"라고 회신</b>해 주세요.
+      수정이 필요한 부분이 있으면 같은 메일로 알려주시면 됩니다. 회신은 <a href="mailto:${OPS_REPLY}" style="color:#4f8a6b;">${OPS_REPLY}</a> 로 갑니다.</p>
+  </div>
   <hr style="border:0;border-top:1px solid #e8ddcd;margin:18px 0 12px;">
   <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
     이 코드는 비밀번호와 같습니다. 단톡방이나 메신저에 올리지 마세요.<br>
@@ -255,9 +261,10 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: encodeFrom(env), to: [to],
-        subject: '마인드 인사이드 입점 승인 · 상담사 페이지 접속 코드',
-        html
+        from: encodeFrom(env), to: [to], reply_to: OPS_REPLY,
+        subject: '마인드 인사이드 입점 승인 · 상담사 페이지 접속 코드 (계약서 첨부)',
+        html,
+        attachments: [{ filename: '마인드인사이드_상담사_입점계약서.docx', path: String(env.APP_URL || 'https://neurumind.com').replace(/\/+$/, '') + '/legal/counselor-agreement.docx' }]
       })
     });
     const res = r.ok ? { sent: true, reason: '' }
@@ -398,15 +405,19 @@ export async function handleAuth(request, env, cors, path, body, url) {
 //  병원(담당의) 메일 — 로그인 링크 · 긴급 위험 알림
 //  상담사 메일과 같은 발신자·같은 로그를 쓴다. 의사 앱(DOC_URL)은 별도 도메인이다.
 // ============================================================================
-export async function sendHtml(env, db, to, subject, html) {
+// extra: { attachments: [{filename, path|content}], replyTo }
+export async function sendHtml(env, db, to, subject, html, extra) {
   if (!env.RESEND_API_KEY) return { sent: false, reason: 'no-api-key' };
   if (!pickAddress(env).addr) return { sent: false, reason: 'no-from-address' };
   let res;
   try {
+    const payload = { from: encodeFrom(env), to: [to], subject, html };
+    if (extra && extra.attachments && extra.attachments.length) payload.attachments = extra.attachments;
+    if (extra && extra.replyTo) payload.reply_to = extra.replyTo;
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: encodeFrom(env), to: [to], subject, html })
+      body: JSON.stringify(payload)
     });
     if (r.ok) res = { sent: true, reason: '' };
     else {
@@ -419,6 +430,24 @@ export async function sendHtml(env, db, to, subject, html) {
   }
   if (db) await logMail(db, to, res);
   return res;
+}
+
+// 운영팀 알림 주소 — 시크릿 NOTIFY_MAIL. 없으면 보내지 않는다(신청은 이미 저장돼 있다).
+export const opsMail = env => String(env.NOTIFY_MAIL || '').trim();
+export const OPS_REPLY = 'help@neurumind.com';
+// 앱에서 들어온 신청서를 운영팀 메일함으로 통째로 보낸다 — 콘솔에 들어가지 않아도 바로 보고 회신할 수 있게.
+//  rows: [[라벨, 값], ...]. 값은 여기서 이스케이프한다.
+export async function sendApplicationToOps(env, db, subject, intro, rows, extra) {
+  const to = opsMail(env);
+  if (!to) return { sent: false, reason: 'no-notify-mail' };
+  const escH = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const table = '<table style="border-collapse:collapse;width:100%;font-size:13px;">' + rows.map(([k, v]) =>
+    `<tr><td style="padding:6px 10px;border:1px solid #e8ddcd;background:#f6f1e7;width:110px;color:#6b5f50;white-space:nowrap;">${escH(k)}</td><td style="padding:6px 10px;border:1px solid #e8ddcd;white-space:pre-wrap;">${escH(v) || '<span style="color:#b9a894;">(없음)</span>'}</td></tr>`).join('') + '</table>';
+  const html = mailWrap('마인드 인사이드 운영팀', subject, `
+    <p style="font-size:14px;line-height:1.8;margin:0 0 14px;">${intro}</p>
+    ${table}
+    <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:14px 0 0;">운영자 콘솔 <a href="https://ops.neurumind.com" style="color:#4f8a6b;">ops.neurumind.com</a> 에서 승인·반려할 수 있습니다. 이 메일은 앱이 자동으로 보냈습니다.</p>`);
+  return sendHtml(env, db, to, '[신청] ' + subject, html, extra);
 }
 
 export const mailWrap = (kicker, title, inner) => `

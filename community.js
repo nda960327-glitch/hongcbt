@@ -24,7 +24,7 @@
 //           POST /admin/community/comment/hide {code, cid, hidden}
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 import { resolveHospital } from './hospital.js';
-import { sendHtml, mailWrap } from './auth.js';
+import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
 const PAGE = 20;
@@ -145,6 +145,10 @@ export async function handleCommunity(request, env, cors, path) {
         <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">1. 이 주소로 <b>소장 앱(doc.neurumind.com) 로그인 안내</b>와 상담소 코드가 갑니다<br>2. 내담자는 앱에서 상담소 코드로 상담소와 연결됩니다<br>3. 소속 상담사는 등록할 때 이 상담소를 고를 수 있고, 상담료는 상담소로 정산됩니다(상담소 90% · 앱 7% · 결제 수수료 3%)<br>4. 제휴계약서는 승인 메일과 함께 보내드립니다</p>
       </div>
       <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
+    sendApplicationToOps(env, db, `상담소 제휴 신청 — ${name}`, `${name}(소장 ${doctor})이 앱에서 제휴를 신청했습니다. 사업자등록증을 첨부했습니다.`,
+      [['상담소', name], ['소장', doctor], ['이메일', email], ['전화', s(body.tel, 30)], ['사업자등록번호', bizno.replace(/^(\d{3})(\d{2})(\d{5})$/, '$1-$2-$3')],
+       ['전문 분야', s(body.dept, 40)], ['주소', s(body.addr, 200)], ['운영시간', s(body.hours, 200)], ['홈페이지', s(body.url, 200)], ['소개', s(body.intro, 600)], ['신청 ID', id]],
+      { attachments: [{ filename: '사업자등록증.jpg', content: String(doc).replace(/^data:image\/jpeg;base64,/, '') }] }).catch(() => {});
     return json({ ok: true, id }, 200, cors);
   }
 
@@ -339,8 +343,13 @@ export async function handleCommunity(request, env, cors, path) {
             &nbsp;&nbsp;&nbsp;내담자에게 알려주면 앱 → 마이 → 담당 상담소 연결하기에 넣어 연결됩니다. 소장 앱 비상 로그인에도 쓰이니 밖으로 새지 않게 관리해 주세요<br>
             3. 소장 앱에서 상담소 페이지(소개·운영시간)를 확인하고, 소속 상담사의 등록을 안내해 주세요</p>
         </div>
-        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">정산: 상담소 채널 상담료는 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%로 나뉘고, 소속 상담사에게는 상담소가 지급합니다. 제휴계약서는 별도 메일로 보내드립니다.</p>
-        <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`)).catch(() => {});
+        <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">정산: 상담소 채널 상담료는 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%로 나뉘고, 소속 상담사에게는 상담소가 지급합니다.</p>
+        <div style="background:#eef4ef;border-radius:12px;padding:14px 18px;margin:0 0 18px;">
+          <p style="font-size:13px;font-weight:700;margin:0 0 6px;">제휴계약서를 첨부했습니다 — 회신 부탁드려요</p>
+          <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">첨부한 심리상담사업자 제휴계약서를 읽어보시고, 동의하시면 <b>이 메일에 "동의합니다"라고 회신</b>해 주세요. 수정이 필요한 조항은 같은 메일로 알려주시면 협의합니다. 회신은 <a href="mailto:${OPS_REPLY}" style="color:#4f8a6b;">${OPS_REPLY}</a> 로 갑니다.</p>
+        </div>
+        <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>`),
+        { replyTo: OPS_REPLY, attachments: [{ filename: '마인드인사이드_심리상담사업자_제휴계약서.docx', path: String(env.APP_URL || 'https://neurumind.com').replace(/\/+$/, '') + '/legal/partner-agreement.docx' }] }).catch(() => {});
       return json({ ok: true, hospitalId: hid, code }, 200, cors);
     }
     if (path === '/admin/hospital-apps/reject' && method === 'POST') {

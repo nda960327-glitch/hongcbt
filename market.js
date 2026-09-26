@@ -12,7 +12,7 @@
 //    내담자가 [동의하고 보내기]를 누른 요약본만 inbox 에 들어온다.
 // ============================================================================
 
-import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt } from './auth.js';
+import { resolveCounselor, handleAuth, sendCodeMail, sendApplyReceipt, sendApplicationToOps } from './auth.js';
 import { handleRtc } from './rtc.js';
 import { handlePush, notifyCounselor, notifyClient } from './push.js';
 import { handleOauth } from './oauth.js';
@@ -38,7 +38,7 @@ const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const nowMs = () => Date.now();
 
 // 추천 콘텐츠 모듈(feed.js)이 같은 인증·응답 헬퍼를 쓴다
-export { json, isAdmin, verifyClient, s, nowMs, payoutOf };
+export { json, isAdmin, verifyClient, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication };
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
 
 // 상담사 코드. 이 문자열 하나가 그 사람의 수신함 열쇠라서
@@ -319,6 +319,86 @@ async function subActive(db, counselorId) {
     //  sub_until 칸과 옛 기록은 남겨 둔다(환불·정산 소명에 쓰인다).
     return true;
   } catch (e) { return true; }
+}
+
+// ── 입점 신청 승인·반려 ─────────────────────────────────────────────────
+//  운영자 콘솔(/apply/approve)과 소장 앱(hospital.js /hospital/applications/approve — 소속 상담사는
+//  상담소가 직접 승인한다)이 같은 절차를 쓴다. 상담사 계정을 만들고 코드를 발급해 메일로 보낸다.
+//  돌려주는 값: { ok, id(counselorId), name, code, email, mailed } 또는 { error, status }
+async function approveApplication(env, db, appId, opts) {
+  const o = opts || {};
+  const id = s(appId, MAX.id);
+  const a = await db.prepare('SELECT * FROM applications WHERE id = ?').bind(id).first();
+  if (!a) return { error: 'not-found', status: 404 };
+  if (a.status === 'approved') return { error: '이미 승인된 신청입니다', status: 400 };
+  // 상담소가 승인할 때는 자기 상담소로 낸 신청만 — 남의 신청을 승인하지 못하게
+  if (o.hospitalId && (a.hospital_id || '') !== o.hospitalId) return { error: 'not-found', status: 404 };
+
+  const cid = 'c' + nowMs().toString(36).slice(-6);
+  const newCode = makeCode();
+  // 신청서에 적힌 계좌를 그대로 상담사 계정으로 옮긴다 (다시 입력하게 하지 않는다)
+  //  사진도 함께 옮긴다 — 신청할 때 올린 얼굴이 승인되는 순간 사라져서,
+  //  매칭 카드에 얼굴 없는 상담사로 등장하던 문제가 있었다.
+  //  신청서 사진은 256px 라 70KB 제한 안에 들어오지만, 옛 신청서가 그보다 클 수
+  //  있으므로 같은 검사를 통과한 것만 옮긴다(거부 대신 조용히 비운다 —
+  //  사진 하나 때문에 승인 자체가 막히면 안 된다).
+  const apPhoto = checkPhoto(a.photo);
+  // 첫 달은 무료다 (2026-08-18 개편). 승인 시각에 30일을 얹어 두면
+  //  상담사는 결제 안내를 받기 전부터 바로 일할 수 있다.
+  const t0 = nowMs();
+  const subUntil = t0 + PRO_SUB_FREE_MS;
+  const COLS = `id, name, hospital, email, code, available, busy_until, active, created,
+                             tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated, hospital_id`;
+  const args = [cid, a.name, a.hospital, a.email || null, newCode, t0,
+    telClean(a.tel), a.addr, a.intro, a.tags, a.price, a.license,
+    apPhoto.ok ? apPhoto.photo : '',
+    a.bank, a.bank_no, a.bank_holder, t0, a.hospital_id || null];
+  try {
+    await db.prepare(
+      `INSERT INTO counselors (${COLS}, sub_until, sub_started)
+       VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(...args, subUntil, t0).run();
+  } catch (e) {
+    // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용).
+    //  구독 칸 하나 때문에 승인 자체가 막히면 안 된다 — 예전 모양으로 넣는다.
+    //  (마이그레이션 UPDATE 가 나중에 유예 기간을 채워 준다)
+    await db.prepare(
+      `INSERT INTO counselors (${COLS}) VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(...args).run();
+  }
+  // 상담소가 직접 승인한 소속 상담사는 소속 승인(hospital_ok)도 함께 끝난다 — 두 번 확인받지 않는다.
+  //  hospital_ok 칸이 없는 배포에서는 조용히 넘어간다.
+  if (o.hospitalOk && a.hospital_id) {
+    try { await db.prepare('UPDATE counselors SET hospital_ok = 1 WHERE id = ?').bind(cid).run(); } catch (e) {}
+  }
+  // 무료로 준 달도 기록에 남긴다 — '공짜로 준 달'과 '돈 받은 달'을 못 나누면
+  //  나중에 구독 매출 집계가 거짓말을 한다. 표가 없어도 승인은 계속된다.
+  try {
+    await db.prepare(
+      'INSERT INTO pro_sub_orders (id, counselor_id, amount, months, method, memo, created) VALUES (?,?,?,?,?,?,?)'
+    ).bind(rid('ps'), cid, 0, 1, 'free', '등록 승인 첫 달 무료', t0).run();
+  } catch (e) {}
+  await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
+    .bind(cid, nowMs(), id).run();
+  // 승인되자마자 매칭 카드에 뜨는 사람이다. 좌표를 지금 구해 둬야
+  //  첫 화면부터 '내 위치에서 ○km' 가 나온다.
+  if (a.addr) fireGeocode(o.ctx, db, cid, a.addr);
+  // 코드를 한 번 메일로 보낸다. 이후로는 상담사가 그 코드로 계속 들어온다.
+  let mailed = null;
+  if (a.email) { try { mailed = await sendCodeMail(env, db, a.email, a.name, newCode, env.APP_URL); } catch (e) { mailed = null; } }
+  return { ok: true, id: cid, counselorId: cid, name: a.name, code: newCode, email: a.email || '', mailed: mailed ? mailed.sent : null };
+}
+
+async function rejectApplication(env, db, appId, reason, opts) {
+  const o = opts || {};
+  const id = s(appId, MAX.id);
+  const a = await db.prepare('SELECT id, status, hospital_id FROM applications WHERE id = ?').bind(id).first();
+  if (!a) return { error: 'not-found', status: 404 };
+  if (o.hospitalId && (a.hospital_id || '') !== o.hospitalId) return { error: 'not-found', status: 404 };
+  if (a.status === 'approved') return { error: '이미 승인된 신청입니다', status: 400 };
+  await db.prepare("UPDATE applications SET status='rejected', reject_why=?, decided_at=? WHERE id=?")
+    .bind(s(reason, 300) || '요건 미충족', nowMs(), id).run();
+  return { ok: true, id };
 }
 
 // ---------------------------------------------------------------------------
@@ -1584,10 +1664,16 @@ export async function handleMarket(request, env, cors, path, ctx) {
       let c = null;
       try {
         c = await db.prepare(
-          `SELECT ${COLS},sub_until,sub_started FROM counselors WHERE id = ?`).bind(me.id).first();
+          `SELECT ${COLS},sub_until,sub_started,hospital_ok FROM counselors WHERE id = ?`).bind(me.id).first();
       } catch (e) {
-        // schema-prosub.sql 미적용 — 구독 칸 없이. 앱은 subActive 가 없으면 안 그린다.
-        c = await db.prepare(`SELECT ${COLS} FROM counselors WHERE id = ?`).bind(me.id).first();
+        // hospital_ok(소속 승인) 또는 구독 칸이 아직 없는 배포 — 있는 칸만으로 다시 읽는다.
+        try {
+          c = await db.prepare(
+            `SELECT ${COLS},sub_until,sub_started FROM counselors WHERE id = ?`).bind(me.id).first();
+        } catch (e2) {
+          // schema-prosub.sql 미적용 — 구독 칸 없이. 앱은 subActive 가 없으면 안 그린다.
+          c = await db.prepare(`SELECT ${COLS} FROM counselors WHERE id = ?`).bind(me.id).first();
+        }
       }
       return json({ ok: true, me: rowProfile(c) }, 200, cors);
     }
@@ -1603,12 +1689,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
       const put = (col, v) => { sets.push(col + ' = ?'); vals.push(v); };
 
       // 소속 상담소: id 를 보내면 이름은 상담소 것으로 맞춘다. 빈 값이면 '소속 없음'.
+      //  소속이 바뀌면 상담소 승인(hospital_ok)은 0 으로 돌아간다 — 상담소가 소장 앱에서 승인해야
+      //  그 상담사의 상담료가 상담소 채널로 간다(channelOf). 승인 전에는 앱 채널(상담사 계좌).
+      let resetOk = false;
       if (has('hospitalId')) {
         const hid = s(body.hospitalId, 64).replace(/[^\w-]/g, '');
         const hosp = hid ? await db.prepare('SELECT id, name FROM hospitals WHERE id = ? AND active = 1').bind(hid).first() : null;
         if (hid && !hosp) return json({ error: '소속 상담소를 다시 골라주세요' }, 400, cors);
         put('hospital_id', hosp ? hosp.id : null);
         put('hospital', hosp ? s(hosp.name, 120) : (has('hospital') ? s(body.hospital, 120) : ''));
+        let cur = null;
+        try { cur = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(me.id).first(); } catch (e) {}
+        if ((cur ? (cur.hospital_id || null) : null) !== (hosp ? hosp.id : null)) resetOk = true;
       } else if (has('hospital')) put('hospital', s(body.hospital, 120));
       if (has('intro'))    put('intro', s(body.intro, 600));
       if (has('license'))  put('license', s(body.license, 80));
@@ -1654,6 +1746,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
       put('updated', nowMs());
       vals.push(me.id);
       await db.prepare(`UPDATE counselors SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+      // hospital_ok 칸이 아직 없는 배포에서도 저장 자체는 돼야 한다 — 따로 시도한다
+      if (resetOk) { try { await db.prepare('UPDATE counselors SET hospital_ok = 0 WHERE id = ?').bind(me.id).run(); } catch (e) {} }
 
       if (addr && before && (addr !== (before.addr || '') || !before.geo_at)) {
         fireGeocode(ctx, db, me.id, addr);
@@ -1781,6 +1875,15 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const mail = s(body.email, 160).toLowerCase();
     if (mail) {
       const receipt = sendApplyReceipt(env, db, mail, name, !hosp).catch(() => {});
+      // 운영팀에게 신청서 전문 — 계좌번호까지 그대로(정산에 필요). 사진은 콘솔에서 본다.
+      const opsP = sendApplicationToOps(env, db, `상담사 입점 신청 — ${name}`,
+        `${name} 님이 앱에서 상담사 입점을 신청했습니다.${hosp ? ' 소속 상담소 <b>' + String(hosp.name).replace(/</g, '&lt;') + '</b>가 소장 앱에서 승인합니다.' : ' 소속 없는 개인 상담사라 운영팀이 심사합니다.'}`,
+        [['이름', name], ['이메일', mail], ['자격', s(body.license, 80)], ['경력', s(body.career, 20)], ['상담료(30분)', num(body.price) + '원'],
+         ['소속 상담소', hosp ? hosp.name : '없음(개인)'], ['주소', hosp ? (hospProf.addr || '') : s(body.addr, 200)], ['전화', hosp ? (hospProf.tel || '') : s(body.tel, 40)],
+         ['전문 분야', (Array.isArray(body.tags) ? body.tags : []).map(x => s(x, 20)).join(', ')], ['소개', s(body.intro, 600)],
+         ['정산 계좌', hosp ? '상담소가 지급 (계좌 없음)' : `${s(body.bank, 40)} ${acct} 예금주 ${s(body.bankHolder, 40)}`],
+         ['신청 ID', id], ['기기', clientId]]).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(opsP);
       if (ctx && ctx.waitUntil) ctx.waitUntil(receipt); else await receipt;
     }
     return json({ ok: true, id }, 200, cors);
@@ -1801,66 +1904,15 @@ export async function handleMarket(request, env, cors, path, ctx) {
   // 승인 — 상담사 계정을 만들고 코드를 발급한다
   if (path === '/apply/approve' && method === 'POST') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
-    const id = s(body.id, MAX.id);
-    const a = await db.prepare('SELECT * FROM applications WHERE id = ?').bind(id).first();
-    if (!a) return json({ error: 'not-found' }, 404, cors);
-    if (a.status === 'approved') return json({ error: '이미 승인된 신청입니다' }, 400, cors);
-
-    const cid = 'c' + nowMs().toString(36).slice(-6);
-    const newCode = makeCode();
-    // 신청서에 적힌 계좌를 그대로 상담사 계정으로 옮긴다 (다시 입력하게 하지 않는다)
-    //  사진도 함께 옮긴다 — 신청할 때 올린 얼굴이 승인되는 순간 사라져서,
-    //  매칭 카드에 얼굴 없는 상담사로 등장하던 문제가 있었다.
-    //  신청서 사진은 256px 라 70KB 제한 안에 들어오지만, 옛 신청서가 그보다 클 수
-    //  있으므로 같은 검사를 통과한 것만 옮긴다(거부 대신 조용히 비운다 —
-    //  사진 하나 때문에 승인 자체가 막히면 안 된다).
-    const apPhoto = checkPhoto(a.photo);
-    // 첫 달은 무료다 (2026-08-18 개편). 승인 시각에 30일을 얹어 두면
-    //  상담사는 결제 안내를 받기 전부터 바로 일할 수 있다.
-    const t0 = nowMs();
-    const subUntil = t0 + PRO_SUB_FREE_MS;
-    const COLS = `id, name, hospital, email, code, available, busy_until, active, created,
-                               tel, addr, intro, tags, price, license, photo, bank, bank_no, bank_holder, updated, hospital_id`;
-    const args = [cid, a.name, a.hospital, a.email || null, newCode, t0,
-      telClean(a.tel), a.addr, a.intro, a.tags, a.price, a.license,
-      apPhoto.ok ? apPhoto.photo : '',
-      a.bank, a.bank_no, a.bank_holder, t0, a.hospital_id || null];
-    try {
-      await db.prepare(
-        `INSERT INTO counselors (${COLS}, sub_until, sub_started)
-         VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-      ).bind(...args, subUntil, t0).run();
-    } catch (e) {
-      // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용).
-      //  구독 칸 하나 때문에 승인 자체가 막히면 안 된다 — 예전 모양으로 넣는다.
-      //  (마이그레이션 UPDATE 가 나중에 유예 기간을 채워 준다)
-      await db.prepare(
-        `INSERT INTO counselors (${COLS}) VALUES (?,?,?,?,?,0,0,1,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-      ).bind(...args).run();
-    }
-    // 무료로 준 달도 기록에 남긴다 — '공짜로 준 달'과 '돈 받은 달'을 못 나누면
-    //  나중에 구독 매출 집계가 거짓말을 한다. 표가 없어도 승인은 계속된다.
-    try {
-      await db.prepare(
-        'INSERT INTO pro_sub_orders (id, counselor_id, amount, months, method, memo, created) VALUES (?,?,?,?,?,?,?)'
-      ).bind(rid('ps'), cid, 0, 1, 'free', '등록 승인 첫 달 무료', t0).run();
-    } catch (e) {}
-    await db.prepare("UPDATE applications SET status='approved', counselor_id=?, decided_at=? WHERE id=?")
-      .bind(cid, nowMs(), id).run();
-    // 승인되자마자 매칭 카드에 뜨는 사람이다. 좌표를 지금 구해 둬야
-    //  첫 화면부터 '내 위치에서 ○km' 가 나온다.
-    if (a.addr) fireGeocode(ctx, db, cid, a.addr);
-    // 코드를 한 번 메일로 보낸다. 이후로는 상담사가 그 코드로 계속 들어온다.
-    let mailed = null;
-    if (a.email) mailed = await sendCodeMail(env, db, a.email, a.name, newCode, env.APP_URL);
-    return json({ ok: true, counselorId: cid, name: a.name, code: newCode,
-                  email: a.email || '', mailed: mailed ? mailed.sent : null }, 200, cors);
+    const r = await approveApplication(env, db, body.id, { ctx });
+    if (!r.ok) return json({ error: r.error }, r.status || 400, cors);
+    return json({ ok: true, counselorId: r.counselorId, name: r.name, code: r.code, email: r.email, mailed: r.mailed }, 200, cors);
   }
 
   if (path === '/apply/reject' && method === 'POST') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
-    await db.prepare("UPDATE applications SET status='rejected', reject_why=?, decided_at=? WHERE id=?")
-      .bind(s(body.why, 300) || '요건 미충족', nowMs(), s(body.id, MAX.id)).run();
+    const r = await rejectApplication(env, db, body.id, body.why);
+    if (!r.ok) return json({ error: r.error }, r.status || 400, cors);
     return json({ ok: true }, 200, cors);
   }
 
@@ -2538,10 +2590,14 @@ function withholdingOf(amount) {
 
 async function channelOf(db, clientId, counselorId) {
   try {
-    // 상담사가 제휴 상담소 소속이면 그 상담소 채널 — 상담사에게 직접 줄 계좌가 없고, 상담소가 지급한다
+    // 상담사가 제휴 상담소 소속이고 그 상담소가 승인(hospital_ok=1)했으면 그 상담소 채널 —
+    //  상담사에게 직접 줄 계좌가 없고, 상담소가 지급한다. 승인 전(대기)은 앱 채널.
+    //  hospital_ok 칸이 아직 없는 배포에서는 예전처럼 hospital_id 만 본다.
     if (counselorId) {
-      const c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first();
-      if (c && c.hospital_id) return { channel: 'hospital', hospitalId: c.hospital_id };
+      let c = null;
+      try { c = await db.prepare('SELECT hospital_id, hospital_ok FROM counselors WHERE id = ?').bind(counselorId).first(); }
+      catch (e) { c = await db.prepare('SELECT hospital_id FROM counselors WHERE id = ?').bind(counselorId).first(); if (c) c.hospital_ok = 1; }
+      if (c && c.hospital_id && c.hospital_ok) return { channel: 'hospital', hospitalId: c.hospital_id };
     }
     const r = await db.prepare(
       'SELECT hospital_id FROM patient_links WHERE client_id = ? AND unlinked_at = 0 ORDER BY linked_at DESC LIMIT 1'
@@ -2576,6 +2632,8 @@ function rowProfile(c) {
   if (!c) return null;
   return {
     id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hospital_id || '', email: c.email || '',
+    // 소속 상담소가 소장 앱에서 승인했는지. 칸이 없는 배포(undefined)는 예전 규칙대로 '승인된 것'으로 본다.
+    hospitalOk: c.hospital_ok === undefined ? !!c.hospital_id : !!c.hospital_ok,
     tel: c.tel || '', addr: c.addr || '', addrDetail: c.addr_detail || '',
     intro: c.intro || '',
     // 본인 화면에는 사진 원본을 그대로 돌려준다 — 미리보기와 [사진 삭제]가
