@@ -142,6 +142,8 @@ const APP = {
     const ALLOW_ORIGINS = [
       "https://mindinsideapp.com", "https://www.mindinsideapp.com",
       "https://pro.mindinsideapp.com", "https://ops.mindinsideapp.com", "https://doc.mindinsideapp.com",
+      // 홈페이지 — '직접 체험해 보기'(/intro/demo)를 부른다
+      "https://mindinside.kr", "https://www.mindinside.kr", "https://mindinside-home.pages.dev",
       // 옛 도메인 — 안드로이드 앱(capacitor server.url)과 옛 링크가 아직 여기로 온다
       "https://neurumind.com", "https://www.neurumind.com",
       "https://pro.neurumind.com", "https://ops.neurumind.com", "https://doc.neurumind.com",
@@ -248,6 +250,34 @@ const APP = {
         ok: true, admin: env.ADMIN_CODE || "", hospital, counselor,
         urls: { app: env.APP_URL || "https://mindinsideapp.com", pro: env.PRO_URL || "https://pro.mindinsideapp.com", doc: env.DOC_URL || "https://doc.mindinsideapp.com", ops: "https://ops.mindinsideapp.com" }
       }, 200, cors);
+    }
+    // 홈페이지(mindinside.kr) '직접 체험해 보기' — 비밀번호(기본 0000)를 넣으면 테스트 계정 코드만 준다.
+    //  운영자 코드는 절대 넣지 않는다: 0000 은 사실상 공개라, 여기 넣으면 실제 이용자 데이터가 열린다.
+    //  테스트 상담사도 이름이 '테스트'로 시작하는 계정만 — intro/unlock 처럼 '첫 상담사'를 주면 실제 상담사가 새 나간다.
+    if (path === "/intro/demo" && request.method === "POST") {
+      const db = env.DB;
+      let body = {};
+      try { body = await request.json(); } catch (e) {}
+      const ip = request.headers.get("cf-connecting-ip") || "?";
+      const key = "demo:" + ip, now = Date.now();
+      if (db) {
+        try {
+          const c = await db.prepare("SELECT COUNT(*) n FROM rate_hits WHERE key = ? AND ts > ?").bind(key, now - 600000).first();
+          if ((c && c.n) >= 20) return json({ error: "too-many", message: "너무 많이 시도했어요. 10분 뒤에 다시 해주세요." }, 429, cors);
+          await db.prepare("INSERT INTO rate_hits (key, ts) VALUES (?,?)").bind(key, now).run();
+        } catch (e) {}
+      }
+      if (String(body.pw || "").trim() !== String(env.DEMO_PW || "0000")) return json({ error: "bad-pw" }, 403, cors);
+      let hospital = null, counselor = null;
+      if (db) {
+        try {
+          const h = await db.prepare("SELECT name, code FROM hospitals WHERE active = 1 AND name LIKE '테스트%' ORDER BY created ASC LIMIT 1").first();
+          if (h) hospital = { name: h.name, code: h.code };
+          const k = await db.prepare("SELECT name, code FROM counselors WHERE active = 1 AND name LIKE '테스트%' ORDER BY created ASC LIMIT 1").first();
+          if (k) counselor = { name: k.name, code: k.code };
+        } catch (e) {}
+      }
+      return json({ ok: true, hospital, counselor }, 200, cors);
     }
     // 대면상담 및 진료 — 내 주변 정신건강의학과 (카카오 로컬 + D1)
     if (/^\/(clinics\/|admin\/clinics)/.test(path)) {
