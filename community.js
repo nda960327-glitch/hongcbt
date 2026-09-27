@@ -136,7 +136,7 @@ export async function handleCommunity(request, env, cors, path) {
     const id = rid('ha');
     await db.prepare(`INSERT INTO hospital_apps (id, client_id, name, doctor, email, tel, addr, bizno, dept, intro, hours, url, doc, status, ts)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`)
-      .bind(id, cid, name, doctor, email, s(body.tel, 30).replace(/[^0-9-+ ]/g, ''), s(body.addr, 200).trim(), bizno.replace(/^(d{3})(d{2})(d{5})$/, '$1-$2-$3'),
+      .bind(id, cid, name, doctor, email, s(body.tel, 30).replace(/[^0-9-+ ]/g, ''), s(body.addr, 200).trim(), bizno /* 숫자 10자리 그대로 — 콘솔(hospital.js /hospital/info)이 숫자만으로 비교한다 */,
         s(body.dept, 40).trim(), s(body.intro, 600).trim(), s(body.hours, 200).trim(), s(body.url, 200).trim(), doc, nowMs()).run();
     sendHtml(env, db, email, '[마인드 인사이드] 상담소 제휴 신청이 접수됐습니다', mailWrap('마인드 인사이드', name + ' 제휴 신청이 접수됐습니다', `
       <p style="font-size:14px;line-height:1.8;margin:0 0 18px;">보내주신 상담소 정보를 확인하고 있습니다.<br><b>2~3일 안에</b> 승인 여부를 이 주소로 알려드릴게요.</p>

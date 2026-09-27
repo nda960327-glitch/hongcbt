@@ -1,389 +1,713 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<!-- 마인드인사이드 홈페이지 (mindinside.kr) — 검색엔진에 보이는 유일한 페이지.
-     앱(mindinsideapp.com)은 앱 셸이라 검색 설명이 없고, 소개·검색 노출은 여기서 맡는다.
-     원본은 www/intro/index.html (팀 내부용, noindex). 테스트 코드 섹션만 빼고 같은 내용. -->
+<!-- 마인드인사이드 홈페이지 (mindinside.kr) — 검색엔진에 보이는 소개·안내 페이지.
+     앱(mindinsideapp.com)은 앱 셸이라 설명이 없고, 소개·가입 안내·검색 노출은 여기서 맡는다.
+     화면 사진(img/*.webp)은 실제 앱을 예시 데이터로 띄워 찍은 것 — 사람 이름·숫자는 전부 예시다. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>마인드인사이드 — 심리상담 AI · 전화 심리상담 앱</title>
-<meta name="description" content="마인드인사이드(Mind Inside)는 심리상담 AI '느루'와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 심리상담을 받는 앱입니다. 인지행동치료(CBT) 기반 AI 상담, 기분 체크인, 자가검사, 정신과·상담소 연결.">
-<meta name="keywords" content="마인드인사이드, 마인드 인사이드, Mind Inside, 심리상담 AI, AI 심리상담, 전화 심리상담, 전화상담 앱, 심리상담 앱, 마음 돌봄 앱, CBT 앱, 인지행동치료, 우울 불안 자가검사, 느루">
+<meta name="description" content="마인드인사이드(Mind Inside)는 심리상담 AI '느루'와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅으로 상담하는 앱입니다. 다니는 상담소와 연결돼 상담 기록과 피드백이 이어집니다. 이용 방법, 상담사 입점, 상담소 제휴 안내.">
+<meta name="keywords" content="마인드인사이드, 마인드 인사이드, Mind Inside, 심리상담 AI, AI 심리상담, 전화 심리상담, 전화상담 앱, 심리상담 앱, 상담사 입점, 상담소 제휴, 마음 돌봄 앱, CBT 앱, 인지행동치료, 느루">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="https://mindinside.kr/">
 <meta name="author" content="마인드인사이드">
 <meta name="theme-color" content="#4f8a6b">
-<!-- 카카오톡·페이스북·네이버 밴드 등 링크 미리보기 -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="마인드인사이드">
 <meta property="og:title" content="마인드인사이드 — 심리상담 AI · 전화 심리상담 앱">
-<meta property="og:description" content="심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 상담. 정신과·상담소와 함께 쓰는 마음 돌봄 앱.">
+<meta property="og:description" content="심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 상담. 다니는 상담소와 이어지는 마음 돌봄 앱.">
 <meta property="og:url" content="https://mindinside.kr/">
-<meta property="og:image" content="https://mindinside.kr/icon.png">
-<meta property="og:image:width" content="512">
-<meta property="og:image:height" content="512">
+<meta property="og:image" content="https://mindinside.kr/img/chat.webp">
 <meta property="og:locale" content="ko_KR">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="마인드인사이드 — 심리상담 AI · 전화 심리상담 앱">
 <meta name="twitter:description" content="심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 상담.">
-<meta name="twitter:image" content="https://mindinside.kr/icon.png">
-<!-- 검색엔진 소유 확인 — Google Search Console·네이버 서치어드바이저가 주는 태그를 여기에 넣는다 -->
-  <meta name="google-site-verification" content="-FNwkIMnu5_ovgHNpEclbSfVDH6yCww8FbpB1tnyp18">
+<meta name="twitter:image" content="https://mindinside.kr/img/chat.webp">
+<!-- 검색엔진 소유 확인 (지우지 말 것) -->
+<meta name="google-site-verification" content="-FNwkIMnu5_ovgHNpEclbSfVDH6yCww8FbpB1tnyp18">
 <meta name="google-site-verification" content="pLbqXgFallFa__IMdYl7OaDCz7kcZdJ9_-ll5AUAocA">
 <meta name="naver-site-verification" content="bbe9f1c76f0ad3a607642ee1e469adada1f09ef9">
 <meta name="naver-site-verification" content="d08af225052a056c9c9ea89112b9ddb02797b77a">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<!-- 구조화 데이터: 구글·네이버가 '앱·서비스'로 알아보게 -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
-    {
-      "@type": "Organization",
-      "@id": "https://mindinside.kr/#org",
-      "name": "마인드인사이드",
-      "alternateName": ["마인드 인사이드", "Mind Inside", "MindInside"],
-      "url": "https://mindinside.kr/",
-      "logo": "https://mindinside.kr/icon.png",
-      "email": "help@neurumind.com"
-    },
-    {
-      "@type": "WebSite",
-      "@id": "https://mindinside.kr/#site",
-      "url": "https://mindinside.kr/",
-      "name": "마인드인사이드",
-      "inLanguage": "ko",
-      "publisher": { "@id": "https://mindinside.kr/#org" }
-    },
-    {
-      "@type": "MobileApplication",
-      "name": "마인드인사이드",
-      "alternateName": ["마인드 인사이드", "Mind Inside"],
+    { "@type": "Organization", "@id": "https://mindinside.kr/#org", "name": "마인드인사이드",
+      "alternateName": ["마인드 인사이드", "Mind Inside", "MindInside"], "url": "https://mindinside.kr/",
+      "logo": "https://mindinside.kr/icon.png", "email": "help@neurumind.com" },
+    { "@type": "WebSite", "@id": "https://mindinside.kr/#site", "url": "https://mindinside.kr/", "name": "마인드인사이드",
+      "inLanguage": "ko", "publisher": { "@id": "https://mindinside.kr/#org" } },
+    { "@type": "MobileApplication", "name": "마인드인사이드", "alternateName": ["마인드 인사이드", "Mind Inside"],
       "description": "심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 심리상담을 받는 앱. 인지행동치료(CBT) 기반.",
-      "applicationCategory": "HealthApplication",
-      "operatingSystem": "Android, Web",
-      "url": "https://mindinsideapp.com/",
-      "installUrl": "https://mindinsideapp.com/",
-      "image": "https://mindinside.kr/icon.png",
-      "inLanguage": "ko",
-      "author": { "@id": "https://mindinside.kr/#org" },
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW", "description": "무료로 시작 · 7일 체험 뒤 구독" }
-    }
+      "applicationCategory": "HealthApplication", "operatingSystem": "Android, Web",
+      "url": "https://mindinsideapp.com/", "installUrl": "https://mindinsideapp.com/",
+      "image": "https://mindinside.kr/img/chat.webp", "inLanguage": "ko", "author": { "@id": "https://mindinside.kr/#org" },
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "KRW", "description": "7일 무료 체험 · 이후 월 9,900원" } },
+    { "@type": "FAQPage", "mainEntity": [
+      { "@type": "Question", "name": "상담사는 어떻게 입점하나요?", "acceptedAnswer": { "@type": "Answer", "text": "마인드인사이드 앱 → 마이 → 설정 → '상담사이신가요?'의 [등록 신청]에서 자격증 사진과 함께 신청합니다. 월 구독료·입점비는 없고, 승인되면 이메일로 상담사 앱 로그인 코드가 옵니다." } },
+      { "@type": "Question", "name": "상담소는 어떻게 제휴하나요?", "acceptedAnswer": { "@type": "Answer", "text": "앱 → 마이 → 설정 → '상담소를 운영하시나요?'의 [제휴 신청]에서 사업자등록번호와 사업자등록증 사진을 넣어 신청합니다. 승인되면 상담소 코드와 소장 콘솔 로그인 안내가 이메일로 옵니다." } },
+      { "@type": "Question", "name": "AI 대화 내용이 상담소에 가나요?", "acceptedAnswer": { "@type": "Answer", "text": "아니요. 느루와 나눈 대화 원문은 기기에만 남고 서버에 저장되지 않습니다. 상담소가 보는 건 상담사가 쓴 상담 요약과, 내담자가 동의한 주간 숫자뿐입니다." } }
+    ] }
   ]
 }
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#faf5ee; --card:#fffdf9; --line:#e8ddcd; --text:#3f352a; --muted:#8a7b68;
-    --accent:#4f8a6b; --accent-soft:#eef6f0; --accent2:#c98a3f; --warn:#c14a4a; --soft:#f2ece1; --code:#f6f1e7;
-    --p:#4f8a6b; --c:#3b7fa6; --d:#a15c8a; --a:#8a6a3b;
+    --bg:#faf5ee; --bg2:#f3ebdf; --card:#fffdf9; --line:#e8ddcd; --text:#3f352a; --muted:#85765f;
+    --accent:#4f8a6b; --accent-d:#2f6b50; --accent-soft:#e8f2eb; --warm:#c98a3f; --warm-soft:#f8ecdb;
+    --c:#3b7fa6; --c-soft:#e5f0f6; --d:#a15c8a; --d-soft:#f5e8f0; --on-accent:#fff;
+    --shadow:0 18px 40px -18px rgba(63,53,42,.28);
   }
   @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){ --bg:#1e1a16; --card:#272119; --line:#3d342a; --text:#efe6da; --muted:#a99781;
-      --accent:#7fc29b; --accent-soft:#233127; --accent2:#e0aa62; --warn:#e08585; --soft:#2e271e; --code:#221d16;
-      --p:#7fc29b; --c:#7fb6d8; --d:#d19ac0; --a:#d1ad7a; }
+    :root:not([data-theme="light"]){ --bg:#1c1814; --bg2:#231e18; --card:#29221a; --line:#3d342a; --text:#efe6da; --muted:#a99781;
+      --accent:#7fc29b; --accent-d:#4f8a6b; --accent-soft:#223128; --warm:#e0aa62; --warm-soft:#33291c;
+      --c:#7fb6d8; --c-soft:#1d2a33; --d:#d19ac0; --d-soft:#30222b; --on-accent:#10261a; --shadow:0 18px 40px -18px rgba(0,0,0,.6); }
   }
-  :root[data-theme="dark"]{ --bg:#1e1a16; --card:#272119; --line:#3d342a; --text:#efe6da; --muted:#a99781;
-      --accent:#7fc29b; --accent-soft:#233127; --accent2:#e0aa62; --warn:#e08585; --soft:#2e271e; --code:#221d16;
-      --p:#7fc29b; --c:#7fb6d8; --d:#d19ac0; --a:#d1ad7a; }
+  :root[data-theme="dark"]{ --bg:#1c1814; --bg2:#231e18; --card:#29221a; --line:#3d342a; --text:#efe6da; --muted:#a99781;
+      --accent:#7fc29b; --accent-d:#4f8a6b; --accent-soft:#223128; --warm:#e0aa62; --warm-soft:#33291c;
+      --c:#7fb6d8; --c-soft:#1d2a33; --d:#d19ac0; --d-soft:#30222b; --on-accent:#10261a; --shadow:0 18px 40px -18px rgba(0,0,0,.6); }
   *{box-sizing:border-box;}
-  html{scroll-behavior:smooth;}
-  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;line-height:1.75;font-size:16px;-webkit-text-size-adjust:100%;}
-  .wrap{max-width:900px;margin:0 auto;padding:0 1.1rem;}
+  html{scroll-behavior:smooth;scroll-padding-top:72px;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;line-height:1.75;font-size:16px;-webkit-text-size-adjust:100%;word-break:keep-all;overflow-wrap:break-word;}
+  img{max-width:100%;display:block;}
   a{color:var(--accent);}
-  h1,h2,h3{letter-spacing:-.02em;line-height:1.3;}
-  h2{font-size:1.5rem;margin:3.4rem 0 .4rem;font-weight:800;}
-  h2 .n{display:inline-block;width:2rem;height:2rem;border-radius:10px;background:var(--accent);color:#fff;font-size:1rem;text-align:center;line-height:2rem;margin-right:.55rem;vertical-align:middle;}
-  h3{font-size:1.05rem;margin:1.6rem 0 .45rem;font-weight:700;}
-  p{margin:.6rem 0;}
-  .sub{color:var(--muted);font-size:.92rem;margin:0 0 1.2rem;}
-  b,strong{font-weight:700;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.15rem 1.25rem;margin:1rem 0;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.8rem;margin:1rem 0;}
-  .grid .card{margin:0;}
-  .muted{color:var(--muted);font-size:.9rem;}
-  .tag{display:inline-block;font-size:.72rem;font-weight:800;letter-spacing:.06em;padding:.15rem .55rem;border-radius:99px;background:var(--soft);color:var(--muted);vertical-align:middle;}
-  .tag.p{background:var(--accent-soft);color:var(--p);} .tag.c{background:rgba(59,127,166,.13);color:var(--c);} .tag.d{background:rgba(161,92,138,.13);color:var(--d);} .tag.a{background:rgba(138,106,59,.15);color:var(--a);}
-  code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--code);padding:.1rem .4rem;border-radius:6px;}
-  ul,ol{padding-left:1.3rem;margin:.5rem 0;} li{margin:.3rem 0;}
-  hr{border:0;border-top:1px solid var(--line);margin:2.4rem 0 0;}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px;}
+  h1,h2,h3{letter-spacing:-.025em;line-height:1.3;margin:0;}
+  .serif{font-family:'Gowun Batang',serif;}
+  p{margin:.5rem 0;}
+  .muted{color:var(--muted);}
+  .eyebrow{display:inline-block;font-size:.78rem;font-weight:800;letter-spacing:.14em;color:var(--accent);}
+
+  /* 상단 바 */
+  .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line);}
+  .top .wrap{display:flex;align-items:center;gap:1rem;height:60px;}
+  .brand{display:flex;align-items:center;gap:.5rem;font-weight:800;color:var(--text);text-decoration:none;font-size:1.05rem;}
+  .brand img{width:30px;height:30px;border-radius:9px;}
+  .top nav{display:flex;gap:.2rem;margin-left:auto;}
+  .top nav a{color:var(--text);text-decoration:none;font-size:.9rem;font-weight:600;padding:.4rem .7rem;border-radius:99px;}
+  .top nav a:hover{background:var(--bg2);}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;text-decoration:none;font-weight:800;border-radius:14px;padding:.85rem 1.3rem;font-size:1rem;border:0;cursor:pointer;font-family:inherit;transition:transform .15s ease, box-shadow .15s ease;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn.primary{background:var(--accent);color:var(--on-accent);box-shadow:0 10px 24px -12px var(--accent);}
+  .btn.ghost{background:var(--card);color:var(--text);border:1.5px solid var(--line);}
+  .btn.sm{padding:.5rem .9rem;font-size:.88rem;border-radius:11px;}
+  @media (max-width:820px){ .top nav{display:none;} .top .btn.sm{margin-left:auto;} }
 
   /* 표지 */
-  .hero{background:linear-gradient(160deg,#4f8a6b 0%,#2f6b50 100%);color:#fff;padding:3.2rem 0 2.6rem;}
-  .hero h1{font-family:'Gowun Batang',serif;font-size:2.2rem;margin:.2rem 0 .6rem;font-weight:700;}
-  .hero p{font-size:1.05rem;max-width:36em;opacity:.95;margin:0;}
-  .hero .kicker{display:inline-block;font-size:.74rem;letter-spacing:.14em;border:1px solid rgba(255,255,255,.45);padding:.2rem .7rem;border-radius:99px;opacity:.9;}
-  .hero .snail{font-size:2.4rem;line-height:1;margin-bottom:.6rem;}
-  .jump{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.4rem;}
-  .jump a{color:#fff;text-decoration:none;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);padding:.45rem .85rem;border-radius:99px;font-size:.88rem;font-weight:700;}
-  .jump a.main{background:#fff;color:#2f6b50;}
+  .hero{position:relative;overflow:hidden;padding:64px 0 40px;}
+  .hero::before{content:"";position:absolute;inset:-20% -10% auto auto;width:640px;height:640px;border-radius:50%;background:radial-gradient(circle,var(--accent-soft),transparent 65%);z-index:-1;}
+  .hero .wrap{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;}
+  .hero h1{font-size:clamp(2rem,4.6vw,3.3rem);font-weight:800;margin:.7rem 0 1rem;}
+  .hero h1 em{font-style:normal;color:var(--accent);}
+  .hero .lead{font-size:1.12rem;color:var(--muted);max-width:32em;}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:.6rem;margin:1.6rem 0 1rem;}
+  .hero .chips{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.6rem;}
+  .chip{display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;background:var(--card);border:1px solid var(--line);padding:.3rem .7rem;border-radius:99px;color:var(--muted);}
+  .phones{position:relative;height:560px;}
+  .phones .phone{position:absolute;width:250px;}
+  .phones .phone:nth-child(1){left:4%;top:40px;transform:rotate(-5deg);}
+  .phones .phone:nth-child(2){right:4%;top:0;transform:rotate(4deg);z-index:2;}
+  @media (max-width:900px){ .hero{padding-top:40px;} .hero .wrap{grid-template-columns:1fr;} .phones{height:470px;max-width:460px;margin:0 auto;width:100%;} .phones .phone{width:205px;} }
+  @media (max-width:420px){ .phones{height:390px;} .phones .phone{width:168px;} }
 
-  /* 한눈에 */
-  .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:.6rem;margin:1rem 0;}
-  .flow .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:.85rem .9rem;position:relative;}
-  .flow .box b{display:block;font-size:.95rem;margin-bottom:.15rem;}
-  .flow .box span{font-size:.84rem;color:var(--muted);line-height:1.5;display:block;}
-  .flow .box i{position:absolute;top:.6rem;right:.7rem;font-style:normal;font-size:1.1rem;}
-  .who{border-left:5px solid var(--accent);}
-  .who.c{border-left-color:var(--c);} .who.d{border-left-color:var(--d);} .who.a{border-left-color:var(--a);}
+  /* 휴대폰·노트북 틀 */
+  .phone{border-radius:34px;padding:9px;background:#1f1a15;box-shadow:var(--shadow),0 0 0 1px rgba(0,0,0,.06);}
+  .phone img{border-radius:26px;width:100%;height:auto;aspect-ratio:720/1558;object-fit:cover;object-position:top;background:var(--bg2);}
+  .laptop{border-radius:14px;padding:8px 8px 10px;background:#1f1a15;box-shadow:var(--shadow);}
+  .laptop img{border-radius:8px;width:100%;height:auto;aspect-ratio:1600/1000;background:var(--bg2);}
+  figure{margin:0;}
+  figcaption{font-size:.84rem;color:var(--muted);text-align:center;margin-top:.7rem;line-height:1.5;}
+  .laptop figcaption{color:#cfc3b3;margin-top:.45rem;}
 
-  /* 단계 */
-  .steps{counter-reset:s;list-style:none;padding:0;margin:.8rem 0;}
-  .steps li{counter-increment:s;position:relative;padding:.55rem 0 .55rem 2.6rem;border-bottom:1px dashed var(--line);}
-  .steps li:last-child{border-bottom:0;}
-  .steps li::before{content:counter(s);position:absolute;left:0;top:.6rem;width:1.8rem;height:1.8rem;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:800;text-align:center;line-height:1.8rem;font-size:.85rem;}
-  .steps li b{display:block;}
-  .steps li span{font-size:.9rem;color:var(--muted);}
-  .who.c .steps li::before{background:rgba(59,127,166,.13);color:var(--c);} .who.d .steps li::before{background:rgba(161,92,138,.13);color:var(--d);} .who.a .steps li::before{background:rgba(138,106,59,.15);color:var(--a);}
+  /* 섹션 */
+  section{padding:72px 0;}
+  section.alt{background:var(--bg2);}
+  .sec-head{max-width:720px;margin-bottom:2.2rem;}
+  .sec-head h2{font-size:clamp(1.6rem,3.2vw,2.3rem);font-weight:800;margin:.4rem 0 .6rem;}
+  .sec-head p{color:var(--muted);font-size:1.05rem;}
+  .badge{display:inline-block;font-size:.8rem;font-weight:800;padding:.3rem .75rem;border-radius:99px;}
 
-  /* 화면 흉내 */
-  .phone{background:var(--soft);border-radius:16px;padding:.8rem .9rem;font-size:.86rem;margin:.6rem 0;border:1px solid var(--line);}
-  .phone .t{font-weight:800;margin-bottom:.35rem;}
-  .phone .r{display:flex;justify-content:space-between;gap:.5rem;padding:.3rem 0;border-top:1px dashed var(--line);}
-  .phone .r:first-of-type{border-top:0;}
-  .chip{display:inline-block;padding:.05rem .45rem;border-radius:99px;font-size:.74rem;font-weight:700;background:var(--accent-soft);color:var(--accent);}
-  .chip.bad{background:rgba(193,74,74,.13);color:var(--warn);} .chip.gold{background:rgba(201,138,63,.15);color:var(--accent2);}
+  /* 누구세요 */
+  .who{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .who a{display:block;text-decoration:none;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:22px;padding:1.4rem 1.4rem 1.2rem;transition:transform .15s ease, box-shadow .15s ease;}
+  .who a:hover{transform:translateY(-3px);box-shadow:var(--shadow);}
+  .who .ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:1.4rem;margin-bottom:.8rem;}
+  .who h3{font-size:1.15rem;margin-bottom:.3rem;}
+  .who p{color:var(--muted);font-size:.93rem;margin:0 0 .8rem;}
+  .who .go{font-weight:800;font-size:.9rem;}
+  @media (max-width:820px){ .who{grid-template-columns:1fr;} }
 
-  /* 다운로드 */
-  .dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:.8rem;margin:1rem 0;}
-  .dl .card{margin:0;display:flex;flex-direction:column;}
-  .dl .card h3{margin:.2rem 0 .3rem;}
-  .dl .card .muted{flex:1;}
-  .btn{display:inline-block;text-align:center;text-decoration:none;background:var(--accent);color:#fff;font-weight:800;padding:.7rem 1rem;border-radius:12px;border:0;cursor:pointer;font-size:.95rem;font-family:inherit;width:100%;margin-top:.7rem;}
-  .btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent);}
-  .btn.c{background:var(--c);} .btn.d{background:var(--d);} .btn.a{background:var(--a);}
-  .btn:disabled{opacity:.5;cursor:default;}
-  .howto{font-size:.84rem;color:var(--muted);margin-top:.6rem;line-height:1.55;}
-  details{margin:.6rem 0;} summary{cursor:pointer;font-weight:700;}
+  /* 차별점 */
+  .why{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .why .card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:1.4rem;}
+  .why .num{font-family:'Gowun Batang',serif;font-size:1.6rem;color:var(--accent);line-height:1;}
+  .why h3{font-size:1.08rem;margin:.6rem 0 .4rem;}
+  .why p{color:var(--muted);font-size:.93rem;margin:0;}
+  .why .card.big{grid-column:span 3;display:grid;grid-template-columns:1.2fr 1fr;gap:28px;align-items:center;background:linear-gradient(150deg,#4f8a6b 0%,#2f6b50 100%);color:#fff;border:0;padding:2rem;}
+  .why .card.big p{color:rgba(255,255,255,.9);font-size:1rem;}
+  .why .card.big .num{color:rgba(255,255,255,.8);}
+  .why .card.big h3{font-size:1.45rem;}
+  .flow{display:grid;gap:.5rem;}
+  .flow div{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:.6rem .85rem;font-size:.9rem;line-height:1.5;}
+  .flow b{display:block;font-size:.95rem;}
+  @media (max-width:900px){ .why{grid-template-columns:1fr 1fr;} .why .card.big{grid-column:span 2;grid-template-columns:1fr;} }
+  @media (max-width:600px){ .why{grid-template-columns:1fr;} .why .card.big{grid-column:span 1;padding:1.5rem;} }
 
-  .faq dt{font-weight:800;margin-top:.9rem;} .faq dd{margin:.2rem 0 0;color:var(--text);font-size:.95rem;}
-  footer{color:var(--muted);font-size:.84rem;padding:2rem 0 3rem;}
-  @media (max-width:520px){ .hero h1{font-size:1.75rem;} h2{font-size:1.28rem;} }
+  /* 안내 단계 */
+  .step{display:grid;grid-template-columns:1fr 300px;gap:40px;align-items:center;padding:34px 0;border-top:1px dashed var(--line);}
+  .step:first-of-type{border-top:0;}
+  .step.flip{grid-template-columns:minmax(0,560px) 1fr;}
+  .step.flip .txt{order:2;}
+  .step.wide{grid-template-columns:1fr;}
+  .step .n{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:11px;background:var(--accent);color:var(--on-accent);font-weight:800;font-size:.95rem;margin-bottom:.7rem;}
+  .step h3{font-size:1.35rem;margin-bottom:.5rem;}
+  .step .txt p{color:var(--muted);}
+  .step .txt p b{color:var(--text);}
+  .step ol,.step ul{padding-left:1.2rem;margin:.6rem 0;}
+  .step li{margin:.35rem 0;}
+  .step > .phone{max-width:280px;width:100%;margin:0 auto;}
+  .step.flip > .phone{max-width:280px;}
+  .path{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin:.8rem 0;font-size:.9rem;font-weight:700;}
+  .path span{background:var(--card);border:1px solid var(--line);padding:.25rem .65rem;border-radius:9px;}
+  .path i{font-style:normal;color:var(--muted);}
+  .note{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;padding:.85rem 1rem;font-size:.92rem;margin:.9rem 0;}
+  .note.warm{border-left-color:var(--warm);}
+  .check{list-style:none;padding:0 !important;}
+  .check li{position:relative;padding-left:1.7rem;}
+  .check li::before{content:"✓";position:absolute;left:0;top:.3rem;width:1.2rem;height:1.2rem;border-radius:6px;background:var(--accent-soft);color:var(--accent);font-weight:900;font-size:.8rem;display:grid;place-items:center;}
+  .two-shots{display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:540px;width:100%;margin:0 auto;}
+  .laptops{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:1.4rem;}
+  @media (max-width:860px){
+    .step,.step.flip{grid-template-columns:1fr;gap:22px;}
+    .step.flip .txt{order:0;}
+    .step > .phone{max-width:250px;}
+    .laptops{grid-template-columns:1fr;}
+  }
+  .c-theme .step .n{background:var(--c);} .c-theme .note{border-left-color:var(--c);} .c-theme .note.warm{border-left-color:var(--warm);} .c-theme .check li::before{background:var(--c-soft);color:var(--c);}
+  .d-theme .step .n{background:var(--d);} .d-theme .note{border-left-color:var(--d);} .d-theme .note.warm{border-left-color:var(--warm);} .d-theme .check li::before{background:var(--d-soft);color:var(--d);}
+
+  /* 정산 */
+  .money{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .money .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:1.3rem;}
+  .money h3{font-size:1rem;margin-bottom:.2rem;}
+  .money .sub{font-size:.85rem;color:var(--muted);margin-bottom:.9rem;}
+  .bar{display:flex;height:34px;border-radius:10px;overflow:hidden;font-size:.78rem;font-weight:800;color:#fff;}
+  .bar div{display:flex;align-items:center;justify-content:center;white-space:nowrap;}
+  .legend{font-size:.86rem;margin-top:.7rem;line-height:1.7;}
+  .legend b{display:inline-block;min-width:3.2em;}
+  @media (max-width:900px){ .money{grid-template-columns:1fr;} }
+
+  /* 약속 */
+  .promise{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .promise div{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.1rem;}
+  .promise b{display:block;margin-bottom:.3rem;}
+  .promise span{font-size:.9rem;color:var(--muted);}
+  @media (max-width:900px){ .promise{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .promise{grid-template-columns:1fr;} }
+
+  /* 자주 묻는 질문 */
+  .faq{max-width:820px;}
+  .faq details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:0 1.1rem;margin:.6rem 0;}
+  .faq summary{cursor:pointer;font-weight:700;padding:1rem 0;list-style:none;display:flex;justify-content:space-between;gap:1rem;}
+  .faq summary::-webkit-details-marker{display:none;}
+  .faq summary::after{content:"+";font-weight:800;color:var(--accent);font-size:1.2rem;line-height:1;}
+  .faq details[open] summary::after{content:"–";}
+  .faq details p{color:var(--muted);margin:0 0 1rem;}
+
+  /* 마무리 */
+  .final{text-align:center;background:linear-gradient(160deg,#4f8a6b 0%,#2f6b50 100%);color:#fff;border-radius:28px;padding:3rem 1.5rem;}
+  .final h2{font-size:clamp(1.5rem,3vw,2.1rem);margin-bottom:.6rem;}
+  .final p{color:rgba(255,255,255,.9);}
+  .final .btn.primary{background:#fff;color:#2f6b50;box-shadow:none;}
+  .final .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55);}
+  .final .cta{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin-top:1.4rem;}
+  footer{padding:40px 0 56px;color:var(--muted);font-size:.86rem;}
+  footer .row{display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;}
+  footer a{color:var(--muted);}
+  .crisis{background:var(--warm-soft);border:1px solid var(--line);border-radius:16px;padding:.9rem 1.1rem;color:var(--text);font-size:.92rem;margin-bottom:1.6rem;}
+  .sample{font-size:.78rem;color:var(--muted);text-align:center;margin-top:1rem;}
 </style>
 </head>
 <body>
 
-<header class="hero">
+<header class="top">
   <div class="wrap">
-    <div class="snail">🐌</div>
-    <span class="kicker">MIND INSIDE · 마인드인사이드</span>
-    <h1>심리상담 AI · 전화 심리상담 앱<br>마인드인사이드</h1>
-    <p>앱 속 달팽이 캐릭터 <b>느루</b>(심리상담 AI)와 매일 마음을 돌보고, 필요하면 <b>심리상담사</b>와 전화·채팅으로 상담합니다.
-      정신과·상담소와 함께 쓰는 마음 돌봄 앱 — 그 기록은 내담자가 동의하면 <b>담당 상담소와 소장</b>에게 이어집니다.</p>
-    <div class="jump">
-      <a class="main" href="#download">앱 다운로드</a>
-      <a href="#patient">내담자 입장</a>
-      <a href="#counselor">상담사 입장</a>
-      <a href="#doctor">소장 입장</a>
-      <a href="#admin">관리자 입장</a>
+    <a class="brand" href="#"><img src="icon-192.png" alt="" width="30" height="30">마인드인사이드</a>
+    <nav>
+      <a href="#why">무엇이 다른가요</a>
+      <a href="#client">이용자</a>
+      <a href="#counselor">상담사</a>
+      <a href="#clinic">상담소</a>
       <a href="#faq">자주 묻는 질문</a>
-    </div>
+    </nav>
+    <a class="btn primary sm" href="https://mindinsideapp.com/" target="_blank" rel="noopener">앱 시작하기</a>
   </div>
 </header>
 
-<main class="wrap">
-
-  <h2><span class="n">0</span>30초 요약</h2>
-  <p class="sub">이 한 그림만 이해하면 나머지는 전부 세부사항입니다.</p>
-  <div class="flow">
-    <div class="box"><i>🧑</i><b>내담자 앱</b><span>mindinsideapp.com<br>느루와 대화 · 기분 체크인 · 미션 · 기록 · 상담 예약 · 담당 상담소 연결</span></div>
-    <div class="box"><i>🧑‍⚕️</i><b>상담사 앱 (프로)</b><span>pro.mindinsideapp.com<br>예약 · 채팅 · 통화 · 숙제 · <b>회기 기록</b> · 정산</span></div>
-    <div class="box"><i>🩺</i><b>소장 앱 (닥터)</b><span>doc.mindinsideapp.com<br>연결 내담자 · 상담 기록 열람 · 주간 상태 · 피드백 · 긴급 알림</span></div>
-    <div class="box"><i>🛠️</i><b>운영자 콘솔</b><span>ops.mindinsideapp.com<br>상담사 승인 · 정산 · 결제 · 추천 콘텐츠 · 상담소 등록</span></div>
-  </div>
-  <div class="card">
-    <b>서버는 하나</b>입니다. 네 앱 모두 같은 서버와 같은 데이터베이스를 씁니다.
-    심리상담 AI 대화는 서버를 거치되 내담자 기기 안의 대화 원문은 서버에 <b>남기지 않습니다</b>.
-    서버에 있는 건 상담사가 쓴 회기 기록, 낸 숙제, 소장 피드백, 그리고 내담자가 동의한 주간 숫자뿐입니다.
-  </div>
-  <div class="card" style="background:var(--accent-soft);border-color:transparent;">
-    <b>데이터가 흐르는 방향</b><br>
-    내담자 <span class="tag p">상담 예약·채팅·통화</span> → 상담사 <span class="tag c">회기 기록 (요약·계획·위험도·숙제)</span> → 소장 <span class="tag d">열람 · 피드백</span> → 내담자·상담사 <span class="tag p">피드백 도착</span><br>
-    내담자 <span class="tag p">주간 숫자 (동의 시)</span> → 소장 <span class="tag d">주간 상태 그래프</span> &nbsp;·&nbsp;
-    상담사 <span class="tag c">'긴급' 표시</span> → 소장 <span class="tag d">즉시 이메일</span>
-  </div>
-
-  <!-- ───────────────────────── 내담자 ───────────────────────── -->
-  <h2 id="patient"><span class="n">1</span>내담자 입장 <span class="tag p">mindinsideapp.com</span></h2>
-  <p class="sub">정신과에서 "이 앱 써보세요"라고 권해서 깔았거나, 스스로 찾아 깔았거나 — 둘 다 같은 앱입니다.</p>
-
-  <div class="card who">
-    <h3 style="margin-top:0;">첫 하루</h3>
-    <ol class="steps">
-      <li><b>설치하고 로그인</b><span>카카오·네이버·구글 중 하나로 시작합니다. 회원가입 폼이 없습니다. 안드로이드 앱과 웹앱은 같은 화면입니다.</span></li>
-      <li><b>느루를 만난다</b><span>온보딩에서 이름과 요즘 마음 상태를 물어봅니다. 느루는 달팽이 캐릭터로, "뇨롱!", "후룽, 느루느루.", "쭈굴…", "호고고곡?!" 같은 의성어를 씁니다. 귀엽고 조금 하찮은 게 의도입니다.</span></li>
-      <li><b>홈에서 오늘 할 일을 본다</b><span>기분 체크인 → 누르면 7일 기분 그래프로 바뀝니다. 그 아래 '오늘 할 일'에 미션 하나, 상담사 숙제, 케어플랜 항목이 날짜와 함께 뜹니다. 하루 경계는 새벽 5시라 밤늦게 해도 오늘로 칩니다.</span></li>
-      <li><b>느루와 이야기한다</b><span>인지행동(CBT) 기법 기반의 AI 대화. 생각 기록·감정 라벨링·행동 활성화를 대화 속에서 자연스럽게 유도합니다. 위기 표현이 나오면 위기상담 번호(1577-0199)를 바로 안내합니다.</span></li>
-    </ol>
-  </div>
-
-  <div class="card who">
-    <h3 style="margin-top:0;">계속 쓰게 만드는 것들</h3>
-    <div class="grid">
-      <div class="card"><b>추천 콘텐츠</b><p class="muted">운영자가 올린 정신건강 영상·글. 👍 도움됐어요 / 👎 별로예요 로 투표하면 순서가 바뀝니다. '전체 보기'에서 태그별로 훑어봅니다.</p></div>
-      <div class="card"><b>내 마음 도구</b><p class="muted">생각 기록, 밤 일기, 호흡·안정 도구, 자가 검사(PHQ-9·GAD-7), 배움 카드, 목표.</p></div>
-      <div class="card"><b>성장 요소</b><p class="muted">미션 완료 → 느루 캐시·경험치. 연속 사용(스트릭)과 보호막, 농장·옷장 같은 가벼운 보상.</p></div>
-      <div class="card"><b>느루의 주간 편지</b><p class="muted">매주 월요일 새벽 5시, 한 주의 기분·기록을 모아 느루가 편지를 씁니다. 카드로 저장·공유할 수 있습니다.</p></div>
-      <div class="card"><b>대면상담 및 진료 — 내 주변 정신과</b><p class="muted">홈 맨 아래. 위치를 허용하면 가까운 정신건강의학과가 거리순으로 뜹니다(국립중앙의료원 전국 자료, 요일별 진료시간·지금 진료 중 표시, 지도는 네이버). 전화·길찾기 한 번에. 운영팀이 등록한 제휴 병원은 배지가 붙고, 앱 연동 병원은 진료 뒤 상담소 코드로 소장과 바로 이어집니다. 위치 권한이 없으면 동네·역 이름으로 찾습니다.</p></div>
+<main>
+<!-- ───────────── 표지 ───────────── -->
+<section class="hero">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">심리상담 AI · 전화 심리상담</span>
+      <h1>혼자 버티지 않게,<br><em>내 상담소와 이어진</em><br>마음 돌봄 앱</h1>
+      <p class="lead">매일은 심리상담 AI <b>느루</b>와 마음을 정리하고, 필요할 땐 같은 앱에서 <b>심리상담사와 전화·채팅</b>으로 상담하세요. 다니는 상담소와 연결하면 상담 기록과 선생님의 피드백까지 한곳에 이어집니다.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://mindinsideapp.com/" target="_blank" rel="noopener">무료로 시작하기 →</a>
+        <a class="btn ghost" href="#counselor">상담사 입점</a>
+        <a class="btn ghost" href="#clinic">상담소 제휴</a>
+      </div>
+      <div class="chips">
+        <span class="chip">🐌 7일 무료 체험</span>
+        <span class="chip">🔒 AI 대화는 내 폰에만</span>
+        <span class="chip">📞 번호 공개 없이 통화</span>
+      </div>
+    </div>
+    <div class="phones" aria-label="앱 화면">
+      <figure class="phone"><img src="img/home.webp" alt="마인드인사이드 앱 홈 — 기분 체크인과 오늘 할 일" width="720" height="1558"></figure>
+      <figure class="phone"><img src="img/chat.webp" alt="심리상담 AI 느루와의 대화 화면" width="720" height="1558"></figure>
     </div>
   </div>
+</section>
 
-  <div class="card who">
-    <h3 style="margin-top:0;">사람 상담이 필요할 때</h3>
-    <ol class="steps">
-      <li><b>상담사 마켓에서 고른다</b><span>대시보드 → 상담. 상담사 프로필·리뷰·요금을 보고 예약하거나, 지금 가능한 상담사에게 '바로상담'(채팅·음성 통화)을 겁니다.</span></li>
-      <li><b>느루 캐시로 결제</b><span>상담료는 느루 캐시로 냅니다. 캐시 1 = 1원. 상담사 97%, 결제 수수료 3%, 플랫폼은 상담료에서 가져가지 않습니다. 구독('마인드 인사이드 구독')은 느루 대화 무제한 등 앱 기능에 대한 것이고, 상담료와는 별개입니다.</span></li>
-      <li><b>숙제를 받는다</b><span>상담사가 낸 숙제가 채팅 말풍선과 '오늘 할 일'에 함께 뜹니다. 언제 받았고 언제 했는지 날짜가 붙습니다.</span></li>
-      <li><b>상담 후 확인</b><span>상담사가 완료 처리하면 내담자가 '잘 받았어요'로 확인하거나, 3일 뒤 자동 확정됩니다. 이의가 있으면 정산을 멈출 수 있습니다.</span></li>
-    </ol>
-  </div>
-
-  <div class="card who">
-    <h3 style="margin-top:0;">정신과에서 권해서 깔았다면 — 담당 상담소 연결</h3>
-    <div class="phone">
-      <div class="t">마이 → 담당 상담소</div>
-      <div class="r"><span>🏥 담당 상담소 연결하기</span><span class="muted">상담소 코드 H-XXXX-XXXX</span></div>
-      <div class="r"><span>📝 상담소과 나누는 기록</span><span class="muted">상담 요약 · 소장 피드백</span></div>
-      <div class="r"><span>📊 주간 상태 요약 공유</span><span class="chip">켜짐</span></div>
-    </div>
-    <ol class="steps">
-      <li><b>상담소에서 받은 코드를 넣는다</b><span>코드 + 이름(+생년) 을 넣고 '동의하고 연결하기'. 이때 <b>주간 상태 요약 공유</b>에도 동의할지 고릅니다 (기본 켜짐, 언제든 끌 수 있음).</span></li>
-      <li><b>이후 자동으로 이어진다</b><span>상담사가 남긴 회기 기록이 소장에게 보이고, 소장 피드백이 알림함과 '상담소과 나누는 기록'에 도착합니다. 주 1회 기분 평균·체크인 횟수·미션 수 같은 <b>숫자만</b> 상담소에 올라갑니다.</span></li>
-      <li><b>절대 안 가는 것</b><span>느루와 나눈 대화, 일기 원문, 생각 기록 내용. 이건 기기 안에만 있습니다. 느루도 "그 대화는 상담소에 안 가요"라고 안심시켜 줍니다.</span></li>
-    </ol>
-  </div>
-
-  <!-- ───────────────────────── 상담사 ───────────────────────── -->
-  <h2 id="counselor"><span class="n" style="background:var(--c);">2</span>상담사 입장 <span class="tag c">pro.mindinsideapp.com</span></h2>
-  <p class="sub">심리상담사가 입점해서 예약을 받고 상담하고 정산받는 곳. 진료 사이 3분에 답장하는 사람을 위해 설계했습니다.</p>
-
-  <div class="card who c">
-    <ol class="steps">
-      <li><b>입점 신청 → 승인</b><span>자격·소속을 적어 신청하면 접수 메일이 가고, 운영자가 승인하면 <b>열람 코드</b>가 메일로 옵니다. 코드는 한 번 넣으면 그 기기에서 계속 열립니다. 이메일 <b>매직링크</b>로도 들어올 수 있습니다 (15분·1회용).</span></li>
-      <li><b>홈에서 하루를 본다</b><span>오늘 예약, 안 읽은 채팅, 걸려온 전화, 받은 상담 자료, 내가 낸 숙제, 소장 피드백, 그리고 <b>회기 기록</b> 칸.</span></li>
-      <li><b>상담한다</b><span>예약 상담 · 채팅 · 음성 통화(전화번호는 서로 안 보임). 채팅에서 연락처를 주고받으면 서버가 가립니다 — 플랫폼 밖으로 나가면 안전장치도 정산도 사라지기 때문.</span></li>
-      <li><b>숙제를 낸다</b><span>대화방의 '숙제' 버튼. 내담자 앱의 '오늘 할 일'에 바로 뜹니다.</span></li>
-      <li><b>상담이 끝나면 회기 기록을 남긴다 — 필수</b><span>요약(필수) · 다음 계획 · 위험도(없음/주의/<b>긴급</b>) · 낸 숙제 · 담당 상담소 공유 여부. 예약을 '완료'로 표시하면 기록 시트가 바로 열립니다.</span></li>
-      <li><b>정산</b><span>상담사 97%. 내담자 확인(또는 3일 자동 확정) 뒤 운영자가 지급합니다. <b>회기 기록이 없는 상담은 정산에 올라가지 않습니다.</b> 정산 탭에 '기록 없어 보류 N건'이 뜹니다.</span></li>
-    </ol>
-    <div class="phone">
-      <div class="t">정산 탭</div>
-      <div class="r"><span>이번 달 내 수입</span><b>184,000캐시</b></div>
-      <div class="r"><span><span class="chip gold">회기 기록이 없어 정산 보류 2건</span></span><span class="muted">기록 남기러 가기 ›</span></div>
-      <div class="r"><span>김OO 님 · 9/12 14:00</span><span class="chip">지급 완료</span></div>
-    </div>
-    <p class="muted"><b>왜 강제하나요?</b> 기록이 없으면 소장은 내담자가 상담을 받았다는 사실조차 모릅니다. 상담소이 이 앱을 권하려면 "상담하면 반드시 기록이 남는다"가 보장돼야 합니다. 그래서 정산 조건으로 걸었습니다.</p>
-    <p class="muted"><b>'긴급'을 찍으면</b> 담당 상담소에 등록된 소장 이메일로 즉시 메일이 갑니다 (한 기록당 한 번). 기록을 상담소과 공유하지 않기로 했더라도 "누가·언제·긴급"이라는 사실만은 알립니다.</p>
-  </div>
-
-  <!-- ───────────────────────── 소장 ───────────────────────── -->
-  <h2 id="doctor"><span class="n" style="background:var(--d);">3</span>소장 입장 <span class="tag d">doc.mindinsideapp.com</span></h2>
-  <p class="sub">상담소 소장이 PC 에서 쓰는 관리 콘솔. 내담자 경과·소속 상담사·정산·커뮤니티를 한 화면에서 다룹니다. 폰에서도 열리지만 표와 캘린더는 PC 가 편합니다.</p>
-
-  <div class="card who d">
-    <ol class="steps">
-      <li><b>상담소 등록 → 이메일 링크로 로그인</b><span>운영팀이 상담소(이름·전문 분야·소장·<b>이메일</b>)를 등록하면 <b>상담소 코드 H-XXXX-XXXX</b>가 나옵니다. 콘솔에 이메일을 넣으면 로그인 링크가 옵니다 (15분·1회용, 이 기기 30일). 코드로도 들어올 수 있습니다.</span></li>
-      <li><b>대시보드</b><span>연결 내담자·이번 주 긴급·소속 상담사·이번 달 완료 상담과 상담료·앱에서 받은 정산·새 댓글을 타일로. 정산 계좌가 없거나 승인 대기가 있으면 빨간·노란 띠로 먼저 알립니다. 내담자에게 알려줄 <b>상담소 코드</b>는 여기서 복사합니다.</span></li>
-      <li><b>내담자 · 회기 기록 · 긴급 알림</b><span>내담자 표(위험도·최근 기록·진행 숙제·이번 주 기분·주간 공유)에서 한 명을 누르면 오른쪽 패널에 타임라인(회기 기록·숙제·내 피드백·예약)·<b>주간 상태</b> 막대·상담소 전용 메모가 열리고, 상담사/내담자/둘 다에게 <b>피드백</b>을 씁니다. 회기 기록 메뉴는 전체 내담자의 기록을 날짜별로, 긴급 알림 메뉴는 '긴급' 표시 건을 모아 <b>확인했어요</b>를 남깁니다.</span></li>
-      <li><b>소속 상담사</b><span>상담사가 상담사 앱에서 우리 상담소 소속으로 <b>입점 신청</b>하면 여기서 자격증 사진을 보고 <b>승인·반려</b>합니다 (승인하면 로그인 코드가 상담사 메일로). 이미 상담사인 사람이 소속을 우리 상담소로 고르면 <b>소속 승인</b>을 해야 그 상담사의 상담료가 상담소로 정산됩니다. 상담사별 이번 달 완료·누적·진행 예약·상담료·회기 기록 미작성 수를 표로 봅니다.</span></li>
-      <li><b>정산</b><span>소속 상담사의 상담은 <b>상담소 90% · 앱 7% · 결제 수수료 3%</b>. 앱이 상담소 계좌로 보내고 상담사에게는 상담소가 직접 지급한 뒤 '지급 기록'을 남깁니다. 연결된 내담자가 개인 상담사와 상담하면 <b>소개료 20%</b>만 받습니다(상담사에게는 앱이 지급). 월별 필터·상담사별 요약·CSV 내보내기·<b>정산 계좌</b> 등록이 여기 있습니다.</span></li>
-      <li><b>예약 캘린더 · 통계</b><span>소속 상담사들의 예약을 주간 시간표로, 최근 6개월의 완료 상담·상담료·신규 연결·긴급 표시를 막대그래프로.</span></li>
-      <li><b>커뮤니티 · 상담소 페이지 · 설정</b><span>글(제목·큰 글씨·굵게·색·사진 4장)을 써서 이용자 앱 커뮤니티에 올리고 댓글을 숨기거나 답글을 답니다. 상담소 페이지(소개·운영시간·전화·주소·홈페이지)는 이용자 앱 카드 모양 그대로 미리 봅니다. 설정에서 사업자등록번호(한 번만)·정산 계좌·어두운 화면·글자 크기·다른 기기 로그아웃.</span></li>
-    </ol>
-    <div class="phone">
-      <div class="t">내담자 · 김OO (1995) · 9/3 연결</div>
-      <div class="r"><span>주간 상태 <span class="chip">내담자 동의</span></span><span class="muted">2.4 → 3.6 지난주보다 +1.2</span></div>
-      <div class="r"><span><span class="chip">채팅 상담</span> 박상담사 · 9/12</span><span class="chip bad">긴급</span></div>
-      <div class="r"><span><span class="chip gold">숙제 진행 중</span> 취침 시간 고정하기</span><span class="muted">9/10</span></div>
-    </div>
-    <p class="muted">콘솔에 오는 건 상담사의 요약·숙제, 내담자가 동의한 주간 숫자, 소장의 피드백, 정산 숫자뿐입니다. 내담자의 대화 원문은 오지 않습니다. 약과 의학적 판단은 앱 밖 병원 진료의 일이고, 느루도 약·병명 질문이 오면 "병원 진료 때 물어보세요"로 넘깁니다.</p>
-  </div>
-
-  <!-- ───────────────────────── 관리자 ───────────────────────── -->
-  <h2 id="admin"><span class="n" style="background:var(--a);">4</span>관리자 입장 <span class="tag a">ops.mindinsideapp.com</span></h2>
-  <p class="sub">운영팀이 쓰는 콘솔. 운영자 코드 하나로 들어갑니다.</p>
-
-  <div class="card who a">
-    <div class="grid">
-      <div class="card"><b>대시보드</b><p class="muted">오늘 대화·활성 사용자·매출·지급 대기를 한 화면에. 최근 추이 그래프.</p></div>
-      <div class="card"><b>입점 신청 · 상담사</b><p class="muted">신청 승인/반려(메일 자동 발송), 상담사 코드 발급·재발급·정지, 계좌 확인.</p></div>
-      <div class="card"><b>정산</b><p class="muted">회기 기록까지 있는 완료 상담만 '지급 대기'에. 기록이 없는 건은 <b>정산 보류</b> 목록에 상담사별로 표시. 실제 이체 뒤 '지급 완료'로 표시.</p></div>
-      <div class="card"><b>결제 · 리뷰 · 내담자</b><p class="muted">느루 캐시 충전·구독 결제 내역, 리뷰 관리, 내담자 조회.</p></div>
-      <div class="card"><b>추천 콘텐츠</b><p class="muted">유튜브 링크나 글을 올리면 내담자 홈 '내 마음 도구' 아래 추천 콘텐츠로 뜹니다. 태그·투표 현황 확인.</p></div>
-      <div class="card"><b>상담소 관리</b><p class="muted">상담소 등록(이름·전문 분야·소장·이메일) → 코드 발급. 연결 내담자 수·피드백 수·마지막 접속. 코드 재발급·정지.</p></div>
-      <div class="card"><b>사용량 · 점검</b><p class="muted">AI 토큰 사용량(DeepSeek·OpenAI), 메일 발송 로그, 통화 연결 점검, 서비스 상태.</p></div>
-    </div>
-    <p class="muted"><b>운영자 코드</b>는 전체 데이터를 여는 마스터키입니다. 새면 즉시 재설정합니다 (Worker 시크릿 <code>ADMIN_CODE</code>).</p>
-  </div>
-
-  <!-- ───────────────────────── 원칙 ───────────────────────── -->
-  <h2><span class="n">5</span>개인정보 원칙 — 네 줄</h2>
-  <div class="card">
-    <ol>
-      <li><b>내담자의 대화·일기 원문은 서버에 없다.</b> AI 호출은 프록시를 거치되 저장하지 않는다. 상담소에도 안 간다.</li>
-      <li><b>내담자는 계정이 없다.</b> 기기 ID + 서명 키로 식별한다. 상담소이 알아볼 이름·생년은 내담자가 연결할 때 직접 준다.</li>
-      <li><b>공유는 언제나 내담자의 동의로 시작하고, 내담자가 끌 수 있다.</b> 상담소 연결 해제, 주간 요약 끄기 모두 즉시 반영·삭제.</li>
-      <li><b>기록은 상담사가 쓴다.</b> 소장이 보는 건 상담사의 요약이지 내담자의 말이 아니다. 그래서 기록을 정산 조건으로 걸었다.</li>
-    </ol>
-  </div>
-
-  <!-- ───────────────────────── 다운로드 ───────────────────────── -->
-  <h2 id="download"><span class="n">6</span>앱 다운로드</h2>
-  <p class="sub">네 앱 모두 웹앱(PWA)입니다. 링크를 열고 '홈 화면에 추가'하면 앱처럼 씁니다. 내담자 앱은 안드로이드 스토어 판도 있습니다.</p>
-  <div class="dl">
-    <div class="card">
-      <span class="tag p">내담자</span>
-      <h3>마인드 인사이드</h3>
-      <p class="muted">느루와 대화 · 체크인 · 미션 · 상담 · 담당 상담소 연결</p>
-      <a class="btn" href="https://mindinsideapp.com/" target="_blank" rel="noopener">앱 열기 (웹)</a>
-      <a class="btn ghost" id="play-link" href="https://play.google.com/store/search?q=%EB%A7%88%EC%9D%B8%EB%93%9C%20%EC%9D%B8%EC%82%AC%EC%9D%B4%EB%93%9C&c=apps" target="_blank" rel="noopener">Google Play 에서 찾기</a>
-      <div class="howto"><b>홈 화면에 추가</b> · 안드로이드 Chrome: ⋮ → '홈 화면에 추가' · iPhone Safari: 공유 → '홈 화면에 추가'</div>
-    </div>
-    <div class="card">
-      <span class="tag c">상담사</span>
-      <h3>마인드 인사이드 프로</h3>
-      <p class="muted">예약 · 채팅 · 통화 · 숙제 · 회기 기록 · 정산</p>
-      <a class="btn c" href="https://pro.mindinsideapp.com/" target="_blank" rel="noopener">프로 앱 열기</a>
-      <div class="howto">입점 승인 메일의 코드 또는 이메일 링크로 로그인. 전화 알림을 받으려면 앱 안의 '앱으로 설치하기'를 누르세요.</div>
-    </div>
-    <div class="card">
-      <span class="tag d">소장</span>
-      <h3>마인드 인사이드 닥터</h3>
-      <p class="muted">연결 내담자 · 상담 기록 · 주간 상태 · 피드백 · 긴급 알림</p>
-      <a class="btn d" href="https://doc.mindinsideapp.com/" target="_blank" rel="noopener">닥터 앱 열기</a>
-      <div class="howto">운영팀에 등록된 이메일로 로그인 링크를 받거나, 상담소 코드(H-…)로 들어갑니다.</div>
-    </div>
-    <div class="card">
-      <span class="tag a">관리자</span>
-      <h3>운영자 콘솔</h3>
-      <p class="muted">승인 · 정산 · 결제 · 추천 콘텐츠 · 상담소 관리 · 점검</p>
-      <a class="btn a" href="https://ops.mindinsideapp.com/" target="_blank" rel="noopener">콘솔 열기</a>
-      <div class="howto">운영자 코드로 로그인. PC 브라우저를 권장합니다.</div>
+<!-- ───────────── 누구세요 ───────────── -->
+<section style="padding-top:24px;">
+  <div class="wrap">
+    <div class="who">
+      <a href="#client">
+        <div class="ico" style="background:var(--accent-soft);">🧑</div>
+        <h3>마음을 돌보고 싶어요</h3>
+        <p>AI와 매일 대화하고, 필요하면 상담사와 전화로. 앱 시작부터 상담 예약까지 따라 해 보세요.</p>
+        <span class="go">이용 방법 보기 ↓</span>
+      </a>
+      <a href="#counselor">
+        <div class="ico" style="background:var(--c-soft);">🧑‍⚕️</div>
+        <h3>상담사예요</h3>
+        <p>입점비·월 구독료 없이 신청하고, 상담사 앱에서 예약·채팅·통화·정산까지.</p>
+        <span class="go" style="color:var(--c);">입점 방법 보기 ↓</span>
+      </a>
+      <a href="#clinic">
+        <div class="ico" style="background:var(--d-soft);">🏥</div>
+        <h3>상담소를 운영해요</h3>
+        <p>내담자와 소속 상담사를 PC 콘솔 한 화면에서. 제휴 신청부터 정산까지 안내합니다.</p>
+        <span class="go" style="color:var(--d);">제휴 방법 보기 ↓</span>
+      </a>
     </div>
   </div>
-  <details><summary>Google Play 에 아직 안 보이면</summary>
-    <p class="muted">스토어 심사·게시 상태에 따라 검색에 안 잡힐 수 있습니다. 그 사이엔 위 '앱 열기 (웹)'로 들어가 홈 화면에 추가하면 같은 앱을 쓸 수 있습니다. 안드로이드 앱은 내부적으로 mindinsideapp.com 을 그대로 띄우므로 기능이 같습니다.</p>
-  </details>
+</section>
 
-  <h2 id="faq"><span class="n">7</span>자주 묻는 질문</h2>
-  <dl class="faq card">
-    <dt>무료인가요?</dt><dd>내담자 앱은 무료로 시작합니다. 처음 7일은 느루와 무제한 대화, 체크인·기록·미션은 계속 무료. 7일 체험 뒤에는 '마인드 인사이드 구독'(1개월 9,900원 · 12개월 79,000원)을 해야 대화가 이어집니다. 사람 상담은 느루 캐시로 건별 결제.</dd>
-    <dt>느루 캐시는 뭔가요?</dt><dd>앱 안의 화폐(1캐시 = 1원). 미션으로 조금씩 받고, 상담을 받으려면 충전합니다. 상담사에게 97%가 갑니다.</dd>
-    <dt>상담소 코드가 새면?</dt><dd>운영자 콘솔에서 '코드 재발급'. 이미 연결된 내담자는 유지되고, 옛 코드로는 더 못 들어옵니다. 소장은 이메일 링크로 다시 들어오면 됩니다.</dd>
-    <dt>소장이 내담자의 대화를 볼 수 있나요?</dt><dd>아니요. 볼 수 있는 건 상담사가 쓴 회기 기록, 낸 숙제, 그리고 내담자가 동의한 주간 숫자(기분 평균 등)뿐입니다.</dd>
-    <dt>상담사가 기록을 안 남기면?</dt><dd>그 상담은 정산되지 않습니다. 상담사 앱과 운영자 콘솔 양쪽에 '기록 없어 보류'로 뜹니다.</dd>
-    <dt>앱 이름이 왜 두 개처럼 보이죠?</dt><dd>서비스 이름은 <b>마인드인사이드</b>(마인드 인사이드, Mind Inside), 캐릭터 이름은 <b>느루</b>입니다.</dd>
-    <dt>전화 심리상담은 어떻게 하나요?</dt><dd>앱의 상담 탭에서 지금 가능한 심리상담사에게 '바로상담'으로 음성 통화를 걸거나, 시간을 예약합니다. 전화번호는 서로에게 보이지 않고 앱 안에서 연결됩니다.</dd>
-    <dt>AI 상담이 병원 진료를 대신하나요?</dt><dd>아니요. 느루는 인지행동치료(CBT) 기법을 바탕으로 마음을 돌보는 참고용 도구이며, 진단·처방은 하지 않습니다. 위기 표현이 나오면 위기상담 번호(1577-0199)를 바로 안내합니다.</dd>
-  </dl>
+<!-- ───────────── 무엇이 다른가요 ───────────── -->
+<section id="why" class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">무엇이 다른가요</span>
+      <h2>상담사를 "찾아 주는" 앱이 아니라,<br>상담과 상담 사이를 "이어 주는" 앱</h2>
+      <p>대부분의 상담 앱은 앱 안에서 처음 보는 상담사를 고르는 곳입니다. 마인드인사이드는 내가 다니는 상담소와 연결된 채로, 상담이 없는 날에도 마음을 돌보도록 만들었습니다.</p>
+    </div>
+    <div class="why">
+      <div class="card big">
+        <div>
+          <div class="num">01</div>
+          <h3>내 상담소와 연결되는 구조</h3>
+          <p>상담소에서 받은 <b>상담소 코드</b>를 넣으면 앱과 상담소가 이어집니다. 상담이 끝나면 상담사의 기록이 소장에게, 소장의 피드백이 다시 내 앱으로. 위험 신호가 있으면 상담소가 곧바로 압니다.</p>
+        </div>
+        <div class="flow">
+          <div><b>🧑 내담자</b>느루와 매일 대화 · 기분 체크인 · 상담 예약</div>
+          <div><b>🧑‍⚕️ 상담사</b>상담 후 회기 기록(요약·계획·위험도·숙제)</div>
+          <div><b>🩺 소장</b>기록 확인 · 피드백 · '긴급'이면 즉시 메일</div>
+          <div><b>🧑 내담자</b>피드백과 숙제가 '오늘 할 일'에 도착</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="num">02</div>
+        <h3>AI와 사람 상담이 한 앱에</h3>
+        <p>평소엔 인지행동치료(CBT) 기반 AI 느루와 생각을 정리하고, 필요할 땐 같은 앱에서 상담사와 전화·채팅. 상담사가 낸 숙제는 매일 할 일로 뜹니다.</p>
+      </div>
+      <div class="card">
+        <div class="num">03</div>
+        <h3>기록이 남는 상담만 정산</h3>
+        <p>상담사가 회기 기록을 쓰지 않으면 그 상담은 정산되지 않습니다. "상담하면 반드시 기록이 남는다"를 제도로 보장합니다.</p>
+      </div>
+      <div class="card">
+        <div class="num">04</div>
+        <h3>대화는 내 폰에만</h3>
+        <p>느루와 나눈 대화 원문은 서버에 저장하지 않고, 상담소에도 가지 않습니다. 상담소가 보는 건 상담사의 요약과 내가 동의한 숫자뿐.</p>
+      </div>
+      <div class="card">
+        <div class="num">05</div>
+        <h3>상담소에 유리한 정산</h3>
+        <p>소속 상담사 상담은 상담소 90%. 연결된 내담자가 개인 상담사를 만나도 소개료 20%. 우리 내담자에겐 우리 상담사가 목록 맨 위에 뜹니다.</p>
+      </div>
+      <div class="card">
+        <div class="num">06</div>
+        <h3>상담사 입점비 0원</h3>
+        <p>월 구독료·입점비 없이 신청만 하면 됩니다. 전화번호 공개 없이 통화하고, 빈 시간엔 '바로상담'으로 상담을 받습니다.</p>
+      </div>
+      <div class="card">
+        <div class="num">07</div>
+        <h3>매일 쓰게 되는 작은 도구들</h3>
+        <p>기분 체크인, 사고 기록, 3분 호흡, 하루 정리, 자가검사(PHQ-9·GAD-7), 매주 월요일 느루의 편지, 달팽이 캐릭터 키우기.</p>
+      </div>
+      <div class="card">
+        <div class="num">08</div>
+        <h3>내 주변 정신과까지</h3>
+        <p>전국 정신건강의학과 2,889곳의 요일별 진료시간을 국립중앙의료원 자료로 보여 줍니다. 대면 진료가 필요할 때 바로 찾을 수 있어요.</p>
+      </div>
+      <div class="card">
+        <div class="num">09</div>
+        <h3>위기 때 바로 연결</h3>
+        <p>대화 중 위기 표현이 나오면 느루가 위기상담 번호(1577-0199)를 즉시 안내하고, 나의 안전계획을 다시 보여 줍니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-  <footer>
-    마인드인사이드 · <a href="https://mindinsideapp.com/privacy.html">개인정보처리방침</a> · <a href="https://mindinsideapp.com/terms.html">이용약관</a> · 문의 help@neurumind.com<br>
-    앱: <a href="https://mindinsideapp.com/">mindinsideapp.com</a> · 홈페이지: mindinside.kr
-  </footer>
+<!-- ───────────── 이용자 ───────────── -->
+<section id="client">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="badge" style="background:var(--accent-soft);color:var(--accent);">이용자</span>
+      <h2>처음 쓰는 분을 위한 5단계</h2>
+      <p>시작부터 상담사와 통화하기까지. 회원가입 양식 없이 카카오·네이버·구글 계정으로 바로 시작합니다.</p>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">1</div>
+        <h3>앱 열고 로그인하기</h3>
+        <ol>
+          <li>휴대폰에서 <a href="https://mindinsideapp.com/" target="_blank" rel="noopener"><b>mindinsideapp.com</b></a>을 엽니다. 안드로이드는 Google Play에서 '마인드 인사이드'로도 찾을 수 있어요.</li>
+          <li><b>카카오 · 네이버 · 구글</b> 중 편한 것으로 로그인합니다.</li>
+          <li>이용 동의를 하고, 이름과 요즘 마음 상태를 짧게 답하면 끝.</li>
+        </ol>
+        <div class="note"><b>앱처럼 쓰는 법</b> — 안드로이드 Chrome: 오른쪽 위 ⋮ → '홈 화면에 추가' · 아이폰 Safari: 공유 버튼 → '홈 화면에 추가'</div>
+      </div>
+      <figure class="phone"><img src="img/home.webp" alt="앱 홈 화면" width="720" height="1558" decoding="async"><figcaption>홈 — 오늘 기분과 할 일이 한눈에</figcaption></figure>
+    </div>
+
+    <div class="step flip">
+      <div class="txt">
+        <div class="n">2</div>
+        <h3>느루와 이야기하기 (AI 심리상담)</h3>
+        <p>아래 탭의 <b>AI심리상담</b>을 누르고, 떠오르는 대로 적거나 마이크로 말하면 됩니다.</p>
+        <ul class="check">
+          <li>느루는 <b>인지행동치료(CBT)</b> 기법으로 "그건 사실일까, 걱정일까?"처럼 생각을 함께 살펴봅니다.</li>
+          <li>대화 원문은 <b>내 폰에만</b> 남습니다.</li>
+          <li>위기 표현이 나오면 위기상담 번호(<b>1577-0199</b>)를 바로 안내합니다.</li>
+        </ul>
+      </div>
+      <figure class="phone"><img src="img/chat.webp" alt="느루와 대화하는 화면" width="720" height="1558" decoding="async"><figcaption>AI심리상담 — 생각을 함께 정리해요</figcaption></figure>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">3</div>
+        <h3>상담사와 전화로 상담하기</h3>
+        <div class="path"><span>전화 심리상담</span><i>탭</i></div>
+        <ol>
+          <li>상담사 카드에서 전문분야·상담료·후기를 봅니다.</li>
+          <li><b>[예약 상담]</b>으로 시간을 잡거나, 초록불(상담 가능)인 분에게 <b>[바로상담]</b>으로 지금 연결합니다.</li>
+          <li>상담료는 <b>느루 캐시</b>로 냅니다. 마이 → 느루 캐시에서 충전해요 (1캐시 = 1원).</li>
+        </ol>
+        <div class="note">통화할 때 <b>서로 전화번호가 보이지 않습니다.</b> 앱 안에서 연결돼요.</div>
+      </div>
+      <figure class="phone"><img src="img/counselors.webp" alt="전화 심리상담 — 상담사 목록" width="720" height="1558" decoding="async"><figcaption>전화 심리상담 — 예약 또는 바로상담</figcaption></figure>
+    </div>
+
+    <div class="step flip">
+      <div class="txt">
+        <div class="n">4</div>
+        <h3>다니는 상담소와 연결하기 <span class="muted" style="font-size:.9rem;font-weight:500;">(선택)</span></h3>
+        <div class="path"><span>마이</span><i>→</i><span>담당 상담소 연결하기</span></div>
+        <ol>
+          <li>상담소에서 받은 <b>상담소 코드</b>(H-XXXX-XXXX)와 상담소에서 쓰는 이름을 넣습니다.</li>
+          <li><b>[동의하고 연결하기]</b>를 누르면 끝.</li>
+        </ol>
+        <ul class="check">
+          <li>상담사의 상담 요약·숙제와 선생님의 피드백이 이 앱으로 옵니다.</li>
+          <li>'주간 상태 요약'을 켜면 기분 평균 같은 <b>숫자만</b> 주 1회 공유돼요.</li>
+          <li>우리 상담소 상담사가 전화 심리상담 목록 <b>맨 위</b>에 뜹니다.</li>
+          <li>언제든 연결을 해제할 수 있어요.</li>
+        </ul>
+      </div>
+      <figure class="phone"><img src="img/hosp-link.webp" alt="담당 상담소 연결 화면" width="720" height="1558" decoding="async"><figcaption>상담소 코드만 넣으면 연결</figcaption></figure>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">5</div>
+        <h3>계속 쓰기 — 체험과 구독</h3>
+        <p>처음 <b>7일은 느루와 무제한 대화</b>가 무료입니다. 체크인·기록·미션·자가검사는 체험 뒤에도 계속 무료예요.</p>
+        <ul class="check">
+          <li>구독: <b>1개월 9,900원</b> · <b>12개월 79,000원</b> (월 6,583원꼴)</li>
+          <li>상담사 상담료는 구독과 별개로, 건별로 느루 캐시로 냅니다.</li>
+          <li>체험이 끝나도 기록과 기억은 그대로 남아요. 대화만 잠깁니다.</li>
+        </ul>
+      </div>
+      <figure class="phone"><img src="img/mypage.webp" alt="마이 — 구독과 느루 캐시" width="720" height="1558" decoding="async"><figcaption>마이 — 구독·캐시 충전</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 상담사 ───────────── -->
+<section id="counselor" class="alt c-theme">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="badge" style="background:var(--c-soft);color:var(--c);">상담사</span>
+      <h2>상담사 입점, 이렇게 합니다</h2>
+      <p>입점비·월 구독료는 없습니다. 신청 → 승인 메일 → 상담사 앱 로그인, 세 단계면 상담을 받을 수 있어요.</p>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">1</div>
+        <h3>신청서 열기</h3>
+        <p>신청은 <b>이용자 앱 안</b>에서 합니다. 상담사 앱(프로)에는 신청 버튼이 없어요.</p>
+        <div class="path"><span>mindinsideapp.com</span><i>→</i><span>마이</span><i>→</i><span>설정</span><i>→</i><span>상담사이신가요?</span><i>→</i><span>[등록 신청]</span></div>
+        <p style="margin-top:1rem;"><b>준비물</b></p>
+        <ul class="check">
+          <li>이름, <b>자주 확인하는 이메일</b> — 로그인 코드가 여기로 와요</li>
+          <li>자격 구분 — 정신건강의학과 전문의 · 임상심리전문가 · 정신건강임상심리사 1급 · 상담심리사 1·2급 · 기타</li>
+          <li><b>자격증 사진 (필수)</b>, 프로필 사진, 경력, 자기소개, 전문분야(최대 3개)</li>
+          <li>30분 상담료 — 3만~6만 원 중 선택. 바로상담(전화) 요금은 +25%로 자동 책정돼요.</li>
+        </ul>
+      </div>
+      <figure class="phone"><img src="img/reg-counselor.webp" alt="상담사 등록 신청서" width="720" height="1558" decoding="async"><figcaption>상담사 등록 신청서</figcaption></figure>
+    </div>
+
+    <div class="step wide">
+      <div class="txt">
+        <div class="n">2</div>
+        <h3>소속 기관 고르기 — 여기가 중요해요</h3>
+        <p>신청서 아래 <b>'소속 기관(상담소) 정보'</b>에서 둘 중 하나를 고릅니다.</p>
+        <div class="note"><b>상담소 소속이라면</b> — 목록에서 우리 상담소를 고르세요. <b>그 상담소 소장님이 직접 승인</b>하고, 상담료는 상담소로 정산돼요(상담사 급여는 상담소가 지급). 계좌·주소 입력은 필요 없습니다.</div>
+        <div class="note warm"><b>개인 상담사라면</b> — '소속기관 없음 (개인 상담사)'을 고르고 상담 장소 주소, 연락처, <b>정산 계좌</b>를 넣습니다. 사업자등록번호는 선택(없으면 3.3% 원천징수). <b>운영팀이 승인</b>하고 앱이 직접 정산합니다.</div>
+        <p>다 채우고 <b>[신청하기]</b>를 누르면 접수 메일이 옵니다. 보통 <b>2~3일 안에</b> 결과를 알려드려요.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">3</div>
+        <h3>승인 메일의 코드로 로그인</h3>
+        <ol>
+          <li>승인되면 이메일로 <b>'내 열람 코드'</b>와 계약서가 옵니다.</li>
+          <li>메일의 <b>[상담사 페이지 열기]</b>를 누르거나, <a href="https://pro.mindinsideapp.com/" target="_blank" rel="noopener"><b>pro.mindinsideapp.com</b></a>에서 코드를 넣고 <b>[시작하기]</b>.</li>
+          <li>한 번 넣으면 그 기기에서는 계속 열립니다. 휴대폰 홈 화면에 추가해 두세요.</li>
+        </ol>
+        <div class="note">전화 알림을 받으려면 앱 안의 <b>'알림 켜기'</b>를 꼭 눌러 주세요. 화면을 꺼도 걸려오는 전화를 받을 수 있어요.</div>
+      </div>
+      <figure class="phone"><img src="img/pro-entry.webp" alt="상담사 앱 로그인 화면" width="720" height="1558" decoding="async"><figcaption>마인드 인사이드 프로 — 코드로 로그인</figcaption></figure>
+    </div>
+
+    <div class="step flip">
+      <div class="txt">
+        <div class="n">4</div>
+        <h3>상담사 앱에서 일하기</h3>
+        <p>아래 탭은 <b>홈 · 채팅 · 예약 · 정산</b> 네 개입니다.</p>
+        <ul class="check">
+          <li><b>홈</b> — 오늘 일정, 안 읽은 메시지, 이번 주 수입. <b>'바로상담 받기'</b>를 켜 두면 이용자 앱에 [바로상담] 버튼이 열립니다. 자리를 비울 땐 꺼 주세요.</li>
+          <li><b>채팅</b> — 내담자와 대화하고 숙제를 냅니다. 숙제는 내담자의 '오늘 할 일'에 바로 떠요.</li>
+          <li><b>예약</b> — 목록·달력으로 예약 관리, 예약 가능 시간 설정.</li>
+          <li><b>정산</b> — 수입 내역, 정산 계좌, 출금 신청.</li>
+        </ul>
+      </div>
+      <div class="two-shots">
+        <figure class="phone"><img src="img/pro-home.webp" alt="상담사 앱 홈" width="720" height="1558" decoding="async"><figcaption>홈</figcaption></figure>
+        <figure class="phone"><img src="img/pro-book.webp" alt="상담사 앱 예약" width="720" height="1558" decoding="async"><figcaption>예약</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="step wide">
+      <div class="txt">
+        <div class="n">5</div>
+        <h3>상담이 끝나면 회기 기록 — 필수예요</h3>
+        <p>예약을 '완료'로 표시하면 기록 창이 열립니다. <b>요약(필수) · 다음 계획 · 위험도(없음/주의/긴급) · 낸 숙제</b>를 적어 주세요.</p>
+        <div class="note warm"><b>회기 기록이 없는 상담은 정산되지 않습니다.</b> 정산 탭에 '기록 없어 보류 N건'으로 표시돼요. 위험도를 <b>'긴급'</b>으로 적으면 담당 상담소 소장에게 바로 메일이 갑니다.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 상담소 ───────────── -->
+<section id="clinic" class="d-theme">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="badge" style="background:var(--d-soft);color:var(--d);">상담소</span>
+      <h2>상담소 제휴, 이렇게 합니다</h2>
+      <p>심리상담소·심리상담센터 등 심리상담사업자라면 신청할 수 있어요. 승인되면 PC 관리 콘솔 <b>마인드 인사이드 닥터</b>를 무료로 씁니다.</p>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">1</div>
+        <h3>제휴 신청서 내기</h3>
+        <div class="path"><span>mindinsideapp.com</span><i>→</i><span>마이</span><i>→</i><span>설정</span><i>→</i><span>상담소를 운영하시나요?</span><i>→</i><span>[제휴 신청]</span></div>
+        <p style="margin-top:1rem;"><b>준비물</b></p>
+        <ul class="check">
+          <li>상담소 이름, 소장(대표자) 이름, <b>소장 이메일</b> — 로그인 링크와 알림이 가요</li>
+          <li><b>사업자등록번호</b>(10자리)와 <b>사업자등록증 사진</b> — 둘 다 필수</li>
+          <li>전화번호, 전문 분야, 주소, 운영시간, 홈페이지, 상담소 소개 — 선택. 이용자 앱의 상담소 페이지에 그대로 보여요.</li>
+        </ul>
+        <p>접수 메일이 오고, 보통 <b>2~3일 안에</b> 확인 후 승인됩니다.</p>
+      </div>
+      <figure class="phone"><img src="img/reg-clinic.webp" alt="상담소 제휴 신청서" width="720" height="1558" decoding="async"><figcaption>상담소 제휴 신청서</figcaption></figure>
+    </div>
+
+    <div class="step wide">
+      <div class="txt">
+        <div class="n">2</div>
+        <h3>승인 메일 → 소장 콘솔 로그인</h3>
+        <p>승인 메일에 <b>상담소 코드(H-XXXX-XXXX)</b>, 정산 조건, 계약서가 들어 있습니다. PC에서 <a href="https://doc.mindinsideapp.com/" target="_blank" rel="noopener"><b>doc.mindinsideapp.com</b></a>을 열고 소장 이메일을 넣으면 <b>로그인 링크</b>가 옵니다. 링크는 15분 안에 한 번만 쓸 수 있고, 한 번 들어오면 그 기기에서 30일 동안 열려요. 상담소 코드로도 들어올 수 있습니다.</p>
+      </div>
+      <figure class="laptop" style="max-width:860px;width:100%;margin:1.4rem auto 0;"><img src="img/doc-entry.webp" alt="소장 콘솔 로그인 화면" width="1600" height="1000" decoding="async"></figure>
+    </div>
+
+    <div class="step">
+      <div class="txt">
+        <div class="n">3</div>
+        <h3>우리 상담사 데려오기</h3>
+        <ol>
+          <li>소속 상담사에게 이 페이지의 <a href="#counselor">상담사 입점 방법</a>을 보내 주세요.</li>
+          <li>상담사가 신청서의 '소속 기관'에서 <b>우리 상담소</b>를 고르고 신청합니다.</li>
+          <li>콘솔 <b>소속 상담사</b> 메뉴에서 자격증 사진을 보고 <b>[승인 — 코드 발급]</b>. 로그인 코드가 상담사 메일로 갑니다.</li>
+        </ol>
+        <div class="note">이미 개인 상담사로 활동 중인 분이 소속을 우리 상담소로 바꾸면, 콘솔에서 <b>소속 승인</b>을 해야 그분의 상담료가 상담소로 정산됩니다.</div>
+      </div>
+      <figure class="phone"><img src="img/counselors-linked.webp" alt="이용자 앱에서 내 상담소 상담사가 맨 위에 보이는 화면" width="720" height="1558" decoding="async"><figcaption>연결된 내담자에겐 우리 상담사가 맨 위에, '내 상담소' 표시와 함께</figcaption></figure>
+    </div>
+
+    <div class="step wide">
+      <div class="txt">
+        <div class="n">4</div>
+        <h3>내담자 연결하기</h3>
+        <p>대시보드 아래 <b>상담소 코드</b>를 복사해 내담자에게 알려 주세요. 내담자가 앱의 <b>마이 → 담당 상담소 연결하기</b>에 코드와 이름을 넣으면, 콘솔 <b>내담자</b> 목록에 바로 나타납니다.</p>
+        <div class="note warm">상담소 코드는 소장 콘솔 비상 로그인에도 쓰입니다. <b>공개 게시물에는 올리지 마시고</b> 내담자에게만 직접 알려 주세요.</div>
+      </div>
+    </div>
+
+    <div class="step wide">
+      <div class="txt">
+        <div class="n">5</div>
+        <h3>콘솔 한 화면에서 관리하기</h3>
+        <p>왼쪽 메뉴: <b>대시보드 · 내담자 · 소속 상담사 · 회기 기록 · 긴급 알림 · 예약 캘린더 · 통계 · 정산 · 커뮤니티 · 상담소 페이지 · 설정</b></p>
+        <ul class="check">
+          <li><b>내담자</b> — 위험도·최근 기록·진행 숙제·이번 주 기분을 표로. 한 명을 누르면 타임라인과 주간 상태, 상담소 전용 메모가 열리고 피드백을 남깁니다.</li>
+          <li><b>긴급 알림</b> — 상담사가 '긴급'으로 표시한 기록을 모아 보고 '확인했어요'를 남깁니다.</li>
+          <li><b>정산</b> — 월별·상담사별 내역, CSV 내보내기, 정산 계좌 등록.</li>
+          <li><b>커뮤니티 · 상담소 페이지</b> — 이용자 앱에 글을 올리고, 상담소 소개 페이지를 꾸밉니다.</li>
+        </ul>
+      </div>
+      <div class="laptops">
+        <figure class="laptop"><img src="img/doc-dash.webp" alt="소장 콘솔 대시보드" width="1600" height="1000" decoding="async"><figcaption>대시보드</figcaption></figure>
+        <figure class="laptop"><img src="img/doc-patients.webp" alt="소장 콘솔 내담자 목록" width="1600" height="1000" decoding="async"><figcaption>내담자</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 정산 ───────────── -->
+<section class="alt" id="money">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">정산 구조</span>
+      <h2>누가 얼마를 받나요</h2>
+      <p>상담료 기준입니다. 결제 수수료 3%는 카드·간편결제 수수료예요. 이용자의 구독료(월 9,900원)와는 별개입니다.</p>
+    </div>
+    <div class="money">
+      <div class="card">
+        <h3>상담소 소속 상담사의 상담</h3>
+        <div class="sub">내담자가 우리 상담소 상담사와 상담</div>
+        <div class="bar"><div style="width:90%;background:#a15c8a;">상담소 90%</div><div style="width:7%;background:#4f8a6b;"></div><div style="width:3%;background:#b7a88f;"></div></div>
+        <div class="legend"><b>90%</b> 상담소 (상담사 급여는 상담소가 지급)<br><b>7%</b> 마인드인사이드<br><b>3%</b> 결제 수수료</div>
+      </div>
+      <div class="card">
+        <h3>개인 상담사의 상담</h3>
+        <div class="sub">소속 없이 활동하는 상담사</div>
+        <div class="bar"><div style="width:70%;background:#3b7fa6;">상담사 70%</div><div style="width:27%;background:#4f8a6b;"></div><div style="width:3%;background:#b7a88f;"></div></div>
+        <div class="legend"><b>70%</b> 상담사 (상담료 6만 원까지 · 넘는 부분은 55%)<br><b>나머지</b> 마인드인사이드 · 결제 수수료 3% 포함<br><span class="muted">입점비·월 구독료 없음</span></div>
+      </div>
+      <div class="card">
+        <h3>소개 상담</h3>
+        <div class="sub">우리 상담소에 연결된 내담자가 개인 상담사와 상담</div>
+        <div class="bar"><div style="width:70%;background:#3b7fa6;">상담사 70%</div><div style="width:20%;background:#a15c8a;">20%</div><div style="width:7%;background:#4f8a6b;"></div><div style="width:3%;background:#b7a88f;"></div></div>
+        <div class="legend"><b>70%</b> 상담사 (6만 원 초과분 55%)<br><b>20%</b> 상담소 소개료<br><b>7%</b> 마인드인사이드 · <b>3%</b> 결제 수수료</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 약속 ───────────── -->
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">개인정보 약속</span>
+      <h2>마음 이야기는 가장 조심해서 다룹니다</h2>
+    </div>
+    <div class="promise">
+      <div><b>🔒 대화는 기기에만</b><span>느루와 나눈 대화·일기 원문은 서버에 저장하지 않고, 상담소에도 가지 않습니다.</span></div>
+      <div><b>✋ 공유는 내 동의로</b><span>상담소 연결·주간 요약 공유는 내가 켜고, 언제든 끄면 즉시 반영됩니다.</span></div>
+      <div><b>📝 기록은 상담사가</b><span>상담소가 보는 건 상담사가 쓴 요약이지, 내가 한 말이 아닙니다.</span></div>
+      <div><b>📞 번호는 비공개</b><span>상담사와 통화할 때 서로 전화번호가 보이지 않습니다.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 자주 묻는 질문 ───────────── -->
+<section id="faq" class="alt">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">자주 묻는 질문</span>
+      <h2>궁금한 점</h2>
+    </div>
+    <div class="faq">
+      <details open><summary>AI 상담이 병원 진료나 심리상담을 대신하나요?</summary><p>아니요. 느루는 인지행동치료(CBT) 기법으로 마음을 돌보는 참고용 도구이고, 진단·처방은 하지 않습니다. 약이나 병명 질문은 "병원 진료 때 물어보세요"로 안내해요. 위기 상황에서는 1577-0199(정신건강 위기상담), 109(자살예방 상담), 119로 연락하세요.</p></details>
+      <details><summary>무료인가요?</summary><p>처음 7일은 느루와 무제한 대화가 무료이고, 체크인·기록·미션·자가검사는 계속 무료입니다. 7일 뒤 대화를 이어가려면 구독(1개월 9,900원 · 12개월 79,000원)이 필요해요. 상담사 상담은 건별로 느루 캐시로 결제합니다.</p></details>
+      <details><summary>전화 상담은 어떻게 연결되나요?</summary><p>전화 심리상담 탭에서 [바로상담](지금 상담 가능한 분) 또는 [예약 상담]을 고릅니다. 통화는 앱 안에서 연결되고, 서로의 전화번호는 보이지 않아요.</p></details>
+      <details><summary>상담소는 내 AI 대화를 볼 수 있나요?</summary><p>볼 수 없습니다. 상담소가 보는 건 상담사가 쓴 회기 기록(요약·계획·위험도·숙제), 내가 동의한 주간 숫자(기분 평균 등), 소장의 피드백뿐입니다.</p></details>
+      <details><summary>상담사 앱(프로)에서 입점 신청 버튼이 안 보여요.</summary><p>신청은 이용자 앱(mindinsideapp.com)의 마이 → 설정 → '상담사이신가요?' → [등록 신청]에서 합니다. 상담사 앱은 승인 뒤 받은 코드로 로그인하는 곳이에요.</p></details>
+      <details><summary>상담사 로그인 코드를 잃어버렸어요.</summary><p>help@neurumind.com 으로 신청한 이메일 주소와 함께 알려 주세요. 새 코드를 보내드립니다. 코드가 샌 것 같을 때도 같은 방법으로 바꿀 수 있어요.</p></details>
+      <details><summary>상담소 코드가 외부에 새면 어떻게 하나요?</summary><p>운영팀에 재발급을 요청하세요. 이미 연결된 내담자는 그대로 유지되고, 옛 코드로는 더 들어올 수 없습니다. 소장님은 이메일 링크로 다시 로그인하면 됩니다.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 마무리 ───────────── -->
+<section>
+  <div class="wrap">
+    <div class="final">
+      <h2 class="serif">오늘 마음, 느루에게 먼저 들려주세요</h2>
+      <p>7일 무료 · 카카오·네이버·구글로 바로 시작</p>
+      <div class="cta">
+        <a class="btn primary" href="https://mindinsideapp.com/" target="_blank" rel="noopener">마인드인사이드 시작하기</a>
+        <a class="btn ghost" href="#counselor">상담사 입점</a>
+        <a class="btn ghost" href="#clinic">상담소 제휴</a>
+      </div>
+    </div>
+    <p class="sample">이 페이지의 앱 화면은 예시 데이터로 찍은 것이며, 사람 이름과 숫자는 실제가 아닙니다.</p>
+  </div>
+</section>
 </main>
 
+<footer>
+  <div class="wrap">
+    <div class="crisis"><b>지금 많이 힘드신가요?</b> 혼자 견디지 마세요. 정신건강 위기상담 <b>1577-0199</b> · 자살예방 상담 <b>109</b> · 응급 <b>119</b> — 24시간 연결됩니다.</div>
+    <div class="row">
+      <div>
+        <b style="color:var(--text);">마인드인사이드</b><br>
+        문의 <a href="mailto:help@neurumind.com">help@neurumind.com</a>
+      </div>
+      <div>
+        <a href="https://mindinsideapp.com/terms.html">이용약관</a> · <a href="https://mindinsideapp.com/privacy.html">개인정보처리방침</a><br>
+        앱 <a href="https://mindinsideapp.com/">mindinsideapp.com</a> · 상담사 <a href="https://pro.mindinsideapp.com/">pro.mindinsideapp.com</a> · 상담소 <a href="https://doc.mindinsideapp.com/">doc.mindinsideapp.com</a>
+      </div>
+    </div>
+  </div>
+</footer>
 </body>
 </html>

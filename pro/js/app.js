@@ -72,7 +72,7 @@ let ROOM = null;                    // 열려 있는 대화방 key
 const D = { inbox: [], bookings: [], chats: [], reviews: [], homework: [], calls: [], presence: null, scope: '',
   notes: [], pending: [], dfb: [] };   // 회기 기록 · 기록 안 남긴 상담 · 담당의 피드백
 
-// 의사(담당의)는 이제 별도 앱(doc.neurumind.com)을 쓴다. H- 코드를 여기 넣으면 그리로 보낸다.
+// 의사(담당의)는 이제 별도 앱(doc.mindinsideapp.com)을 쓴다. H- 코드를 여기 넣으면 그리로 보낸다.
 const DOC_URL = 'https://doc.mindinsideapp.com';
 localStorage.removeItem('hospital_code');   // 예전 의사 모드 흔적 정리
 const OPEN = {};                    // 접이식 섹션 열림 상태
@@ -857,7 +857,7 @@ function renderHome() {
       <button class="btn sm" style="width:auto; margin:0; flex-shrink:0;" data-act="install">설치</button>
     </div>`}
     <p class="muted" style="text-align:center; margin-top:1.2rem;">
-      코드를 잃어버렸거나 코드가 샌 것 같으면 <b>nda960327@gmail.com</b> 으로 알려주세요.</p>`;
+      코드를 잃어버렸거나 코드가 샌 것 같으면 <b>help@neurumind.com</b> 으로 알려주세요.</p>`;
 }
 
 function inboxHtml() {
@@ -1489,7 +1489,7 @@ function openSubPay() {
     (s ? (s.active ? '지금 구독은 ' + subDay(s.until) + '까지예요.\n' : '지금은 만료 상태예요.\n') : '') +
     '\n앱 내 결제는 준비 중이에요.\n' +
     '운영팀에 연락 주시면 바로 연장해드립니다.\n' +
-    '(마인드 인사이드 운영팀 nda960327@gmail.com)'
+    '(마인드 인사이드 운영팀 help@neurumind.com)'
   );
 }
 
@@ -1519,7 +1519,7 @@ function renderMoney() {
   const monthSum = month.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
 
-  // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 97%).
+  // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 70%, 6만 원 넘는 부분 55%).
   //  계산식은 market.js payoutOf 와 같아야 한다: 상담사 몫은 구간제로 반올림하고
   //  PG 3% 를 뗀 나머지가 앱 몫이다 (반올림 잔돈은 앱 몫).
   //  (프로 앱에는 payout.js 를 싣지 않으므로 여기서는 숫자를 직접 적는다 —

@@ -254,7 +254,7 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
     이 코드는 비밀번호와 같습니다. 단톡방이나 메신저에 올리지 마세요.<br>
     코드가 샌 것 같으면 바로 알려주세요 — 새로 발급해 드립니다.<br>
-    코드를 잃어버리면 상담사 페이지에서 '코드를 잃어버렸어요'로 다시 받을 수 있습니다.</p>
+    코드를 잃어버리면 help@neurumind.com 으로 알려주세요. 새 코드를 보내드립니다.</p>
 </div>`;
   try {
     const r = await fetch('https://api.resend.com/emails', {
