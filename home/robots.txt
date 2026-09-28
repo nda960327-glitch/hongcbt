@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /roadmap/
+Disallow: /survey/results
 
 Sitemap: https://mindinside.kr/sitemap.xml

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<!-- 팀 내부용 출시 로드맵 (링크 공유용). 검색 제외. 원본: Claude 아티팩트 "마인드인사이드 출시 로드맵" — 고칠 땐 둘 다. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="마인드인사이드 출시 로드맵">
+<meta property="og:description" content="11월 Android 출시 · 12월 운영 · 1월 마케팅까지 단계별 할 일">
+<meta property="og:image" content="https://mindinside.kr/icon.png">
+<link rel="icon" href="https://mindinside.kr/icon-192.png">
+<title>마인드인사이드 출시 로드맵</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f3ec; --paper:#fffdf8; --line:#e4d9c8; --ink:#352c22; --muted:#7f705b; --faint:#b3a58f;
+    --accent:#3f7a5c; --accent-soft:#e3efe7; --warn:#b3502f; --warn-soft:#f6e3d9; --gold:#a8782c; --gold-soft:#f3e8d2;
+    --w-legal:#8a4f7d; --w-pay:#2f6f9a; --w-store:#5a5fa8; --w-supply:#3f7a5c; --w-product:#8a6a2f; --w-mkt:#b3502f;
+    --on-accent:#fff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg:#1b1713; --paper:#241f19; --line:#3a3128; --ink:#efe6d8; --muted:#a8977e; --faint:#6f624f;
+      --accent:#7cc39c; --accent-soft:#20302a; --warn:#e58c6a; --warn-soft:#3a251c; --gold:#dcae64; --gold-soft:#342a1a;
+      --w-legal:#d49cc8; --w-pay:#7fb8de; --w-store:#a5a9ea; --w-supply:#7cc39c; --w-product:#d7b36d; --w-mkt:#e58c6a; --on-accent:#0f241a; color-scheme:dark; }
+  }
+  :root[data-theme="dark"]{ --bg:#1b1713; --paper:#241f19; --line:#3a3128; --ink:#efe6d8; --muted:#a8977e; --faint:#6f624f;
+      --accent:#7cc39c; --accent-soft:#20302a; --warn:#e58c6a; --warn-soft:#3a251c; --gold:#dcae64; --gold-soft:#342a1a;
+      --w-legal:#d49cc8; --w-pay:#7fb8de; --w-store:#a5a9ea; --w-supply:#7cc39c; --w-product:#d7b36d; --w-mkt:#e58c6a; --on-accent:#0f241a; color-scheme:dark; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',-apple-system,'Malgun Gothic',sans-serif;font-size:15px;line-height:1.65;word-break:keep-all;overflow-wrap:break-word;}
+  .wrap{max-width:980px;margin:0 auto;padding-inline:18px;padding-block:28px 72px;}
+  h1,h2,h3{margin:0;letter-spacing:-.02em;text-wrap:balance;}
+  .mono{font-family:'IBM Plex Mono',ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;}
+  header.top h1{font-family:'Gowun Batang',serif;font-size:clamp(1.7rem,4.5vw,2.4rem);line-height:1.25;}
+  header.top p{color:var(--muted);max-width:62ch;margin:.5rem 0 0;}
+  .meter{display:grid;grid-template-columns:auto 1fr auto;gap:.8rem;align-items:center;margin-top:1.2rem;}
+  .meter .bar{height:10px;border-radius:99px;background:var(--line);overflow:hidden;}
+  .meter .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s ease;}
+  .meter b{font-size:1.05rem;}
+  .sync{font-size:.78rem;color:var(--muted);margin-top:.35rem;}
+
+  /* 한눈에: 달력 띠 */
+  .strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin:1.6rem 0 .4rem;}
+  .strip a{display:block;text-decoration:none;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:.5rem .55rem;min-width:0;}
+  .strip a .d{font-size:.72rem;color:var(--muted);}
+  .strip a .n{font-size:.84rem;font-weight:700;line-height:1.3;margin:.1rem 0 .35rem;}
+  .strip a .p{height:4px;border-radius:99px;background:var(--line);overflow:hidden;}
+  .strip a .p i{display:block;height:100%;background:var(--accent);}
+  .strip a.now{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}
+  .strip a.launch{background:var(--accent);color:var(--on-accent);border-color:var(--accent);}
+  .strip a.launch .d{color:var(--on-accent);opacity:.85;}
+  .strip a.launch .p{background:rgba(255,255,255,.3);} .strip a.launch .p i{background:var(--on-accent);}
+  @media (max-width:760px){ .strip{grid-template-columns:repeat(4,minmax(0,1fr));} }
+  @media (max-width:430px){ .strip{grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+  /* 위험 */
+  .risks{margin:2rem 0 0;background:var(--warn-soft);border:1px solid var(--line);border-radius:16px;padding:1.1rem 1.2rem;}
+  .risks h2{font-size:1.05rem;color:var(--warn);}
+  .risks ol{margin:.6rem 0 0;padding-left:1.2rem;display:grid;gap:.5rem;}
+  .risks li b{color:var(--ink);}
+  .risks li span{color:var(--muted);font-size:.9rem;}
+
+  /* 필터 */
+  .filters{display:flex;flex-wrap:wrap;gap:.4rem;margin:2rem 0 .4rem;position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);padding:.6rem 0;}
+  .filters button{font:inherit;font-size:.82rem;font-weight:700;border:1.5px solid var(--line);background:var(--paper);color:var(--ink);border-radius:99px;padding:.3rem .75rem;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;}
+  .filters button i{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .filters button[aria-pressed="true"]{border-color:var(--ink);}
+  .filters label{margin-left:auto;font-size:.82rem;color:var(--muted);display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;}
+
+  /* 단계 */
+  section.phase{margin-top:2.2rem;scroll-margin-top:64px;}
+  .ph-head{display:grid;grid-template-columns:auto 1fr auto;gap:.9rem;align-items:end;border-bottom:2px solid var(--ink);padding-bottom:.5rem;}
+  .ph-head .date{font-size:.8rem;color:var(--muted);}
+  .ph-head h2{font-size:1.3rem;}
+  .ph-head .goal{grid-column:1 / -1;color:var(--muted);font-size:.92rem;}
+  .ph-head .cnt{font-size:.85rem;color:var(--muted);}
+  .gate{margin:.7rem 0 .2rem;font-size:.86rem;background:var(--gold-soft);border-radius:10px;padding:.55rem .8rem;}
+  .gate b{color:var(--gold);}
+  ul.tasks{list-style:none;margin:.4rem 0 0;padding:0;}
+  li.task{display:grid;grid-template-columns:28px 1fr;gap:.2rem .6rem;padding:.8rem .2rem;border-bottom:1px solid var(--line);}
+  li.task input{width:20px;height:20px;margin:.2rem 0 0;accent-color:var(--accent);cursor:pointer;}
+  li.task .t{font-weight:700;display:flex;flex-wrap:wrap;gap:.25rem .55rem;align-items:baseline;}
+  li.task .w{font-size:.72rem;font-weight:800;letter-spacing:.04em;}
+  li.task .due{font-size:.75rem;color:var(--muted);}
+  li.task .x{grid-column:2;color:var(--muted);font-size:.9rem;}
+  li.task .x ul{margin:.3rem 0 0;padding-left:1.1rem;}
+  li.task .x li{margin:.15rem 0;}
+  li.task.done .t span.tt{text-decoration:line-through;text-decoration-color:var(--faint);color:var(--muted);}
+  li.task.crit .t span.tt::before{content:"필수";font-size:.68rem;font-weight:800;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:0 .3rem;margin-right:.4rem;vertical-align:1px;}
+  li.task[hidden]{display:none;}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:.8rem;}
+  .kpi div{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.6rem .75rem;}
+  .kpi b{display:block;font-size:1.05rem;}
+  .kpi span{font-size:.78rem;color:var(--muted);}
+  footer{margin-top:3rem;color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:1rem;}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ .meter .bar i{transition:none;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>마인드인사이드 출시 로드맵</h1>
+    <p>11월 중순 Android 출시 → 12월 운영하며 다듬기 → 1월 본격 마케팅. 오래 걸리는 서류(DUNS·결제 심사·스토어 계정)부터 이번 주에 시작해야 11월에 맞출 수 있어요. 할 일을 체크하면 이 휴대폰에만 기억돼요.</p>
+    <div class="meter"><b id="pct" class="mono">0%</b><div class="bar"><i id="pctbar"></i></div><span id="pctn" class="mono muted"></span></div>
+    <div class="sync" id="sync">체크 상태 불러오는 중…</div>
+  </header>
+
+  <nav class="strip" id="strip" aria-label="단계"></nav>
+
+  <section class="risks" aria-labelledby="risk-h">
+    <h2 id="risk-h">먼저 알아야 할 위험 5가지</h2>
+    <ol>
+      <li><b>아이폰 앱은 11월에 못 낼 수도 있어요.</b> <span>지금 앱은 웹사이트를 그대로 띄우는 구조라 애플이 "웹사이트와 다를 게 없다"(심사지침 4.2)로 거절할 가능성이 큽니다. 또 아이폰에서 구독을 팔려면 애플 인앱결제(수수료 15~30%)를 써야 합니다(3.1.1). 사람과 하는 상담은 외부결제 가능(3.1.3(d)). 그래서 <b>11월은 Android 먼저</b>, 아이폰은 12~1월로 잡는 게 안전합니다.</span></li>
+      <li><b>느루 캐시가 규제 대상일 수 있어요.</b> <span>충전한 캐시로 다른 사업자(상담사·상담소)에게 돈을 내는 구조는 전자금융거래법의 '선불전자지급수단'에 해당할 수 있습니다. 출시 전에 변호사 확인이 필요하고, 안 되면 상담료를 캐시 대신 건별 카드결제로 바꿔야 합니다.</span></li>
+      <li><b>상담료를 상담사·상담소에 나눠 주는 것도 결제사와 먼저 맞춰야 해요.</b> <span>토스페이먼츠 일반 가입만으로는 "받은 돈을 여러 사람에게 나눠 지급"이 안 될 수 있습니다. 지급대행(정산대행) 상품이나 오픈마켓(하위몰) 구조를 심사 때 같이 상담하세요.</span></li>
+      <li><b>"치료", "진단" 같은 말은 쓰면 안 돼요.</b> <span>앱이 의료기기로 분류되면 식약처 허가가 필요합니다. 스토어 설명·광고·앱 문구는 "마음 관리", "자기돌봄", "참고용"으로 두고 효과를 단정하지 마세요.</span></li>
+      <li><b>상담사가 없으면 첫인상이 망가져요.</b> <span>출시 첫 주에 "전화 심리상담"을 눌렀는데 아무도 없으면 바로 이탈합니다. 저녁 시간(19~23시)에 '바로상담' 가능한 상담사가 항상 1명 이상 있도록 순번을 먼저 짜 두세요.</span></li>
+    </ol>
+  </section>
+
+  <div class="filters" id="filters" role="group" aria-label="분야 필터"></div>
+  <div id="phases"></div>
+
+  <footer>
+    법·제도 항목은 2026년 9월 기준 일반적인 내용입니다. 실제 신고·등록 대상인지는 변호사·세무사·각 기관 안내로 꼭 확인하세요. 기간은 보통 걸리는 시간이고, 기관 사정에 따라 늘어날 수 있어요.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var W = {
+    legal: ['법·사업', 'var(--w-legal)'], pay: ['결제', 'var(--w-pay)'], store: ['스토어', 'var(--w-store)'],
+    supply: ['상담사·상담소', 'var(--w-supply)'], product: ['제품·운영', 'var(--w-product)'], mkt: ['마케팅', 'var(--w-mkt)']
+  };
+  // c: 필수(출시를 막는 일) · due: 끝낼 날
+  var PHASES = [
+    { id: 'p0', date: '9/28 – 10/4', name: '이번 주: 오래 걸리는 것부터', goal: '서류와 심사는 기다리는 시간이 길어요. 신청만 해 두면 기다리는 동안 다른 일을 할 수 있습니다.',
+      gate: '이번 주 끝에 "신청 완료"가 5개 이상이면 11월 일정이 살아 있어요.', tasks: [
+      { id: 'duns', w: 'legal', c: 1, due: '9/30', t: 'DUNS 번호 신청', x: ['애플·구글 개발자 계정을 "회사"로 만들 때 필요한 국제 사업자 번호입니다. 무료.', '한국은 NICE평가정보(D&B 코리아)에서 발급. 영문 회사명·영문 주소·사업자등록증 준비. 보통 1~2주, 길면 30일.', '발급 후 애플이 조회되기까지 며칠 더 걸려요.'] },
+      { id: 'tongpan', w: 'legal', c: 1, due: '10/2', t: '통신판매업 신고', x: ['온라인으로 구독·상담을 팔려면 필수. 정부24 또는 구청.', '"구매안전서비스 이용확인증"이 필요할 수 있어요 — 토스페이먼츠 가입 후 발급받거나, 면제 사유(신용카드 결제만 등) 확인.'] },
+      { id: 'toss-apply', w: 'pay', c: 1, due: '10/2', t: '토스페이먼츠 가입·심사 신청', x: ['사업자등록증, 대표자 신분증, 정산 통장 사본, 통신판매업 신고증(진행 중이면 그대로 알려도 됨).', '심사는 웹사이트를 봅니다: mindinside.kr 아래쪽에 상호·대표자·사업자번호·통신판매업번호·주소·연락처와 이용약관·개인정보처리방침·환불 규정이 보여야 해요.', '가입 상담 때 꼭 물어볼 것: "상담료를 상담사·상담소에 나눠 지급해야 한다"(지급대행/정산대행), "앱 안 선불 캐시 충전"이 가능한지.'] },
+      { id: 'lawyer', w: 'legal', c: 1, due: '10/3', t: '변호사 상담 예약 (1회, 2~3시간 분량)', x: ['물어볼 것 4가지를 한 번에: ① 느루 캐시가 선불전자지급수단인지 ② 위치정보사업 신고가 필요한지(내 주변 정신과) ③ 앱 문구가 의료기기·의료광고에 걸리는지 ④ 상담사 계약(위탁·원천징수 3.3%)과 사고 시 책임.', '스타트업 무료 법률상담(창업진흥원·K-Startup, 서울창업허브 등)부터 알아보면 비용을 아낄 수 있어요.'] },
+      { id: 'lbs', w: 'legal', due: '10/3', t: '위치기반서비스사업 신고 대상인지 확인', x: ['"내 주변 정신과"가 이용자 위치를 쓰기 때문. 위치를 서버로 보내 저장·처리하면 방송통신위원회 신고 대상일 가능성이 큽니다.', '위치를 폰 안에서만 계산하고 서버로 안 보내면 부담이 줄어요 — 개발 쪽에서 구조를 확인해 달라고 하세요.'] },
+      { id: 'ios-decide', w: 'store', c: 1, due: '10/4', t: '아이폰 출시 방식 결정', x: ['선택지 A: 11월엔 Android만, 아이폰은 12~1월 (추천).', '선택지 B: 아이폰도 11월 — 앱에 기기 고유 기능(알림, 위젯 등)을 더하고, 구독은 애플 인앱결제로 따로 붙여야 해서 개발 2~3주 추가.', '아이폰 앱을 만들려면 Mac이 필요해요(또는 Codemagic 같은 클라우드 빌드).'] },
+      { id: 'play-acct', w: 'store', due: '10/4', t: '구글 플레이 개발자 계정 만들기 (회사 계정)', x: ['등록비 25달러 1회. DUNS가 필요하니 DUNS 나오면 바로.', '회사(조직) 계정이면 "테스터 12명이 14일 동안 비공개 테스트"를 거쳐야 하는 개인 계정 규칙을 피할 수 있어요.'] }
+    ] },
+    { id: 'p1', date: '10/5 – 10/18', name: '공급 확보: 상담소·상담사', goal: '앱을 열었을 때 만날 사람이 있어야 합니다. 지역 한 곳에 집중해서 상담소 3곳, 상담사 15명을 목표로.',
+      gate: '10/18까지: 계약 상담소 3곳 · 승인된 상담사 15명 · 저녁 바로상담 순번표 완성.', tasks: [
+      { id: 'clinic-list', w: 'supply', c: 1, due: '10/7', t: '상담소 후보 30곳 목록 만들기', x: ['한 지역(예: 사는 곳 근처 구 1~2개)에 집중하면 방문·관리가 쉬워요.', '네이버 지도·"심리상담센터"·"심리상담소" 검색 → 이름, 대표, 연락처, 블로그 여부, 상담사 수를 표로.'] },
+      { id: 'clinic-deck', w: 'supply', due: '10/7', t: '상담소용 제안서 1장 만들기', x: ['핵심 3줄: 상담료의 90% 상담소 · 입점비 0원 · 상담과 상담 사이를 앱이 채워 내담자가 덜 떠난다.', 'mindinside.kr의 상담소 안내 화면 캡처를 그대로 쓰면 됩니다.'] },
+      { id: 'clinic-meet', w: 'supply', c: 1, due: '10/16', t: '상담소 10곳 연락·방문, 3곳 계약', x: ['전화로 10분 소개 → 관심 보이면 방문해 소장 콘솔 시연(테스트 계정).', '계약서는 이미 있음(partner-agreement). 첫 3곳은 "초기 파트너" 혜택(예: 3개월 앱 수수료 면제)으로 설득하면 빨라요.'] },
+      { id: 'coun-recruit', w: 'supply', c: 1, due: '10/16', t: '상담사 15명 모집·승인', x: ['1순위: 계약한 상담소의 소속 상담사(소장이 직접 승인).', '2순위: 개인 상담사 — 상담 관련 대학원 동문·지인, 학회 구인게시판(게시 규정 확인), 인스타·블로그.', '승인 전 자격증 사진과 이름 대조, 필요하면 발급기관 조회.'] },
+      { id: 'coun-train', w: 'supply', c: 1, due: '10/18', t: '상담사 교육 30분 (온라인)', x: ['상담사 앱 사용법, 회기 기록 필수 규칙, 채팅 속 연락처 교환 금지, 위기 대응 절차, 정산 방법.', '녹화해 두고 새 상담사에게 계속 쓰세요.'] },
+      { id: 'roster', w: 'supply', c: 1, due: '10/18', t: '출시 첫 달 "바로상담" 순번표', x: ['평일 19~23시, 주말 오후에 항상 1명 이상 켜져 있게.', '초기엔 순번 상담사에게 최소 보장(예: 대기 시간당 소액)을 주는 것도 방법.'] },
+      { id: 'crisis', w: 'product', c: 1, due: '10/18', t: '위기 대응 절차서 만들기', x: ['누가(상담사·운영자) · 언제(자해·자살 암시, 긴급 표시) · 무엇을(109·1577-0199·119 안내, 소장 연락, 기록) 한 장으로.', '운영자 연락이 안 되는 시간대에 누가 받는지도 정하기.'] }
+    ] },
+    { id: 'p2', date: '10/19 – 11/1', name: '비공개 베타 + 결제 붙이기', goal: '지인·상담소 내담자 30~50명이 2주간 실제로 써 봅니다. 돈이 오가는 흐름을 전부 시험해요.',
+      gate: '11/1까지: 결제·환불·정산 리허설 성공 · 베타 설문 30건 이상 · 치명적 버그 0개.', tasks: [
+      { id: 'toss-live', w: 'pay', c: 1, due: '10/24', t: '토스페이먼츠 실제 키로 연결', x: ['심사 통과 후 라이브 키 발급 → 앱 결제창 교체.', '테스트: 구독 결제 → 해지 → 환불, 캐시 충전 → 상담 결제 → 상담 취소 환불.'] },
+      { id: 'settle-rehearsal', w: 'pay', c: 1, due: '10/31', t: '정산 리허설', x: ['상담 5건을 가짜로 돌려 상담사 몫(70%/55%), 상담소 몫(90%), 원천징수 3.3%가 맞게 계산되는지 운영자 콘솔에서 확인.', '실제 이체까지 한 번 해 보기(소액).'] },
+      { id: 'refund', w: 'legal', c: 1, due: '10/24', t: '환불 규정 확정·게시', x: ['구독: 청약철회 7일, 남은 기간 환불 계산법.', '상담: 몇 시간 전 취소면 전액/부분 환불, 상담사 노쇼 시 전액 환불.', '약관과 결제 화면 모두에 같은 문구.'] },
+      { id: 'beta', w: 'product', c: 1, due: '10/20', t: '베타 테스터 30~50명 초대', x: ['지인 + 계약 상담소 내담자 일부(소장 동의). 안드로이드는 플레이 비공개 테스트 트랙으로 초대.', '단톡방 하나 만들어 불편한 점 바로 받기.'] },
+      { id: 'survey1', w: 'product', due: '10/31', t: '베타 설문 돌리기 (1차)', x: ['mindinside.kr/survey 링크를 베타 2주 차에 보내기.', '결과 페이지에서 가격 민감도 → 구독료 결정 근거.'] },
+      { id: 'price', w: 'product', c: 1, due: '11/1', t: '구독료 확정', x: ['설문의 추천 가격 구간 + "9,900원이 적당하다" 비율 + 원가(느루 한 턴 원가)를 같이 보고 결정.', '처음엔 "출시 기념 첫 달 할인"처럼 나중에 올려도 반감이 적은 방식으로.'] },
+      { id: 'cs', w: 'product', due: '10/31', t: '고객 응대 준비', x: ['help@neurumind.com 확인 담당자·답장 시간(예: 평일 24시간 이내).', '자주 묻는 질문 10개 답변 템플릿(환불, 상담사 노쇼, 로그인, 대화 기록 삭제 등).'] },
+      { id: 'metrics', w: 'product', due: '11/1', t: '매일 볼 숫자 정하기', x: ['신규 가입 · 다음날 다시 연 비율(D1) · 7일 뒤(D7) · 체크인 수 · AI 대화 수와 원가 · 상담 예약 수 · 결제 수 · 환불 수 · 위기 알림 수.'] }
+    ] },
+    { id: 'p3', date: '11/2 – 11/15', name: '스토어 심사 · 출시 준비', goal: '플레이스토어 심사를 넉넉히 1~2주로 잡고, 그동안 출시 당일 할 일을 다 준비합니다.',
+      gate: '11/15까지: 플레이 심사 통과(출시 대기 상태) · 상담사 순번 확정 · 상담소 콘솔 교육 완료.', tasks: [
+      { id: 'store-assets', w: 'store', c: 1, due: '11/3', t: '스토어 등록 자료', x: ['아이콘 512px, 대표 이미지 1024×500, 휴대폰 스크린샷 4~8장(홈페이지 캡처 활용).', '짧은 설명(80자)·자세한 설명: 홈페이지 문구 재활용, "치료·진단" 표현 빼기.', '검색어: 마인드인사이드, 심리상담, AI 상담, 전화 상담, 마음 관리.'] },
+      { id: 'play-forms', w: 'store', c: 1, due: '11/4', t: '플레이 콘솔 필수 양식', x: ['데이터 보안(수집 항목·국외 이전·암호화) — 개인정보처리방침과 똑같이.', '건강 앱 선언, 콘텐츠 등급 설문, 타깃 연령(만 14세 이상), 광고 없음.', '개인정보처리방침 URL과 계정 삭제 URL(mindinsideapp.com/data-deletion.html).'] },
+      { id: 'play-submit', w: 'store', c: 1, due: '11/5', t: '플레이 프로덕션 심사 제출', x: ['건강 관련 앱은 심사가 길어질 수 있어 11/5 전후 제출. 거절 사유가 오면 바로 고쳐 재제출.', '통과해도 "관리형 게시"로 두면 원하는 날 버튼 한 번에 공개할 수 있어요.'] },
+      { id: 'play-billing', w: 'pay', c: 1, due: '11/5', t: '앱 안 구독 결제 정책 맞추기', x: ['구글도 앱 안에서 파는 디지털 구독은 구글 결제(또는 사용자 선택 결제)를 요구합니다.', '앱 안에서 "구독은 웹사이트에서 결제하세요"라고 안내하거나 링크하는 것도 규정 위반이 될 수 있어요.', '선택지: 구글 결제를 붙이거나, 11월엔 구독 대신 "출시 기념 무료 이용"으로 열고 12월에 구글 결제를 붙이기.', '사람과 하는 상담료는 디지털 상품이 아니라 외부결제(토스) 가능.'] },
+      { id: 'clinic-train', w: 'supply', due: '11/12', t: '계약 상담소 소장 콘솔 교육', x: ['내담자에게 상담소 코드 알려주는 법, 긴급 알림 확인, 소속 상담사 승인, 정산 보는 법.', '대기실에 붙일 QR 안내문 전달(아래 마케팅 항목).'] },
+      { id: 'launch-plan', w: 'product', c: 1, due: '11/14', t: '출시 당일 체크리스트', x: ['당일 운영자 대기(오전~자정), 장애 시 연락 순서, 상담사 순번 재확인, 공지 문구.', '서버 비용 알림 한도(Cloudflare·OpenAI·DeepSeek) 설정.'] }
+    ] },
+    { id: 'p4', date: '11/16 – 11/30', name: '출시 (조용히)', goal: '광고 없이 파트너 상담소 내담자와 지인 중심으로 엽니다. 문제가 생겨도 감당할 수 있는 크기로.',
+      gate: '11/30까지: 가입 200명 · D7 재방문 25% 이상 · 결제 흐름 사고 0건.', tasks: [
+      { id: 'launch', w: 'store', c: 1, due: '11/17', t: '플레이스토어 공개', x: ['관리형 게시 → 공개. 홈페이지에 스토어 링크 연결.'] },
+      { id: 'clinic-qr', w: 'mkt', due: '11/17', t: '파트너 상담소에 QR 안내문 배포', x: ['"상담과 상담 사이, 느루와 함께" + 상담소 코드 적는 칸.', '가장 확실한 첫 이용자 채널이에요.'] },
+      { id: 'daily', w: 'product', due: '11/30', t: '매일 15분 숫자 확인 · 매주 회고', x: ['가입, 재방문, 상담 예약, 결제, 오류, 위기 알림.', '매주 금요일: 이번 주 가장 큰 불편 1개를 다음 주에 고치기.'] }
+    ] },
+    { id: 'p5', date: '12월', name: '운영하며 다듬기', goal: '실제 이용자로 앱을 다듬고, 아이폰 준비와 마케팅 재료를 만듭니다.',
+      gate: '12월 말: D30 재방문 15% 이상 · 유료 전환 5% 이상 · 상담 월 50건 이상이면 1월 마케팅 시작.', tasks: [
+      { id: 'survey2', w: 'product', due: '12/15', t: '2차 설문 (효과 변화)', x: ['같은 설문을 다시 돌려 PHQ-4 변화, "기분이 나아졌다" 점수 비교 → 마케팅 근거.', '느루 vs 우렁의사 결과로 AI 하나 정하기(원가 차이 반영).'] },
+      { id: 'ios-build', w: 'store', due: '12/20', t: '아이폰 앱 준비·심사', x: ['Mac·애플 개발자 계정(연 99달러, DUNS 필요).', '웹뷰만이 아닌 기기 기능 추가 + 구독은 애플 인앱결제. 심사 거절 대비 1~2주 여유.'] },
+      { id: 'stories', w: 'mkt', due: '12/31', t: '후기·사례 모으기', x: ['동의받은 이용자·상담사·소장 후기 5개 이상(익명 가능).', '"치료됐다" 대신 "매일 마음을 정리하게 됐다" 같은 경험 표현으로.'] },
+      { id: 'more-clinics', w: 'supply', due: '12/31', t: '상담소 10곳 · 상담사 40명으로 늘리기', x: ['첫 3곳의 후기로 다음 상담소 설득. 소개해 준 상담소에 혜택.'] }
+    ] },
+    { id: 'p6', date: '1월~', name: '본격 마케팅', goal: '새해 결심 시즌을 노립니다. 돈을 쓰기 전에 무엇이 가입으로 이어지는지 작게 시험하세요.',
+      gate: '채널마다 소액(예: 30만 원)으로 2주 시험 → 가입 1명당 비용이 가장 싼 채널에 집중.', tasks: [
+      { id: 'naver', w: 'mkt', t: '네이버: 블로그 + 검색광고', x: ['블로그 주 2회: 불안·번아웃·잠 못 드는 밤 같은 주제 + 앱 속 도구 소개.', '검색광고 키워드: 심리상담 앱, 전화 심리상담, AI 상담, 마음 관리 앱.'] },
+      { id: 'insta', w: 'mkt', t: '인스타그램: 느루 캐릭터 릴스', x: ['달팽이 캐릭터 스티커·말투가 가장 큰 무기. 짧은 공감 영상 주 3회.', '느루 스티커를 카톡 이모티콘으로 내는 것도 장기 과제로.'] },
+      { id: 'b2b', w: 'mkt', t: '대학 상담센터·기업(직원 마음건강) 제안', x: ['상담 대기가 긴 대학 학생상담센터, 직원 복지(EAP)를 찾는 회사에 "상담 사이를 채우는 앱"으로.', '한 곳만 뚫어도 이용자 수백 명.'] },
+      { id: 'aso', w: 'mkt', t: '스토어 검색 최적화 · 리뷰 요청', x: ['앱 안에서 만족도 높은 순간(상담 후, 7일 연속 체크인)에 리뷰 부탁.'] },
+      { id: 'ad-rules', w: 'legal', c: 1, t: '광고 문구 점검 규칙', x: ['금지: 치료·완치·진단·"우울증이 낫는다"·효과 수치 단정.', '허용: 마음 관리, 자기돌봄, 상담 연결, 이용자 경험(동의받은 것).'] }
+    ] }
+  ];
+
+  var TOTAL = [], state = {}, db = null, filter = '', hideDone = false;
+  PHASES.forEach(function (p) { p.tasks.forEach(function (t) { t.phase = p.id; TOTAL.push(t); }); });
+  var $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+  // 오늘이 어느 단계인지 (연도 2026 기준)
+  var today = new Date(); var md = (today.getMonth() + 1) * 100 + today.getDate();
+  var RANGES = { p0: [928, 1004], p1: [1005, 1018], p2: [1019, 1101], p3: [1102, 1115], p4: [1116, 1130], p5: [1201, 1231], p6: [101, 331] };
+  var nowPhase = Object.keys(RANGES).find(function (k) { var r = RANGES[k]; return md >= r[0] && md <= r[1]; }) || '';
+
+  function build() {
+    $('#filters').innerHTML = '<button type="button" data-f="" aria-pressed="true">전체</button>'
+      + Object.keys(W).map(function (k) { return '<button type="button" data-f="' + k + '" aria-pressed="false"><i style="background:' + W[k][1] + '"></i>' + W[k][0] + '</button>'; }).join('')
+      + '<label><input type="checkbox" id="hide-done"> 끝낸 일 숨기기</label>';
+    $('#phases').innerHTML = PHASES.map(function (p) {
+      return '<section class="phase" id="' + p.id + '"><div class="ph-head"><span class="date mono">' + esc(p.date) + '</span><h2>' + esc(p.name) + '</h2><span class="cnt mono" data-cnt="' + p.id + '"></span>'
+        + '<div class="goal">' + esc(p.goal) + '</div></div>'
+        + '<div class="gate"><b>통과 기준</b> ' + esc(p.gate) + '</div><ul class="tasks">'
+        + p.tasks.map(function (t) {
+          return '<li class="task' + (t.c ? ' crit' : '') + '" data-id="' + t.id + '" data-w="' + t.w + '"><input type="checkbox" id="cb-' + t.id + '" aria-label="' + esc(t.t) + ' 완료">'
+            + '<label class="t" for="cb-' + t.id + '"><span class="tt">' + esc(t.t) + '</span><span class="w" style="color:' + W[t.w][1] + '">' + W[t.w][0] + '</span>' + (t.due ? '<span class="due mono">~' + t.due + '</span>' : '') + '</label>'
+            + '<div class="x"><ul>' + t.x.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div></li>';
+        }).join('') + '</ul></section>';
+    }).join('');
+  }
+
+  function paint() {
+    var done = TOTAL.filter(function (t) { return state[t.id]; }).length;
+    var pct = Math.round(done / TOTAL.length * 100);
+    $('#pct').textContent = pct + '%'; $('#pctbar').style.width = pct + '%';
+    $('#pctn').textContent = done + ' / ' + TOTAL.length;
+    $('#strip').innerHTML = PHASES.map(function (p) {
+      var d = p.tasks.filter(function (t) { return state[t.id]; }).length;
+      return '<a href="#' + p.id + '" class="' + (p.id === nowPhase ? 'now ' : '') + (p.id === 'p4' ? 'launch' : '') + '"><div class="d mono">' + esc(p.date) + (p.id === nowPhase ? ' · 지금' : '') + '</div><div class="n">' + esc(p.name.replace(/:.*/, '')) + '</div><div class="p"><i style="width:' + Math.round(d / p.tasks.length * 100) + '%"></i></div></a>';
+    }).join('');
+    PHASES.forEach(function (p) {
+      var d = p.tasks.filter(function (t) { return state[t.id]; }).length;
+      var el = document.querySelector('[data-cnt="' + p.id + '"]'); if (el) el.textContent = d + '/' + p.tasks.length;
+    });
+    document.querySelectorAll('li.task').forEach(function (li) {
+      var id = li.dataset.id, on = !!state[id];
+      li.classList.toggle('done', on);
+      var cb = li.querySelector('input'); if (cb.checked !== on) cb.checked = on;
+      li.hidden = (filter && li.dataset.w !== filter) || (hideDone && on);
+    });
+  }
+
+  build(); paint();
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-f]'); if (!b) return;
+    filter = b.dataset.f;
+    document.querySelectorAll('[data-f]').forEach(function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+    paint();
+  });
+  document.addEventListener('change', async function (e) {
+    if (e.target.id === 'hide-done') { hideDone = e.target.checked; paint(); return; }
+    var li = e.target.closest('li.task'); if (!li) return;
+    var id = li.dataset.id, on = e.target.checked;
+    state[id] = on; paint();
+    if (!db) return;
+    try { await db.doc('checks/' + id).set({ done: on, at: Date.now() }); $('#sync').textContent = '저장됨 · 팀 모두에게 보여요'; }
+    catch (err) { $('#sync').textContent = err && err.code === 'invalid_argument' ? '보기 권한만 있어서 체크를 저장할 수 없어요.' : '저장하지 못했어요. 잠시 뒤 다시 눌러 주세요.'; }
+  });
+
+  // 공유용 복사본 — 체크는 이 브라우저에만 남는다 (팀 공용 체크는 원본 로드맵에서)
+  try { state = JSON.parse(localStorage.getItem("roadmap_checks") || "{}") || {}; } catch (e) {}
+  paint();
+  document.addEventListener("change", function (e) { if (e.target.closest && e.target.closest("li.task")) { try { localStorage.setItem("roadmap_checks", JSON.stringify(state)); } catch (x) {} } });
+  document.getElementById("sync").textContent = "공유용 페이지예요. 체크는 이 휴대폰·브라우저에만 저장돼요.";
+})();
+</script>
+
+</body>
+</html>
