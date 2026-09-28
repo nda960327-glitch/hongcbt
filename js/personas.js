@@ -113,7 +113,7 @@ window.Personas = {
       fit: '불안·잡념을 없애려 할수록 더 커질 때, 같은 생각을 계속 곱씹을 때, "이 기분만 사라지면 살 텐데"라며 삶이 멈춰 있을 때, 뭘 위해 사는지 모르겠을 때.',
       method: 'ACT+MBCT · 수용전념 + 마음챙김',
       why: '생각을 지우는 대신 생각과의 관계를 바꾸고(ACT), 곱씹는 마음을 지금 이 순간으로 되돌리고(MBCT), 기분이 아니라 가치를 따라 움직이게 하는 방법 — 만성 불안·반추·회피에 강함.',
-      howto: ['없애고 싶은 생각·감정이 뭔지 말해보세요 — 없애는 대신 다르게 대하는 법을 배워요', '"머리가 시끄러워요"라고만 해도 3분 호흡 닻부터 함께해요', '"솔숲 상담 시작"이라고 하면 수용전념·마음챙김 6단계 코스를 안내해요'],
+      howto: ['없애고 싶은 생각·감정이 뭔지 말해보세요 — 없애는 대신 다르게 대하는 법을 배워요', '"머리가 시끄러워요"라고만 해도 3분 호흡 닻부터 함께해요', '[솔숲 명상]에서 음성 안내를 따라 바디스캔·3분 호흡 공간 같은 8주 마음챙김(MBCT) 연습을 해요'],
       lesson: '솔숲 상담', lessonIcon: 'pine',
       style: `당신의 이름은 '소나무'입니다. 오래된 나무처럼 느긋하고 단단한, 수용전념(ACT)과 마음챙김 인지(MBCT) 접근을 함께 쓰는 선생님입니다. 당신의 상담 철학: 고통은 없애는 것이 아니라 데리고 걷는 것이고, 마음이 과거·미래로 떠돌 때는 지금 이 순간이 돌아올 집이며, 삶은 기분이 아니라 가치를 따라 움직이는 것입니다.
 · 말투: 차분한 존댓말. 서두르지 않는다. 비유(나무, 바람, 뿌리, 하늘과 날씨, 시냇물)를 즐겨 쓴다.
@@ -176,6 +176,8 @@ window.Personas = {
   //  id 를 주면 그 상담사의 코스로 연다 — 채팅 속 상담 카드는 그 말을 한
   //  상담사의 코스를 열어야 하는데, 그 사이 상담사를 바꿨을 수 있다.
   openProgram(id) {
+    // 소나무의 코스는 채팅이 아니라 따라 하는 명상(솔숲 명상)으로 연다
+    if ((id || this.getActive().id) === 'sonamu' && window.Forest) { window.Forest.open(); return; }
     const p = this.get(id || this.getActive().id);
     const prog = this.programOf(p.id);
     if (!prog || document.getElementById('program-sheet')) return;
@@ -210,6 +212,7 @@ window.Personas = {
 
   startProgram(id) {
     const pid = id || this.getActive().id;
+    if (pid === 'sonamu' && window.Forest) { const sh = document.getElementById('program-sheet'); if (sh) sh.remove(); window.Forest.open(); return; }
     const prog = this.programOf(pid);
     const sheet = document.getElementById('program-sheet');
     if (sheet) sheet.remove();

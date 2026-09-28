@@ -45,6 +45,7 @@ window.ChatViz = {
         case '버튼':       return this.buttons(viz.args);
         case '수업카드':   return this.lesson(viz.args);
         case '영상':       return this.video(viz.args);
+        case '명상':       return this.meditation(viz.args);
       }
     } catch (e) {}
     return '';
@@ -94,6 +95,29 @@ window.ChatViz = {
           ${tag ? `<span style="font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);">${e(tag)}</span>` : ''}
           <span style="font-size: 0.88rem; font-weight: 700; line-height: 1.35; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${e(it.title)}</span>
           <span style="font-size: 0.76rem; color: var(--text-secondary);">영상 보기 ›</span>
+        </span>
+      </button>`;
+  },
+
+  // --- 솔숲 명상 카드: 소나무가 "같이 해 볼까요?" 하고 건네는 따라 하기 연습 ----------
+  //  args = [연습 이름 또는 id] — 누르면 솔숲 명상 플레이어가 그 연습으로 열린다.
+  meditation(args) {
+    const F = window.Forest;
+    if (!F) return '';
+    const a = String((args || [])[0] || '').replace(/\s/g, '');
+    const id = F.PRACTICES[a] ? a : Object.keys(F.PRACTICES).find(k => F.PRACTICES[k].name.replace(/\s/g, '') === a || a.includes(F.PRACTICES[k].name.replace(/\s/g, '')));
+    if (!id) return '';
+    const p = F.PRACTICES[id], e = this._esc;
+    return `
+      <button onclick="window.Forest && window.Forest.play('${id}')"
+        style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: 0.75rem; align-items: center; width: 100%;
+               padding: 0.75rem 0.85rem; border-radius: 16px; color: #eef4ea;
+               background: linear-gradient(150deg, hsl(${p.hue} 38% 30%), hsl(${p.hue + 20} 42% 15%));">
+        <span style="flex: 0 0 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: rgba(255,255,255,0.16); font-size: 1.05rem;">▶</span>
+        <span style="min-width: 0; display: grid; gap: 0.15rem;">
+          <span style="font-size: 0.72rem; font-weight: 800; opacity: 0.8;">솔숲 명상 · ${p.min}분 · 음성 안내</span>
+          <span style="font-size: 0.95rem; font-weight: 800;">${e(p.name)}</span>
+          <span style="font-size: 0.74rem; opacity: 0.78; line-height: 1.4;">${e(p.what)}</span>
         </span>
       </button>`;
   },

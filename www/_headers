@@ -36,3 +36,7 @@
 
 /*.svg
   Cache-Control: public, max-age=604800
+
+# 명상 안내 음성 — 파일 이름이 문장 해시라 내용이 바뀌면 이름도 바뀐다. 오래 캐시해도 안전.
+/audio/*
+  Cache-Control: public, max-age=2592000
