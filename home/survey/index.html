@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<!-- 마인드인사이드 이용자 설문 — 구독료 정하기 + 효과 체감. 답은 워커 /api/survey/submit 로 익명 저장.
+     질문을 고치면 VER 를 올린다 (결과 페이지가 판별로 나눠 본다). 질문 id 는 결과 페이지(results.html)와 같아야 한다. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>마인드인사이드 이용자 설문</title>
+<meta name="description" content="마인드인사이드를 써 보신 경험을 5분만 들려주세요. 익명이며, 요금과 기능을 정하는 데 씁니다.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#4f8a6b">
+<link rel="icon" href="https://mindinside.kr/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf5ee; --bg2:#f3ebdf; --card:#fffdf9; --line:#e8ddcd; --text:#3f352a; --muted:#85765f;
+    --accent:#4f8a6b; --accent-soft:#e8f2eb; --on-accent:#fff; --warm:#c98a3f; --warm-soft:#f8ecdb; --warn:#b5473c;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --bg:#1c1814; --bg2:#231e18; --card:#29221a; --line:#3d342a; --text:#efe6da; --muted:#a99781;
+      --accent:#7fc29b; --accent-soft:#223128; --on-accent:#10261a; --warm:#e0aa62; --warm-soft:#33291c; --warn:#e08585; color-scheme:dark; }
+  }
+  :root[data-theme="dark"]{ --bg:#1c1814; --bg2:#231e18; --card:#29221a; --line:#3d342a; --text:#efe6da; --muted:#a99781;
+      --accent:#7fc29b; --accent-soft:#223128; --on-accent:#10261a; --warm:#e0aa62; --warm-soft:#33291c; --warn:#e08585; color-scheme:dark; }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;line-height:1.7;font-size:16px;word-break:keep-all;overflow-wrap:break-word;}
+  .wrap{max-width:680px;margin:0 auto;padding:0 18px 80px;}
+  .bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+  .bar .in{max-width:680px;margin:0 auto;padding:.7rem 18px;display:flex;align-items:center;gap:.8rem;}
+  .bar b{font-size:.95rem;}
+  .prog{flex:1;height:8px;border-radius:99px;background:var(--bg2);overflow:hidden;}
+  .prog i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s ease;}
+  .bar span{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:3.2em;text-align:right;}
+  header.intro{padding:2.2rem 0 .6rem;}
+  header.intro h1{font-family:'Gowun Batang',serif;font-size:clamp(1.6rem,5vw,2.1rem);line-height:1.3;margin:0 0 .6rem;text-wrap:balance;}
+  header.intro p{color:var(--muted);margin:.4rem 0;}
+  .facts{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.8rem;}
+  .facts span{font-size:.8rem;font-weight:700;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:.2rem .65rem;color:var(--muted);}
+  section.part{margin-top:2.4rem;}
+  section.part > h2{font-size:1.2rem;margin:0 0 .2rem;display:flex;gap:.55rem;align-items:baseline;}
+  section.part > h2 small{font-size:.78rem;color:var(--accent);font-weight:800;letter-spacing:.08em;}
+  section.part > p.lead{color:var(--muted);font-size:.92rem;margin:.2rem 0 1rem;}
+  .q{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:1.05rem 1.1rem;margin:.7rem 0;}
+  .q > .t{font-weight:700;margin-bottom:.15rem;}
+  .q > .h{font-size:.85rem;color:var(--muted);margin-bottom:.55rem;}
+  .q.req > .t::after{content:" *";color:var(--warn);}
+  .q.miss{border-color:var(--warn);}
+  .opts{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.5rem;}
+  .opt{position:relative;}
+  .opt input{position:absolute;opacity:0;pointer-events:none;}
+  .opt label{display:inline-block;cursor:pointer;padding:.5rem .85rem;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);font-size:.92rem;line-height:1.4;user-select:none;}
+  .opt input:checked + label{border-color:var(--accent);background:var(--accent-soft);color:var(--text);font-weight:700;}
+  .opt input:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px;}
+  .scale{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem;margin-top:.5rem;}
+  .scale.s4{grid-template-columns:repeat(4,1fr);}
+  .scale.s11{grid-template-columns:repeat(11,1fr);gap:.25rem;}
+  .scale .opt label{display:block;text-align:center;padding:.55rem .2rem;font-size:.82rem;}
+  .scale.s11 .opt label{font-size:.9rem;font-weight:700;padding:.55rem 0;}
+  .ends{display:flex;justify-content:space-between;font-size:.76rem;color:var(--muted);margin-top:.3rem;}
+  .na{margin-top:.45rem;}
+  textarea,input.num{width:100%;font:inherit;font-size:.95rem;padding:.7rem .85rem;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);}
+  textarea{min-height:88px;resize:vertical;margin-top:.5rem;}
+  .money{display:grid;grid-template-columns:1fr auto;align-items:center;gap:.5rem;margin-top:.5rem;}
+  .money span{color:var(--muted);font-weight:700;}
+  input.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .note{background:var(--warm-soft);border:1px solid var(--line);border-radius:14px;padding:.8rem 1rem;font-size:.88rem;margin:.8rem 0;}
+  .submit{margin-top:2rem;display:grid;gap:.6rem;}
+  button.go{font:inherit;font-weight:800;font-size:1.05rem;border:0;border-radius:14px;padding:1rem;background:var(--accent);color:var(--on-accent);cursor:pointer;}
+  button.go:disabled{opacity:.55;cursor:default;}
+  .err{color:var(--warn);font-size:.9rem;min-height:1.2em;}
+  .done{text-align:center;padding:3rem 0;}
+  .done h2{font-family:'Gowun Batang',serif;font-size:1.7rem;margin:.6rem 0;}
+  .done .snail{font-size:2.6rem;}
+  .crisis{background:var(--warm-soft);border:1px solid var(--line);border-radius:16px;padding:1rem 1.1rem;text-align:left;margin:1.4rem auto 0;max-width:520px;}
+  .done a.btn{display:inline-block;margin-top:1.2rem;text-decoration:none;font-weight:800;border-radius:12px;padding:.8rem 1.2rem;background:var(--accent);color:var(--on-accent);}
+  @media (max-width:430px){ .scale .opt label{font-size:.74rem;padding:.55rem .1rem;} .scale.s11 .opt label{font-size:.8rem;} }
+  @media (prefers-reduced-motion: reduce){ .prog i{transition:none;} }
+</style>
+</head>
+<body>
+<div class="bar"><div class="in"><b>이용자 설문</b><div class="prog" aria-hidden="true"><i id="prog"></i></div><span id="progtxt">0%</span></div></div>
+<main class="wrap">
+  <div id="form-wrap">
+    <header class="intro">
+      <h1>마인드인사이드, 써 보니 어떠셨어요?</h1>
+      <p>5분이면 끝나요. 들려주신 이야기로 <b>요금</b>과 <b>다음에 만들 기능</b>을 정합니다.</p>
+      <p>이름·연락처는 묻지 않고, 답은 누가 했는지 알 수 없게 저장돼요. <b>*</b> 표시만 필수예요.</p>
+      <div class="facts"><span>약 5분</span><span>익명</span><span>37문항 · 대부분 누르기만</span></div>
+    </header>
+    <form id="sv" novalidate></form>
+  </div>
+  <div id="done" class="done" hidden>
+    <div class="snail">🐌</div>
+    <h2>고맙습니다</h2>
+    <p class="muted">들려주신 답은 요금과 기능을 정하는 데 꼭 반영할게요.</p>
+    <div id="crisis" class="crisis" hidden>
+      <b>요즘 마음이 많이 힘드셨던 것 같아요.</b><br>
+      혼자 견디지 않으셔도 돼요. 정신건강 위기상담 <b>1577-0199</b> · 자살예방 상담 <b>109</b> — 24시간 연결됩니다.
+      앱에서 느루에게 이야기하거나, 전화 심리상담으로 상담사와 이야기해 보세요.
+    </div>
+    <a class="btn" href="https://mindinsideapp.com/">앱으로 돌아가기</a>
+  </div>
+</main>
+
+<script>
+(function () {
+  var VER = 1;
+  var API = 'https://cbt-proxy.hongcbt.workers.dev/api/survey/submit';
+  var AGREE = ['전혀 아니다', '아니다', '보통', '그렇다', '매우 그렇다'];
+  var FREQ2 = ['전혀 없음', '며칠', '일주일 이상', '거의 매일'];
+  var FEATURES = ['느루와 대화 (AI 심리상담)', '기분 체크인', '오늘 할 일·미션', '사고 기록', '호흡·마음 안정', '하루 정리·일기',
+    '자가검사 (PHQ-9·GAD-7)', '추천 콘텐츠 (영상)', '전화·채팅 심리상담', '담당 상담소 연결', '달팽이 키우기 (방·농장·옷장)', '느루의 주간 편지'];
+
+  // 질문 목록 — id 는 결과 페이지와 맞춘다. type: one | many | agree | freq | nps | won | text
+  var PARTS = [
+    { title: '나에 대해', lead: '어떤 분들이 쓰고 계신지 알고 싶어요.', qs: [
+      { id: 'age', type: 'one', req: true, t: '연령대', opts: ['10대', '20대', '30대', '40대', '50대 이상'] },
+      { id: 'help', type: 'many', t: '지금 도움을 받고 있는 곳이 있나요?', h: '여러 개 골라도 돼요.', opts: ['정신건강의학과 진료', '심리상담 (상담소·센터)', '둘 다 아니에요', '말하고 싶지 않아요'] },
+      { id: 'period', type: 'one', req: true, t: '앱을 쓴 지 얼마나 됐나요?', opts: ['일주일 미만', '1~4주', '1~3개월', '3개월 이상'] },
+      { id: 'freq', type: 'one', req: true, t: '얼마나 자주 여나요?', opts: ['거의 매일', '주 3~5번', '주 1~2번', '가끔'] }
+    ] },
+    { title: '많이 쓴 기능', lead: '무엇이 쓸모 있었는지 알려 주세요.', qs: [
+      { id: 'used', type: 'many', t: '써 본 기능을 모두 골라 주세요', opts: FEATURES },
+      { id: 'best', type: 'one', t: '그중 가장 도움이 된 하나는?', opts: FEATURES }
+    ] },
+    { title: '달라진 점', lead: '앱을 쓰고 나서 어떤지, 느끼는 대로 골라 주세요.', qs: [
+      { id: 'e1', type: 'agree', req: true, t: '내 감정을 더 잘 알아차리게 됐다' },
+      { id: 'e2', type: 'agree', req: true, t: '부정적인 생각을 한 발짝 떨어져 보게 됐다' },
+      { id: 'e3', type: 'agree', req: true, t: '스트레스를 다루는 나만의 방법이 생겼다' },
+      { id: 'e4', type: 'agree', req: true, t: '힘들 때 기댈 곳이 생긴 느낌이다' },
+      { id: 'e5', type: 'agree', t: '하루를 돌아보고 정리하는 습관이 생겼다' },
+      { id: 'e6', type: 'agree', req: true, t: '전반적으로 기분이 나아졌다' },
+      { id: 'e7', type: 'agree', na: true, t: '상담이나 진료에 더 준비된 채로 가게 됐다', h: '상담·진료를 받지 않으면 "해당 없음"을 골라 주세요.' }
+    ] },
+    { title: '지난 2주 동안', lead: '다음 문제들로 얼마나 자주 불편하셨나요? 진단이 아니라, 앱을 쓰는 분들의 마음 상태를 전체적으로 보려는 질문이에요 (PHQ-4).', qs: [
+      { id: 'p1', type: 'freq', t: '기분이 가라앉거나, 우울하거나, 희망이 없다고 느꼈다' },
+      { id: 'p2', type: 'freq', t: '일이나 여가 활동에 흥미나 즐거움을 느끼지 못했다' },
+      { id: 'g1', type: 'freq', t: '초조하거나 불안하거나 조마조마했다' },
+      { id: 'g2', type: 'freq', t: '걱정을 멈추거나 조절할 수가 없었다' }
+    ] },
+    { title: '느루와의 대화', lead: 'AI 상담사와 이야기해 본 느낌이에요.', qs: [
+      { id: 'a1', type: 'agree', req: true, t: '느루가 내 마음을 알아준다고 느낀다' },
+      { id: 'a2', type: 'agree', req: true, t: '생각을 정리하는 데 도움이 되는 질문을 해 준다' },
+      { id: 'a3', type: 'agree', req: true, t: '말투가 어색하거나 기계적이다' },
+      { id: 'a4', type: 'agree', t: '대화 내용이 내 폰에만 남는다는 게 안심된다' },
+      { id: 'cmp', type: 'one', t: '"느루"와 "우렁의사" 둘 다 써 보셨나요?', h: '대화 화면에서 상담사를 바꿀 수 있어요. 둘은 성격은 같고 답을 만드는 AI 가 달라요.', opts: ['둘 다 써 봤어요', '느루만', '우렁의사만', '몰랐어요'] },
+      { id: 'cmpPick', type: 'one', t: '둘 다 써 봤다면, 어느 쪽이 더 좋았나요?', opts: ['느루', '우렁의사', '비슷해요'] },
+      { id: 'cmpWhy', type: 'text', t: '왜 그쪽이 더 좋았나요?', h: '예) 더 자연스러워요, 답이 빨라요, 더 공감해 줘요' }
+    ] },
+    { title: '요금', lead: '지금은 7일 무료 뒤 월 9,900원 · 12개월 79,000원(월 6,583원꼴)이에요. 정답은 없어요. 떠오르는 금액을 적어 주세요.', qs: [
+      { id: 'vw1', type: 'won', req: true, t: '월 구독료가 얼마면 "너무 싸서 오히려 믿음이 안 간다"고 느낄까요?' },
+      { id: 'vw2', type: 'won', req: true, t: '얼마면 "싸다, 괜찮은 가격이다"라고 느낄까요?' },
+      { id: 'vw3', type: 'won', req: true, t: '얼마면 "비싸지만 그래도 고민은 해 본다"고 느낄까요?' },
+      { id: 'vw4', type: 'won', req: true, t: '얼마면 "너무 비싸서 안 쓴다"고 느낄까요?' },
+      { id: 'now', type: 'one', req: true, t: '지금 가격, 월 9,900원은 어떤가요?', opts: ['싸다', '적당하다', '조금 비싸다', '너무 비싸다'] },
+      { id: 'plan', type: 'one', req: true, t: '가장 끌리는 방식은?', opts: ['월 구독', '1년 구독 (할인)', '무료 기능만 쓸래요', '구독 없이 필요할 때만 결제'] },
+      { id: 'payfor', type: 'many', t: '무엇이 있으면 돈을 내고 쓰겠어요?', h: '여러 개 골라도 돼요.', opts: ['느루와 무제한 대화', '더 깊이 있는 AI 답변', '전화 상담 할인', '상담소 연결·선생님 피드백', '자세한 마음 리포트', '가족·연인과 함께 쓰기', '잘 모르겠어요'] },
+      { id: 'counsel', type: 'one', t: '상담사와의 전화 상담 30분, 적당한 가격은?', opts: ['2만 원 미만', '2~3만 원', '3~4만 원', '4~5만 원', '5만 원 이상'] }
+    ] },
+    { title: '마지막으로', lead: '', qs: [
+      { id: 'nps', type: 'nps', req: true, t: '친구나 가족에게 마인드인사이드를 추천할 가능성은?' },
+      { id: 'good', type: 'text', t: '가장 좋았던 점은?' },
+      { id: 'fix', type: 'text', t: '꼭 고쳐 주었으면 하는 점은?' }
+    ] }
+  ];
+
+  var form = document.getElementById('sv');
+  var ALL = [];
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+  function optHtml(q, type, v, label, i) {
+    var id = q.id + '_' + i;
+    return '<div class="opt"><input type="' + type + '" id="' + id + '" name="' + q.id + '" value="' + esc(v) + '"><label for="' + id + '">' + esc(label) + '</label></div>';
+  }
+  function qHtml(q) {
+    var body = '';
+    if (q.type === 'one' || q.type === 'many') {
+      body = '<div class="opts">' + q.opts.map(function (o, i) { return optHtml(q, q.type === 'one' ? 'radio' : 'checkbox', o, o, i); }).join('') + '</div>';
+    } else if (q.type === 'agree') {
+      body = '<div class="scale">' + AGREE.map(function (l, i) { return optHtml(q, 'radio', i + 1, l, i); }).join('') + '</div>'
+        + (q.na ? '<div class="opts na">' + optHtml(q, 'radio', 'na', '해당 없음', 9) + '</div>' : '');
+    } else if (q.type === 'freq') {
+      body = '<div class="scale s4">' + FREQ2.map(function (l, i) { return optHtml(q, 'radio', i, l, i); }).join('') + '</div>';
+    } else if (q.type === 'nps') {
+      var a = []; for (var i = 0; i <= 10; i++) a.push(optHtml(q, 'radio', i, String(i), i));
+      body = '<div class="scale s11">' + a.join('') + '</div><div class="ends"><span>전혀 아니다</span><span>꼭 추천한다</span></div>';
+    } else if (q.type === 'won') {
+      body = '<div class="money"><input class="num" id="' + q.id + '" name="' + q.id + '" inputmode="numeric" placeholder="예) 9,900" autocomplete="off"><span>원 / 월</span></div>';
+    } else if (q.type === 'text') {
+      body = '<textarea id="' + q.id + '" name="' + q.id + '" maxlength="600" placeholder="' + esc(q.h || '') + '"></textarea>';
+    }
+    return '<div class="q' + (q.req ? ' req' : '') + '" data-q="' + q.id + '"><div class="t">' + esc(q.t) + '</div>'
+      + (q.h && q.type !== 'text' ? '<div class="h">' + esc(q.h) + '</div>' : '') + body + '</div>';
+  }
+  form.innerHTML = PARTS.map(function (p, i) {
+    p.qs.forEach(function (q) { ALL.push(q); });
+    return '<section class="part"><h2><small>' + (i + 1) + '/' + PARTS.length + '</small>' + esc(p.title) + '</h2>'
+      + (p.lead ? '<p class="lead">' + esc(p.lead) + '</p>' : '') + p.qs.map(qHtml).join('') + '</section>';
+  }).join('') + '<div class="submit"><div class="err" id="err" role="alert"></div><button class="go" type="submit" id="go">설문 보내기</button></div>';
+
+  var num = function (s) { var n = parseInt(String(s || '').replace(/[^0-9]/g, ''), 10); return isNaN(n) ? null : n; };
+  function read() {
+    var out = {};
+    ALL.forEach(function (q) {
+      if (q.type === 'many') {
+        var v = [].slice.call(form.querySelectorAll('input[name="' + q.id + '"]:checked')).map(function (x) { return x.value; });
+        if (v.length) out[q.id] = v;
+      } else if (q.type === 'won') {
+        var n = num(form.elements[q.id].value); if (n !== null) out[q.id] = n;
+      } else if (q.type === 'text') {
+        var t = form.elements[q.id].value.trim(); if (t) out[q.id] = t.slice(0, 600);
+      } else {
+        var c = form.querySelector('input[name="' + q.id + '"]:checked');
+        if (c) out[q.id] = (q.type === 'one' || c.value === 'na') ? c.value : Number(c.value);
+      }
+    });
+    return out;
+  }
+  function progress() {
+    var a = read(), done = ALL.filter(function (q) { return a[q.id] !== undefined; }).length;
+    var pct = Math.round(done / ALL.length * 100);
+    document.getElementById('prog').style.width = pct + '%';
+    document.getElementById('progtxt').textContent = pct + '%';
+  }
+  form.addEventListener('change', progress);
+  form.addEventListener('input', function (e) {
+    if (e.target.classList.contains('num')) {
+      var n = num(e.target.value); e.target.value = n === null ? '' : n.toLocaleString('ko-KR');
+    }
+    progress();
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var a = read(), err = document.getElementById('err');
+    form.querySelectorAll('.q.miss').forEach(function (x) { x.classList.remove('miss'); });
+    var miss = ALL.filter(function (q) { return q.req && a[q.id] === undefined; });
+    if (miss.length) {
+      miss.forEach(function (q) { form.querySelector('[data-q="' + q.id + '"]').classList.add('miss'); });
+      err.textContent = '빨간 테두리의 필수 질문 ' + miss.length + '개에 답해 주세요.';
+      form.querySelector('[data-q="' + miss[0].id + '"]').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    if (!(a.vw1 <= a.vw2 && a.vw2 <= a.vw3 && a.vw3 <= a.vw4)) {
+      ['vw1', 'vw2', 'vw3', 'vw4'].forEach(function (k) { form.querySelector('[data-q="' + k + '"]').classList.add('miss'); });
+      err.textContent = '요금 네 칸은 위에서 아래로 갈수록 같거나 커야 해요. 한 번만 확인해 주세요.';
+      form.querySelector('[data-q="vw1"]').scrollIntoView({ block: 'center', behavior: 'smooth' });
+      return;
+    }
+    var btn = document.getElementById('go'); btn.disabled = true; btn.textContent = '보내는 중…'; err.textContent = '';
+    var r = null, j = null;
+    try { r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ v: VER, answers: a }) }); j = await r.json(); } catch (x) {}
+    if (!j || !j.ok) {
+      btn.disabled = false; btn.textContent = '설문 보내기';
+      err.textContent = j && j.message ? j.message : '보내지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.';
+      return;
+    }
+    var phq = (a.p1 || 0) + (a.p2 || 0) + (a.g1 || 0) + (a.g2 || 0);
+    document.getElementById('crisis').hidden = !(phq >= 6 || a.p1 === 3);
+    document.getElementById('form-wrap').hidden = true;
+    document.getElementById('done').hidden = false;
+    document.getElementById('prog').style.width = '100%'; document.getElementById('progtxt').textContent = '100%';
+    window.scrollTo(0, 0);
+  });
+  progress();
+})();
+</script>
+</body>
+</html>

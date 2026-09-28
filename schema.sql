@@ -194,3 +194,7 @@ CREATE INDEX IF NOT EXISTS idx_hospapps_status ON hospital_apps(status, ts);
 
 -- 상담사 신청서 자격증 사진(필수, 앱에서 긴 변 1000px JPEG 로 줄임) — 운영자·소장이 심사할 때 본다
 -- ALTER TABLE applications ADD COLUMN license_photo TEXT;
+
+-- 이용자 설문 (survey.js) — 익명. 답만 JSON 으로, IP·기기 ID 는 저장하지 않는다
+CREATE TABLE IF NOT EXISTS survey_responses (id TEXT PRIMARY KEY, ts INTEGER NOT NULL, ver INTEGER NOT NULL, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(ts);
