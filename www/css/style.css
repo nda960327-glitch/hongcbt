@@ -1536,9 +1536,24 @@ textarea:focus { border-color: var(--accent-primary); }
   animation: slideUp 0.22s ease;
 }
 .feed-ov__bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-.feed-ov__x { all: unset; cursor: pointer; margin-left: auto; font-size: 0.78rem; font-weight: 800; color: var(--text-muted); padding: 0.3rem 0.5rem; }
-.feed-ov__video { aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
-.feed-ov__video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.feed-ov__x { all: unset; cursor: pointer; order: -1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 1rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary); margin-right: 0.3rem; }
+.feed-ov__video { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: #000; }
+.feed-ov__video iframe, .feed-ov__video #feed-player { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+/* 영상 시트: 거의 전체 화면, 영상은 가장자리까지 크게 */
+.feed-ov--video { max-height: 94vh; padding-top: 0.5rem; }
+.feed-ov--video .feed-ov__video { margin: 0 -1.1rem; border-radius: 0; }
+.feed-ov--video h3 { font-size: 1.12rem; margin-top: 0.9rem; }
+.feed-ov__poster { position: absolute; inset: 0; background-size: cover; background-position: center; display: grid; place-items: center; }
+.feed-ov__spin { width: 42px; height: 42px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.35); border-top-color: #fff; animation: feedSpin 0.8s linear infinite; }
+@keyframes feedSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .feed-ov__spin { animation: none; } }
+.feed-ov__noembed { position: absolute; inset: 0; background-size: cover; background-position: center; display: grid; place-items: center; }
+.feed-ov__noembed > div { background: rgba(20,16,12,0.78); color: #fff; border-radius: 14px; padding: 0.9rem 1rem; text-align: center; display: grid; gap: 0.35rem; max-width: 86%; }
+.feed-ov__noembed b { font-size: 0.95rem; }
+.feed-ov__noembed span { font-size: 0.78rem; opacity: 0.85; }
+.feed-ov__noembed a { justify-self: center; margin-top: 0.3rem; background: #fff; color: #222; font-weight: 800; font-size: 0.86rem; text-decoration: none; padding: 0.5rem 0.95rem; border-radius: 999px; }
+.feed-ov__more { margin-top: 1.2rem; display: grid; gap: 0.5rem; }
+.feed-ov__more-h { font-size: 0.85rem; font-weight: 800; color: var(--text-primary); }
 .feed-ov h3 { margin: 0.7rem 0 0.2rem; font-size: 1rem; line-height: 1.4; color: var(--text-primary); }
 .feed-ov__author { font-size: 0.74rem; color: var(--text-muted); margin: 0 0 0.5rem; }
 .feed-ov__note { display: flex; gap: 0.5rem; align-items: flex-start; background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.55rem 0.7rem; font-size: 0.82rem; color: var(--text-primary); line-height: 1.5; margin: 0.5rem 0; }
@@ -1551,7 +1566,7 @@ textarea:focus { border-color: var(--accent-primary); }
   border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary);
 }
 .feed-ov__vote button.on { background: color-mix(in srgb, var(--accent-primary) 16%, transparent); border-color: var(--accent-primary); color: var(--accent-primary); }
-.feed-ov__ext { display: block; text-align: center; margin-top: 0.6rem; font-size: 0.76rem; font-weight: 700; color: var(--text-muted); text-decoration: none; }
+.feed-ov__ext { display: block; text-align: center; margin-top: 0.6rem; padding: 0.6rem; border-radius: 12px; border: 1px solid var(--glass-border); font-size: 0.84rem; font-weight: 800; color: var(--text-primary); text-decoration: none; }
 
 /* 제휴 콘텐츠 가로 스크롤 */
 .home-ads {

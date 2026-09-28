@@ -171,14 +171,17 @@ window.Feed = {
     ov.id = 'feed-overlay';
     ov.dataset.ovGuard = '1';   // 뒤로가기로 닫힌다
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 1200; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end;';
+    // 같은 분류의 다른 영상 3개 — 다 보고 나서 이어 볼 것
+    const tag0 = (it.tags || [])[0];
+    const related = yt ? this.sorted().filter(x => x.id !== it.id && x.type === 'youtube' && tag0 && (x.tags || []).includes(tag0)).slice(0, 3) : [];
     ov.innerHTML = `
-      <div class="feed-ov">
+      <div class="feed-ov${yt ? ' feed-ov--video' : ''}">
         <div class="feed-ov__bar">
-          <span class="feed-tag">${yt ? '영상' : '글'}</span>
+          <button class="feed-ov__x" data-feed-close aria-label="닫기">✕</button>
           ${(it.tags || []).map(t => `<span class="feed-tag">${esc(t)}</span>`).join('')}
-          <button class="feed-ov__x" data-feed-close>닫기</button>
         </div>
-        ${yt && it.videoId ? `<div class="feed-ov__video"><iframe src="https://www.youtube-nocookie.com/embed/${esc(it.videoId)}?rel=0&playsinline=1" title="${esc(it.title)}" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>` : ''}
+        ${yt && it.videoId ? `<div class="feed-ov__video" id="feed-player-box"><div id="feed-player"></div>
+          <div class="feed-ov__poster" id="feed-poster" style="background-image:url('https://i.ytimg.com/vi/${esc(it.videoId)}/hqdefault.jpg')"><span class="feed-ov__spin"></span></div></div>` : ''}
         <h3>${esc(it.title)}</h3>
         ${it.author ? `<p class="feed-ov__author">${esc(it.author)}</p>` : ''}
         ${it.note ? `<div class="feed-ov__note"><span style="line-height: 0; flex-shrink: 0;">${window.Stickers ? window.Stickers.svg('think', 34) : ''}</span><span>${esc(it.note)}</span></div>` : ''}
@@ -187,15 +190,66 @@ window.Feed = {
           <button data-feed-vote="1" class="${it.mine === 1 ? 'on' : ''}">${this._thumb(14)} 도움됐어요 · <span data-up>${it.up || 0}</span></button>
           <button data-feed-vote="-1" class="${it.mine === -1 ? 'on' : ''}"><span style="display:inline-block; transform: scaleY(-1);">${this._thumb(14)}</span> 별로예요 · <span data-down>${it.down || 0}</span></button>
         </div>
-        ${yt ? `<a class="feed-ov__ext" href="${esc(it.url)}" data-feed-ext>유튜브에서 열기 ›</a>` : ''}
+        ${yt ? `<a class="feed-ov__ext" href="${esc(it.url)}" data-feed-ext>유튜브 앱에서 보기 ›</a>` : ''}
+        ${related.length ? `<div class="feed-ov__more"><div class="feed-ov__more-h">'${esc(tag0)}' 다른 영상</div>${related.map(x => this._card(x, true)).join('')}</div>` : ''}
       </div>`;
     ov.dataset.feedId = it.id;
     ov.addEventListener('click', e => { if (e.target === ov) this.close(); });
     document.body.appendChild(ov);
     if (window.Sfx) window.Sfx.play('pop');
+    if (yt && it.videoId) this._play(it);
+  },
+
+  // 앱 안 재생 — 유튜브 IFrame API 로 띄워 '퍼가기 금지' 영상(오류 101·150)을 알아채고 안내 화면으로 바꾼다.
+  //  카드를 누른 손짓으로 열렸으니 바로 재생을 건다(휴대폰이 막으면 재생 버튼이 보인다).
+  //  API 가 4초 안에 안 오면 그냥 iframe 으로 — 재생은 되고 오류 안내만 못 한다.
+  _ytApi() {
+    if (window.YT && window.YT.Player) return Promise.resolve(window.YT);
+    if (this._ytP) return this._ytP;
+    this._ytP = new Promise((res, rej) => {
+      const prev = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (prev) try { prev(); } catch (e) {} res(window.YT); };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => { this._ytP = null; rej(new Error('yt-api')); };
+      document.head.appendChild(s);
+    });
+    return this._ytP;
+  },
+  async _play(it) {
+    const box = document.getElementById('feed-player-box');
+    const poster = document.getElementById('feed-poster');
+    const done = () => { if (poster) poster.remove(); };
+    const noEmbed = () => {
+      if (!box || !box.isConnected) return;
+      box.innerHTML = `
+        <div class="feed-ov__noembed" style="background-image:url('https://i.ytimg.com/vi/${this._esc(it.videoId)}/hqdefault.jpg')">
+          <div><b>이 영상은 유튜브에서만 볼 수 있어요</b><span>만든 분이 다른 앱 안 재생을 막아 두었어요.</span>
+          <a href="${this._esc(it.url)}" data-feed-ext>유튜브에서 보기 ›</a></div>
+        </div>`;
+    };
+    try {
+      const YT = await Promise.race([this._ytApi(), new Promise((_, r) => setTimeout(() => r(new Error('slow')), 4000))]);
+      if (!document.getElementById('feed-player')) return;   // 그사이 닫혔다
+      this._player = new YT.Player('feed-player', {
+        videoId: it.videoId, width: '100%', height: '100%', host: 'https://www.youtube-nocookie.com',
+        playerVars: { autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: done,
+          onError: e => { done(); if ([2, 100, 101, 150, 153].includes(e && e.data)) noEmbed(); }
+        }
+      });
+    } catch (e) {
+      const slot = document.getElementById('feed-player');
+      if (!slot) return;
+      slot.outerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${this._esc(it.videoId)}?rel=0&playsinline=1&autoplay=1" title="${this._esc(it.title)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+      done();
+    }
   },
 
   close() {
+    try { if (this._player && this._player.destroy) this._player.destroy(); } catch (e) {}
+    this._player = null;
     const ov = document.getElementById('feed-overlay');
     if (ov) ov.remove();
   },

@@ -1097,8 +1097,12 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       }
 
       // 구분자는 ||| 가 원칙이지만 DeepSeek(우렁의사)는 | 하나로 줄여 쓴다 — 파이프가 몇 개든 전부 말풍선 경계로 본다
+      //  단, [그림:영상|10] 같은 표식 안의 | 는 인자 구분자다 — 먼저 감춰 두고 나눈 뒤 되돌린다.
+      //  (안 그러면 표식이 두 말풍선으로 잘려 카드가 안 뜨고 "[그림:영상" 글자가 그대로 보였다)
+      const PIPE = '\u0001';
+      botText = botText.replace(/\[(그림|스티커)\s*:[^\]\n]*\]/g, m => m.replace(/\|/g, PIPE));
       let parts = botText.split(/\s*\|+\s*/)
-        .map(s => s.replace(/^[|\s]+/, '').replace(/[|\s]+$/, '').trim())
+        .map(s => s.replace(/^[|\s]+/, '').replace(/[|\s]+$/, '').split(PIPE).join('|').trim())
         .filter(Boolean);
       if (parts.length === 0) parts = [botText.replace(/\|/g, ' ').trim()];
 
