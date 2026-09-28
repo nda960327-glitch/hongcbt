@@ -294,21 +294,34 @@ window.Feed = {
     const items = this.sorted().slice(0, 80);
     this._promptIds = items.map(it => it.id);
     if (!items.length) return '';
+    // 번호로 고르게 했더니 모델이 이웃 번호를 집어 "말한 제목 ≠ 카드" 가 됐다 → 제목을 그대로 쓰게 한다.
     const byTag = {};
-    items.forEach((it, i) => {
+    items.forEach(it => {
       const t = (it.tags || [])[0] || '기타';
-      (byTag[t] = byTag[t] || []).push(`${i + 1}. ${String(it.title).slice(0, 48)}`);
+      // 표식을 깨는 [ ] | │ 는 빼고 보여 준다 (맞춰 볼 때는 어차피 문장부호를 무시한다)
+      (byTag[t] = byTag[t] || []).push(`「${String(it.title).replace(/[\[\]|│]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48)}」`);
     });
     return '[추천 영상 — 운영자가 고른 self-care 영상. 앱 안에서 바로 볼 수 있음]\n'
-      + Object.keys(byTag).map(t => `〈${t}〉 ${byTag[t].join(' / ')}`).join('\n')
-      + '\n사용자의 지금 고민과 분명히 맞는 영상이 있으면 [그림:영상|번호] 로 카드를 보여주세요 (예: [그림:영상|3]). 카드를 누르면 앱 안에서 바로 열립니다.'
+      + Object.keys(byTag).map(t => `〈${t}〉 ${byTag[t].join(' ')}`).join('\n')
+      + '\n사용자의 지금 고민과 분명히 맞는 영상이 있으면 [그림:영상|「」 안의 제목을 한 글자도 바꾸지 말고 그대로] 로 카드를 보여주세요 (예: [그림:영상|스트레스 바로알기]). 카드에 제목·썸네일이 나오니 답장에서 제목을 따로 말하지 말고, 왜 골랐는지만 한 줄로. 카드를 누르면 앱 안에서 바로 열립니다.'
       + '\n· 한 번에 하나만. 이 대화에서 이미 권했으면 다시 권하지 마세요. 힘든 이야기를 막 꺼낸 첫 답장에서는 먼저 들어주고, 몇 번 주고받은 뒤나 사용자가 방법·자료를 원할 때 권하세요.'
       + '\n· 사용자가 "영상 추천해줘", "볼 만한 거 있어?"처럼 직접 물으면 바로 가장 맞는 것 하나를 카드로 주고, 왜 골랐는지 한 줄로 말해 주세요.'
       + '\n· 위 목록에 없는 영상·링크는 지어내지 마세요. 주소를 직접 쓰지 말고 카드만 쓰세요.';
   },
-  promptIdOf(n) {
-    const i = parseInt(n, 10) - 1;
-    return (i >= 0 && this._promptIds[i]) || '';
+  // 모델이 쓴 영상 표식 인자 → feed id. 제목이 원칙(공백·문장부호 무시, 앞부분만 써도 하나로 좁혀지면 인정),
+  //  옛 번호 방식도 받는다. 못 찾으면 '' — 카드를 띄우지 않는다(엉뚱한 영상보다 없는 게 낫다).
+  promptIdOf(arg) {
+    const a = String(arg || '').replace(/[「」"'“”‘’]/g, '').trim();
+    if (!a) return '';
+    if (/^\d{1,3}$/.test(a)) { const i = parseInt(a, 10) - 1; return (i >= 0 && this._promptIds[i]) || ''; }
+    const norm = s => String(s || '').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+    const want = norm(a);
+    if (want.length < 2) return '';
+    const pool = (this._promptIds.length ? this._promptIds.map(id => this.get(id)) : (this._items || [])).filter(Boolean);
+    const exact = pool.find(it => norm(it.title) === want);
+    if (exact) return exact.id;
+    const part = pool.filter(it => { const t = norm(it.title); return t.startsWith(want) || t.includes(want) || want.includes(t); });
+    return part.length === 1 ? part[0].id : '';
   }
 };
 
