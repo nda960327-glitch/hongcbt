@@ -10,7 +10,8 @@
   //  캐시된 입력을 거의 공짜로 받아 줘서 긴 상담 프롬프트가 비용이 안 된다. 위기 턴만 아래 MODEL_HIGH(OpenAI)로 올린다.
   //  DeepSeek 는 형식·숫자를 느슨하게 다루므로(||| 를 | 로, 시각 반올림) 파서와 [현재 시각] 표기가 그걸 감안한다.
   //  목소리는 모델이 아니라 [6-4] 금지 표현 규칙으로 붙잡는다.
-  MODEL: "deepseek-chat",
+  // 2026-09-28: 느루는 다시 OpenAI(mini), 비교용 우렁의사만 DeepSeek — 페르소나의 model 이 우선한다.
+  MODEL: "gpt-4o-mini",
 
   // 목소리가 없는 배경 작업 — 사고기록 정리·미션 생성·주간 편지·세션 정리·주제별 요약.
   //  사용자가 문장을 읽지 않거나, 형식이 프롬프트로 정해져 있어 등급 차가 안 드러난다.
@@ -758,7 +759,7 @@ ${persona.style}
 
     // 호칭 혼동 방지 (짧고 치명적이라 항상 유지)
     prompt += `\n\n[호칭 주의 — 절대 혼동 금지]
-느루·햇님·달님·소나무는 전부 '상담사(당신 쪽)'의 이름입니다. 사용자의 이름이 절대 아닙니다.
+느루·우렁의사·햇님·달님·소나무는 전부 '상담사(당신 쪽)'의 이름입니다. 사용자의 이름이 절대 아닙니다.
 · 사용자를 "햇님아", "소나무님"처럼 상담사 이름으로 부르는 것은 심각한 오류입니다. 절대 금지.
 · 대화 기록에 "나 햇님이야", "달님이에요" 같은 인사가 있어도 그것은 이전에 함께한 '동료 상담사'가 한 말이지, 사용자가 한 말이 아닙니다.
 · 사용자의 이름은 [장기기억]에 적힌 것만 사용하세요. 모르면 이름 없이 자연스럽게 말하거나, 대화 중 편하게 물어보세요.`;
@@ -1002,7 +1003,8 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       //  마커·말풍선 분할 등 최종 다듬기는 완성된 전체 텍스트로 아래에서 그대로 한다.
       // 위기 신호가 있는 턴만 OpenAI 상위 모델. 재치 턴 승격은 2026-09-26 에 뺐다(비용의 큰 몫이었고 안전과 무관하다).
       const stream = await this._chatStream({
-        model: risky ? this.MODEL_HIGH : this.MODEL,
+        // 페르소나가 모델을 지정하면(우렁의사 = DeepSeek) 그 모델로 — 단, 위기 턴은 어느 상담사든 OpenAI 상위 모델로 올린다.
+        model: risky ? this.MODEL_HIGH : (((window.Personas && window.Personas.getActive && window.Personas.getActive().model) || '') || this.MODEL),
         messages: messages,
         temperature: 0.9,       // 따뜻함·유머·자연스러움
         max_tokens: 700,
