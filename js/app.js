@@ -313,6 +313,8 @@ window.App = {
     if (window.HomeSimple) window.HomeSimple.init();   // 홈 모양(기본/심플) 적용 — A/B 비교용   // 내 주변 정신과 (홈 맨 아래)
     this.initCregForm(); // 상담사 등록 폼: 전문분야 칩·사진 업로드
     this.renderHomeGreeting();
+    // 이름이 빈 기존 사용자에게 한 번 묻는다 (첫 화면이 다 그려진 뒤에)
+    setTimeout(() => { if (window.Onboard && window.Onboard.askNameIfMissing) window.Onboard.askNameIfMissing(); }, 2500);
     if (window.Safety) window.Safety.renderRow();
     const soundCb = document.getElementById('setting-sound');
     if (soundCb) soundCb.checked = window.Storage._safeGet('cbt_sound_on', true) !== false;

@@ -151,13 +151,17 @@ window.Forest = {
     { t: '계속 이어가기', p: ['body', 'space'], h: '앞으로도 이어갈 연습 하나를 골라 매일의 자리를 정하기' }
   ],
 
-  AMBIENT: [['pine', '솔바람'], ['rain', '빗소리'], ['stream', '시냇물'], ['bowl', '싱잉볼'], ['off', '끄기']],
+  AMBIENT: [['music', '잔잔한 음악'], ['pine', '산들바람'], ['rain', '가는 비'], ['stream', '시냇물'], ['bowl', '싱잉볼'], ['off', '끄기']],
 
   // ── 저장 ─────────────────────────────────────────────────────────
   _get(k, d) { try { return window.Storage ? window.Storage._safeGet(k, d) : d; } catch (e) { return d; } },
   _set(k, v) { try { window.Storage && window.Storage._safeSet(k, v); } catch (e) {} },
   log() { return this._get(this.LOG_KEY, []) || []; },
-  pref() { return Object.assign({ ambient: 'pine', vol: 0.5, voice: true, vib: true }, this._get(this.PREF_KEY, {}) || {}); },
+  pref() {
+    const p = Object.assign({ ambient: 'music', vol: 0.6, voice: true, vib: true }, this._get(this.PREF_KEY, {}) || {});
+    if (!p.v2) { p.ambient = 'music'; p.vol = 0.6; p.v2 = 1; this._set(this.PREF_KEY, p); }   // 2026-09-28 소리 전면 교체 — 옛 설정은 새 기본으로
+    return p;
+  },
   setPref(p) { this._set(this.PREF_KEY, Object.assign(this.pref(), p)); },
   doneCount(pid) { return this.log().filter(l => l.p === pid).length; },
   weekOf() {
@@ -238,9 +242,20 @@ window.Forest = {
     if (!p) return;
     this._css();
     this._stop();
-    const ov = document.getElementById('forest-ov') || (() => { const d = document.createElement('div'); d.id = 'forest-ov'; d.dataset.ovGuard = '1'; document.body.appendChild(d); return d; })();
-    const pref = this.pref();
+    this._resumePill(false);
     this._run = { pid, week: week || 0, i: -1, paused: false, t0: Date.now(), timer: null, audio: null, clouds: 0 };
+    this._buildPlayer();
+    // 시작은 사용자가 ▶ 를 눌러서 — 소리는 손짓이 있어야 켜진다
+  },
+
+  // 플레이어 화면을 (다시) 그린다 — 연습 상태(this._run)는 그대로 둔다.
+  //  홈으로 나갔다가 '이어 하기'로 돌아올 때도 이걸로 같은 자리에 되살린다.
+  _buildPlayer() {
+    const r = this._run; if (!r) return;
+    const p = this.PRACTICES[r.pid];
+    const ov = document.getElementById('forest-ov') || (() => { const d = document.createElement('div'); d.id = 'forest-ov'; d.dataset.ovGuard = '1'; document.body.appendChild(d); return d; })();
+    this._watch();
+    const pref = this.pref();
     ov.innerHTML = `
       <div class="fr-play" style="--h:${p.hue}">
         <div class="fr-sky" id="fr-sky"></div>
@@ -265,14 +280,48 @@ window.Forest = {
           <label><input type="checkbox" id="fr-vib" ${pref.vib ? 'checked' : ''}> 진동</label>
         </div>
       </div>`;
-    this._stage(null);
+    if (r.i >= 0) {
+      // 이어 하기: 멈춘 줄의 글과 화면을 그대로 보여 주고, ▶ 를 누르면 그 줄부터 다시 들려준다
+      const line = p.lines[r.i] || p.lines[p.lines.length - 1];
+      const say = document.getElementById('fr-say'); if (say) say.textContent = line[0];
+      this._stage(line[2] && line[2] !== 'bell' && line[2] !== 'end' ? line[2] : (this._lastCue || null));
+    } else this._stage(null);
     this._paintProgress();
-    // 시작은 사용자가 ▶ 를 눌러서 — 소리는 손짓이 있어야 켜진다
+  },
+
+  // 앱의 뒤로가기·탭 이동이 명상 화면을 걷어내면: 멈추고, 화면 아래에 '이어 하기'를 띄운다.
+  //  전에는 소리는 계속 나는데 돌아갈 길이 없고, 다시 열면 처음부터였다 (2026-09-28 팀 피드백).
+  _watch() {
+    if (this._mo) return;
+    this._mo = new MutationObserver(() => {
+      if (!this._run || document.getElementById('forest-ov')) return;
+      this._pause();
+      if (this._amb) { this._amb.stop(); this._amb = null; }
+      clearInterval(this._bt);
+      this._resumePill(true);
+    });
+    this._mo.observe(document.body, { childList: true });
+  },
+  _resumePill(show) {
+    let el = document.getElementById('fr-resume');
+    if (!show) { if (el) el.remove(); return; }
+    const r = this._run; if (!r) return;
+    const p = this.PRACTICES[r.pid];
+    if (!el) { el = document.createElement('div'); el.id = 'fr-resume'; document.body.appendChild(el); }
+    const left = p.lines.slice(Math.max(0, r.i)).reduce((s, l) => s + l[0].length * 0.17 + (l[1] || 3), 0);
+    el.innerHTML = `<button data-fr="resume" class="fr-rp__go"><span class="fr-rp__dot"></span><b>${this._esc(p.name)} 이어 하기</b><span>${Math.max(1, Math.round(left / 60))}분 남음</span></button><button data-fr="resume-end" class="fr-rp__x" aria-label="명상 끝내기">✕</button>`;
+  },
+  _resume() {
+    if (!this._run) return this.open();
+    this._resumePill(false);
+    this._css();
+    this._buildPlayer();
+    const b = document.getElementById('fr-toggle'); if (b) { b.textContent = '▶'; b.setAttribute('aria-label', '이어서 듣기'); }
   },
 
   _start() {
     const r = this._run; if (!r) return;
-    this._audioOn();
+    this._audioOn();   // 배경음이 꺼져 있으면(이어 하기) 다시 켠다
     if (r.i < 0) { r.i = 0; r.t0 = Date.now(); this._step(); }
     else { r.paused = false; this._resumeStep(); }
     const b = document.getElementById('fr-toggle'); if (b) { b.textContent = '❚❚'; b.setAttribute('aria-label', '잠시 멈춤'); }
@@ -324,11 +373,12 @@ window.Forest = {
     const file = this.AUDIO_BASE + this._hash(text) + '.mp3';
     return new Promise(res => {
       let settled = false;
-      const done = () => { if (!settled) { settled = true; res(); } };
+      const done = () => { if (!settled) { settled = true; this._duck(false); res(); } };
       const a = new Audio(file);
       a.volume = 1;
       r.audio = a;
-      a.onended = done;
+      a.onended = () => { this._duck(false); done(); };
+      this._duck(true);
       a.onerror = () => {
         if (r.audio !== a) return done();
         r.audio = null;
@@ -461,38 +511,89 @@ window.Forest = {
     const ac = this._ac; if (!ac) return;
     if (this._amb) { try { this._amb.stop(); } catch (e) {} this._amb = null; }
     if (!kind || kind === 'off') return;
-    const out = ac.createGain(); out.gain.value = 0; out.connect(ac.destination);
+    // 2026-09-28 팀 피드백: "솔바람이 태풍 같다", "소리가 전부 격렬하다" → 전부 다시.
+    //  원칙: 목소리보다 한참 작게(최대 0.35), 높은 소리는 깎고, 변화는 아주 느리게(10~30초 주기).
+    //  master 는 목소리가 나올 때 살짝 더 줄인다(_duck).
+    const out = ac.createGain(); out.gain.value = 0;
+    const soft = ac.createBiquadFilter(); soft.type = 'lowpass'; soft.frequency.value = 3200; soft.Q.value = 0.3;   // 모든 배경음의 날카로움을 깎는다
+    out.connect(soft); soft.connect(ac.destination);
     const vol = this.pref().vol;
-    out.gain.linearRampToValueAtTime(vol * 0.9, ac.currentTime + 3);
+    out.gain.linearRampToValueAtTime(vol * 0.35, ac.currentTime + 6);
     const nodes = [];
     const lfo = (target, rate, depth, base) => { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.value = rate; g.gain.value = depth; o.connect(g); g.connect(target); target.value = base; o.start(); nodes.push(o); };
-    if (kind === 'pine' || kind === 'rain' || kind === 'stream') {
-      const n = this._noise(ac, kind === 'pine' ? 'brown' : 'pink');
-      const f = ac.createBiquadFilter();
-      const g = ac.createGain();
-      if (kind === 'pine') { f.type = 'lowpass'; lfo(f.frequency, 0.07, 350, 600); lfo(g.gain, 0.05, 0.35, 0.6); }
-      if (kind === 'rain') { f.type = 'highpass'; f.frequency.value = 900; g.gain.value = 0.55; }
-      if (kind === 'stream') { f.type = 'bandpass'; f.Q.value = 0.7; lfo(f.frequency, 0.23, 500, 1400); g.gain.value = 0.7; }
+    const noiseBed = (color, type, freq, q, gain, sweep) => {
+      const n = this._noise(ac, color), f = ac.createBiquadFilter(), g = ac.createGain();
+      f.type = type; f.Q.value = q;
+      if (sweep) lfo(f.frequency, sweep[0], sweep[1], freq); else f.frequency.value = freq;
+      g.gain.value = gain;
       n.connect(f); f.connect(g); g.connect(out); n.start(); nodes.push(n);
+      return g;
+    };
+    if (kind === 'pine') {
+      // 먼 숲의 산들바람: 아주 낮고 부드러운 쉬익 소리가 20초 주기로 천천히 일었다 잦아든다
+      const g = noiseBed('pink', 'lowpass', 420, 0.2, 0.22, [0.03, 140]);
+      lfo(g.gain, 0.05, 0.1, 0.22);
     }
-    if (kind === 'bowl' || kind === 'pine') {
-      // 싱잉볼처럼 낮게 울리는 화음 (솔바람에는 아주 작게 깔아 음악처럼)
-      const base = 110, level = kind === 'bowl' ? 0.07 : 0.018;
-      [1, 1.5, 2.01, 3.02].forEach((m, k) => {
-        const o = ac.createOscillator(), g = ac.createGain();
-        o.type = 'sine'; o.frequency.value = base * m;
-        g.gain.value = level / (k + 1);
-        lfo(g.gain, 0.08 + k * 0.03, level / (k + 1.5), level / (k + 1));
-        o.connect(g); g.connect(out); o.start(); nodes.push(o);
-      });
+    if (kind === 'rain') {
+      // 창밖의 가는 비: 가운데 음역만 남겨 '톡톡'이 아니라 '사아' 하는 결로
+      noiseBed('pink', 'bandpass', 1800, 0.35, 0.16);
+      noiseBed('brown', 'lowpass', 300, 0.2, 0.18);
+    }
+    if (kind === 'stream') {
+      // 멀리서 흐르는 시냇물: 낮은 음역이 천천히 출렁인다
+      const g = noiseBed('pink', 'bandpass', 650, 0.5, 0.2, [0.09, 180]);
+      lfo(g.gain, 0.13, 0.05, 0.2);
+    }
+    if (kind === 'bowl') {
+      // 싱잉볼: 낮은 음이 길게 울리고, 12초마다 부드럽게 다시 친다
+      const strike = () => {
+        if (!this._amb || this._amb.kind !== 'bowl') return;
+        const t = ac.currentTime;
+        [[196, 0.10], [392.8, 0.04], [589.5, 0.02]].forEach(([fq, a]) => {
+          const o = ac.createOscillator(), g = ac.createGain();
+          o.type = 'sine'; o.frequency.value = fq;
+          g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 1.2); g.gain.exponentialRampToValueAtTime(0.0005, t + 11);
+          o.connect(g); g.connect(out); o.start(t); o.stop(t + 11.5);
+        });
+      };
+      this._bowlTimer = setInterval(strike, 12000);
+      setTimeout(strike, 200);
+    }
+    if (kind === 'music') {
+      // 잔잔한 음악: 따뜻한 화음(C·Am·F·G 계열)이 16초마다 아주 느리게 바뀐다. 멜로디 없이 공간만 채운다
+      const CH = [[130.8, 196, 261.6, 329.6], [110, 164.8, 220, 261.6], [87.3, 130.8, 174.6, 220], [98, 146.8, 196, 246.9]];
+      let ci = 0;
+      const pad = () => {
+        if (!this._amb || this._amb.kind !== 'music') return;
+        const t = ac.currentTime, chord = CH[ci++ % CH.length];
+        chord.forEach((fq, k) => {
+          [-3, 3].forEach(det => {   // 살짝 어긋난 두 줄로 겹쳐 따뜻하게
+            const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
+            o.type = 'triangle'; o.frequency.value = fq; o.detune.value = det;
+            f.type = 'lowpass'; f.frequency.value = 900;
+            const peak = (k === 0 ? 0.05 : 0.03);
+            g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 5); g.gain.setValueAtTime(peak, t + 13); g.gain.linearRampToValueAtTime(0, t + 20);
+            o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + 20.5);
+          });
+        });
+      };
+      this._padTimer = setInterval(pad, 16000);
+      setTimeout(pad, 100);
     }
     this._ambOut = out;
-    this._amb = { stop: () => { try { out.gain.cancelScheduledValues(ac.currentTime); out.gain.setTargetAtTime(0, ac.currentTime, 0.4); } catch (e) {} setTimeout(() => { nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { out.disconnect(); } catch (e) {} }, 1800); } };
+    const stopTimers = () => { clearInterval(this._bowlTimer); clearInterval(this._padTimer); };
+    this._amb = { kind, stop: () => { stopTimers(); try { out.gain.cancelScheduledValues(ac.currentTime); out.gain.setTargetAtTime(0, ac.currentTime, 0.6); } catch (e) {} setTimeout(() => { nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { out.disconnect(); soft.disconnect(); } catch (e) {} }, 2500); } };
+  },
+  // 안내 음성이 나오는 동안 배경음을 조금 낮춘다
+  _duck(on) {
+    if (!this._ambOut || !this._ac) return;
+    const v = this.pref().vol * 0.35 * (on ? 0.55 : 1);
+    try { this._ambOut.gain.setTargetAtTime(v, this._ac.currentTime, on ? 0.3 : 1.2); } catch (e) {}
   },
   _bell() {
     const ac = this._ac; if (!ac) return;
     const t = ac.currentTime, out = ac.createGain();
-    out.gain.value = 0.22; out.connect(ac.destination);
+    out.gain.value = 0.12; out.connect(ac.destination);
     [[523.25, 1], [1437, 0.45], [2820, 0.18], [528, 0.8]].forEach(([f, a], k) => {
       const o = ac.createOscillator(), g = ac.createGain();
       o.type = 'sine'; o.frequency.value = f;
@@ -509,6 +610,7 @@ window.Forest = {
     try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {}
     if (this._amb) { this._amb.stop(); this._amb = null; }
     this._run = null; this._lastCue = null;
+    const pill = document.getElementById('fr-resume'); if (pill) pill.remove();
   },
 
   // ── 끝: 소감 한 줄 ───────────────────────────────────────────────
@@ -649,6 +751,12 @@ window.Forest = {
 .fr-feel button{all:unset;cursor:pointer;padding:.4rem .8rem;border-radius:99px;border:1px solid rgba(255,255,255,.25);font-size:.82rem;}
 .fr-feel button.on{background:#eaf5ee;color:#16372a;font-weight:800;}
 .fr-done textarea{font:inherit;font-size:.88rem;min-height:70px;border-radius:14px;padding:.6rem .8rem;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff;resize:none;}
+#fr-resume{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:1250;display:flex;gap:.3rem;align-items:center;background:#16372a;color:#eef4ea;border-radius:999px;padding:.3rem .35rem .3rem .4rem;box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:calc(100% - 32px);}
+#fr-resume button{all:unset;cursor:pointer;color:inherit;font:inherit;}
+.fr-rp__go{display:flex;align-items:center;gap:.5rem;padding:.45rem .7rem;font-size:.86rem;white-space:nowrap;}
+.fr-rp__go span:last-child{font-size:.74rem;opacity:.75;}
+.fr-rp__dot{width:9px;height:9px;border-radius:50%;background:#7cc39c;box-shadow:0 0 0 4px rgba(124,195,156,.25);}
+.fr-rp__x{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.12);font-size:.8rem;}
 .fr-save{all:unset;cursor:pointer;padding:.85rem;border-radius:14px;background:#eaf5ee;color:#16372a;font-weight:800;text-align:center;}
 @media (prefers-reduced-motion: reduce){.fr-orb,.fr-orb.breathe,.fr-ripple i,.fr-walk i,.fr-cloud,.fr-say.in{animation-duration:0s!important;animation-iteration-count:1!important;}}
 `;
@@ -679,12 +787,14 @@ document.addEventListener('click', function (e) {
   else if (act === 'next') F._jump(1);
   else if (act === 'back') F._jump(-1);
   else if (act === 'save') F._save();
+  else if (act === 'resume') F._resume();
+  else if (act === 'resume-end') { F._stop(); F._resumePill(false); }
 });
 document.addEventListener('input', function (e) {
   const F = window.Forest; if (!F) return;
   if (e.target.id === 'fr-vol') {
     const v = +e.target.value; F.setPref({ vol: v });
-    if (F._ambOut && F._ac) try { F._ambOut.gain.setTargetAtTime(v * 0.9, F._ac.currentTime, 0.2); } catch (x) {}
+    if (F._ambOut && F._ac) try { F._ambOut.gain.setTargetAtTime(v * 0.35, F._ac.currentTime, 0.3); } catch (x) {}
   }
 });
 document.addEventListener('change', function (e) {

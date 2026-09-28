@@ -14,6 +14,25 @@ window.Onboard = {
  { id:'talk', icon:'chat', label:'그냥 대화 상대', persona:'woorung'}
   ],
 
+  // 온보딩을 이미 끝냈는데 이름이 비어 있는 사람(전에는 비워 두고 넘어갈 수 있었다)에게 한 번만 묻는다.
+  async askNameIfMissing() {
+    const S = window.Storage;
+    if (!S || this.needed() || S._safeGet('cbt_user_name', '') || S._safeGet('cbt_name_asked', false)) return;
+    if (!S._safeGet('cbt_account_session', '') || !window.UI || !window.UI.prompt) return;
+    S._safeSet('cbt_name_asked', true);
+    const v = await window.UI.prompt({
+      title: '뭐라고 불러드릴까요?',
+      body: '느루가 대화할 때 이름을 불러드릴게요. 별명도 좋아요.',
+      placeholder: '별명이나 이름', okLabel: '이렇게 불러줘', cancelLabel: '나중에'
+    });
+    const name = String(v || '').trim().slice(0, 12);
+    if (name) {
+      S._safeSet('cbt_user_name', name);
+      if (window.App && window.App.renderHomeGreeting) try { window.App.renderHomeGreeting(); } catch (e) {}
+      if (window.App && window.App.showRecordToast) window.App.showRecordToast(`${name}님, 반가워요!`);
+    }
+  },
+
   needed() {
     return !window.Storage._safeGet('cbt_onboard_done', false);
   },
@@ -52,11 +71,20 @@ window.Onboard = {
  <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 </p>`);
       const input = document.getElementById('ob-name');
       setTimeout(() => input.focus(), 200);
+      // 이름은 꼭 받는다 — 비워 두고 넘어가면 느루가 끝까지 이름을 못 부른다 (2026-09-28 팀 피드백)
       document.getElementById('ob-next').addEventListener('click', () => {
         d.name = input.value.trim();
-        if (d.name) window.Storage._safeSet('cbt_user_name', d.name);
+        if (!d.name) {
+          input.style.borderColor = 'var(--danger, #c0564f)';
+          input.placeholder = '별명이라도 하나 알려주세요';
+          input.focus();
+          if (window.Sfx) try { window.Sfx.hit('close'); } catch (e) {}
+          return;
+        }
+        window.Storage._safeSet('cbt_user_name', d.name);
         this._step(2);
       });
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('ob-next').click(); });
 
     } else if (n === 2) {
       this._wrap(`

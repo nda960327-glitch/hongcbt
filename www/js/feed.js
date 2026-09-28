@@ -95,6 +95,8 @@ window.Feed = {
     const items = this.sorted();
     // '전체 보기'는 '내 마음 도구' 제목 줄에 있다 — 카드와 같이 보이고 같이 숨는다
     const link = document.getElementById('home-feed-all');
+    const simpleHead = document.getElementById('home-simple-feed-head');   // 심플 홈의 '추천 영상' 제목
+    if (simpleHead) simpleHead.classList.toggle('hidden', !items.length);
     if (!items.length) { sec.classList.add('hidden'); if (link) link.classList.add('hidden'); return; }
     sec.classList.remove('hidden');
     if (link) link.classList.remove('hidden');

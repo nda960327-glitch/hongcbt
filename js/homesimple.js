@@ -14,9 +14,42 @@ window.HomeSimple = {
   KEY: 'cbt_home_variant',
   DEFAULT: 'classic',
 
+  // A/B (2026-09-28 팀 결정): 처음 여는 사람은 반은 심플, 반은 기본으로 시작한다.
+  //  한 번 정해지면 기억되고, 마이 → 홈 화면 모양에서 언제든 바꿀 수 있다. 어느 쪽으로 시작했는지는 cbt_home_ab 에.
   get() {
-    const v = window.Storage._safeGet(this.KEY, this.DEFAULT);
-    return v === 'simple' ? 'simple' : 'classic';
+    let v = window.Storage._safeGet(this.KEY, null);
+    if (v !== 'simple' && v !== 'classic') {
+      v = Math.random() < 0.5 ? 'simple' : 'classic';
+      window.Storage._safeSet(this.KEY, v);
+      window.Storage._safeSet('cbt_home_ab', { start: v, at: Date.now() });
+    }
+    return v;
+  },
+
+  // 심플 홈에도 '오늘'(기분 체크인·오늘 할 일)과 추천 영상을 올린다 (2026-09-28 팀 피드백).
+  //  카드를 새로 만들지 않고 기본 홈의 카드를 그대로 옮겨 온다 — 같은 id·같은 기능, 되돌리면 제자리로.
+  _SHARED: ['home-mood-card', 'todo-card', 'home-feed-sec'],
+  _place(simple) {
+    const slot = document.getElementById('home-simple-top');
+    if (!slot) return;
+    const todo = document.getElementById('todo-card-body');
+    if (todo && !todo.closest('.home-card').id) todo.closest('.home-card').id = 'todo-card';
+    this._SHARED.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (!this._marks) this._marks = {};
+      if (!this._marks[id]) { const m = document.createComment('home:' + id); el.parentNode.insertBefore(m, el); this._marks[id] = m; }
+      if (simple) {
+        const box = slot.querySelector(`[data-slot="${id}"]`);
+        if (box && el.parentNode !== box) box.appendChild(el);
+      } else {
+        const m = this._marks[id];
+        if (m.parentNode && el.previousSibling !== m) m.parentNode.insertBefore(el, m.nextSibling);
+      }
+    });
+    // 영상이 없으면 심플 홈의 '추천 영상' 제목도 숨긴다
+    const fs = document.getElementById('home-feed-sec'), head = document.getElementById('home-simple-feed-head');
+    if (head) head.classList.toggle('hidden', !fs || fs.classList.contains('hidden'));
   },
 
   set(v, quiet) {
@@ -37,6 +70,7 @@ window.HomeSimple = {
     const s = document.getElementById('home-simple');
     if (c) c.classList.toggle('hidden', simple);
     if (s) s.classList.toggle('hidden', !simple);
+    this._place(simple);
     this.renderRow();
     if (simple && window.App && window.App.hydrateInlineIcons) window.App.hydrateInlineIcons(s);
   },
