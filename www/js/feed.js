@@ -7,7 +7,9 @@
 // ============================================================================
 window.Feed = {
   // 온보딩 고민 → 먼저 보여줄 태그
-  TAG_OF_CONCERN: { dep: '우울', anx: '불안', stress: '스트레스', rel: '관계', self: '자존감', sleep: '수면' },
+  // 온보딩 고민 → 추천 콘텐츠 분류 (2026-09 self-care 분류표 7개). 옛 태그도 같이 둬서 예전 콘텐츠도 올라온다.
+  TAG_OF_CONCERN: { dep: ['마음건강 알아보기', '생각과 마음 회복', '우울'], anx: ['감정 이해와 조절', '마음챙김·명상', '불안'], stress: ['스트레스·번아웃 관리', '스트레스'],
+    rel: ['건강한 관계', '관계'], self: ['나를 돌보는 법', '자존감'], sleep: ['마음챙김·명상', '수면'] },
   HOME_MAX: 6,
   PAGE: 20,
 
@@ -46,7 +48,7 @@ window.Feed = {
     if (mode === 'new') return items.slice().sort((a, b) => (b.created || 0) - (a.created || 0));
     if (mode === 'up') return items.slice().sort((a, b) => (b.up || 0) - (a.up || 0) || (b.created || 0) - (a.created || 0));
     const concerns = window.Storage._safeGet('cbt_user_concerns', []) || [];
-    const want = new Set(concerns.map(c => this.TAG_OF_CONCERN[c]).filter(Boolean));
+    const want = new Set([].concat(...concerns.map(c => this.TAG_OF_CONCERN[c] || [])));
     const score = it => {
       let sc = 0;
       if ((it.tags || []).some(t => want.has(t))) sc += 20;
@@ -231,12 +233,28 @@ window.Feed = {
   },
 
   // 챗봇이 알아야 할 것 — 있는 것만 권하게
+  //  전체 목록을 번호와 함께 준다 — 모델은 [그림:영상|번호] 로 채팅 속 카드를 띄운다. 번호 → id 는 promptIdOf.
+  //  번호는 이 턴에만 유효하다. 저장되는 카드에는 id 가 들어가므로 목록이 바뀌어도 옛 카드는 그대로 열린다.
+  _promptIds: [],
   promptContext() {
-    const items = this.sorted().slice(0, 6);
+    const items = this.sorted().slice(0, 80);
+    this._promptIds = items.map(it => it.id);
     if (!items.length) return '';
-    return '[추천 콘텐츠 — 운영자가 고른 영상·글, 홈 화면 "내 마음 도구" 아래에 있음]\n'
-      + items.map(it => `- ${it.title} (${(it.tags || []).join('·') || '일반'} · ${it.type === 'youtube' ? '영상' : '글'})`).join('\n')
-      + '\n사용자의 고민과 정말 맞을 때만 하나를 자연스럽게 권하세요. 링크는 주지 말고 "홈 내 마음 도구 아래에 있어"라고 알려주세요. 여기 없는 콘텐츠를 지어내지 마세요.';
+    const byTag = {};
+    items.forEach((it, i) => {
+      const t = (it.tags || [])[0] || '기타';
+      (byTag[t] = byTag[t] || []).push(`${i + 1}. ${String(it.title).slice(0, 48)}`);
+    });
+    return '[추천 영상 — 운영자가 고른 self-care 영상. 앱 안에서 바로 볼 수 있음]\n'
+      + Object.keys(byTag).map(t => `〈${t}〉 ${byTag[t].join(' / ')}`).join('\n')
+      + '\n사용자의 지금 고민과 분명히 맞는 영상이 있으면 [그림:영상|번호] 로 카드를 보여주세요 (예: [그림:영상|3]). 카드를 누르면 앱 안에서 바로 열립니다.'
+      + '\n· 한 번에 하나만. 이 대화에서 이미 권했으면 다시 권하지 마세요. 힘든 이야기를 막 꺼낸 첫 답장에서는 먼저 들어주고, 몇 번 주고받은 뒤나 사용자가 방법·자료를 원할 때 권하세요.'
+      + '\n· 사용자가 "영상 추천해줘", "볼 만한 거 있어?"처럼 직접 물으면 바로 가장 맞는 것 하나를 카드로 주고, 왜 골랐는지 한 줄로 말해 주세요.'
+      + '\n· 위 목록에 없는 영상·링크는 지어내지 마세요. 주소를 직접 쓰지 말고 카드만 쓰세요.';
+  },
+  promptIdOf(n) {
+    const i = parseInt(n, 10) - 1;
+    return (i >= 0 && this._promptIds[i]) || '';
   }
 };
 

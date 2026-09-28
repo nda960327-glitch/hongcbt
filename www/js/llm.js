@@ -887,6 +887,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
 · [그림:버튼|3분 호흡할래=지금 호흡하고 올게|다른 얘기=다른 얘기 하고 싶어] — 채팅 속 선택 버튼. '라벨=사용자가 보낼 말' 형식, 최대 3개.
 · [그림:수업카드] — 당신의 6단계 상담 코스를 카드로 보여주고 시작 버튼을 답니다. (표식 이름은 반드시 이 형태 그대로 쓸 것) 상담 코스를 권할 때는 "'햇살 상담 시작'이라고 말해봐" 같은 안내 대신 반드시 이 카드를 쓰세요.
 
+· [그림:영상|번호] — 아래 [추천 영상] 목록의 번호로 영상 카드를 건넵니다. 누르면 앱 안에서 바로 재생돼요. 규칙은 그 목록 아래에 있어요.
 규칙: 한 답장에 그림 카드는 1개까지. 매번 쓰지 말고 '그릴 만한 것이 실제로 있을 때'만 — 숫자가 나왔을 때, 생각이 바뀌었을 때, 방향이 정해졌을 때, 선택지를 내밀 때, 상담 단계가 넘어갈 때. 위기·심각한 대화에서는 금지. 표식 앞뒤 말은 평소처럼 자연스럽게 하세요(그림이 말을 대신하지 않습니다).
 버튼은 "이런 거 해볼래?" 하고 손을 내미는 자리에 씁니다 — 사용자가 뭘 해야 할지 몰라 멈추는 순간에.`;
 
@@ -1148,6 +1149,10 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
         // [그림:종류|...] 마커 → 시각 카드 말풍선으로 분리 (문법이 틀리면 조용히 삭제)
         const cleaned = this._stripEmoji(raw.replace(/\[그림:\s*([^\]]+)\]/g, (m, body) => {
           const v = window.ChatViz ? window.ChatViz.parse(body) : null;
+          // 영상 카드: 모델은 목록 번호를 쓴다 → 저장·재표시에 안전한 id 로 바꾼다 (이미 id 면 그대로)
+          if (v && v.type === '영상' && window.Feed && window.Feed.promptIdOf && /^\d{1,3}$/.test(v.args[0] || '')) {
+            v.args = [window.Feed.promptIdOf(v.args[0])];
+          }
           if (v && window.ChatViz.render(v)) vizes.push(v);
           return '';
         }).replace(/\[스티커:\s*([^\]]+)\]/g, (m, ko) => {

@@ -44,6 +44,7 @@ window.ChatViz = {
         case '요약카드':   return this.summary(viz.args);
         case '버튼':       return this.buttons(viz.args);
         case '수업카드':   return this.lesson(viz.args);
+        case '영상':       return this.video(viz.args);
       }
     } catch (e) {}
     return '';
@@ -67,6 +68,34 @@ window.ChatViz = {
                    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
                    border: 1.5px solid color-mix(in srgb, var(--accent-primary) 45%, transparent);">${this._esc(p[0])} ›</button>`).join('')}
       </div>`;
+  },
+
+  // --- 추천 영상 카드: 상담사가 "이거 한번 볼래?" 하고 건네는 영상 ------------------
+  //  args = [feed id] — llm.js 가 모델의 번호를 id 로 바꿔 넣는다. 누르면 추천 콘텐츠 상세(앱 안 재생)를 연다.
+  video(args) {
+    const F = window.Feed;
+    const it = F && F.get ? F.get(String((args || [])[0] || '')) : null;
+    if (!it) return '';
+    const e = this._esc;
+    const tag = (it.tags || [])[0] || '';
+    return `
+      <button onclick="window.Feed && window.Feed.open('${e(it.id)}')"
+        style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; gap: 0.7rem; align-items: center; width: 100%;
+               padding: 0.55rem; border-radius: 16px; background: var(--bg-secondary); border: 1px solid var(--glass-border);">
+        <span style="position: relative; flex: 0 0 104px; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; background: #2a2520;">
+          ${it.thumb ? `<img src="${e(it.thumb)}" alt="" loading="lazy" style="width: 100%; height: 100%; object-fit: cover; display: block;">` : ''}
+          <span style="position: absolute; inset: 0; display: grid; place-items: center;">
+            <span style="width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,0.55); display: grid; place-items: center;">
+              <span style="width: 0; height: 0; border-left: 10px solid #fff; border-top: 6px solid transparent; border-bottom: 6px solid transparent; margin-left: 3px;"></span>
+            </span>
+          </span>
+        </span>
+        <span style="min-width: 0; display: grid; gap: 0.2rem;">
+          ${tag ? `<span style="font-size: 0.72rem; font-weight: 800; color: var(--accent-primary);">${e(tag)}</span>` : ''}
+          <span style="font-size: 0.88rem; font-weight: 700; line-height: 1.35; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${e(it.title)}</span>
+          <span style="font-size: 0.76rem; color: var(--text-secondary);">영상 보기 ›</span>
+        </span>
+      </button>`;
   },
 
   send(el) {
