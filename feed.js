@@ -12,7 +12,8 @@
 //    POST /feed/delete {code, id}
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 
-const TAGS = ['불안', '우울', '수면', '관계', '자존감', '스트레스'];
+// 2026-09-28: 운영팀 self-care 분류표의 7개 분류로 바꿨다 (옛 태그 불안·우울… 은 '전체'에서 보인다)
+const TAGS = ['감정 이해와 조절', '생각과 마음 회복', '스트레스·번아웃 관리', '마음챙김·명상', '나를 돌보는 법', '건강한 관계', '마음건강 알아보기'];
 
 const ytId = url => {
   const m = String(url || '').match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);
