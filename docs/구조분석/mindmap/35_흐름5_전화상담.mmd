@@ -1,0 +1,32 @@
+---
+title: "[3-5] 흐름 ⑤ — 사람 상담사와 앱 안 전화가 이어지기까지 (왼쪽 열 위→아래, 그다음 오른쪽 열)"
+---
+flowchart LR
+  subgraph COL1 [" "]
+    direction TB
+    R1(["① 이용자가 전화 걸기<br/><small>'전화 심리상담' 탭에서 상담사 선택<br/>js/rtccall.js → /rtc/start</small>"])
+    R2["② 상담사 앱에 벨이 울림<br/><small>웹소켓·알림으로 즉시 전달<br/>hub.js · push.js</small>"]
+    R3["③ 상담사가 받기<br/><small>pro/js/rtccall.js</small>"]
+    R4{{"④ 소리가 오갈 길 연결<br/><small>기기끼리 직접 연결(전화번호 노출 없음)<br/>안 되면 Cloudflare 중계(TURN) 사용<br/>rtc.js /rtc/ice</small>"}}
+    R5["⑤ 무료 통화 상태<br/><small>여기까지는 요금 없음</small>"]
+    R1 --> R2
+    R2 --> R3
+    R3 --> R4
+    R4 --> R5
+  end
+  subgraph COL2 [" "]
+    direction TB
+    R6["⑥ 상담사가 [상담 시작] → 이용자가 동의<br/><small>이때부터 유료 · 시각은 서버가 기록<br/>rtc.js /rtc/consult/accept</small>"]
+    R7["⑦ 통화 종료<br/><small>30초 단위로 올림해 요금 계산<br/>단가는 상담사가 정한 분당 요금<br/>rtc.js billFor</small>"]
+    R8[("⑧ 요금이 창고에 기록<br/><small>calls 표의 billed<br/>이용자 앱이 내역을 받아 지갑에서 차감<br/>/rtc/my-charges</small>")]
+    R9(["⑨ 회기 기록 → 정산으로<br/><small>흐름 ④의 ⑧⑨⑩과 이어짐</small>"])
+    R6 --> R7
+    R7 --> R8
+    R8 --> R9
+  end
+  COL1 == "⑤에서 이어집니다" ==> COL2
+
+  style COL1 fill:none,stroke:none
+  style COL2 fill:none,stroke:none
+  classDef ext stroke-dasharray: 5 4;
+  class R4 ext;

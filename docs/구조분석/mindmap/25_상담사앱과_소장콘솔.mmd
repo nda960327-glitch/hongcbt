@@ -1,0 +1,41 @@
+---
+title: "[2-5] 상세 ⑤ — 상담사 앱(프로)과 상담소장 콘솔(닥터)"
+---
+flowchart LR
+  PRO(["상담사 앱 '프로'<br/><small>pro/ · pro.mindinsideapp.com<br/>탭 4개: 홈·채팅·예약·정산</small>"])
+  PLOGIN["로그인<br/><small>이메일 링크 또는 발급 코드<br/>pro/js/app.js 301행~</small>"]
+  PCHAT["채팅 · 수신함<br/><small>내담자 글 상담 · 상담 요약 받기<br/>빠른 답장 · pro/js/app.js</small>"]
+  PCALL["전화 받기·걸기<br/><small>착신 수락/거절 · 무료로 먼저 걸기<br/>유료 상담 전환 · pro/js/rtccall.js</small>"]
+  PNOTE["회기 기록<br/><small>상담마다 요약·계획·위험도 기록<br/>기록이 없으면 정산 보류!<br/>pro/js/app.js 2624행~</small>"]
+  PBOOK["예약 관리<br/><small>달력 · 거절/완료/환불 · 시간표·휴무<br/>pro/js/app.js 1264행~</small>"]
+  PMONEY["정산 확인<br/><small>앱 채널: 6만 원까지 70%, 초과분 55%<br/>상담소 채널은 상담소가 지급<br/>pro/js/app.js 1458행~</small>"]
+
+  DOC(["상담소장 콘솔 '닥터'<br/><small>doc/ · doc.mindinsideapp.com · PC 화면</small>"])
+  DLOGIN["로그인<br/><small>이메일 링크 또는 H-코드<br/>doc/js/core.js</small>"]
+  DPAT["내담자 · 소속 상담사<br/><small>연결 환자 열람 · 상담사 승인/제외<br/>doc/js/view-patients.js</small>"]
+  DNOTE["회기 기록 · 긴급 알림<br/><small>위험도 '긴급'이면 즉시 메일 알림<br/>doc/js/view-notes.js</small>"]
+  DSET["상담소 정산<br/><small>상담소 90 / 앱 7 / 결제수수료 3<br/>doc/js/view-settle.js</small>"]
+  DCOMM["소식 쓰기 · 상담소 페이지<br/><small>이용자 앱에 보일 글과 소개<br/>doc/js/view-community.js</small>"]
+  DSTAT["예약 캘린더 · 통계<br/><small>최근 6개월 수치<br/>doc/js/view-calendar.js</small>"]
+
+  MAIL{{"Resend 메일<br/><small>로그인 링크 · 긴급 알림</small>"}}
+
+  PRO --> PLOGIN
+  PRO --> PCHAT
+  PRO --> PCALL
+  PRO --> PNOTE
+  PRO --> PBOOK
+  PRO --> PMONEY
+  DOC --> DLOGIN
+  DOC --> DPAT
+  DOC --> DNOTE
+  DOC --> DSET
+  DOC --> DCOMM
+  DOC --> DSTAT
+  PNOTE --> DNOTE
+  PLOGIN -.-> MAIL
+  DLOGIN -.-> MAIL
+  DNOTE -.-> MAIL
+
+  classDef ext stroke-dasharray: 5 4;
+  class MAIL ext;

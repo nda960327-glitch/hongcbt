@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>마인드 인사이드 구조 인쇄용</title>
+<style>
+  @page { size: A3 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Malgun Gothic", "맑은 고딕", sans-serif; color: #1a1a2e; }
+  .page { width: 420mm; height: 297mm; page-break-after: always; padding: 10mm 12mm; display: flex; flex-direction: column; overflow: hidden; }
+  .page:last-child { page-break-after: auto; }
+  .imgwrap { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8mm; min-height: 0; }
+  .imgwrap img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .imgwrap.two img { max-width: 48%; }
+  .foot { flex: 0 0 auto; font-size: 9pt; color: #666; text-align: right; padding-top: 2mm; }
+  /* 표지 */
+  .cover { justify-content: center; align-items: center; text-align: center; }
+  .cover h1 { font-size: 34pt; margin: 0 0 4mm; }
+  .cover .sub { font-size: 13pt; color: #444; margin-bottom: 10mm; }
+  .cover .box { border: 1.2mm solid #1a1a2e; border-radius: 4mm; padding: 8mm 12mm; max-width: 300mm; text-align: left; }
+  .cover h2 { font-size: 14pt; margin: 0 0 4mm; border-bottom: 0.5mm solid #999; padding-bottom: 2mm; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6mm 10mm; font-size: 11pt; margin-bottom: 6mm; }
+  .legend .item { display: flex; align-items: center; gap: 3mm; }
+  .shape { display: inline-block; width: 22mm; height: 9mm; border: 0.5mm solid #1a1a2e; text-align: center; line-height: 9mm; font-size: 8pt; flex-shrink: 0; }
+  .rounded { border-radius: 5mm; }
+  .cyl { border-radius: 50% / 22%; }
+  .hex { border-style: dashed; transform: skewX(-12deg); }
+  .toc { columns: 2; column-gap: 12mm; font-size: 10.5pt; line-height: 1.75; }
+  .note { font-size: 10pt; color: #555; margin-top: 5mm; line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- 표지 -->
+<div class="page cover">
+  <h1>마인드 인사이드 — 서비스 전체 구조</h1>
+  <div class="sub">만든 날: 2026-09-29 · 기준: GitHub 커밋 6711db1 (2026-09-28, 빌드 240) · 코드에 실제로 있는 것만 그렸습니다</div>
+  <div class="box">
+    <h2>이 그림 읽는 법</h2>
+    <div class="legend">
+      <div class="item"><span class="shape rounded">둥근 상자</span> 사람이 보는 화면·앱</div>
+      <div class="item"><span class="shape">네모 상자</span> 기능·코드 덩어리</div>
+      <div class="item"><span class="shape cyl">원기둥</span> 자료가 저장되는 곳</div>
+      <div class="item"><span class="shape hex">점선 육각형</span> 바깥(외부) 서비스</div>
+      <div class="item">→ 실선 화살표: 요청·이동 &nbsp;&nbsp; ⇢ 점선 화살표: 바깥으로 나가는 연결</div>
+      <div class="item">① ② ③ … : 흐름도에서 일이 일어나는 순서</div>
+    </div>
+    <h2>차례</h2>
+    <div class="toc">
+      2쪽 · [1] 전체 지도 — 한 장으로 보는 전체<br>
+      3쪽 · [2-1] 이용자 앱: AI 상담과 안전<br>
+      4쪽 · [2-2] 이용자 앱: 마음 도구(CBT)<br>
+      5쪽 · [2-3] 이용자 앱: 게임과 계정·결제<br>
+      6쪽 · [2-4] 이용자 앱: 사람 상담과 콘텐츠<br>
+      7쪽 · [2-5] 상담사 앱과 상담소장 콘솔<br>
+      8쪽 · [2-6] 운영자 콘솔<br>
+      9쪽 · [2-7] 중계 서버<br>
+      10쪽 · [2-8] 자료 창고와 배포<br>
+      11쪽 · [3-1] 흐름: 앱 시작과 로그인<br>
+      12쪽 · [3-2] 흐름: 유튜브 콘텐츠 추천<br>
+      13쪽 · [3-3] 흐름: 챗봇 한 마디<br>
+      14쪽 · [3-4] 흐름: 돈의 흐름(충전~정산)<br>
+      15쪽 · [3-5] 흐름: 사람 상담사와 전화<br>
+      16쪽 · [4] 정보 지도 — 무엇이 어디에 저장되나
+    </div>
+    <div class="note">
+      · 상자마다 아래 작은 글씨는 근거가 되는 파일 경로입니다.<br>
+      · 코드만으로 확실하지 않은 것은 ❓와 함께 <b>docs/구조분석/03_확인필요.md</b>에 따로 정리했습니다.<br>
+      · 자세한 조사 내용은 01_코드조사.md, 기능 전체 목록은 02_기능목록.md에 있습니다.<br>
+      · 이 문서에 비밀번호·열쇠(키)·실제 이용자 정보는 들어 있지 않습니다.
+    </div>
+  </div>
+</div>
+
+<div class="page"><div class="imgwrap"><img src="mindmap/10_전체지도.svg"></div><div class="foot">마인드 인사이드 구조 · 2026-09-29 · 2쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/21_이용자앱_AI상담과안전.svg"></div><div class="foot">3쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/22_이용자앱_마음도구.svg"></div><div class="foot">4쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/23_이용자앱_게임과계정.svg"></div><div class="foot">5쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/24_이용자앱_사람상담과콘텐츠.svg"></div><div class="foot">6쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/25_상담사앱과_소장콘솔.svg"></div><div class="foot">7쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/26_운영자콘솔.svg"></div><div class="foot">8쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/27_중계서버.svg"></div><div class="foot">9쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/28_자료창고와_배포.svg"></div><div class="foot">10쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/31_흐름1_시작과로그인.svg"></div><div class="foot">11쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/32_흐름2_추천콘텐츠.svg"></div><div class="foot">12쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/33_흐름3_챗봇한마디.svg"></div><div class="foot">13쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/34_흐름4_결제와정산.svg"></div><div class="foot">14쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/35_흐름5_전화상담.svg"></div><div class="foot">15쪽</div></div>
+<div class="page"><div class="imgwrap"><img src="mindmap/41_정보지도.svg"></div><div class="foot">16쪽</div></div>
+
+</body>
+</html>

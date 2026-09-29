@@ -1,0 +1,25 @@
+---
+title: "[2-6] 상세 ⑥ — 운영자 콘솔"
+---
+flowchart TD
+  ROOT(["운영자 콘솔<br/><small>ops/ · 탭 16개 · PC 우선 화면<br/>로그인: 마스터 코드 하나 (ADMIN_CODE)</small>"])
+
+  STAT["대시보드 · 통계<br/><small>이용·매출·AI 사용량 추이<br/>ops/js/app.js</small>"]
+  APPLY["입점 · 제휴 심사<br/><small>상담사 입점, 상담소 제휴 승인/반려<br/>승인하면 코드·계약서 메일 발송</small>"]
+  MANAGE["상담사 · 상담소 관리<br/><small>정지·삭제·코드 재발급·프로필 수정</small>"]
+  CALLW["통화 관제<br/><small>진행 중 통화 확인 · 강제 종료</small>"]
+  SETTLE["정산 지급<br/><small>상담사·상담소별 지급액 확인 후<br/>'지급 완료' 도장 (송금은 은행에서 수동)</small>"]
+  TAX["원천징수 집계<br/><small>상담사 몫 3.3% 월별 합계<br/>홈택스 신고용 · ops/js/app.js 1283행~</small>"]
+  CONT["콘텐츠 · 병원 관리<br/><small>느루의 추천 등록(유튜브 주소만 넣으면 됨)<br/>전국 정신과 수집 · 제휴 병원 표시</small>"]
+  AUDIT["결제 내역 · 리뷰 · 감사<br/><small>환불은 토스 관리자에서 하라고 안내<br/>리뷰 숨김 · 연락처 교환 감사 · 점검 로그</small>"]
+  NOTI["전체 공지 · 설정<br/><small>모든 상담사에게 알림 발송 · 오래된 기록 정리</small>"]
+
+  ROOT --> STAT
+  ROOT --> APPLY
+  ROOT --> MANAGE
+  ROOT --> CALLW
+  ROOT --> SETTLE
+  SETTLE --> TAX
+  ROOT --> CONT
+  ROOT --> AUDIT
+  ROOT --> NOTI

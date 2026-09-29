@@ -1,0 +1,39 @@
+---
+title: "[2-1] 이용자 앱 상세 ① — AI 상담과 안전"
+---
+flowchart LR
+  ROOT(["이용자 앱 — AI 상담<br/><small>index.html · 'AI심리상담' 탭</small>"])
+
+  CHAT["느루와 글 상담<br/><small>대화 원문은 기기에만 저장<br/>js/llm.js · js/app.js</small>"]
+  PERS["AI 상담사 5명<br/><small>느루(통합) · 햇님(CBT) · 달님(공감)<br/>소나무(명상) · 우렁의사(비교 실험)<br/>js/personas.js</small>"]
+  VOICE["AI 보이스톡<br/><small>음성으로 대화 · 30초당 150캐시<br/>js/calltalk.js · js/voice.js</small>"]
+  MEM["장기기억<br/><small>대화가 끝나면 AI가 '사례 기록' 요약 갱신<br/>js/llm.js 1401행~</small>"]
+  MARK["대화 속 그림·이동 표식<br/><small>[스티커:] [그림:] [이동:탭] 해석<br/>js/chatviz.js</small>"]
+  SCRIPT["예비 대본 챗봇<br/><small>AI 연결이 안 될 때 각본으로 대답<br/>js/chatbot.js</small>"]
+  FOREST["솔숲 명상<br/><small>8주 명상 코스 · 녹음 음성 안내<br/>js/forest.js · audio/forest/</small>"]
+
+  RISK["위기 감지 (세 겹)<br/><small>① 앱이 위험 표현 검사 ② AI가 '위험감지' 신호<br/>③ 109·1577-0199 안내 창<br/>js/llm.js 34행 · js/app.js 787행</small>"]
+  PLAN["나의 안전 계획<br/><small>위기 때 볼 6단계 계획 · 기기에만 저장<br/>js/safetyplan.js</small>"]
+  CALM["마음 응급처치<br/><small>호흡 안내 · 5-4-3-2-1 그라운딩 · 수면 사운드<br/>js/calm.js · js/sleep.js</small>"]
+
+  SRV["중계 서버 /chat /tts<br/><small>사용량 한도 검사 후 AI 호출 · 대화는 저장 안 함<br/>cbtproxy.worker.js 308행~</small>"]
+  AI{{"OpenAI<br/><small>기본 gpt-4o-mini · 위기 땐 gpt-4o<br/>음성 gpt-4o-mini-tts</small>"}}
+  DS{{"DeepSeek<br/><small>'우렁의사' 페르소나 전용</small>"}}
+
+  ROOT --> CHAT
+  ROOT --> VOICE
+  ROOT --> RISK
+  CHAT --> PERS
+  CHAT --> MEM
+  CHAT --> MARK
+  CHAT --> SCRIPT
+  PERS --> FOREST
+  RISK --> PLAN
+  RISK --> CALM
+  CHAT --> SRV
+  VOICE --> SRV
+  SRV -.-> AI
+  SRV -.-> DS
+
+  classDef ext stroke-dasharray: 5 4;
+  class AI,DS ext;

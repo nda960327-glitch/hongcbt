@@ -86,7 +86,9 @@ window.Account = {
     }
 
     this.providers = await this._api('/api/oauth/providers')
-      .then(d => (d && d.items) || []).catch(() => []);
+      .then(d => (d && d.items) || []).catch(() => [])
+      // 카카오·네이버 제거(2026-09-29) — 옛 서버가 내려줘도 앱은 구글만 보여준다
+      .then(items => items.filter(p => p.key === 'google'));
 
     if (this._session()) {
       // 확인이 안 됐다고 로그아웃시키면 안 된다.
@@ -139,7 +141,7 @@ window.Account = {
   },
 
   // 스토어 앱(Capacitor)인지. 앱이면 로그인 왕복을 딥링크로 받아야 한다 —
-  //  구글·카카오는 앱 안 웹뷰에서의 로그인을 막기 때문에 바깥 브라우저로 나갔다 와야 하는데,
+  //  구글은 앱 안 웹뷰에서의 로그인을 막기 때문에 바깥 브라우저로 나갔다 와야 하는데,
   //  그냥 https 주소로 돌아오면 브라우저에 로그인이 남고 앱은 계속 로그아웃 상태다.
   _nativeScheme() {
     try {
@@ -162,7 +164,7 @@ window.Account = {
       location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin);
       return;
     }
-    // 스토어 앱: 구글·카카오가 앱 안 웹뷰 로그인을 막으므로 바깥 브라우저로 나간다.
+    // 스토어 앱: 구글이 앱 안 웹뷰 로그인을 막으므로 바깥 브라우저로 나간다.
     //  돌아오는 길은 딥링크가 아니라 '짝 번호 조회'다 — 웹뷰에서 딥링크 수신이
     //  막혀도(실기기에서 실제로 막혔다) 이 방식은 반드시 완성된다.
     const pair = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -373,6 +375,7 @@ window.Account = {
     const el = document.getElementById(boxId);
     if (!el) return;
     const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
+    // kakao·naver 는 새 로그인에서 뺐지만(2026-09-29), 옛 세션 표시용으로 이름은 남긴다
     const NAME = { kakao: '카카오', naver: '네이버', google: '구글' };
 
     if (this.user) {
@@ -406,8 +409,6 @@ window.Account = {
       return;
     }
     const BTN = {
-      kakao: 'background:#FEE500; color:#191600;',
-      naver: 'background:#03C75A; color:#fff;',
       google: 'background:#fff; color:#3c4043; border:1px solid #dadce0;'
     };
     el.innerHTML = `

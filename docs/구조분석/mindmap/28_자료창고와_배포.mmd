@@ -1,0 +1,29 @@
+---
+title: "[2-8] 상세 ⑧ — 자료 창고(표 묶음)와 배포"
+---
+flowchart LR
+  DB[("자료 창고 D1 'hongcbt'<br/><small>Cloudflare D1(SQLite) · 표 약 45개<br/>표끼리의 연결 선언은 없고 이름으로 이어짐</small>")]
+
+  T1["상담사 · 예약 묶음<br/><small>상담사 명부 / 예약 / 후기 / 채팅 /<br/>요약 수신함 / 숙제 / 입점 신청서<br/>schema.sql · schema-apply.sql</small>"]
+  T2["상담소 연동 묶음<br/><small>상담소 명부 / 환자 연결 / 주간 요약 /<br/>회기 기록 / 소장 피드백 / 상담소 글·댓글<br/>schema.sql 113행~</small>"]
+  T3["로그인 묶음<br/><small>소셜 계정 / 세션 / 기기 번호 주인 /<br/>상담사·소장 로그인 토큰<br/>schema-user.sql · schema-auth.sql</small>"]
+  T4["결제 · 통화 묶음<br/><small>충전 주문 / 통화 기록·요금 /<br/>연결 신호(곧 삭제) / 계좌 변경 이력<br/>schema-pay.sql · schema-rtc.sql</small>"]
+  T5["이용자 기록 · 방어 묶음<br/><small>암호화 동기화 창고 / AI 사용량·차단 /<br/>알림 기기 / 메일 기록 / 연락처 시도 횟수<br/>schema-sync.sql · schema-usage.sql</small>"]
+  T6["콘텐츠 묶음<br/><small>느루의 추천·투표 / 전국 병원 /<br/>설문 답<br/>schema.sql 88행~</small>"]
+
+  DEP(["배포<br/><small>어디에 올라가나</small>"])
+  CF["서버: Cloudflare Workers<br/><small>wrangler.toml · 밤 청소 cron ·<br/>요청 제한 5개 포함</small>"]
+  PAGES["앱 4개: Cloudflare Pages<br/><small>이용자 mindinsideapp.com · 프로 pro.* ·<br/>닥터 doc.* · 홈페이지 mindinside.kr<br/>_headers 파일로 캐시 규칙</small>"]
+  AND["안드로이드: Capacitor<br/><small>android/ 한 프로젝트에 이용자·상담사 두 가지<br/>com.uroong.cbt · com.uroong.pro</small>"]
+  BUMP["판 올리기: bump.js<br/><small>번호를 올리고 www/ 사본을 만들어 배포<br/>현재 빌드 240</small>"]
+
+  DB --> T1
+  DB --> T2
+  DB --> T3
+  DB --> T4
+  DB --> T5
+  DB --> T6
+  DEP --> CF
+  DEP --> PAGES
+  DEP --> AND
+  DEP --> BUMP

@@ -1,0 +1,44 @@
+---
+title: "[2-3] 이용자 앱 상세 ③ — 느루 세계(게임)와 계정·결제"
+---
+flowchart LR
+  ROOT(["이용자 앱 — 게임 · 계정 · 결제"])
+
+  GAME["느루 세계<br/><small>방·퀘스트·돌봄·서재 탭<br/>js/game.js</small>"]
+  FARM["농장<br/><small>자기돌봄으로 얻은 '물'로 작물 재배<br/>수확하면 씨앗코인 · js/farm.js</small>"]
+  RM["방 꾸미기<br/><small>가구·벽지 배치 · js/room.js</small>"]
+  CL["옷장<br/><small>캐릭터 옷 입히기 · js/closet.js</small>"]
+  ML["느루에게 편지<br/><small>우표 사서 보내면 AI가 답장 · js/mail.js</small>"]
+  ST["스티커 팩 가게<br/><small>대화용 이모티콘 구매 · js/stickershop.js</small>"]
+  BADGE["연속 방문 · 뱃지<br/><small>스트릭 12종 뱃지 · 보호권 구매<br/>js/growth.js</small>"]
+
+  LOGIN["소셜 로그인 (필수)<br/><small>구글 계정 · js/account.js</small>"]
+  CONS["첫 실행 동의<br/><small>14세 이상·약관·민감정보·국외 이전<br/>js/consent.js</small>"]
+  WAL["지갑 (캐시)<br/><small>앱 화폐 · 잔액은 기기에 저장<br/>js/wallet.js</small>"]
+  PAY["캐시 충전<br/><small>카드 결제 5천~30만 원 · js/pay.js</small>"]
+  SUB["이용자 구독<br/><small>7일 체험 후 월 9,900원 · 캐시로 차감<br/>js/subscription.js</small>"]
+  SYNC["계정 동기화<br/><small>허용된 59개 기록만 암호화해 서버 보관<br/>대화 원문은 제외 · js/account.js</small>"]
+  ETC["기억 금고 · 잠금 · 다국어 · 알림함<br/><small>js/memory-vault.js · js/applock.js<br/>js/i18n.js · js/inbox.js</small>"]
+
+  TOSS{{"토스페이먼츠<br/><small>현재 테스트 열쇠 상태</small>"}}
+  SNS{{"구글 로그인"}}
+
+  ROOT --> GAME
+  GAME --> FARM
+  GAME --> RM
+  GAME --> CL
+  GAME --> ML
+  GAME --> ST
+  GAME --> BADGE
+  ROOT --> LOGIN
+  LOGIN --> CONS
+  LOGIN --> SYNC
+  ROOT --> WAL
+  WAL --> PAY
+  WAL --> SUB
+  ROOT --> ETC
+  PAY -.-> TOSS
+  LOGIN -.-> SNS
+
+  classDef ext stroke-dasharray: 5 4;
+  class TOSS,SNS ext;

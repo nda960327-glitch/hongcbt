@@ -1,0 +1,32 @@
+---
+title: "[3-3] 흐름 ③ — 챗봇에 한 마디 보내고 답을 받기까지 (왼쪽 열 위→아래, 그다음 오른쪽 열)"
+---
+flowchart LR
+  subgraph COL1 [" "]
+    direction TB
+    C1(["① 이용자가 메시지를 입력<br/><small>'AI심리상담' 탭 · js/app.js 605행~</small>"])
+    C2["② 구독 관문<br/><small>체험 중이거나 구독 중이어야 통과<br/>js/subscription.js</small>"]
+    C3["③ 위험한 말 검사 (앱 쪽 1차)<br/><small>자살·자해 등 표현이 보이면<br/>더 좋은 AI(gpt-4o)로 올림 · js/llm.js 34행</small>"]
+    C4[("④ 내 기기에 저장<br/><small>대화 원문은 localStorage에만<br/>js/storage.js 116행~</small>")]
+    C5["⑤ 중계 서버로 전송 /chat<br/><small>최근 대화 30개 + 장기기억 + 상담사 성격을 함께<br/>서버는 대화를 저장하지 않고 한도만 검사<br/>(기기당 하루 400회) · cbtproxy.worker.js</small>"]
+    C1 --> C2
+    C2 --> C3
+    C3 --> C4
+    C4 --> C5
+  end
+  subgraph COL2 [" "]
+    direction TB
+    C6{{"⑥ AI가 답을 만든다<br/><small>OpenAI gpt-4o-mini (위기 땐 gpt-4o)<br/>'우렁의사' 상담사만 DeepSeek</small>"}}
+    C7["⑦ 답이 실시간으로 흘러 들어옴<br/><small>글자가 생기는 대로 화면에 표시(스트리밍)<br/>js/llm.js</small>"]
+    C8["⑧ 답 속 표식 해석 (AI 쪽 2차 안전망)<br/><small>'위험감지' 표식이 있으면 →<br/>109·1577-0199 안내 + 위기 안내 창<br/>js/llm.js 1036행~ · js/app.js 787행</small>"]
+    C9[("⑨ 답도 내 기기에 저장<br/><small>세션이 끝나면 AI가 '사례 기록' 요약 갱신<br/>요약만 계정 동기화 대상</small>")]
+    C6 --> C7
+    C7 --> C8
+    C8 --> C9
+  end
+  COL1 == "⑤에서 이어집니다" ==> COL2
+
+  style COL1 fill:none,stroke:none
+  style COL2 fill:none,stroke:none
+  classDef ext stroke-dasharray: 5 4;
+  class C6 ext;

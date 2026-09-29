@@ -3,9 +3,8 @@ window.App = {
   typingIndicatorElement: null,
   deferredPrompt: null,
   
-  // === 소셜 로그인 (카카오/구글/네이버) ===
+  // === 소셜 로그인 (구글 — 카카오·네이버는 2026-09-29 제거) ===
   // 실서비스 연동 지점: 각 provider의 OAuth SDK 호출로 이 함수 내부만 교체하면 된다.
-  // (카카오 JS SDK / Google Identity / 네이버 아이디로그인 — 각각 앱 키 등록 필요, ROADMAP 참고)
   // 예전에는 여기서 localStorage 에 표시만 하고 '정식 출시 시 연결돼요'를 띄웠다.
   //  이제 진짜 로그인이 있으므로 Account 로 넘긴다.
   socialLogin(provider) {

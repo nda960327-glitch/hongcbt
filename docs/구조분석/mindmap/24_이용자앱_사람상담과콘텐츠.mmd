@@ -1,0 +1,38 @@
+---
+title: "[2-4] 이용자 앱 상세 ④ — 사람 상담사 연결과 콘텐츠"
+---
+flowchart LR
+  ROOT(["이용자 앱 — 전화 심리상담 탭과 홈 콘텐츠"])
+
+  LIST["상담사 목록<br/><small>검색·거리순·'지금 가능' 필터·후기<br/>(자동 매칭은 없음) · js/marketplace.js</small>"]
+  BOOK["상담 예약<br/><small>날짜·시간 골라 캐시로 예약<br/>서버가 잔액 검사 · js/booking.js</small>"]
+  CALL["앱 안 전화<br/><small>번호 노출 없이 앱끼리 음성 연결<br/>상담 시작 동의 후 30초 단위 과금<br/>js/rtccall.js</small>"]
+  CHATC["상담사와 글 상담<br/><small>연락처 교환 시도는 자동으로 가림<br/>서버 /chat-msg</small>"]
+  INBOX2["상담 요약 보내기<br/><small>내 기록 요약을 동의하고 전달 · 서버 /inbox</small>"]
+  HW["숙제 받기<br/><small>상담사가 낸 과제 수행 · js/homework.js</small>"]
+  REV["후기 · 별점<br/><small>서버 /reviews</small>"]
+  HOSP["담당 상담소 연결<br/><small>상담소 코드로 연결 · 회기 기록·피드백 받기<br/>동의하면 주간 '숫자' 요약만 공유<br/>js/hospital.js</small>"]
+
+  FEED["느루의 추천<br/><small>운영자가 고른 유튜브 영상·글<br/>고민 맞춤 6개 · 도움됐어요 투표 · js/feed.js</small>"]
+  CLIN["내 주변 정신과<br/><small>전국 정신건강의학과 · 제휴 병원 우선<br/>js/clinics.js</small>"]
+  COMM["상담소 소식<br/><small>제휴 상담소의 글 · 댓글·좋아요만 가능<br/>js/community.js</small>"]
+
+  YT{{"YouTube<br/><small>영상 재생·미리보기</small>"}}
+  GOV{{"공공데이터<br/><small>국립중앙의료원 병원 목록</small>"}}
+
+  ROOT --> LIST
+  LIST --> BOOK
+  LIST --> CALL
+  LIST --> CHATC
+  CHATC --> INBOX2
+  BOOK --> HW
+  BOOK --> REV
+  ROOT --> HOSP
+  ROOT --> FEED
+  ROOT --> CLIN
+  ROOT --> COMM
+  FEED -.-> YT
+  CLIN -.-> GOV
+
+  classDef ext stroke-dasharray: 5 4;
+  class YT,GOV ext;

@@ -1,13 +1,15 @@
 // ============================================================================
-//  소셜 로그인 — 카카오 · 네이버 · 구글
+//  소셜 로그인 — 구글
+//  (카카오·네이버는 2026-09-29 사장님 지시로 제거 — 기존 카카오·네이버 계정의
+//   세션·users 행은 그대로 살아 있고, '새 로그인'만 막힌다)
 //
 //  하는 일은 '이 사람이 누구인지 확인하는 것' 하나뿐이다.
 //  대화·검사·리포트는 여전히 기기 안에만 있고 여기로 올라오지 않는다.
 //  그래서 이 파일이 만드는 표에는 상담 내용이 한 줄도 없다.
 //
 //  흐름
-//   1. 앱이 /oauth/kakao/start 로 보낸다 → 서버가 state 를 만들고 카카오로 보냄
-//   2. 사용자가 동의 → 카카오가 /oauth/kakao/callback 으로 code 를 들고 돌아옴
+//   1. 앱이 /oauth/google/start 로 보낸다 → 서버가 state 를 만들고 구글로 보냄
+//   2. 사용자가 동의 → 구글이 /oauth/google/callback 으로 code 를 들고 돌아옴
 //   3. 서버가 code 를 토큰으로 바꾸고(비밀키는 서버에만 있다) 프로필을 읽는다
 //   4. 세션을 만들고, 앱으로는 '1회용 교환권'만 주소에 실어 돌려보낸다
 //   5. 앱이 그 교환권을 POST 로 세션과 바꾼다
@@ -39,34 +41,6 @@ function json(data, status, cors) {
 // ── 사업자별 주소와 키 ────────────────────────────────────────────────
 //  비밀키는 전부 시크릿으로만 들어온다. 이 파일에는 값이 없다.
 const PROVIDERS = {
-  kakao: {
-    name: '카카오',
-    auth: 'https://kauth.kakao.com/oauth/authorize',
-    token: 'https://kauth.kakao.com/oauth/token',
-    profile: 'https://kapi.kakao.com/v2/user/me',
-    scope: 'account_email profile_nickname',
-    // 카카오의 Client Secret 은 콘솔에서 켜야 생기는 '선택' 값이다.
-    //  필수로 요구했더니 REST API 키만 넣은 상태에서 버튼이 아예 안 떴다.
-    secretOptional: true,
-    id: e => e.KAKAO_CLIENT_ID, secret: e => e.KAKAO_CLIENT_SECRET,
-    parse: p => ({
-      uid: String(p.id),
-      email: (p.kakao_account && p.kakao_account.email) || '',
-      nickname: (p.kakao_account && p.kakao_account.profile && p.kakao_account.profile.nickname) || ''
-    })
-  },
-  naver: {
-    name: '네이버',
-    auth: 'https://nid.naver.com/oauth2.0/authorize',
-    token: 'https://nid.naver.com/oauth2.0/token',
-    profile: 'https://openapi.naver.com/v1/nid/me',
-    scope: '',
-    id: e => e.NAVER_CLIENT_ID, secret: e => e.NAVER_CLIENT_SECRET,
-    parse: p => {
-      const r = p.response || {};
-      return { uid: String(r.id || ''), email: r.email || '', nickname: r.nickname || r.name || '' };
-    }
-  },
   google: {
     name: '구글',
     auth: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -167,7 +141,7 @@ export async function handleOauth(request, env, cors, path, body, url) {
     }, 200, cors);
   }
 
-  const m = path.match(/^\/oauth\/(kakao|naver|google)\/(start|callback)$/);
+  const m = path.match(/^\/oauth\/(google)\/(start|callback)$/);
   if (m) {
     const key = m[1], step = m[2], P = PROVIDERS[key];
     const back = safeBack(env, q('back'));
@@ -222,8 +196,6 @@ export async function handleOauth(request, env, cors, path, body, url) {
         redirect_uri: callbackUrl(env, url, key),
         code, state: st
       });
-      // 카카오는 콘솔에서 Client Secret 을 켰을 때만 보내야 한다.
-      //  안 켰는데 빈 값을 보내면 거절당한다.
       if (P.secret(env)) form.set('client_secret', P.secret(env));
       const r = await fetch(P.token, {
         method: 'POST',

@@ -1,0 +1,33 @@
+---
+title: "[3-1] 흐름 ① — 앱을 켜서 로그인하기까지 (왼쪽 열 위→아래, 그다음 오른쪽 열)"
+---
+flowchart LR
+  subgraph COL1 [" "]
+    direction TB
+    S1(["① 앱을 연다<br/><small>index.html</small>"])
+    S2["② 첫 실행이면 동의 화면<br/><small>14세 이상·약관·민감정보·국외 이전<br/>모두 필수 · js/consent.js</small>"]
+    S3["③ 로그인 화면<br/><small>로그인 없이는 앱 사용 불가<br/>js/app.js 19행~</small>"]
+    S4{{"④ 구글 로그인 창<br/><small>(카카오·네이버는 2026-09-29 제거)</small>"}}
+    S5["⑤ 서버가 신원 확인 후 세션 발급<br/><small>oauth.js · 계정은 이름·이메일만 저장<br/>(상담 내용 없음)</small>"]
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 --> S5
+  end
+  subgraph COL2 [" "]
+    direction TB
+    S6["⑥ 동의 내용을 서버에도 기록<br/><small>market.js 739행 /consent</small>"]
+    S7["⑦ 온보딩 (처음 한 번)<br/><small>별명 → 고민 고르기 → AI 상담사 추천<br/>js/onboard.js</small>"]
+    S8["⑧ 예전 기록 내려받기<br/><small>다른 기기에서 쓰던 계정이면<br/>암호화 창고에서 복원 · js/account.js</small>"]
+    S9(["⑨ 홈 화면<br/><small>둘 중 하나가 무작위로: 카드형 홈 / 심플 홈<br/>(반반 실험 중 · js/homesimple.js)</small>"])
+    S6 --> S7
+    S7 --> S9
+    S6 --> S8
+    S8 --> S9
+  end
+  COL1 == "⑤에서 이어집니다" ==> COL2
+
+  style COL1 fill:none,stroke:none
+  style COL2 fill:none,stroke:none
+  classDef ext stroke-dasharray: 5 4;
+  class S4 ext;

@@ -1,0 +1,30 @@
+---
+title: "[1] 마인드 인사이드 전체 지도 — 이 한 장이면 전체가 보입니다"
+---
+flowchart LR
+  ROOT(["마인드 인사이드<br/><small>심리상담 AI · 전화 심리상담 서비스<br/>(GitHub 커밋 6711db1 · 2026-09-28 기준)</small>"])
+
+  U["① 이용자 앱<br/><small>AI 상담사 '느루'와 대화 · 마음 도구(사고기록·검사)<br/>느루 세계 게임 · 전화 심리상담 예약 · 캐시 지갑<br/>index.html + js/ (60개 파일)</small>"]
+  P["② 상담사 앱 (프로)<br/><small>내담자 채팅·전화 받기 · 회기 기록 · 예약 달력 · 정산 확인<br/>pro/</small>"]
+  DC["③ 상담소장 콘솔 (닥터)<br/><small>내담자·소속 상담사 관리 · 긴급 알림 · 상담소 정산 · 소식 쓰기<br/>doc/</small>"]
+  O["④ 운영자 콘솔<br/><small>입점·제휴 심사 · 통화 관제 · 정산 지급 · 통계<br/>추천 콘텐츠·병원 데이터 관리<br/>ops/</small>"]
+  W["⑤ 중계 서버<br/><small>모든 앱의 요청을 받아 처리하고 AI를 대신 불러줌<br/>주소 약 200개 · cbtproxy.worker.js + 루트 모듈 12개</small>"]
+  D[("⑥ 자료 창고<br/><small>예약·채팅·결제·회기 기록 등 표 약 45개<br/>Cloudflare D1 · schema*.sql</small>")]
+  H["⑦ 홍보·배포<br/><small>홈페이지 mindinside.kr · 약관/소개 문서<br/>안드로이드 포장(android/) · 판 올리기(bump.js)<br/>home/ · legal/ · docs-*.html</small>"]
+
+  X{{"바깥 서비스<br/><small>OpenAI(AI 대화·음성) · DeepSeek(비교 실험)<br/>토스페이먼츠(결제) · 구글(로그인)<br/>Resend(메일) · FCM(알림) · 공공데이터(병원)</small>"}}
+
+  ROOT --> U
+  ROOT --> P
+  ROOT --> DC
+  ROOT --> O
+  ROOT --> H
+  U --> W
+  P --> W
+  DC --> W
+  O --> W
+  W --> D
+  W -.-> X
+
+  classDef ext stroke-dasharray: 5 4;
+  class X ext;

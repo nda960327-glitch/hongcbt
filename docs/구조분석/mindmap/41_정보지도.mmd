@@ -1,0 +1,36 @@
+---
+title: "[4] 정보 지도 — 어떤 정보가 어디에 저장되고, 누가 읽고 쓰나"
+---
+flowchart LR
+  subgraph DEVICE ["내 기기 안 (localStorage — 이용자만 접근)"]
+    L1[("기기에만 있는 것<br/><small>AI 대화 원문 · 사고 기록 원문<br/>지갑 잔액 · 구독 만료일 · 잠금 PIN<br/>js/storage.js</small>")]
+    L2[("기기 + 계정 동기화 (암호화)<br/><small>검사 점수 · 리포트 · 기분 기록 ·<br/>장기기억 요약 등 허용된 59개만<br/>js/account.js → user_data 표</small>")]
+  end
+
+  subgraph SERVER ["서버 자료 창고 (Cloudflare D1)"]
+    S1[("사람 상담 기록<br/><small>예약 · 상담사와의 채팅 · 통화 요금 ·<br/>회기 기록 · 숙제 · 후기<br/>schema.sql 등</small>")]
+    S2[("계정 · 신원<br/><small>소셜 로그인(이름·이메일만) ·<br/>상담사·상담소 명부(연락처·계좌 포함)<br/>schema-user.sql 등</small>")]
+    S3[("결제 · 운영<br/><small>충전 주문 · AI 사용량 집계 ·<br/>추천 콘텐츠 · 병원 목록 · 설문<br/>schema-pay.sql 등</small>")]
+  end
+
+  AI3{{"OpenAI · DeepSeek<br/><small>답을 만들 때만 대화가 '지나감'<br/>우리 창고에는 저장 안 됨<br/>(안내 문구와 어긋나는 부분 → 확인필요 #9)</small>"}}
+
+  APP(["이용자 앱"])
+  PRO2(["상담사 앱"])
+  DOC2(["소장 콘솔<br/><small>동의한 환자의 주간 '숫자' 요약과<br/>회기 기록만 봄 · 대화 원문은 못 봄</small>"])
+  OPS2(["운영자 콘솔<br/><small>마스터 코드로 전체 열람</small>"])
+
+  APP <--> L1
+  APP <--> L2
+  APP <--> S1
+  APP -.-> AI3
+  PRO2 <--> S1
+  DOC2 <--> S1
+  APP <--> S2
+  APP <--> S3
+  OPS2 <--> S1
+  OPS2 <--> S2
+  OPS2 <--> S3
+
+  classDef ext stroke-dasharray: 5 4;
+  class AI3 ext;

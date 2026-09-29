@@ -1,0 +1,31 @@
+---
+title: "[2-2] 이용자 앱 상세 ② — 마음 도구(CBT)와 기록"
+---
+flowchart LR
+  ROOT(["이용자 앱 — 마음 도구<br/><small>사고 기록·대시보드 화면 등</small>"])
+
+  MOOD["기분 체크인<br/><small>오늘 기분 한 번에 기록 · 물 +2<br/>js/app.js quickMood</small>"]
+  TR["사고 기록지<br/><small>상황→감정→생각→왜곡 찾기→다시 생각<br/>js/thought-record.js</small>"]
+  LEARN["인지왜곡 학습<br/><small>생각의 함정 10가지 카드와 퀴즈<br/>js/learn.js</small>"]
+  AS["자가검진<br/><small>PHQ-9(우울) · GAD-7(불안) + 탐색 10문항<br/>js/assess.js</small>"]
+  RPT["AI 마음 리포트<br/><small>검사·기록을 모아 AI가 쓰는 리포트<br/>30,000캐시 · 14일 1회 · js/assess.js 1096행</small>"]
+  CP["케어플랜<br/><small>리포트 제안을 14일 실행 계획으로<br/>js/careplan.js</small>"]
+  MIS["오늘의 미션 · 오늘 할 일<br/><small>작은 숙제와 체크인을 한 장에<br/>js/missions.js</small>"]
+  NIGHT["하루 정리 · 자유 일기<br/><small>밤 3분 회고 · AI가 한 줄 답글<br/>js/growth.js</small>"]
+  GOAL["나의 개선 노트<br/><small>고치고 싶은 점을 직접 기록<br/>js/goals.js</small>"]
+  WK["주간 회고 편지<br/><small>한 주 기록을 느루가 편지로 · 주 1회<br/>js/weekly.js</small>"]
+  DASH["대시보드 · 나의 변화<br/><small>감정 달력 · 검사 전후 비교 · 잘 듣는 기법<br/>js/dashboard.js · js/progress.js</small>"]
+
+  ROOT --> MOOD
+  ROOT --> TR
+  ROOT --> AS
+  ROOT --> MIS
+  ROOT --> NIGHT
+  ROOT --> DASH
+  TR --> LEARN
+  AS --> RPT
+  RPT --> CP
+  CP --> MIS
+  GOAL --> MIS
+  NIGHT --> WK
+  ROOT --> GOAL

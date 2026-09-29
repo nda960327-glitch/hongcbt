@@ -1,0 +1,42 @@
+---
+title: "[2-7] 상세 ⑦ — 중계 서버 (Cloudflare Worker)"
+---
+flowchart TD
+  ROOT(["중계 서버 cbt-proxy<br/><small>모든 요청의 관문 · 주소 약 200개<br/>cbtproxy.worker.js</small>"])
+
+  AI2["AI 중계 /chat /tts<br/><small>사용량 한도 검사 후 AI 호출<br/>기기당 하루 400회 제한<br/>cbtproxy.worker.js 308행~</small>"]
+  MK["장터 market.js<br/><small>상담사 명부·예약·결제·정산<br/>입점 심사·운영 통계 (약 70개 주소)</small>"]
+  RTC2["전화 rtc.js<br/><small>앱끼리 음성 연결 신호 중계<br/>서버가 잰 시간으로 30초 단위 과금</small>"]
+  AUTH2["로그인 auth.js · oauth.js<br/><small>상담사 이메일 링크 · 이용자 소셜 로그인</small>"]
+  SYNC2["동기화 sync.js<br/><small>이용자 기록 암호화 보관·복원</small>"]
+  PUSH2["알림 push.js<br/><small>웹푸시 · FCM (내용 없이 깨우기만)</small>"]
+  HOSP2["상담소 hospital.js<br/><small>환자 연결·회기 기록·소장 콘솔 (47개 주소)</small>"]
+  COMM2["소식 community.js<br/><small>상담소 글·댓글 · 제휴 신청 심사</small>"]
+  CLIN2["병원 clinics.js<br/><small>전국 정신과 수집·반경 검색</small>"]
+  FEED2["추천 feed.js<br/><small>느루의 추천 목록·투표·등록</small>"]
+  SURV["설문 survey.js<br/><small>홈페이지 익명 설문</small>"]
+  HUB2["실시간 hub.js<br/><small>웹소켓으로 채팅·전화 소식을 즉시 밀어줌<br/>(Durable Object ChatHub)</small>"]
+  CRON["밤 청소 (매일 새벽 3시)<br/><small>오래된 신호·기록 삭제 · 끊긴 전화 마감<br/>cbtproxy.worker.js 116행~</small>"]
+
+  D[("자료 창고 D1 'hongcbt'<br/><small>표 약 45개 · schema*.sql</small>")]
+  EXT{{"바깥 서비스<br/><small>OpenAI · DeepSeek · 토스 · Resend<br/>구글 로그인 · FCM · TURN · 공공데이터</small>"}}
+
+  ROOT --> AI2
+  ROOT --> MK
+  ROOT --> RTC2
+  ROOT --> AUTH2
+  ROOT --> SYNC2
+  ROOT --> PUSH2
+  ROOT --> HOSP2
+  ROOT --> COMM2
+  ROOT --> CLIN2
+  ROOT --> FEED2
+  ROOT --> SURV
+  ROOT --> HUB2
+  ROOT --> CRON
+  MK --> D
+  HOSP2 --> D
+  ROOT -.-> EXT
+
+  classDef ext stroke-dasharray: 5 4;
+  class EXT ext;

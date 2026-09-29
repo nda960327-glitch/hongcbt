@@ -1,0 +1,30 @@
+---
+title: "[3-2] 흐름 ② — 유튜브 콘텐츠가 화면에 뜨기까지 (느루의 추천 · 왼쪽 열 위→아래, 그다음 오른쪽 열)"
+---
+flowchart LR
+  subgraph COL1 [" "]
+    direction TB
+    F1(["① 운영자가 영상을 고른다<br/><small>운영자 콘솔 '추천 콘텐츠' 탭<br/>ops/js/app.js — 사람이 직접 고름<br/>(앱이 유튜브를 자동 검색하지는 않음)</small>"])
+    F2{{"② 유튜브에 제목을 물어본다<br/><small>주소만 넣으면 제목·채널명을 자동으로 받아옴<br/>(oEmbed) · feed.js 113행</small>"}}
+    F3[("③ 자료 창고에 저장<br/><small>feed 표 · schema.sql 88행</small>")]
+    F4["④ 이용자 앱 홈이 목록을 요청<br/><small>/api/feed · js/feed.js</small>"]
+    F1 --> F2
+    F2 --> F3
+    F3 --> F4
+  end
+  subgraph COL2 [" "]
+    direction TB
+    F5["⑤ 내 고민에 맞는 6개를 골라 보여줌<br/><small>온보딩에서 고른 고민(cbt_user_concerns) 기준<br/>홈 '느루의 추천' 카드</small>"]
+    F6{{"⑥ 누르면 유튜브 영상 재생<br/><small>앱 안 재생창 · 영상 자체는 유튜브 서버에서 옴</small>"}}
+    F7["⑦ '도움됐어요 / 별로예요' 투표<br/><small>기기당 1표 · /api/feed/vote</small>"]
+    F8[("⑧ 투표가 창고에 쌓임<br/><small>feed_votes 표 — 운영자가 반응을 보고<br/>다음 콘텐츠를 고르는 데 참고</small>")]
+    F5 --> F6
+    F6 --> F7
+    F7 --> F8
+  end
+  COL1 == "④에서 이어집니다" ==> COL2
+
+  style COL1 fill:none,stroke:none
+  style COL2 fill:none,stroke:none
+  classDef ext stroke-dasharray: 5 4;
+  class F2,F6 ext;

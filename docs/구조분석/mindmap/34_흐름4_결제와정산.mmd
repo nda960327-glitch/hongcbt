@@ -1,0 +1,34 @@
+---
+title: "[3-4] 흐름 ④ — 돈의 흐름: 충전부터 상담사 정산까지 (왼쪽 열 위→아래, 그다음 오른쪽 열)"
+---
+flowchart LR
+  subgraph COL1 [" "]
+    direction TB
+    M1(["① 캐시 충전 시작<br/><small>마이 탭 지갑 · 5천~30만 원 패키지<br/>js/pay.js</small>"])
+    M2["② 서버가 주문서 발행 /pay/ready<br/><small>금액이 정해진 패키지와 맞는지 확인<br/>market.js 504행~</small>"]
+    M3{{"③ 토스페이먼츠 카드 결제창<br/><small>⚠ 현재 테스트 열쇠 상태</small>"}}
+    M4["④ 서버가 결제 승인 확인 /pay/confirm<br/><small>토스에 진짜 결제됐는지 물어본 뒤에만 인정<br/>(중복 지급 방지 장치 있음) · market.js 527행~</small>"]
+    M5[("⑤ 캐시가 지갑에 들어옴<br/><small>잔액 숫자는 기기에 저장 (js/wallet.js)<br/>서버는 '계산'으로만 잔액을 검증</small>")]
+    M1 --> M2
+    M2 --> M3
+    M3 --> M4
+    M4 --> M5
+  end
+  subgraph COL2 [" "]
+    direction TB
+    M6["⑥ 상담 예약 (캐시 사용)<br/><small>서버가 잔액을 계산해 부족하면 거절(402)<br/>market.js 929행~</small>"]
+    M7["⑦ 상담 진행 → 상담사가 '완료'<br/><small>+ 앱 안 전화는 30초 단위 자동 과금<br/>market.js /bookings/done · rtc.js</small>"]
+    M8["⑧ 상담사가 회기 기록 작성<br/><small>⚠ 기록이 없으면 정산에서 빠짐(보류)<br/>hospital.js /session-notes</small>"]
+    M9["⑨ 정산 목록 계산<br/><small>앱 채널: 상담사 70% (6만 원 초과분 55%)<br/>상담소 채널: 상담소 90 / 앱 7 / 수수료 3<br/>market.js 1074행~</small>"]
+    M10(["⑩ 운영자가 '지급 완료' 도장<br/><small>실제 송금은 은행에서 수동<br/>+ 3.3% 원천징수 월별 집계(홈택스)<br/>운영자 콘솔 · market.js 1167행~</small>"])
+    M6 --> M7
+    M7 --> M8
+    M8 --> M9
+    M9 --> M10
+  end
+  COL1 == "⑤에서 이어집니다" ==> COL2
+
+  style COL1 fill:none,stroke:none
+  style COL2 fill:none,stroke:none
+  classDef ext stroke-dasharray: 5 4;
+  class M3 ext;
