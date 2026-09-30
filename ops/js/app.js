@@ -625,6 +625,7 @@ function viewHospitals() {
       <div class="row wrap" style="gap: 0.4rem; margin-top: 0.55rem;">
         <button class="btn ghost sm" data-act="hosp-edit" data-id="${esc(h.id)}">고치기</button>
         <button class="btn ghost sm" data-act="hosp-rotate" data-id="${esc(h.id)}">코드 재발급</button>
+        <button class="btn ghost sm" onclick="hospAdminCode('${esc(h.id)}')">${h.adminCode ? '소장 관리 코드' : '소장 관리 코드 발급'}</button>
         <span class="grow"></span>
         <button class="btn ${h.active ? 'warnline' : ''} sm" data-act="hosp-active" data-id="${esc(h.id)}" data-on="${h.active ? '0' : '1'}">${h.active ? '정지' : '다시 켜기'}</button>
       </div>
@@ -667,6 +668,16 @@ async function hospRotate(id) {
   if (!res || !res.ok) { alertBox('재발급하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   SHOWCODE[id] = true;
   alertBox('새 코드', `${h.name}\n\n${res.code}`);
+  loadHospitals();
+}
+
+// 소장 관리 코드(HA-…) — 소장 콘솔 로그인 전용. 내담자에게 주는 상담소 코드(H-…)로는 콘솔이 안 열린다 (hospital.js, 2026-10)
+async function hospAdminCode(id) {
+  const h = (D.hospitals || []).find(x => x.id === id); if (!h) return;
+  if (h.adminCode && !(await confirmBox({ title: '소장 관리 코드', body: `${h.name}\n\n지금 코드: ${h.adminCode}\n\n새로 발급하면 지금 코드는 즉시 무효가 됩니다.`, okLabel: '재발급', danger: true }))) return;
+  const res = await adminPost('/api/admin/hospitals/admin-code', { id });
+  if (!res || !res.ok) { alertBox('발급하지 못했어요', res && res.error === 'migrate' ? 'DB 에 admin_code 칸이 아직 없어요 (schema-2026-10c.sql 적용 필요).' : '잠시 후 다시 시도해주세요.'); return; }
+  alertBox('소장 관리 코드', `${h.name}\n\n${res.adminCode}\n\n소장 콘솔 → '관리 코드로 들어가기'에 넣는 값이에요. 내담자용 상담소 코드와 다르니 소장에게만 전화·대면으로 전달하세요.`);
   loadHospitals();
 }
 
