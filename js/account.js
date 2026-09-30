@@ -70,6 +70,51 @@ window.Account = {
   _meta() {
     try { return JSON.parse(localStorage.getItem('cbt_sync_meta') || '{}'); } catch (e) { return {}; }
   },
+
+  // 다른 계정으로 로그인할 때 지우지 않고 남기는 값 — '사람'이 아니라 '이 기기'에 속한 것들.
+  //  (기기 식별자·화면·소리·알림 설정·앱 잠금·서버 주소 판정 캐시 등)
+  //  여기 없는 cbt_* 는 전 사용자의 기록으로 보고 지운다 (_wipeLocalUserData).
+  DEVICE_KEYS: [
+    'cbt_account_session', 'cbt_account_user', 'cbt_client_id', 'cbt_client_key', 'cbt_fcm_token',
+    'cbt_theme', 'cbt_lang', 'cbt_font_scale', 'cbt_sound_on', 'cbt_haptic_on',
+    'cbt_lock_on', 'cbt_lock_pin', 'cbt_consent', 'cbt_onboard_done', 'cbt_first_visit',
+    'cbt_api_key', 'cbt_api_same_origin', 'cbt_api_same_origin_at', 'cbt_api_probe_ver', 'cbt_admin_code',
+    'cbt_batt_asked', 'cbt_noti_guided', 'cbt_install_prompt_dismissed', 'cbt_home_variant', 'cbt_home_ab'
+  ],
+  DEVICE_PREFIXES: ['cbt_notif_'],
+
+  // 공용 기기에서 다른 계정으로 로그인하면 앞사람의 기록을 지운다.
+  //  안 지우면 뒷사람 화면에 앞사람의 리포트·기억·대화가 보이고, 동기화가 그걸 뒷사람 계정으로 올린다.
+  //  지운 키 이름을 돌려준다(값은 남기지 않는다).
+  _wipeLocalUserData() {
+    const keep = new Set(this.DEVICE_KEYS);
+    const gone = [];
+    try {
+      const all = [];
+      for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k) all.push(k); }
+      all.forEach(k => {
+        if (!/^cbt_/.test(k) || keep.has(k) || this.DEVICE_PREFIXES.some(p => k.startsWith(p))) return;
+        try { localStorage.removeItem(k); gone.push(k); } catch (e) {}
+      });
+    } catch (e) {}
+    return gone;
+  },
+
+  // 로그인 CSRF 방지용 1회용 난수 — 우리가 시작한 로그인에서 돌아온 교환권만 쓴다
+  _rand(n) {
+    try { const b = new Uint8Array(n || 12); crypto.getRandomValues(b); return Array.from(b, x => x.toString(16).padStart(2, '0')).join(''); }
+    catch (e) { return Date.now().toString(36) + Math.random().toString(36).slice(2, 12); }
+  },
+  _newNonce() {
+    const n = this._rand(12);
+    try { sessionStorage.setItem('cbt_auth_cn', n); } catch (e) {}
+    return n;
+  },
+  _takeNonce(cn) {
+    let want = '';
+    try { want = sessionStorage.getItem('cbt_auth_cn') || ''; sessionStorage.removeItem('cbt_auth_cn'); } catch (e) {}
+    return !!cn && !!want && cn === want;
+  },
   _setMeta(m) { try { localStorage.setItem('cbt_sync_meta', JSON.stringify(m)); } catch (e) {} },
 
   user: null,
@@ -82,8 +127,32 @@ window.Account = {
     const handoff = p.get('auth');
     if (handoff) {
       history.replaceState(null, '', location.pathname + location.hash);   // 주소에 남기지 않는다
-      await this._exchange(handoff);
+      // 이 탭에서 시작한 로그인(sessionStorage 난수 cn 일치)만 받는다.
+      //  남이 자기 계정으로 로그인해 만든 ?auth= 링크를 보내면, 예전에는 그 계정으로 로그인돼
+      //  내 기록이 남의 계정으로 올라갔다(로그인 CSRF).
+      if (this._takeNonce(p.get('cn'))) await this._exchange(handoff);
+      else {
+        // app.js 는 ?auth= 가 있으면 로그인 게이트를 미뤄 두므로, 세션이 없으면 여기서 다시 띄운다
+        try { const sc = document.getElementById('login-screen'); if (sc && !this._session()) sc.classList.remove('hidden'); } catch (e) {}
+        if (window.UI) window.UI.alert('이 로그인 링크는 이 화면에서 시작한 로그인이 아니라서 사용하지 않았어요.\n로그인이 필요하면 다시 눌러주세요.');
+      }
     }
+    // 다른 계정으로 바꿔 로그인하고 새로 연 참이면 인사를 여기서 한다 (_exchange 가 새로고침했다)
+    try {
+      const sw = sessionStorage.getItem('cbt_acct_switched');
+      if (sw != null) {
+        sessionStorage.removeItem('cbt_acct_switched');
+        if (window.UI) setTimeout(() => window.UI.alert(`${sw || ''}님, 반가워요!\n\n이 기기에 남아 있던 다른 계정의 기록은 지우고, 내 계정의 기록을 받아왔어요.`), 400);
+      }
+    } catch (e) {}
+    // 스토어 앱: 바깥 브라우저에 가 있는 동안 웹뷰가 새로 떴다면 짝 번호 확인을 이어서 한다
+    try {
+      const pp = JSON.parse(sessionStorage.getItem('cbt_auth_pair') || 'null');
+      if (pp && pp.pair && Date.now() - pp.at < 5 * 60 * 1000 && this._nativeScheme()) {
+        this._pendingPair = pp.pair;
+        this._pollPair(pp.pair, window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser);
+      }
+    } catch (e) {}
 
     this.providers = await this._api('/api/oauth/providers')
       .then(d => (d && d.items) || []).catch(() => [])
@@ -101,6 +170,9 @@ window.Account = {
       if (d.got && d.d && d.d.ok) {
         this.user = d.d.user;
         this._cacheUser(d.d.user);
+        // 예전 판에서 로그인해 둔 기기 — 기록 주인을 지금 계정으로 적어 둔다
+        const m0 = this._meta();
+        if (!m0.owner && d.d.user && d.d.user.id) { m0.owner = d.d.user.id; this._setMeta(m0); }
         await this.pull();
       } else if (d.got && d.d && d.d.ok === false) {
         this._setSession(''); this._cacheUser(null); this.user = null;   // 서버가 아니라고 했다
@@ -117,7 +189,10 @@ window.Account = {
       const watch = new Set(this.KEYS);
       window.Storage._safeSet = (k, v) => {
         const r = orig(k, v);
-        if (watch.has(k) && this._session()) this.push();   // 4초 뒤 한 번에
+        if (watch.has(k)) {
+          this._noteEdit(k);                                  // 바뀐 시각은 올릴 때가 아니라 지금
+          if (this._session()) this.push();                   // 4초 뒤 한 번에
+        }
         return r;
       };
       window.Storage._syncHooked = true;
@@ -161,13 +236,19 @@ window.Account = {
     }
     const native = !!this._nativeScheme();
     if (!native) {
-      location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin);
+      // cn: 이 탭이 시작한 로그인이라는 표시. 돌아올 때 주소의 cn 과 맞아야 교환권을 쓴다.
+      location.href = base + '/api/oauth/' + provider + '/start?back=' + encodeURIComponent(location.origin)
+        + '&cn=' + this._newNonce();
       return;
     }
     // 스토어 앱: 구글이 앱 안 웹뷰 로그인을 막으므로 바깥 브라우저로 나간다.
     //  돌아오는 길은 딥링크가 아니라 '짝 번호 조회'다 — 웹뷰에서 딥링크 수신이
     //  막혀도(실기기에서 실제로 막혔다) 이 방식은 반드시 완성된다.
-    const pair = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    //  단 짝 번호만으로는 교환권이 나오지 않는다(2026-10). 브라우저 화면에 뜬 6자리 확인 번호를
+    //  사람이 앱에 넣어야 한다 — 남이 만든 로그인 링크로 내 계정 세션을 빼가지 못하게.
+    const pair = 'p' + this._rand(12);
+    this._pendingPair = pair; this._pairDone = '';
+    try { sessionStorage.setItem('cbt_auth_pair', JSON.stringify({ pair, at: Date.now() })); } catch (e) {}
     const back = location.origin + '/authdone.html';
     const url = base + '/api/oauth/' + provider + '/start?pair=' + pair
       + '&back=' + encodeURIComponent(back);
@@ -178,20 +259,66 @@ window.Account = {
   },
 
   // 로그인이 끝났는지 2초마다 물어본다. 3분이면 포기 (사용자가 그냥 닫았을 수 있다)
+  //  끝났으면(ready) 확인 번호 입력 창을 띄운다. 브라우저는 닫지 않는다 — 번호가 거기 떠 있다.
   _pollPair(pair, B) {
     clearInterval(this._pairTimer);
     let tries = 0;
     this._pairTimer = setInterval(async () => {
-      if (++tries > 90) { clearInterval(this._pairTimer); return; }
+      if (++tries > 90 || this._pairDone === pair) { clearInterval(this._pairTimer); return; }
       try {
         const d = await this._api('/api/oauth/pair?pair=' + encodeURIComponent(pair));
-        if (d && d.ready && d.code) {
+        if (d && d.ready) {
           clearInterval(this._pairTimer);
-          if (B) B.close().catch(() => {});
-          await this._exchange(d.code);
+          this._askPairCode(pair, B);
         }
       } catch (e) {}
     }, 2000);
+  },
+
+  // 확인 번호 입력 — 틀리면 다시 묻는다 (서버가 5번에서 끊는다)
+  async _askPairCode(pair, B) {
+    if (!window.UI) return;
+    let note = '';
+    for (let i = 0; i < 6; i++) {
+      const v = await window.UI.prompt({
+        title: '확인 번호를 넣어주세요',
+        body: (note ? note + '\n\n' : '') + '구글 로그인을 마친 브라우저 화면에 6자리 확인 번호가 떠 있어요.\n뒤로 가기로 이 화면에 돌아와 그 번호를 넣어주세요.',
+        inputType: 'tel', maxLength: 7, placeholder: '000 000', okLabel: '로그인', cancelLabel: '취소'
+      });
+      if (this._pairDone === pair) return;          // 그 사이 딥링크로 끝났다
+      if (v === null) return;                        // 취소
+      const r = await this._confirmPair(pair, v, B);
+      if (r.done) return;
+      note = r.note || '';
+    }
+  },
+
+  async _confirmPair(pair, pc, B) {
+    if (this._pairDone === pair) return { done: true };
+    const digits = String(pc || '').replace(/\D/g, '');
+    if (digits.length !== 6) return { done: false, note: '숫자 6자리를 넣어주세요.' };
+    let d = null;
+    try {
+      const r = window.Api && window.Api.post
+        ? await window.Api.post('/api/oauth/pair/confirm', { pair, pc: digits })
+        : null;
+      d = r ? await r.json().catch(() => null) : null;
+    } catch (e) { d = null; }
+    if (d && d.ok && d.code) {
+      if (this._pairDone === pair) return { done: true };
+      this._pairDone = pair; this._pendingPair = '';
+      try { sessionStorage.removeItem('cbt_auth_pair'); } catch (e) {}
+      try { if (window.UI && window.UI.closeAll) window.UI.closeAll(); } catch (e) {}
+      if (B) B.close().catch(() => {});
+      await this._exchange(d.code);
+      return { done: true };
+    }
+    if (d && d.error === 'bad-code') return { done: false, note: `번호가 달라요. (남은 기회 ${d.left}번)` };
+    if (!d) return { done: false, note: '연결이 불안정해요. 다시 넣어주세요.' };
+    this._pendingPair = '';
+    try { sessionStorage.removeItem('cbt_auth_pair'); } catch (e) {}
+    window.UI.alert(d.error === 'too-many' ? '확인 번호를 여러 번 틀려서 이번 로그인은 취소했어요.\n처음부터 다시 시도해주세요.' : '로그인 시간이 지났어요.\n처음부터 다시 시도해주세요.');
+    return { done: true };
   },
 
   // 앱으로 되돌아온 딥링크(com.uroong.cbt://auth?auth=코드) 처리
@@ -203,8 +330,18 @@ window.Account = {
       this._dlBound = true;
       C.Plugins.App.addListener('appUrlOpen', (ev) => {
         try {
-          const m = /[?&]auth=([\w-]+)/.exec(String(ev && ev.url) || '');
+          const u = String(ev && ev.url || '');
+          // authdone.html 의 '앱으로 돌아가기' — 짝 번호 + 확인 번호. 내가 지금 기다리는 짝 번호일 때만 쓴다.
+          const mp = /[?&]pair=([\w-]+)/.exec(u), mc = /[?&]pc=(\d{6})/.exec(u);
+          if (mp && mc) {
+            if (this._pendingPair && this._pendingPair === mp[1]) this._confirmPair(mp[1], mc[1], C.Plugins.Browser);
+            return;
+          }
+          const m = /[?&]auth=([\w-]+)/.exec(u);
           if (!m) return;
+          // 교환권을 직접 실은 딥링크는 이 기기에서 시작한 로그인(cn 일치)일 때만 받는다 — 로그인 CSRF 방지
+          const c = /[?&]cn=([\w-]+)/.exec(u);
+          if (!this._takeNonce(c && c[1])) return;
           if (C.Plugins.Browser) C.Plugins.Browser.close().catch(() => {});
           this._exchange(m[1]);
         } catch (e) {}
@@ -218,6 +355,12 @@ window.Account = {
       if (window.UI) window.UI.alert('로그인이 만료됐어요.\n다시 시도해주세요.');
       return;
     }
+    // 이 기기 기록의 주인(cbt_sync_meta.owner)과 다른 계정이면 앞사람의 기록을 먼저 지운다.
+    //  (주인이 적혀 있지 않은 예전 기기는 누구 것인지 알 수 없어 지우지 않고, 지금 계정을 주인으로 적는다)
+    const prevOwner = this._meta().owner;
+    const switched = !!(prevOwner && d.user && d.user.id && prevOwner !== d.user.id);
+    if (switched) this._wipeLocalUserData();
+    { const m = switched ? {} : this._meta(); m.owner = d.user && d.user.id; this._setMeta(m); }
     this._setSession(d.session);
     this.user = d.user;
     this._cacheUser(d.user);
@@ -229,6 +372,12 @@ window.Account = {
     } catch (e) {}
     if (window.Sfx) { try { window.Sfx.hit('levelup'); } catch (e) {} }
     await this.pull();
+    if (switched) {
+      // 화면·메모리에 남은 앞사람 상태까지 비우려면 새로 여는 게 가장 확실하다
+      try { sessionStorage.setItem('cbt_acct_switched', (d.user && d.user.nickname) || ''); } catch (e) {}
+      location.reload();
+      return;
+    }
     if (window.UI) {
       window.UI.alert(`${d.user.nickname || ''}님, 반가워요!\n\n이제 폰을 바꿔도 리포트와 레벨이 따라와요.\n대화 내용은 이 기기에만 남습니다.`);
     }
@@ -240,14 +389,22 @@ window.Account = {
   async pull() {
     const s = this._session();
     if (!s) return;
-    const meta = this._meta();
     const d = await this._api('/api/sync?session=' + encodeURIComponent(s) + '&since=0').catch(() => null);
     if (!d || !d.ok) return;
+    const meta = this._meta();                 // 기다리는 사이 바뀐 시각이 적혔을 수 있어 받은 뒤에 읽는다
     let n = 0;
     Object.entries(d.items || {}).forEach(([k, it]) => {
       const mine = meta[k] || 0;
       if (it.updated <= mine) return;          // 내 것이 더 최신이면 그대로 둔다
-      try { localStorage.setItem(k, it.v); meta[k] = it.updated; n++; } catch (e) {}
+      try {
+        localStorage.setItem(k, it.v);
+        meta[k] = it.updated;
+        // 받은 값의 해시를 적어 둔다 — 안 적으면 다음 push 가 '바뀌었다'고 보고
+        //  방금 받은 값을 지금 시각으로 다시 올려, 다른 기기의 더 새 값을 덮었다.
+        meta['h:' + k] = this._hash(it.v);
+        delete meta['t:' + k];
+        n++;
+      } catch (e) {}
     });
     this._setMeta(meta);
     if (n) {
@@ -269,7 +426,7 @@ window.Account = {
     if (!now) { this._pushTimer = setTimeout(() => this.push(true), 4000); return; }
 
     const meta = this._meta();
-    const items = {};
+    const items = {}, sent = {};
     const t = Date.now();
     this.KEYS.forEach(k => {
       let v;
@@ -278,16 +435,46 @@ window.Account = {
       const stamp = meta['h:' + k];
       const h = this._hash(v);
       if (stamp === h) return;                 // 값이 그대로면 보낼 이유가 없다
-      items[k] = { v, updated: t };
-      meta['h:' + k] = h;
-      meta[k] = t;
+      // 올리는 시각이 아니라 '이 기기에서 실제로 바뀐 시각'(_noteEdit)을 붙인다.
+      //  올리는 시각을 붙이면 오래 오프라인이던 기기가 옛 값을 '최신'으로 올려 다른 기기 값을 덮는다.
+      //  감지하지 못한 변경(저장 통로를 거치지 않은 쓰기)만 지금 시각으로 올린다.
+      const at = Math.min(t, meta['t:' + k] || t);
+      items[k] = { v, updated: at };
+      sent[k] = { h, at };
     });
     if (!Object.keys(items).length) return;
 
     const r = await this._post('/api/sync', { session: s, items }).catch(() => null);
     if (!r || !r.ok) return;                   // 실패하면 해시를 안 남겨 다음에 다시 보낸다
-    this._setMeta(meta);
+    // 기다리는 사이 다른 변경이 적혔을 수 있으니 다시 읽어서, 보낸 값이 아직 그대로인 키만 '보냄'으로 적는다
+    const m2 = this._meta();
+    Object.entries(sent).forEach(([k, x]) => {
+      let now = null;
+      try { now = localStorage.getItem(k); } catch (e) {}
+      if (now == null || this._hash(now) !== x.h) return;   // 그 사이 또 바뀌었다 — 다음에 다시 보낸다
+      m2['h:' + k] = x.h;
+      m2[k] = Math.max(m2[k] || 0, x.at);
+      delete m2['t:' + k];
+    });
+    this._setMeta(m2);
+    // 서버에 더 새 값이 있어 건너뛴 키가 있으면 그 값을 받아 온다 (내 옛 값이 이긴 것처럼 남지 않게)
+    if (r.skipped && r.skipped.length) this.pull();
     return r.saved;
+  },
+
+  // 저장 통로(Storage._safeSet)로 동기화 키가 바뀐 순간을 적는다.
+  //  해시가 마지막으로 맞춘 값(보냈거나 받은 값)과 다를 때만 — 같은 값을 다시 저장한 건 변경이 아니다.
+  _noteEdit(k) {
+    try {
+      const v = localStorage.getItem(k);
+      if (v == null) return;
+      const meta = this._meta();
+      if (meta['h:' + k] === this._hash(v)) { if (meta['t:' + k]) { delete meta['t:' + k]; this._setMeta(meta); } return; }
+      const now = Date.now();
+      meta['t:' + k] = now;
+      meta[k] = Math.max(meta[k] || 0, now);   // pull 이 이보다 옛 서버 값으로 덮지 않게
+      this._setMeta(meta);
+    } catch (e) {}
   },
 
   // 값이 바뀌었는지만 알면 되므로 짧은 해시로 충분하다
@@ -300,7 +487,7 @@ window.Account = {
   async logout() {
     if (window.UI && !await window.UI.confirm({
       title: '로그아웃할까요?',
-      body: '이 기기의 기록은 그대로 남아요.\n다시 로그인하면 계정에 저장된 내용을 받아옵니다.',
+      body: '이 기기의 기록은 그대로 남아요.\n다시 로그인하면 계정에 저장된 내용을 받아옵니다.\n\n다른 계정으로 로그인하면, 이 기기에 남은 기록은 지워지고 그 계정의 기록을 받아와요.',
       okLabel: '로그아웃'
     })) return;
     const s = this._session();
@@ -310,6 +497,7 @@ window.Account = {
     //  덮어써, 로그아웃 중 이 기기에 쓴 기록이 전멸했다("기록은 남아요"가 거짓말이 됨).
     //  meta 를 유지하면 재로그인 시 로컬/서버가 정상 병합된다.
     //  (계정 삭제는 사용자가 전체 삭제를 의도한 것이라 removeAccount 쪽은 그대로 둔다.)
+    //  meta.owner(기록 주인)도 남는다 — 다음에 '다른' 계정이 로그인하면 이 기기의 기록을 먼저 지운다(_exchange).
     this._setSession(''); this._cacheUser(null); this.user = null;
     this.render();
     // 로그아웃하면 로그인 화면을 다시 띄운다 — 안 그러면 화면에 남아 조용히 401 난다.
@@ -324,20 +512,32 @@ window.Account = {
     const typed = await window.UI.prompt({
       title: '계정을 삭제할까요?',
       body: '계정에 저장된 리포트·레벨·기억이 모두 지워집니다. 되돌릴 수 없어요.\n'
-        + '이 기기 안의 기록은 남습니다.\n계속하려면 아래에 "삭제"라고 입력하세요.',
+        + '담당 상담소와 연결돼 있었다면 그 연결 정보(이름·생년)와 주간 요약도 지워집니다.\n'
+        + '이 기기 안의 기록은 남습니다 (다른 계정으로 로그인하면 그때 지워져요).\n계속하려면 아래에 "삭제"라고 입력하세요.',
       placeholder: '삭제', okLabel: '계정 삭제', cancelLabel: '취소'
     });
     if (typed !== '삭제') { if (typed !== null) window.UI.alert('입력이 달라서 취소했어요'); return; }
     const s = this._session();
+    // 계정에 올라간 값(user_data)은 이제 /oauth/delete 가 같은 트랜잭션에서 지운다.
+    //  /sync/wipe 는 옛 서버를 위한 것이라 남겨 두되, 결과에 기대지 않는다.
     await this._post('/api/sync/wipe', { session: s }).catch(() => {});
     const r = await this._post('/api/oauth/delete', { session: s }).catch(() => null);
     if (!r || !r.ok) { window.UI.alert('삭제하지 못했어요. 잠시 뒤 다시 시도해주세요.'); return; }
+    // 기기(clientId)에 묶인 상담소 연결 정보도 지운다 — clientKey 는 Api 가 자동으로 붙인다
+    try {
+      const cid = window.App && window.App.clientId ? window.App.clientId() : '';
+      if (cid && window.Api && window.Api.post) await window.Api.post('/api/patient/erase', { clientId: cid }).catch(() => null);
+      try { localStorage.removeItem('cbt_hospital_link'); localStorage.removeItem('cbt_hospital_records'); } catch (e) {}
+    } catch (e) {}
     // 계정을 지웠는데 이 폰에서 상담 알림이 계속 울리면 '안 지워졌다'로 읽힌다.
     //  이 기기의 구독만 끊는다(다른 기기는 그 기기에서 끊어야 한다).
     //  로그아웃에서는 하지 않는다 — 상담사 전화는 계정이 아니라 기기(clientId)로
     //  오기 때문에, 로그아웃했다고 끊으면 전화가 조용히 사라진다.
     if (window.App && window.App.unsubscribePushHere) await window.App.unsubscribePushHere();
-    this._setSession(''); this._setMeta({}); this._cacheUser(null); this.user = null;
+    // 동기화 시계는 비우되 기록 주인은 남긴다 — 이 기기에 남은 기록이 다음에 로그인하는
+    //  다른 사람의 계정으로 올라가지 않게 (_exchange 가 주인이 다르면 먼저 지운다)
+    { const owner = this._meta().owner; this._setMeta(owner ? { owner } : {}); }
+    this._setSession(''); this._cacheUser(null); this.user = null;
     this.render();
     window.UI.alert('계정을 삭제했어요.');
   },

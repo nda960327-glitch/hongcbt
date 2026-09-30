@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
   <title>로그인 완료 — 마인드 인사이드</title>
   <style>
     /* 스토어 앱에서 로그인을 마치고 브라우저가 잠깐 머무는 화면.
-       여기서 교환권을 쓰면 안 된다 — 그건 앱이 가져가야 한다. 안내만 한다. */
+       교환권은 여기로 오지 않는다. 대신 6자리 '확인 번호'를 보여주고, 사람이 그 번호를
+       앱에 넣어야 앱이 로그인된다 (oauth.js /oauth/pair/confirm, 2026-10).
+       — 누가 만든 로그인 링크를 눌렀든, 번호를 보는 사람은 로그인한 본인뿐이라
+         남이 이 계정 세션을 가져갈 수 없다. */
     * { box-sizing: border-box; margin: 0; }
     body {
       font-family: 'Noto Sans KR', -apple-system, sans-serif;
@@ -21,6 +26,17 @@
     h1 { font-size: 1.15rem; margin-bottom: 0.45rem; }
     p { font-size: 0.88rem; color: #7f7264; }
     .hint { margin-top: 1.5rem; font-size: 0.8rem; color: #4f8a6b; font-weight: 700; }
+    .code {
+      font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; font-size: 2.1rem; font-weight: 800;
+      letter-spacing: 0.18em; color: #362f28; background: #fff; border: 1.5px solid #e2d6c4;
+      border-radius: 14px; padding: 0.6rem 1rem; margin: 1rem auto 0.9rem; display: inline-block;
+    }
+    .btn {
+      display: inline-block; background: #4f8a6b; color: #fff; text-decoration: none;
+      font-weight: 700; font-size: 0.92rem; padding: 0.8rem 1.5rem; border-radius: 999px; margin-top: 0.4rem;
+    }
+    .warn { margin-top: 1.3rem; font-size: 0.76rem; color: #a0553f; max-width: 320px; margin-left: auto; margin-right: auto; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
@@ -31,9 +47,33 @@
         <path d="M4 12.5 9.5 18 20 6.5"/>
       </svg>
     </div>
-    <h1>로그인이 완료됐어요</h1>
-    <p>이 창은 곧 자동으로 닫히고<br>마인드 인사이드 앱으로 돌아갑니다.</p>
-    <p class="hint">닫히지 않으면 뒤로 가기를 눌러주세요</p>
+    <div id="with-code" hidden>
+      <h1>구글 확인이 끝났어요</h1>
+      <p>마인드 인사이드 앱으로 돌아가<br>아래 <b>확인 번호</b>를 넣으면 로그인돼요.</p>
+      <div class="code" id="pc"></div><br>
+      <a class="btn" id="back" href="#">앱으로 돌아가기</a>
+      <p class="hint">버튼이 안 되면 뒤로 가기로 앱에 돌아가 번호를 직접 넣어주세요 (5분 안에)</p>
+      <p class="warn">방금 앱에서 직접 '구글로 시작하기'를 누른 게 아니라면 이 창을 닫아주세요.<br>
+        이 번호는 누구에게도 알려주지 마세요 — 운영팀도 묻지 않아요.</p>
+    </div>
+    <div id="no-code">
+      <h1>로그인이 완료됐어요</h1>
+      <p>이 창은 곧 자동으로 닫히고<br>마인드 인사이드 앱으로 돌아갑니다.</p>
+      <p class="hint">닫히지 않으면 뒤로 가기를 눌러주세요</p>
+    </div>
   </div>
+  <script>
+    (function () {
+      var q = new URLSearchParams(location.search);
+      var pc = (q.get('pc') || '').replace(/\D/g, '').slice(0, 6);
+      var pair = (q.get('pair') || '').replace(/[^\w-]/g, '').slice(0, 40);
+      if (pc.length !== 6) return;
+      document.getElementById('no-code').hidden = true;
+      document.getElementById('with-code').hidden = false;
+      document.getElementById('pc').textContent = pc.slice(0, 3) + ' ' + pc.slice(3);
+      // 딥링크로 번호를 앱에 바로 넘긴다. 앱은 자기가 시작한 짝 번호일 때만 받아들인다(js/account.js).
+      document.getElementById('back').href = 'com.uroong.cbt://auth?pair=' + encodeURIComponent(pair) + '&pc=' + pc;
+    })();
+  </script>
 </body>
 </html>

@@ -151,7 +151,7 @@ export async function handleSync(request, env, cors, path, body, url) {
     const keys = Object.keys(items).slice(0, MAX_TOTAL_KEYS);
     const rejected = [], saved = [];
 
-    const stmts = [];
+    const stmts = [], stmtKeys = [];
     for (const k of keys) {
       if (!allowed(k)) { rejected.push(k); continue; }
       const it = items[k] || {};
@@ -168,11 +168,21 @@ export async function handleSync(request, env, cors, path, body, url) {
            v = excluded.v, updated = excluded.updated, bytes = excluded.bytes
          WHERE excluded.updated > user_data.updated`
       ).bind(me.id, k, sealed, updated, bytes));
-      saved.push(k);
+      stmtKeys.push(k);
     }
     // 한 번에 보낸다. D1 은 한 연결에서 동시 쓰기를 싫어한다.
-    if (stmts.length) await db.batch(stmts);
-    return json({ ok: true, saved: saved.length, rejected, now: nowMs() }, 200, cors);
+    //  서버 값이 더 새로우면(다른 기기가 더 나중에 바꿨으면) 위 WHERE 때문에 안 덮인다 — changes 가 0.
+    //  그런 키는 skipped 로 알려 앱이 다시 받아 가게 한다 (예전엔 '저장됨'으로 셌다).
+    const skipped = [];
+    if (stmts.length) {
+      const res = await db.batch(stmts);
+      stmtKeys.forEach((k, i) => {
+        const r = res && res[i];
+        const ch = r && r.meta ? r.meta.changes : 1;
+        if (ch === 0) skipped.push(k); else saved.push(k);
+      });
+    }
+    return json({ ok: true, saved: saved.length, skipped, rejected, now: nowMs() }, 200, cors);
   }
 
   // 계정에 올라간 것만 지운다 (기기 기록은 앱이 따로 지운다)
