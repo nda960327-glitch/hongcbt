@@ -5222,7 +5222,13 @@ ${body}
 
   async resetAllAppData() {
  if (await window.UI.confirm('정말로 앱의 모든 데이터를 초기화하시겠습니까?\n\n· 모든 대화 내역 삭제\n· 모든 사고 기록지 및 기분 통계 삭제\n· AI 상담사의 장기기억 삭제\n· 상담사 선택 및 설정 초기화\n\n초기화 후에는 데이터를 복구할 수 없습니다.')) {
-      if (await window.UI.confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?')) {
+      if (await window.UI.confirm('마지막 확인: 초기화를 계속 진행하시겠습니까?\n\n상담사와 나눈 채팅·숙제·상담소 연결 등 이 기기의 서버 기록도 함께 지워집니다.')) {
+        // 기기 번호(clientId)에 묶인 서버 기록도 지운다 — 기기만 비우면 채팅·숙제·상담소 연결이
+        //  서버에 그대로 남는다. clientKey 는 Api 가 자동으로 붙인다. 실패해도 기기 초기화는 한다.
+        try {
+          const cid = this.clientId ? this.clientId() : '';
+          if (cid && window.Api && window.Api.post) await window.Api.post('/api/patient/erase', { clientId: cid }).catch(() => null);
+        } catch (e) {}
         if (window.Storage && window.Storage.clearAllData) {
           window.Storage.clearAllData();
         } else {

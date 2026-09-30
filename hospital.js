@@ -208,14 +208,42 @@ export async function handleHospital(request, env, cors, path, ctx) {
         feedback: fb.map(rowFb)
       }, 200, cors);
     }
-    // 내 연결 정보 지우기 (탈퇴·삭제 요청) — 연결을 끊는 데서 그치지 않고, 이름·생년이 담긴 연결 행과
-    //  주간 숫자를 지운다. 상담사가 쓴 회기 기록·의사 피드백은 상담 기관의 기록이라 여기서 지우지 않는다.
+    // 내 정보 지우기 (탈퇴·삭제 요청) — 이름·생년이 담긴 연결 행과 주간 숫자, 그리고 아래 목록의
+    //  clientId 기록을 지운다. 회기 기록은 상담사의 전문 기록이라 내용은 두고 이름만 지운다.
     if (path === '/patient/erase' && method === 'POST') {
       const r = await db.batch([
         db.prepare('DELETE FROM patient_links WHERE client_id = ?').bind(cid),
         db.prepare('DELETE FROM patient_weekly WHERE client_id = ?').bind(cid)
       ]);
-      return json({ ok: true, links: (r[0] && r[0].meta && r[0].meta.changes) || 0, weekly: (r[1] && r[1].meta && r[1].meta.changes) || 0 }, 200, cors);
+      // 탈퇴하면 이 기기 번호(clientId)에 묶인 서버 기록도 정리한다 (2026-10 보강).
+      //  · 지운다: 상담사와 나눈 채팅·쪽지·숙제, 통화 대기열, 알림 구독, 커뮤니티 좋아요·댓글, 추천 투표, 동의 기록
+      //  · 이름만 지운다(행은 남김): 예약·후기·회기 기록 — 결제·정산 증빙(전자상거래법 5년)이고
+      //    회기 기록은 상담사가 보관해야 하는 전문 기록이라 내용은 두되 누구인지는 알 수 없게 한다.
+      //  · 그대로 둔다: 결제(orders)·통화 과금(calls)·앱 안 캐시 사용(cash_spends) — 거래 기록 보존 의무
+      //  표가 없는 배포에서도 나머지는 계속 지워지게 한 줄씩 따로 돌린다.
+      const GONE = '(탈퇴한 내담자)';
+      const steps = [
+        ['DELETE FROM chat_msgs WHERE client_id = ?', [cid]],
+        ['DELETE FROM inbox WHERE client_id = ?', [cid]],
+        ['DELETE FROM homework WHERE client_id = ?', [cid]],
+        ['DELETE FROM call_queue WHERE client_id = ?', [cid]],
+        ['DELETE FROM contact_attempts WHERE client_id = ?', [cid]],
+        ['DELETE FROM push_subs WHERE counselor_id = ?', ['cl:' + cid]],
+        ['DELETE FROM post_likes WHERE client_id = ?', [cid]],
+        ['DELETE FROM post_comments WHERE client_id = ?', [cid]],
+        ['DELETE FROM feed_votes WHERE client_id = ?', [cid]],
+        ['DELETE FROM consents WHERE client_id = ?', [cid]],
+        ['DELETE FROM hospital_notes WHERE client_id = ?', [cid]],
+        ['DELETE FROM doctor_feedback WHERE client_id = ?', [cid]],
+        ['UPDATE bookings SET client_name = ? WHERE client_id = ?', [GONE, cid]],
+        ['UPDATE reviews SET client_name = ? WHERE client_id = ?', [GONE, cid]],
+        ['UPDATE session_notes SET client_name = ? WHERE client_id = ?', [GONE, cid]]
+      ];
+      let erased = 0;
+      for (const [sql, args] of steps) {
+        try { const x = await db.prepare(sql).bind(...args).run(); erased += (x && x.meta && x.meta.changes) || 0; } catch (e) {}
+      }
+      return json({ ok: true, links: (r[0] && r[0].meta && r[0].meta.changes) || 0, weekly: (r[1] && r[1].meta && r[1].meta.changes) || 0, erased }, 200, cors);
     }
     if (path === '/patient/feedback/read' && method === 'POST') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(cleanId).filter(Boolean).slice(0, 50);

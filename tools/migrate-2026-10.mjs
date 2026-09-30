@@ -16,6 +16,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const STEPS = [
+  // ── 옛 스키마 파일에 주석으로만 적혀 있던 칸들 ─────────────────────────
+  //  운영 DB 에는 이미 있다('이미 있음'으로 지나간다). 새로 만든 DB 에서는 이게 없으면 통화·정산이 500 을 낸다.
+  ['통화 방향', 'ALTER TABLE calls ADD COLUMN dir TEXT'],
+  ['통화 마지막 심박', 'ALTER TABLE calls ADD COLUMN last_seen INTEGER NOT NULL DEFAULT 0'],
+  ['통화 채널', "ALTER TABLE calls ADD COLUMN channel TEXT NOT NULL DEFAULT 'app'"],
+  ['통화 상담소', 'ALTER TABLE calls ADD COLUMN hospital_id TEXT'],
+  ['통화 정산 시각', 'ALTER TABLE calls ADD COLUMN settled_at INTEGER NOT NULL DEFAULT 0'],
+  ['예약 채널', "ALTER TABLE bookings ADD COLUMN channel TEXT NOT NULL DEFAULT 'app'"],
+  ['예약 상담소', 'ALTER TABLE bookings ADD COLUMN hospital_id TEXT'],
   // 통화 — 다시 건 전화가 지난 통화의 '끊음' 신호를 집어 곧장 끊기던 문제 (rtc.js insertSignal)
   ['통화 신호에 통화 번호', "ALTER TABLE rtc_signals ADD COLUMN call_id TEXT DEFAULT ''"],
   // 유료 상담 — 동의 순간 잔액까지만 청구 (rtc.js endConsult)
@@ -41,6 +50,9 @@ const STEPS = [
   ['로그인 확인 번호', 'ALTER TABLE oauth_handoff ADD COLUMN pc TEXT'],
   ['로그인 확인 시도 수', 'ALTER TABLE oauth_handoff ADD COLUMN tries INTEGER NOT NULL DEFAULT 0'],
   ['로그인 대기 색인', 'CREATE INDEX IF NOT EXISTS idx_handoff_pair ON oauth_handoff(pair)'],
+  // 앱 안 캐시 사용 장부 — 구독·리포트 등으로 쓴 돈을 서버 잔액에서도 뺀다 (market.js cashBalance)
+  ['앱 안 캐시 사용 장부', 'CREATE TABLE IF NOT EXISTS cash_spends (id TEXT PRIMARY KEY, client_id TEXT NOT NULL, amount INTEGER NOT NULL, reason TEXT, ts INTEGER NOT NULL, voided_at INTEGER NOT NULL DEFAULT 0)'],
+  ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
 
 // 시험용: node tools/migrate-2026-10.mjs --local [wrangler 추가 인자…] 로 로컬 DB 에 먼저 돌려볼 수 있다

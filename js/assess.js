@@ -1094,6 +1094,7 @@ b{font-weight:800}
   // 결제와 생성 — 확인 팝업에서 진행을 누르면 여기로 온다
   async _doGenerate(m) {
     if (!window.Wallet.spend(this.PRICE, 'AI 마음 리포트 생성')) return;
+    const spendId = window.Wallet.lastSpendId;   // 실패 환불 때 서버 장부에서도 무효로 돌린다
 
     const box = document.getElementById('assess-result');
     if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: var(--text-primary);">⏳ 표준 검진 점수와 기록 전체를 정밀 분석 중… (30초~1분)</p></div>`;
@@ -1122,7 +1123,7 @@ b{font-weight:800}
       const first = document.getElementById('as-' + rec.id);
       if (first) { first.classList.remove('hidden'); first.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
     } catch (e) {
-      window.Wallet.refund(this.PRICE, 'AI 마음 리포트 생성 실패 환불');
+      window.Wallet.refund(this.PRICE, 'AI 마음 리포트 생성 실패 환불', { voidSpend: spendId });
       if (box) box.innerHTML = `<div class="glass-card" style="padding: 1rem; text-align: center;"><p style="margin: 0; font-size: 0.84rem; color: #c96a5a;">리포트를 만들지 못해 ${this.PRICE.toLocaleString()}캐시를 <b>전액 환불</b>했어요.${e && e.message === 'PARSE' ? '<br>분석 결과가 중간에 끊겼어요 — 다시 시도하면 대개 성공합니다.' : '<br>잠시 후 다시 시도해주세요.'}</p></div>`;
     }
   },

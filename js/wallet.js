@@ -65,18 +65,81 @@ window.Wallet = {
   },
 
   // 차감 — 잔액이 부족하면 false
-  spend(amount, desc) {
+  //  opts.serverTracked: 서버가 이미 아는 사용(상담 예약·상담사 통화)이면 true — 장부에 두 번 적지 않는다.
+  //  그 밖의 앱 안 사용은 서버 장부(/cash/spend)에도 적는다. 안 적으면 서버는 이 돈이 아직
+  //  남은 줄 알고 그 돈으로 상담 예약을 받아 버린다(상담사 정산은 받지도 않은 돈에서 나간다).
+  spend(amount, desc, opts) {
     const bal = this.balance();
     if (bal < amount) return false;
     const next = bal - amount;
     window.Storage._safeSet('cbt_cash', next);
     this._record('spend', amount, desc || '사용', next);
+    this.lastSpendId = '';
+    if (!(opts && opts.serverTracked) && amount > 0) {
+      this.lastSpendId = 'sp_' + Date.now().toString(36) + '_' + this._rand();
+      // 쓴 순간의 기기 번호를 같이 적는다 — 보내기 전에 계정이 바뀌어도(공용 기기) 엉뚱한 사람 장부에 가지 않게
+      const cid = window.App && window.App.clientId ? window.App.clientId() : '';
+      this._queue({ id: this.lastSpendId, amount, desc: desc || '사용', ts: Date.now(), cid });
+    }
     this.renderCard();
     this._syncHud();
     return true;
   },
 
-  refund(amount, desc) {
+  // ── 서버 장부로 보낼 사용분 대기열 ─────────────────────────────────
+  //  오프라인이거나 서버가 잠시 안 받아도 잃지 않게 기기에 쌓아 두고 다시 보낸다(id 로 멱등).
+  _rand() {
+    try { const a = new Uint8Array(8); crypto.getRandomValues(a); return Array.from(a, b => b.toString(16).padStart(2, '0')).join(''); }
+    catch (e) { return Math.random().toString(36).slice(2, 12); }
+  },
+  _q() { return (window.Storage && window.Storage._safeGet('cbt_cash_spend_q', [])) || []; },
+  _queue(item) {
+    const q = this._q();
+    q.push(item);
+    window.Storage._safeSet('cbt_cash_spend_q', q.slice(-300));
+    this.flush();
+  },
+  async flush() {
+    if (this._flushing) return;
+    const cid = window.App && window.App.clientId ? window.App.clientId() : '';
+    if (!cid || !window.Api || !window.Api.f) { this._later(); return; }
+    this._flushing = true;
+    try {
+      let q = this._q();
+      while (q.length) {
+        const it = q[0];
+        let ok = false;
+        try {
+          const r = await window.Api.f('/api/cash/spend', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ clientId: it.cid || cid, id: it.id, amount: it.amount, desc: it.desc, ts: it.ts, void: it.void ? 1 : 0 })
+          });
+          // 4xx(형식 오류·권한 없음)는 다시 보내도 같다 — 버린다. 5xx·네트워크는 나중에 다시.
+          ok = !!(r && (r.ok || (r.status >= 400 && r.status < 500)));
+        } catch (e) { ok = false; }
+        if (!ok) { this._later(); break; }
+        q = this._q().filter(x => !(x.id === it.id && !!x.void === !!it.void));
+        window.Storage._safeSet('cbt_cash_spend_q', q);
+      }
+    } finally { this._flushing = false; }
+  },
+  _later() {
+    if (this._retryT) return;
+    this._retryT = setTimeout(() => { this._retryT = null; this.flush(); }, 60000);
+  },
+
+  // voidSpend: spend() 가 돌려준 lastSpendId — 앱 안 사용을 되돌릴 때 서버 장부에서도 무효로 한다
+  refund(amount, desc, opts) {
+    const vid = opts && opts.voidSpend;
+    if (vid) {
+      const q = this._q();
+      if (q.some(x => x.id === vid && !x.void)) {
+        // 아직 서버로 안 간 사용분이면 대기열에서 빼기만 하면 된다
+        window.Storage._safeSet('cbt_cash_spend_q', q.filter(x => x.id !== vid));
+      } else {
+        this._queue({ id: vid, void: true, cid: window.App && window.App.clientId ? window.App.clientId() : '' });
+      }
+    }
     const bal = this.balance() + amount;
     window.Storage._safeSet('cbt_cash', bal);
     this._record('refund', amount, desc || '환불', bal);
@@ -119,3 +182,6 @@ window.Wallet = {
       </div>`;
   }
 };
+
+// 앱을 열 때 지난번에 못 보낸 사용분을 보낸다 (App·Api 가 준비된 뒤)
+setTimeout(() => { try { window.Wallet.flush(); } catch (e) {} }, 5000);

@@ -363,7 +363,8 @@ window.CallTalk = {
     const s = Math.max(0, Math.round(Number(seconds) || 0));
     const label = `음성 상담 ${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
       + (name ? ' · ' + name : '');
-    if (amt > 0) window.Wallet.spend(amt, label);
+    // 상담사 통화 요금은 서버가 calls.billed 로 이미 안다 — 장부에 두 번 적지 않는다
+    if (amt > 0) window.Wallet.spend(amt, label, { serverTracked: true });
     this._spent = (this._spent || 0) + amt;
     return true;
   },

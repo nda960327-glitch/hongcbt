@@ -35,3 +35,16 @@ CREATE INDEX IF NOT EXISTS idx_orders_client ON orders(client_id, created);
 -- 운영자 결제 내역 (/admin/payments) — 전체 최신순 · 오늘 매출 집계
 CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created);
 CREATE INDEX IF NOT EXISTS idx_orders_paid ON orders(status, paid_at);
+
+-- 2026-10: 앱 안 캐시 사용 장부. 구독·AI 리포트·이모티콘·보이스톡처럼 기기에서 바로 빠지는
+--  사용분을 서버도 안다 — cashBalance 가 이걸 빼야 '이미 쓴 캐시로 상담 예약'이 막힌다.
+--  id 는 기기가 만든 난수(재전송해도 한 번만). voided_at 은 기기가 돌려준 사용분(리포트 실패 환불 등).
+CREATE TABLE IF NOT EXISTS cash_spends (
+  id         TEXT PRIMARY KEY,
+  client_id  TEXT NOT NULL,
+  amount     INTEGER NOT NULL,
+  reason     TEXT,
+  ts         INTEGER NOT NULL,
+  voided_at  INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at);

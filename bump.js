@@ -50,6 +50,17 @@ for (const dir of ['js', 'css']) {
   }
 }
 
+// 맨 위 폴더의 html(약관·개인정보·삭제 안내·결제 완료·소개 문서 등)도 www 에 있는 것은 같이 옮긴다.
+//  전에는 js/·css/ 만 옮겨서, 약관을 고쳐도 배포본(www)에는 옛 약관이 그대로 나갔다(2026-10 실제로 겪음).
+//  www 에 이미 있는 파일만 덮는다 — 미리보기용 html 이 새로 공개되지 않게.
+let htmlCopied = 0;
+for (const f of fs.readdirSync(R)) {
+  if (!/\.html$/.test(f) || f === 'index.html' || /-DESKTOP-/.test(f)) continue;
+  if (!fs.existsSync(R + 'www/' + f)) continue;
+  fs.copyFileSync(R + f, R + 'www/' + f);
+  htmlCopied++;
+}
+
 // 상담사 앱(pro)도 같은 번호로 — pro 는 서비스워커가 없어서 ?v= 가 유일한 캐시 파쇄기다.
 //  커스텀 도메인이 _headers 의 no-cache 를 무시하고 4시간 캐시를 붙이는 걸 실측했다
 //  (pages.dev 직접 접속은 no-cache 가 붙는데 pro.neurumind.com 은 max-age=14400).
@@ -71,4 +82,4 @@ for (const app of ['doc', 'ops']) {
 }
 
 console.log('판 번호 ' + cur + ' → ' + next);
-console.log('  sw.js · index.html(APP_BUILD) · version.json · www/(js·css ' + copied + '개 포함) · pro·doc·ops(?v=) 동기화 완료');
+console.log('  sw.js · index.html(APP_BUILD) · version.json · www/(js·css ' + copied + '개, html ' + htmlCopied + '개 포함) · pro·doc·ops(?v=) 동기화 완료');

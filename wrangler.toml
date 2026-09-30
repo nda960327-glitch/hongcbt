@@ -36,10 +36,9 @@ PRO_URL = "https://pro.mindinsideapp.com"
 #  Pages 프로젝트는 neurumind-doc, 커스텀 도메인은 doc.mindinsideapp.com.
 DOC_URL = "https://doc.mindinsideapp.com"
 
-# 소개 페이지(neurumind.com/intro/)에서 팀원이 테스트 코드를 열어보는 비밀번호.
-#  진짜 비밀이 아니라 '팀원끼리 아는 번호' 수준이다. 운영자 코드는 더 이상 같이 열리지 않는다(2026-10).
-#  그래도 출시 전에는 긴 값으로 바꿔 secret 으로 넣는 걸 권한다: npx wrangler secret put INTRO_PW (그리고 이 줄 삭제)
-INTRO_PW = "1234"
+# 소개 페이지(neurumind.com/intro/)에서 팀원이 테스트 코드를 열어보는 비밀번호는 secret 으로만 둔다(2026-10).
+#  전에는 여기에 "1234" 가 공개 설정값으로 박혀 있었다. 넣는 법: npx wrangler secret put INTRO_PW
+#  넣기 전까지는 소개 페이지의 [열기]가 '비밀번호가 틀렸어요'로만 답한다(비어 있으면 아무 값도 통과 못 함).
 
 # 상담사 마켓 저장소. 먼저 만들고 아래 database_id 를 채우세요:
 #   wrangler d1 create hongcbt

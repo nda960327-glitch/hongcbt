@@ -518,6 +518,34 @@ export async function handleMarket(request, env, cors, path, ctx) {
   //    ② confirm — 토스 승인 API 를 '서버가' 부르고, 성공했을 때만 캐시를 준다
   //  ①의 금액과 ②로 들어온 금액이 다르면 승인하지 않는다. 이게 없으면
   //  5,000원짜리 결제창을 띄우고 300,000원으로 승인 요청을 보낼 수 있다.
+  // ── 앱 안 캐시 사용 기록 (내담자) ───────────────────────────────────
+  //  구독·리포트·이모티콘·보이스톡처럼 기기에서 바로 빠지는 사용분을 서버 장부에도 적는다.
+  //  cashBalance 가 이걸 빼야 '이미 쓴 캐시로 상담 예약'이 막힌다.
+  //  id 는 기기가 만든 난수라 재전송해도 한 번만 들어간다. void=1 은 기기가 돌려준 사용분
+  //  (예: 리포트 생성 실패 환불)을 무효로 돌린다. 예약·상담사 통화는 이미 서버에 있어서 오지 않는다.
+  if (path === '/cash/spend' && method === 'POST') {
+    const cid = s(body.clientId, MAX.id);
+    const sid = s(body.id, 64).replace(/[^\w-]/g, '');
+    if (!cid || !sid) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
+    try {
+      if (body.void) {
+        await db.prepare('UPDATE cash_spends SET voided_at = ? WHERE id = ? AND client_id = ? AND voided_at = 0')
+          .bind(nowMs(), sid, cid).run();
+        return json({ ok: true }, 200, cors);
+      }
+      const amount = Math.round(num(body.amount));
+      if (!(amount > 0 && amount <= 1000000)) return json({ error: 'bad-amount' }, 400, cors);
+      await db.prepare(
+        'INSERT INTO cash_spends (id, client_id, amount, reason, ts, voided_at) VALUES (?,?,?,?,?,0) ON CONFLICT(id) DO NOTHING'
+      ).bind(sid, cid, amount, s(body.desc, 80), Math.min(nowMs(), num(body.ts) || nowMs())).run();
+      return json({ ok: true }, 200, cors);
+    } catch (e) {
+      // 표가 아직 없다 — 기기는 대기열에 두고 나중에 다시 보낸다
+      return json({ error: 'not-ready' }, 503, cors);
+    }
+  }
+
   if (path.startsWith('/pay/')) {
     // 지급 캐시(보너스 포함)도 서버가 정한다 — 클라이언트가 보내온 cash 를
     //  믿을 이유가 없다. 아래 표는 js/wallet.js 의 PACKAGES 와 같은 값이어야
@@ -818,34 +846,48 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const rows = [];
     try {
       const b = (await db.prepare(
-        "SELECT counselor_id, MAX(price - COALESCE(refund, 0), 0) AS price, channel FROM bookings WHERE settled_at >= ? AND settled_at < ? AND status IN ('done','late_cancel')"
+        "SELECT counselor_id, MAX(price - COALESCE(refund, 0), 0) AS price, channel, settled_at FROM bookings WHERE settled_at >= ? AND settled_at < ? AND status IN ('done','late_cancel')"
       ).bind(from, to).all()).results || [];
       b.forEach(x => rows.push(x));
     } catch (e) {}
     try {
       const c = (await db.prepare(
-        'SELECT counselor_id, billed AS price, channel FROM calls WHERE settled_at >= ? AND settled_at < ? AND billed > 0'
+        'SELECT counselor_id, billed AS price, channel, settled_at FROM calls WHERE settled_at >= ? AND settled_at < ? AND billed > 0'
       ).bind(from, to).all()).results || [];
       c.forEach(x => rows.push(x));
     } catch (e) {}
-    const by = {};
+    // 원천징수는 '지급할 때마다' 한다 — 소액부징수(소득세 1,000원 미만)도 지급 건마다 따진다.
+    //  전에는 한 달치를 먼저 합친 뒤 세금을 매겨서, 지급 화면(ops)에서 0원으로 보낸 3만 원짜리
+    //  두 번이 월 보고서에서는 1,980원을 떼야 하는 것으로 나왔다. 같은 상담사·같은 지급 시각
+    //  (한 번의 /settle/pay)이 곧 한 번의 지급이므로, 그 묶음마다 세금을 계산해 더한다.
+    const pays = {};
     rows.forEach(x => {
       if (x.channel === 'hospital') return;
-      const p = payoutOf(x.price || 0, 'app');
-      const k = x.counselor_id;
-      by[k] = by[k] || { counselorId: k, count: 0, gross: 0 };
-      by[k].count++;
-      by[k].gross += p.counselor;
+      const p = payoutOf(x.price || 0, x.channel === 'referral' ? 'referral' : 'app');
+      const pk = x.counselor_id + '|' + (x.settled_at || 0);
+      pays[pk] = pays[pk] || { counselorId: x.counselor_id, count: 0, gross: 0 };
+      pays[pk].count++;
+      pays[pk].gross += p.counselor;
+    });
+    const by = {};
+    Object.values(pays).forEach(pay => {
+      const k = pay.counselorId, w = withholdingOf(pay.gross);
+      by[k] = by[k] || { counselorId: k, count: 0, gross: 0, payments: 0, incomeTax: 0, localTax: 0, net: 0 };
+      by[k].count += pay.count;
+      by[k].gross += pay.gross;
+      by[k].payments++;
+      by[k].incomeTax += w.incomeTax;
+      by[k].localTax += w.localTax;
+      by[k].net += w.net;
     });
     const names = {};
     try {
       const cs = (await db.prepare('SELECT id, name, bank_holder FROM counselors').all()).results || [];
       cs.forEach(c => { names[c.id] = { name: c.name, holder: c.bank_holder || '' }; });
     } catch (e) {}
-    const items = Object.values(by).map(r => {
-      const w = withholdingOf(r.gross);
-      return { ...r, name: (names[r.counselorId] || {}).name || '(이름 없음)', holder: (names[r.counselorId] || {}).holder || '', ...w };
-    }).sort((a, b) => b.gross - a.gross);
+    const items = Object.values(by).map(r => ({
+      ...r, name: (names[r.counselorId] || {}).name || '(이름 없음)', holder: (names[r.counselorId] || {}).holder || ''
+    })).sort((a, b) => b.gross - a.gross);
     const sum = k => items.reduce((a, x) => a + x[k], 0);
     const dueY = mo === 12 ? y + 1 : y, dueM = mo === 12 ? 1 : mo + 1;
     return json({
@@ -999,8 +1041,11 @@ export async function handleMarket(request, env, cors, path, ctx) {
       AND ((SELECT COALESCE(SUM(cash), 0) FROM orders WHERE client_id = ? AND status = 'paid')
          - (SELECT COALESCE(SUM(price - COALESCE(refund, 0)), 0) FROM bookings
               WHERE client_id = ? AND status NOT IN ('cancelled', 'declined', 'noshow'))
-         - (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?)) >= ?`;
-      cargs.push(clientId, clientId, clientId, price);
+         - (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?)
+         ${SPENDS_TABLE ? '- ' + SPENDS_SQL : ''}) >= ?`;
+      cargs.push(clientId, clientId, clientId);
+      if (SPENDS_TABLE) cargs.push(clientId);
+      cargs.push(price);
     }
     let changed = 0;
     try {
@@ -2901,15 +2946,33 @@ function payoutOf(price, channel) {
 //  (AI 보이스톡처럼 기기 안에서만 쓰는 캐시는 여기 안 잡힌다 → 서버 잔액이 조금 넉넉하게 나온다.
 //   막아야 할 쪽은 '없는 돈으로 예약'이므로 넉넉한 쪽 오차는 괜찮다.)
 //  표가 없거나 조회가 실패하면 null — 판단하지 않는다(정상 사용자를 막지 않는다).
+// 앱 안에서 쓴 캐시(구독·리포트·이모티콘·보이스톡 등)의 서버 장부 — cash_spends.
+//  전에는 이 돈이 기기에서만 빠지고 서버 잔액에는 그대로 남아서, 구독으로 다 쓴 캐시로
+//  (기기 저장값만 고치면) 상담 예약이 통과했고 상담사 정산은 받지도 않은 돈에서 나갔다.
+//  표가 아직 없는 배포에서도 죽지 않는다 — 한 번 '표 없음'을 보면 그 인스턴스에서는 빼고 계산한다.
+let SPENDS_TABLE = null;
+const SPENDS_SQL = '(SELECT COALESCE(SUM(amount), 0) FROM cash_spends WHERE client_id = ? AND voided_at = 0)';
+
 async function cashBalance(db, clientId) {
-  try {
-    const r = await db.prepare(
-      `SELECT
+  const base = `SELECT
          (SELECT COALESCE(SUM(cash), 0) FROM orders WHERE client_id = ? AND status = 'paid') AS paid,
          (SELECT COALESCE(SUM(price - COALESCE(refund, 0)), 0) FROM bookings
             WHERE client_id = ? AND status NOT IN ('cancelled', 'declined', 'noshow')) AS spent,
-         (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?) AS calls`
-    ).bind(clientId, clientId, clientId).first();
+         (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?) AS calls`;
+  if (SPENDS_TABLE !== false) {
+    try {
+      const r = await db.prepare(base + `, ${SPENDS_SQL} AS inapp`)
+        .bind(clientId, clientId, clientId, clientId).first();
+      SPENDS_TABLE = true;
+      if (!r) return null;
+      return (r.paid || 0) - (r.spent || 0) - (r.calls || 0) - (r.inapp || 0);
+    } catch (e) {
+      if (!/no such table/i.test(String((e && e.message) || e))) return null;
+      SPENDS_TABLE = false;
+    }
+  }
+  try {
+    const r = await db.prepare(base).bind(clientId, clientId, clientId).first();
     if (!r) return null;
     return (r.paid || 0) - (r.spent || 0) - (r.calls || 0);
   } catch (e) { return null; }
@@ -3016,7 +3079,8 @@ const rowBooking = r => ({
   refund: r.refund || 0, refundAt: r.refund_at || 0, refundWhy: r.refund_why || '',
   dispute: r.dispute || '', disputeAt: r.dispute_at || 0,
   // 배분은 채널에 따라 다르다 — 병원 채널이면 상담사 몫은 0 이고 병원이 따로 지급한다
-  channel: r.channel === 'hospital' ? 'hospital' : 'app', hospitalId: r.hospital_id || '',
+  //  소개(referral) 건은 그대로 알린다 — 전엔 'app' 으로 뭉개서 소개료 20% 가 붙는 건인지 화면이 몰랐다.
+  channel: r.channel === 'hospital' ? 'hospital' : r.channel === 'referral' ? 'referral' : 'app', hospitalId: r.hospital_id || '',
   // 나누는 금액은 price − refund — 일부 환불이면 남은 금액, 늦은 취소(late_cancel)면 내담자가 낸 50% 다.
   //  (완료 전 확정 예약은 refund 가 0 이라 상담료 전액 기준 '예상 몫'이 나간다)
   payout: payoutOf(Math.max(0, (r.price || 0) - (r.refund || 0)), r.channel),

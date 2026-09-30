@@ -360,7 +360,7 @@ window.Booking = {
     }
 
     // 느루 캐시로 결제 (잔액 부족 시 충전 유도)
-    if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`)) {
+    if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`, { serverTracked: true })) {
       if (window.Sfx) window.Sfx.hit('denied');
       window.UI.alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);
       this.closeModal();

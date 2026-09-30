@@ -79,8 +79,32 @@ window.Account = {
     'cbt_theme', 'cbt_lang', 'cbt_font_scale', 'cbt_sound_on', 'cbt_haptic_on',
     'cbt_lock_on', 'cbt_lock_pin', 'cbt_consent', 'cbt_onboard_done', 'cbt_first_visit',
     'cbt_api_key', 'cbt_api_same_origin', 'cbt_api_same_origin_at', 'cbt_api_probe_ver', 'cbt_admin_code',
-    'cbt_batt_asked', 'cbt_noti_guided', 'cbt_install_prompt_dismissed', 'cbt_home_variant', 'cbt_home_ab'
+    'cbt_batt_asked', 'cbt_noti_guided', 'cbt_install_prompt_dismissed', 'cbt_home_variant', 'cbt_home_ab',
+    'cbt_client_ids', 'cbt_cash_spend_q'
   ],
+
+  // 상담사 채팅·숙제·예약·상담소 연결은 서버에서 '기기 번호(clientId)'로 묶인다.
+  //  공용 기기에서 계정만 바뀌고 기기 번호가 그대로면, 뒷사람이 앞사람의 상담사 채팅을 이어서 보게 된다.
+  //  그래서 계정마다 기기 번호를 따로 둔다 — 떠나는 계정의 번호·열쇠는 이 기기에 보관해 두고
+  //  (그 사람이 다시 로그인하면 되돌려 준다), 처음 오는 계정은 새 번호로 시작한다.
+  _swapClientId(prevOwner, nextOwner) {
+    try {
+      const S = window.Storage;
+      const map = S._safeGet('cbt_client_ids', {}) || {};
+      const curId = S._safeGet('cbt_client_id', null), curKey = S._safeGet('cbt_client_key', '');
+      if (prevOwner && curId) map[prevOwner] = { id: curId, key: curKey || '' };
+      const back = nextOwner && map[nextOwner];
+      if (back && back.id) {
+        S._safeSet('cbt_client_id', back.id);
+        if (back.key) S._safeSet('cbt_client_key', back.key); else localStorage.removeItem('cbt_client_key');
+      } else {
+        // 새 번호는 다음 부팅 때 App.clientId() 가 만들고, 열쇠(clientKey)도 그때 새로 받는다
+        localStorage.removeItem('cbt_client_id');
+        localStorage.removeItem('cbt_client_key');
+      }
+      S._safeSet('cbt_client_ids', map);
+    } catch (e) {}
+  },
   DEVICE_PREFIXES: ['cbt_notif_'],
 
   // 공용 기기에서 다른 계정으로 로그인하면 앞사람의 기록을 지운다.
@@ -359,7 +383,7 @@ window.Account = {
     //  (주인이 적혀 있지 않은 예전 기기는 누구 것인지 알 수 없어 지우지 않고, 지금 계정을 주인으로 적는다)
     const prevOwner = this._meta().owner;
     const switched = !!(prevOwner && d.user && d.user.id && prevOwner !== d.user.id);
-    if (switched) this._wipeLocalUserData();
+    if (switched) { this._swapClientId(prevOwner, d.user.id); this._wipeLocalUserData(); }
     { const m = switched ? {} : this._meta(); m.owner = d.user && d.user.id; this._setMeta(m); }
     this._setSession(d.session);
     this.user = d.user;
