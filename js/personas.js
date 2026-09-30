@@ -245,6 +245,24 @@ window.Personas = {
     if (window.Storage) window.Storage._safeSet('cbt_active_persona', id);
   },
 
+  // ── 배정 링크 (A/B 비교용, 2026-09-30) ──────────────────────────────
+  //  한 사람에게는 ?ai=neru(느루) 링크를, 다른 사람에게는 ?ai=woorung(우렁의사)
+  //  링크를 준다. 링크로 열면 그 상담사가 기본으로 정해지고 선택 화면을
+  //  건너뛴다(다시 묻지 않음). 나중에 홈에서 직접 바꾸는 건 막지 않는다.
+  //  로그인 왕복(back=origin이라 ?가 떨어짐)·온보딩보다 먼저 저장해야 해서
+  //  이 파일 로드 시점에 바로 실행한다 (파일 맨 아래).
+  LINK_MAP: { neru: 'woorung', a: 'woorung', woorung: 'woorung-ds', b: 'woorung-ds' },
+  initLink() {
+    try {
+      const q = String(new URLSearchParams(location.search).get('ai') || '').toLowerCase();
+      const id = this.LINK_MAP[q];
+      if (!id || !window.Storage) return;
+      this.setActive(id);
+      window.Storage._safeSet('cbt_persona_reprompt_off', true);
+      window.Storage._safeSet('cbt_ai_link_persona', id);   // 어느 조로 들어왔는지 기록 (온보딩 추천도 이걸 따름)
+    } catch (e) {}
+  },
+
   // 간단한 얼굴 아바타 SVG (외부 이미지 없이 자체 렌더링)
   // 페르소나 아바타 — 실제 캐릭터 스티커를 원형 배경 위에 올린다.
   //  (밋밋한 표정 아이콘 대신 느루·햇님·달님·소나무 본체를 그대로 씀)
@@ -289,3 +307,6 @@ window.Personas = {
     }
   }
 };
+
+// 배정 링크(?ai=)는 로그인·온보딩 전에 소화해야 한다 — 로드 즉시 실행
+try { window.Personas.initLink(); } catch (e) {}

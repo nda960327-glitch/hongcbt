@@ -143,7 +143,9 @@ window.Onboard = {
         if (c) votes[c.persona] = (votes[c.persona] || 0) + 1;
       });
       const top = Object.entries(votes).sort((a, b) => b[1] - a[1])[0];
-      const rec = window.Personas.get(top ? top[0] : 'woorung');
+      // 배정 링크(?ai=)로 들어온 사람은 그 상담사를 추천 — A/B가 온보딩에서 섞이지 않게
+      const linked = window.Storage._safeGet('cbt_ai_link_persona', null);
+      const rec = window.Personas.get(linked || (top ? top[0] : 'woorung'));
       const labels = d.concerns.map(id => (this.CONCERNS.find(c => c.id === id) || {}).label).filter(Boolean);
       this._wrap(`
         <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0 0 0.8rem;">${labels.length ? `'${labels.join(', ')}'에는` : '처음 시작하기에는'} 이 상담사가 잘 맞아요</p>
