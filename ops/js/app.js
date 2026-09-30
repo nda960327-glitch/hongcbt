@@ -95,7 +95,8 @@ const D = {
   payments: undefined    // 캐시 충전 결제 내역
 };
 const SHOWCODE = {};     // 상담사 id → 코드 보이기
-const PICK = {};         // 정산 항목 id → 선택됨
+const PICK = {};         // 정산 항목 id → 선택됨 (상담사에게 지급)
+const HPICK = {};        // 정산 항목 id → 선택됨 (상담소에게 지급) — 소개 건은 두 목록에 같은 id 로 오르므로 따로 센다
 let CSQ = '';            // 상담사 검색어
 let CLQ = '';            // 이용자 검색어
 let DIAGQ = { stage: '', q: '' };
@@ -152,7 +153,7 @@ const initial = name => esc(String(name || '?').trim().slice(0, 1) || '?');
 
 // 상담사 앱 주소 — 승인 안내문에 넣는다. 규칙은 여기 한 곳에만 둔다.
 function proAppUrl() {
-  if (/(mindinsideapp\\.com|neurumind\.com)$/i.test(location.hostname)) return 'https://pro.mindinsideapp.com';
+  if (/(mindinsideapp\.com|neurumind\.com)$/i.test(location.hostname)) return 'https://pro.mindinsideapp.com';
   return location.origin + location.pathname.replace(/ops\/.*$/, '') + 'pro/index.html';
 }
 
@@ -633,13 +634,14 @@ function viewHospitals() {
     <div class="sec-title">담당 상담소
       <span class="right"><button class="btn sm" data-act="hosp-new">＋ 상담소 등록</button></span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 의사는 <b>소장 앱(doc.mindinsideapp.com)</b>에 이메일 로그인 링크(또는 이 코드)로 들어와 연결된 내담자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
-      내담자는 앱 → 마이 → 담당 상담소 연결하기에 같은 코드를 넣어 연결합니다. 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
+      등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 이 코드는 <b>내담자 연결용</b>입니다 — 내담자는 앱 → 마이 → 담당 상담소 연결하기에 이 코드를 넣어 연결합니다.
+      소장은 <b>소장 앱(doc.mindinsideapp.com)</b>에 등록한 이메일로 받은 로그인 링크(또는 '소장 관리 코드' HA-…)로 들어와 연결된 내담자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
+      상담소 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
     ${(HOSP_FORM || editing) ? form(editing) : ''}
     ${hospAppsHtml()}
     <div class="sec-title" style="margin-top: 0.8rem;">등록된 상담소</div>
     ${D.hospitals.length ? D.hospitals.map(card).join('')
-      : '<div class="card"><div class="empty"><b>등록된 상담소이 없어요</b>＋ 상담소 등록으로 첫 상담소을 추가하세요.</div></div>'}`;
+      : '<div class="card"><div class="empty"><b>등록된 상담소가 없어요</b>＋ 상담소 등록으로 첫 상담소를 추가하세요.</div></div>'}`;
 }
 
 async function hospSave(id, btn) {
@@ -653,7 +655,7 @@ async function hospSave(id, btn) {
   if (btn) btn.disabled = false;
   if (!res || !res.ok) { alertBox('저장하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   HOSP_FORM = false; HOSP_EDIT = null;
-  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('상담소을 등록했어요', `상담소 코드: ${res.code}\n\n이 코드를 상담소에 전달하세요. 내담자는 앱에서 이 코드로 연결하고, 소장은 doc.neurumind.com 에서 이메일 링크(또는 이 코드)로 들어옵니다.`); }
+  if (!id && res.code) { SHOWCODE[res.id] = true; alertBox('상담소를 등록했어요', `상담소 코드: ${res.code}\n\n이 코드를 상담소에 전달하세요. 내담자는 앱에서 이 코드로 상담소와 연결합니다.\n소장은 doc.mindinsideapp.com 에서 등록한 이메일로 받은 로그인 링크(또는 소장 관리 코드)로 들어옵니다 — 이 코드로는 로그인되지 않아요.`); }
   else toast('저장했어요');
   loadHospitals();
 }
@@ -661,7 +663,7 @@ async function hospSave(id, btn) {
 async function hospRotate(id) {
   const h = (D.hospitals || []).find(x => x.id === id);
   if (!h) return;
-  const ok = await confirmBox({ title: '상담소 코드를 재발급할까요?', body: `${h.name}\n\n지금 코드는 즉시 무효가 되고, 의사는 새 코드로 다시 로그인해야 합니다. 이미 연결된 내담자는 그대로 유지돼요.`, okLabel: '재발급', danger: true });
+  const ok = await confirmBox({ title: '상담소 코드를 재발급할까요?', body: `${h.name}\n\n지금 코드는 즉시 무효가 되어 새 내담자는 새 코드로만 연결할 수 있어요. 이미 연결된 내담자와 소장 로그인은 그대로 유지돼요.`, okLabel: '재발급', danger: true });
   if (!ok) return;
   const res = await adminPost('/api/admin/hospitals/rotate', { id });
   if (!res || !res.ok) { alertBox('재발급하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
@@ -1010,8 +1012,8 @@ function viewDash() {
       <p class="muted" style="margin-top: 0.7rem; border-top: 1px dashed var(--line); padding-top: 0.6rem;">
         <b>플랫폼 수익 = 상담료 수수료</b> — 상담사 구독(월 99,000원)은 2026-09 부터 받지 않습니다.<br>
         <b>앱으로 온 내담자</b> — 상담사 70%(6만원 넘는 부분 55%) · 결제 수수료 3% · 나머지 마인드 인사이드. 앱이 상담사에게 직접 지급합니다.<br>
-        <b>상담소을 통해 온 내담자</b> — 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%.
-        앱은 <b>상담소에만</b> 지급하고, 상담사에게는 상담소이 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
+        <b>상담소를 통해 온 내담자</b> — 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%.
+        앱은 <b>상담소에만</b> 지급하고, 상담사에게는 상담소가 직접 지급합니다(의료법 제27조 유인 소지 회피).<br>
         <b>바로상담(캐시·30초당)</b> — 요금 = 예약 상담료 ÷60 × 1.25 (즉시성 프리미엄). 배분율은 예약 상담과 같습니다.<br>
         <b>AI 구독·캐시(인앱결제)</b> — 구글 수수료 15% 선차감 후 순액 기준. 구독 9,900원 → 순입금 8,415원(전액 플랫폼, API 원가 차감).</p>
     </div>
@@ -1215,7 +1217,7 @@ function viewCounselors() {
     <div class="card" style="margin-bottom: 0.7rem;">
       <b style="font-size: 0.9rem;">정산 구조</b>
       <div class="muted">상담사 구독(월 99,000원)은 <b>2026-09 부터 받지 않습니다</b>. 플랫폼 수익은 상담료 수수료입니다.<br>
-        앱으로 온 내담자: 상담사 70%(6만원 넘는 부분은 55%) · 결제 수수료 3% · 나머지 앱 &nbsp;|&nbsp; 상담소을 통해 온 내담자: 상담소 90% · 앱 7% · 결제 수수료 3%<br>
+        앱으로 온 내담자: 상담사 70%(6만원 넘는 부분은 55%) · 결제 수수료 3% · 나머지 앱 &nbsp;|&nbsp; 상담소를 통해 온 내담자: 상담소 90% · 앱 7% · 결제 수수료 3%<br>
         승인된 상담사는 구독과 무관하게 매칭 목록에 노출됩니다.</div>
     </div>
 
@@ -1242,7 +1244,7 @@ function viewCounselors() {
     </div>`;
 }
 
-// 상담소을 통해 등록한 내담자의 상담 — 앱은 상담소에 보내고, 상담사에게는 상담소이 보낸다.
+// 상담소를 통해 등록한 내담자의 상담 — 앱은 상담소에 보내고, 상담사에게는 상담소가 보낸다.
 //  앱이 상담사에게 직접 보내면 상담소 쪽에서 내담자 유인 소지가 생긴다(의료법 제27조). 그래서 줄을 갈라 둔다.
 function hospitalSettleHtml() {
   const rows = D.settleHosp || [];
@@ -1270,12 +1272,15 @@ function hospitalSettleHtml() {
         <b style="color: var(--accent); font-size: 1rem;">${won(list.reduce((a, x) => a + x.payout.hospital, 0))}캐시</b></div>
       ${list.map(x => `
         <label class="payrow">
-          <input type="checkbox" data-act="pick" data-id="${esc(x.id)}" ${PICK[x.id] ? 'checked' : ''}>
+          <input type="checkbox" data-act="hpick" data-id="${esc(x.id)}" ${HPICK[x.id] ? 'checked' : ''}>
           <span class="grow muted" style="color: var(--text);">${esc(x.clientName || '내담자')} · ${esc(x.time || '')}
             <span class="chip">${esc(x.counselor || '상담사')}</span>${x.channel === 'referral' ? '<span class="chip gold">소개 20%</span>' : '<span class="chip ok">소속 90%</span>'}</span>
           <span class="muted">결제 ${won(x.price)}</span>
           <b style="min-width: 74px; text-align: right;">${won(x.payout.hospital)}</b>
         </label>`).join('')}
+      <div class="row" style="margin-top: 0.4rem;">
+        <button class="btn ghost sm" data-act="hpick-group" data-hid="${esc(hid)}">이 상담소 전체 선택</button>
+      </div>
     </div>`).join('')
       : '<div class="card"><div class="empty"><b>상담소에 지급할 건이 없어요</b>상담소 코드로 연결된 내담자의 상담이 생기면 여기에 쌓입니다.</div></div>'}`;
 }
@@ -1335,6 +1340,59 @@ function withholdingHtml() {
     <p class="muted" style="margin-top: 0.5rem;">${esc(d.month)} 지급분 · 신고·납부 기한 <b>${esc(d.due)}</b> · 소득세 1,000원 미만은 떼지 않습니다(소액부징수).</p>`;
 }
 
+// 이의 접수 — 내담자가 [문제가 있었어요]를 누른 상담. 정산이 멈춘 채 운영자 결론을 기다린다.
+//  전에는 이 상태를 풀 방법이 없어서 한 번 이의가 붙은 상담은 영영 정산도 환불도 안 됐다.
+//  [정상 진행 인정] → 완료(확인됨)로 되돌려 정산 대기로 / [환불] → 전액 또는 일부(남은 금액은 정산).
+function disputeHtml() {
+  const rows = (D.bookings || []).filter(b => b.status === 'disputed' && !b.settledAt)
+    .sort((a, b) => (a.disputeAt || 0) - (b.disputeAt || 0));
+  if (!rows.length) return '';
+  return `
+    <div class="sec-title" style="margin-top: 1.2rem;">이의 접수 — 운영자 확인 필요
+      <span class="right muted">${rows.length}건</span></div>
+    <p class="muted" style="margin-bottom: 0.7rem;">
+      처리할 때까지 이 상담은 정산되지 않습니다. 양쪽 이야기를 듣고 결론을 내 주세요. 결과는 내담자·상담사에게 알림으로 갑니다.</p>
+    ${rows.map(b => `
+    <div class="card" style="border-color: var(--danger);">
+      <div class="row wrap">
+        <div class="grow"><b style="font-size: 0.92rem;">${esc(b.name || b.counselorId)}</b> ↔ ${esc(b.clientName || '내담자')}
+          <div class="muted">${esc(b.time || '')} · 결제 ${won(b.price)}${b.refund ? ` · 이미 환불 ${won(b.refund)}` : ''} · 접수 ${fmtDT(b.disputeAt)}</div></div>
+      </div>
+      <p class="muted" style="margin: 0.4rem 0; color: var(--text);">사유: ${esc(b.dispute || '(사유 없음)')}</p>
+      <div class="row" style="gap: 0.4rem;">
+        <button class="btn ghost sm" data-act="dp-uphold" data-id="${esc(b.id)}">정상 진행 인정 (정산 진행)</button>
+        <button class="btn sm" data-act="dp-refund" data-id="${esc(b.id)}" style="background: var(--danger);">환불</button>
+      </div>
+    </div>`).join('')}`;
+}
+
+async function resolveDispute(id, action, btn) {
+  const b = (D.bookings || []).find(x => x.id === id);
+  if (!b) return;
+  let amount = 0;
+  if (action === 'refund') {
+    const v = await promptBox({
+      title: '환불 금액',
+      body: `결제 ${won(b.price)}캐시 중 돌려줄 금액을 적어주세요.\n전액이면 그대로 두세요. 일부면 남은 금액은 상담사에게 정산됩니다.`,
+      value: String(b.price || 0), type: 'number', okLabel: '환불', danger: true
+    });
+    if (v === null) return;
+    amount = Math.max(0, Math.min(b.price || 0, Math.round(Number(String(v).replace(/[^0-9]/g, '')) || 0)));
+    if (!amount) { alertBox('확인해주세요', '환불 금액이 0 입니다.'); return; }
+  } else {
+    const ok = await confirmBox({
+      title: '정상 진행으로 인정할까요?',
+      body: `${b.name || ''} 선생님 · ${b.time || ''}\n이의를 기각하고 정산 대기로 돌립니다(회기 기록이 있어야 지급됩니다).`,
+      okLabel: '인정'
+    });
+    if (!ok) return;
+  }
+  const r = await busy(btn, '처리 중…', () => adminPost('/api/bookings/resolve', { id, action, amount }));
+  if (!r || !r.ok) { alertBox('처리하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.'); return; }
+  toast(action === 'uphold' ? '정상 진행으로 처리했어요' : `${won(amount)}캐시 환불 처리했어요`);
+  loadSettle();
+}
+
 // 회기 기록이 없어 정산이 막힌 건 — 사장님 지시로 기록을 정산 조건으로 걸었다.
 //  운영자는 여기서 '누가 기록을 안 남겼는지'를 보고 상담사에게 재촉한다. 지급 버튼은 없다.
 function blockedHtml() {
@@ -1364,8 +1422,11 @@ function viewSettle() {
   if (!D.settle) return failed;
 
   const picked = D.settle.filter(x => PICK[x.id]);
-  const pickSum = picked.reduce((a, x) => a + x.payout.counselor, 0);
+  const hpicked = (D.settleHosp || []).filter(x => HPICK[x.id]);
+  const pickN = picked.length + hpicked.length;
+  const pickSum = picked.reduce((a, x) => a + x.payout.counselor, 0) + hpicked.reduce((a, x) => a + x.payout.hospital, 0);
   const total = D.settle.reduce((a, x) => a + x.payout.counselor, 0);
+  const anyPayable = D.settle.length || (D.settleHosp || []).length;
 
   // 이체는 사람 단위로 한다 — 그래서 상담사별로 묶는다
   const by = {};
@@ -1394,7 +1455,10 @@ function viewSettle() {
           <input type="checkbox" data-act="pick" data-id="${esc(x.id)}" ${PICK[x.id] ? 'checked' : ''}>
           <span class="grow muted" style="color: var(--text);">
             ${esc(x.clientName || '내담자')} · ${esc(x.time || '')}
-            ${x.auto ? '<span class="chip off" style="margin-left:0.3rem;">자동 확정</span>' : ''}
+            ${x.lateCancel ? '<span class="chip gold" style="margin-left:0.3rem;">늦은 취소 50%</span>'
+              : x.auto ? (x.autoAt && x.autoAt <= Date.now()
+                ? '<span class="chip off" style="margin-left:0.3rem;">자동 확정</span>'
+                : '<span class="chip off" style="margin-left:0.3rem;">확인 대기</span>') : ''}
           </span>
           <span class="muted">결제 ${won(x.price)}</span>
           <b style="min-width: 74px; text-align: right;">${won(x.payout.counselor)}</b>
@@ -1418,16 +1482,17 @@ function viewSettle() {
     ${D.settle.length ? Object.entries(by).map(group).join('')
       : '<div class="card"><div class="empty"><b>지급할 건이 없어요</b>완료·확인된 상담이 생기면 여기에 쌓입니다.</div></div>'}
     ${hospitalSettleHtml()}
+    ${disputeHtml()}
     ${blockedHtml()}
     ${withholdingHtml()}
 
-    ${D.settle.length ? `
+    ${anyPayable ? `
     <div class="paybar">
       <button class="btn ghost sm" data-act="pick-all" data-on="1">전체 선택</button>
       <button class="btn ghost sm" data-act="pick-all" data-on="0">해제</button>
       <span class="grow"></span>
-      <span class="muted">선택 ${picked.length}건 · <b style="color: var(--accent);">${won(pickSum)}캐시</b></span>
-      <button class="btn sm" data-act="pay" ${picked.length ? '' : 'disabled'}>선택한 ${picked.length}건 지급 완료로 표시</button>
+      <span class="muted">선택 ${pickN}건${hpicked.length ? ` (상담소 ${hpicked.length})` : ''} · <b style="color: var(--accent);">${won(pickSum)}캐시</b></span>
+      <button class="btn sm" data-act="pay" ${pickN ? '' : 'disabled'}>선택한 ${pickN}건 지급 완료로 표시</button>
     </div>
     <p class="muted" style="margin-top: 0.5rem;">
       실제 이체는 은행에서 따로 하세요. 여기서는 '보냈다'는 기록만 남습니다. 되돌릴 수 없습니다.</p>` : ''}
@@ -1913,7 +1978,7 @@ function viewContact() {
         채팅에서 전화번호·카톡 아이디·링크가 오가면 서버가 자동으로 가리고, 그 사실만 여기 남깁니다.
         <b>대화 내용은 저장하지 않습니다</b> — 몇 개가 가려졌는지만 셉니다.<br>
         한두 번은 실수일 수 있습니다. 같은 두 사람 사이에서 <b>3회 이상</b> 반복되면 플랫폼 밖 직거래 유도로 보고
-        상담사에게 먼저 연락해 확인하세요. (위기 상담번호 109·1393·1577-0199 등은 가려지지 않습니다.)</p>
+        상담사에게 먼저 연락해 확인하세요. (위기 상담번호 109·1577-0199·1366 등은 가려지지 않습니다.)</p>
     </div>
 
     <div class="sec-title">반복 시도<span class="right muted">3회 이상 ${reps.length}쌍</span></div>
@@ -2257,16 +2322,24 @@ async function addCs(btn) {
 }
 
 // 지급은 되돌릴 수 없다 — 확인 창 + 문구 입력, 두 번 묻는다
+//  상담사 몫(D.settle)과 상담소 몫(D.settleHosp)을 함께 보낸다 — 전에는 상담소 목록의 체크가 모이지 않아
+//  상담소 채널 건을 영영 지급 처리할 수 없었다. 서버는 ids → settled_at, hospitalIds → hospital_settled_at.
 async function paySelected(btn) {
-  const ids = (D.settle || []).filter(x => PICK[x.id]).map(x => x.id);
-  if (!ids.length) { alertBox('지급할 항목을 골라주세요'); return; }
   const rows = (D.settle || []).filter(x => PICK[x.id]);
+  const hrows = (D.settleHosp || []).filter(x => HPICK[x.id]);
+  const ids = rows.map(x => x.id);
+  const hospitalIds = hrows.map(x => x.id);
+  const n = ids.length + hospitalIds.length;
+  if (!n) { alertBox('지급할 항목을 골라주세요'); return; }
   const sum = rows.reduce((a, x) => a + x.payout.counselor, 0);
-  const names = Array.from(new Set(rows.map(x => x.counselor))).join(', ');
+  const hsum = hrows.reduce((a, x) => a + x.payout.hospital, 0);
+  const names = Array.from(new Set(rows.map(x => x.counselor).concat(hrows.map(x => x.hospitalName || '상담소')))).join(', ');
   const ok = await confirmBox({
-    title: `${ids.length}건을 지급 처리할까요?`,
-    body: `대상: ${names}\n상담사 몫 합계 ${won(sum)}캐시\n\n`
-      + `실제 이체는 은행에서 따로 하시고, 여기서는 '보냈다'고 기록만 합니다.\n되돌릴 수 없어요.`,
+    title: `${n}건을 지급 처리할까요?`,
+    body: `대상: ${names}\n`
+      + (ids.length ? `상담사 몫 ${ids.length}건 합계 ${won(sum)}캐시\n` : '')
+      + (hospitalIds.length ? `상담소 몫 ${hospitalIds.length}건 합계 ${won(hsum)}캐시\n` : '')
+      + `\n실제 이체는 은행에서 따로 하시고, 여기서는 '보냈다'고 기록만 합니다.\n되돌릴 수 없어요.`,
     okLabel: '계속', danger: true
   });
   if (!ok) return;
@@ -2277,11 +2350,12 @@ async function paySelected(btn) {
   });
   if (typed === null) return;
   if (typed.trim() !== '지급') { alertBox('취소했어요', '입력한 문구가 달라서 아무것도 처리하지 않았습니다.'); return; }
-  const r = await busy(btn, '처리 중…', () => adminPost('/api/settle/pay', { ids }));
+  const r = await busy(btn, '처리 중…', () => adminPost('/api/settle/pay', { ids, hospitalIds }));
   if (!r || !r.ok) { alertBox('처리하지 못했어요', '잠시 후 다시 시도해주세요.'); return; }
   Object.keys(PICK).forEach(k => delete PICK[k]);
+  Object.keys(HPICK).forEach(k => delete HPICK[k]);
   if (r.skipped) alertBox(`${r.n}건 지급 처리, ${r.skipped}건은 건너뛰었어요`, '건너뛴 건은 그 사이 회기 기록이 사라졌거나 이미 처리된 건입니다. 목록을 새로고침해 확인하세요.');
-  else toast(`${ids.length}건 지급 처리했어요`);
+  else toast(`${n}건 지급 처리했어요`);
   loadSettle();
 }
 
@@ -2475,6 +2549,14 @@ document.addEventListener('click', e => {
   if (act === 'add-cs') { addCs(el); return; }
 
   if (act === 'pick') { PICK[id] = el.checked; render(); return; }
+  if (act === 'hpick') { HPICK[id] = el.checked; render(); return; }
+  if (act === 'hpick-group') {
+    const hid = el.dataset.hid;
+    (D.settleHosp || []).filter(x => (x.hospitalId || '?') === hid).forEach(x => { HPICK[x.id] = true; });
+    render(); return;
+  }
+  if (act === 'dp-uphold') { resolveDispute(id, 'uphold', el); return; }
+  if (act === 'dp-refund') { resolveDispute(id, 'refund', el); return; }
   if (act === 'pick-group') {
     const cid = el.dataset.cid;
     (D.settle || []).filter(x => x.counselorId === cid).forEach(x => { PICK[x.id] = true; });
@@ -2483,6 +2565,7 @@ document.addEventListener('click', e => {
   if (act === 'pick-all') {
     const on = el.dataset.on === '1';
     (D.settle || []).forEach(x => { PICK[x.id] = on; });
+    (D.settleHosp || []).forEach(x => { HPICK[x.id] = on; });
     render(); return;
   }
   if (act === 'pay') { paySelected(el); return; }

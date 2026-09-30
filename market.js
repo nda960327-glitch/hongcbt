@@ -39,7 +39,43 @@ const nowMs = () => Date.now();
 
 // 추천 콘텐츠 모듈(feed.js)이 같은 인증·응답 헬퍼를 쓴다
 export { json, isAdmin, verifyClient, cashBalance, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication };
-const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
+// 서버가 만드는 id. 예약 id 처럼 '알면 조작할 수 있는' 값에도 쓰이므로 암호학적 난수로 꼬리를 붙인다.
+const rid = p => {
+  const b = new Uint8Array(6);
+  crypto.getRandomValues(b);
+  return p + '_' + nowMs().toString(36) + Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+};
+
+// ── 예약 공통 ──────────────────────────────────────────────────────────
+//  예약 상담은 30분 정액이다(화면 안내와 같다). 두 예약이 30분 안에 붙어 있으면 겹친 것으로 본다.
+const SESSION_MS = 30 * 60000;
+//  상담사 일정을 막는 상태 — 확정·완료·이의 접수는 그 시간을 이미 쓴 것이다.
+const BK_BUSY = "('confirmed','done','disputed')";
+//  정산 가능한 예약: ① 완료 + 내담자 확인(또는 72시간 자동 확정 도래) + 회기 기록
+//                    ② 24시간 이내 늦은 취소(late_cancel) — 상담은 없었지만 내담자가 50% 를 낸다. 회기 기록이 있을 수 없다.
+//  별칭 b 로 쓴다. ? 하나(지금 시각)를 받는다.
+const BK_SETTLEABLE = `((b.status = 'done' AND (COALESCE(b.confirm_at,0) > 0 OR (COALESCE(b.auto_at,0) > 0 AND b.auto_at <= ?))
+      AND EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id))
+   OR b.status = 'late_cancel')`;
+
+// 한국 시각 표기 — 서버(UTC)에서 만든 알림 문구가 '9시간 어긋난 시각'을 말하지 않게
+function kstLabel(ts) {
+  const d = new Date(Number(ts || 0) + 9 * 3600000);
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일 (${'일월화수목금토'[d.getUTCDay()]}) ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+}
+
+// 예약 알림 — 응답을 기다리게 하지 않는다. ctx 가 없는 경로에서도 터지지 않게.
+//  네 번째 인자 note({title, body})는 지금의 push.js 가 아직 쓰지 않는다(본문 없는 '깨우기'만 간다).
+//  push.js 가 note 를 받게 되면 이 문구가 그대로 알림 본문이 된다. 세 번째 인자(call)는 반드시 null —
+//  값이 있으면 '전화 신호'로 나가 벨이 울린다.
+function bookingNotice(ctx, env, who, id, title, body) {
+  if (!id) return;
+  const fn = who === 'client' ? notifyClient : notifyCounselor;
+  let p;
+  try { p = Promise.resolve(fn(env, id, null, { title, body })).catch(() => {}); } catch (e) { return; }
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
+}
 
 // 상담사 코드. 이 문자열 하나가 그 사람의 수신함 열쇠라서
 //  · 암호학적 난수를 쓰고 (Math.random 아님)
@@ -564,11 +600,19 @@ export async function handleMarket(request, env, cors, path, ctx) {
 
       // DONE 이 아니면 캐시를 주지 않는다. 가상계좌(WAITING_FOR_DEPOSIT)는
       //  입금 전이라 '아직 결제 안 된 것'이다 — 그래서 결제수단을 카드로 제한한다.
+      //  단, 'failed' 로 못 박는 건 토스가 '확실히 거절'했을 때뿐이다. 409·5xx·처리 중·멱등 충돌은
+      //  같은 결제가 다른 요청에서 이미 승인 중이거나 됐을 수 있다 — 그걸 failed 로 적으면
+      //  동시에 온 다른 승인 요청이 DONE 을 받고도 캐시를 못 준다. pending 으로 남겨 재시도를 받는다.
       if (!res.ok || data.status !== 'DONE') {
-        try {
-          await db.prepare("UPDATE orders SET status = 'failed', fail = ? WHERE id = ? AND status = 'pending'")
-            .bind(s(data.message || data.code || 'not-approved', 120), orderId).run();
-        } catch (e) {}
+        const code = String(data.code || '');
+        const soft = (res.ok && /IN_PROGRESS|READY/.test(String(data.status || ''))) || !res.ok && (res.status === 409 || res.status >= 500 || res.status === 429
+          || /ALREADY_PROCESSING|PROVIDER_ERROR|FAILED_INTERNAL|UNKNOWN|IDEMPOTENT|DUPLICATED|ALREADY_PROCESSED/i.test(code));
+        if (!soft) {
+          try {
+            await db.prepare("UPDATE orders SET status = 'failed', fail = ? WHERE id = ? AND status = 'pending'")
+              .bind(s(data.message || data.code || 'not-approved', 120), orderId).run();
+          } catch (e) {}
+        }
         return json({
           error: 'not-approved',
           code: s(data.code, 40),
@@ -578,14 +622,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
 
       // 지급은 'pending → paid' 로 실제로 바꾼 요청만 한다. 같은 orderId 가
       //  동시에 두 번 들어와도 UPDATE 가 1행을 바꾼 쪽만 캐시를 준다.
+      //  'failed' 에서도 올린다 — 앞선 요청이 일시 오류를 거절로 오해해 failed 로 적었어도, 토스가 DONE 이라면 돈은 이미 나갔다.
+      //  이 UPDATE 가 실패하면 삼키지 않는다: 결제는 됐는데 캐시가 안 들어간 상태를 '성공'으로 돌려주면 영영 모른다.
       let changed = 0;
       try {
         const r = await db.prepare(
           `UPDATE orders SET status = 'paid', payment_key = ?, method = ?, paid_at = ?
-            WHERE id = ? AND status = 'pending'`
+            WHERE id = ? AND status IN ('pending', 'failed')`
         ).bind(paymentKey, s(data.method || '', 30), nowMs(), orderId).run();
         changed = (r && r.meta && r.meta.changes) || 0;
-      } catch (e) {}
+      } catch (e) {
+        return json({ error: 'db', message: '결제는 확인됐지만 기록하지 못했어요. 잠시 후 다시 시도해주세요.' }, 500, cors);
+      }
       return json({
         ok: true, cash: row.cash, amount: row.amount,
         method: s(data.method || '', 30), already: !changed
@@ -768,7 +816,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     const rows = [];
     try {
       const b = (await db.prepare(
-        "SELECT counselor_id, price, channel FROM bookings WHERE settled_at >= ? AND settled_at < ? AND status = 'done'"
+        "SELECT counselor_id, MAX(price - COALESCE(refund, 0), 0) AS price, channel FROM bookings WHERE settled_at >= ? AND settled_at < ? AND status IN ('done','late_cancel')"
       ).bind(from, to).all()).results || [];
       b.forEach(x => rows.push(x));
     } catch (e) {}
@@ -864,21 +912,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  지난 시간(30분 여유)과 너무 먼 미래(120일)는 받지 않는다
     if (!wantTs || wantTs < tNow - 30 * 60000 || wantTs > tNow + 120 * 86400000)
       return json({ error: 'bad-time', message: '예약할 수 없는 시간이에요. 다른 시간을 골라주세요.' }, 400, cors);
-    const BK = { openMax: 3, dayMax: 5, ipDayMax: 10, slotMs: 50 * 60000 };
+    // 예약 상담은 30분 정액이다. 겹침 판정도 30분으로 한다(전에는 50분으로 재서 바로 다음 칸까지 막았다).
+    const BK = { openMax: 3, dayMax: 5, ipDayMax: 10, slotMs: SESSION_MS };
     let lim = null;
     try {
       lim = await db.prepare(
-        `SELECT
-           (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status = 'confirmed' AND when_ts > ?) AS openN,
-           (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND created > ?) AS dayN,
-           (SELECT COUNT(*) FROM bookings WHERE counselor_id = ? AND status = 'confirmed'
-              AND when_ts > ? AND when_ts < ?) AS clash`
-      ).bind(clientId, tNow, clientId, tNow - 86400000, counselorId, wantTs - BK.slotMs, wantTs + BK.slotMs).first();
+        'SELECT (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND created > ?) AS dayN'
+      ).bind(clientId, tNow - 86400000).first();
     } catch (e) {}
-    if (lim && lim.clash > 0)
-      return json({ error: 'slot-taken', message: '방금 다른 분이 이 시간을 예약했어요. 다른 시간을 골라주세요.' }, 409, cors);
-    if (lim && lim.openN >= BK.openMax)
-      return json({ error: 'too-many-open', message: `아직 받지 않은 예약이 ${lim.openN}건 있어요. 상담을 마치거나 취소한 뒤 더 잡을 수 있어요.` }, 429, cors);
     if (lim && lim.dayN >= BK.dayMax)
       return json({ error: 'too-many-today', message: '오늘은 예약을 더 잡을 수 없어요. 내일 다시 시도해주세요.' }, 429, cors);
     const bkIp = request.headers.get('cf-connecting-ip') || '?';
@@ -893,102 +934,203 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  (마켓에 없는 상담사면 옛 흐름대로 보낸 값을 쓴다 — 예약 자체를 잃지 않게)
     let price = num(body.price);
     let cname = s(body.counselorName || body.name);
-    let expired = false;
+    let c = null;
     try {
-      const c = await db.prepare('SELECT name, price, sub_until FROM counselors WHERE id = ?')
+      c = await db.prepare('SELECT name, price, active, slots, offdays FROM counselors WHERE id = ?')
         .bind(counselorId).first();
-      if (c) {
-        price = Math.max(0, num(c.price));
-        if (c.name) cname = s(c.name);
-        // 구독이 끊긴 상담사는 새 예약을 받지 못한다 (2026-08-18 개편).
-        //  이미 잡힌 예약의 완료·확인·정산은 이 길을 지나지 않으므로 그대로 돌아간다.
-        //  sub_until 이 null 인 옛 행은 막지 않는다 — 마이그레이션 전 상태다.
-        // 구독 폐지 — 만료를 이유로 새 예약을 막지 않는다 (2026-09)
-      }
     } catch (e) {
-      // sub_until 칸이 없는 옛 스키마 — 칸을 빼고 다시 물어 예전 흐름 그대로 간다.
+      // slots·offdays 칸이 없는 옛 스키마 — 가격만이라도 서버 값으로.
       //  가격을 못 읽으면 클라이언트가 보낸 값이 그대로 들어가므로 조용히 넘기면 안 된다.
       try {
-        const c = await db.prepare('SELECT name, price FROM counselors WHERE id = ?')
-          .bind(counselorId).first();
-        if (c) {
-          price = Math.max(0, num(c.price));
-          if (c.name) cname = s(c.name);
-        }
+        c = await db.prepare('SELECT name, price FROM counselors WHERE id = ?').bind(counselorId).first();
       } catch (e2) {}
     }
-    if (expired) {
-      // 상담사 사정을 내담자에게 그대로 옮기지 않는다. 앱은 error 코드로 분기하고
-      //  사람에게는 '지금은 안 된다'만 보여주면 된다.
-      return json({
-        error: 'sub_expired',
-        message: '지금은 이 선생님께 예약할 수 없어요. 다른 선생님을 찾아볼까요?'
-      }, 409, cors);
+    if (c) {
+      price = Math.max(0, num(c.price));
+      if (c.name) cname = s(c.name);
+      // 정지된 상담사(active=0)는 새 예약을 받지 않는다. 명부에서는 빠졌어도 옛 화면·직접 호출로 들어올 수 있다.
+      if (c.active !== undefined && c.active !== null && !Number(c.active)) {
+        return json({ error: 'inactive', message: '지금은 이 선생님께 예약할 수 없어요. 다른 선생님을 찾아볼까요?' }, 409, cors);
+      }
+      // 상담사가 프로 앱에서 정한 '예약 가능 시간'과 휴무일을 서버가 지킨다(한국 시각 기준).
+      //  요일별 시간을 한 칸이라도 저장한 상담사만 시간을 따진다 — 아직 한 번도 저장하지 않은
+      //  상담사까지 막으면, 설정 화면을 모르는 상담사는 예약을 영영 못 받는다(그때는 어느 시각이든 받는다).
+      //  휴무일은 저장한 사람만 있으므로 언제나 지킨다.
+      const sl = safeJson(c.slots, {});
+      const off = safeJson(c.offdays, []);
+      const k = new Date(wantTs + 9 * 3600000);
+      const kDate = k.toISOString().slice(0, 10);
+      const kHm = String(k.getUTCHours()).padStart(2, '0') + ':' + String(k.getUTCMinutes()).padStart(2, '0');
+      const configured = sl && typeof sl === 'object' && Object.keys(sl).some(d => Array.isArray(sl[d]) && sl[d].length);
+      const offNow = Array.isArray(off) && off.includes(kDate);
+      const inSlot = !configured || (Array.isArray(sl[k.getUTCDay()]) && sl[k.getUTCDay()].includes(kHm))
+        || (Array.isArray(sl[String(k.getUTCDay())]) && sl[String(k.getUTCDay())].includes(kHm));
+      if (offNow || !inSlot) {
+        return json({ error: 'not-available', message: '선생님이 상담하지 않는 시간이에요. 다른 시간을 골라주세요.' }, 409, cors);
+      }
     }
 
     // 서버 기록으로 본 잔액이 모자라면 받지 않는다 (기기 저장값 조작 방지).
     //  비상시 운영자가 CASH_CHECK=off 로 끌 수 있다.
-    if (env.CASH_CHECK !== 'off' && price > 0) {
-      const bal = await cashBalance(db, clientId);
-      if (bal !== null && bal < price)
-        return json({ error: 'no-cash', message: '결제 기록이 확인되지 않아요. 캐시를 충전한 뒤 다시 예약해주세요.', balance: Math.max(0, bal), price }, 402, cors);
-    }
+    //  잔액을 읽지 못하는 배포(표 없음 → null)에서는 판단하지 않는다 — 아래 조건에도 넣지 않는다.
+    const cashOn = env.CASH_CHECK !== 'off' && price > 0;
+    const bal = cashOn ? await cashBalance(db, clientId) : null;
+    if (bal !== null && bal < price)
+      return json({ error: 'no-cash', message: '결제 기록이 확인되지 않아요. 캐시를 충전한 뒤 다시 예약해주세요.', balance: Math.max(0, bal), price }, 402, cors);
+
     // 이 예약이 병원을 통해 온 것인지 지금 정한다 — 나중에 연결이 바뀌어도 이 값은 그대로다
     const ch = await channelOf(db, clientId, counselorId);
-    await db.prepare(
-      `INSERT INTO bookings
-       (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created, channel, hospital_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
-       ON CONFLICT(id) DO NOTHING`
-    ).bind(id, counselorId, cname,
-      clientId, s(body.clientName) || '익명',
-      num(body.whenTs), s(body.time, 120), price,
-      'confirmed', nowMs(), ch.channel, ch.hospitalId).run();
+
+    // ── 넣기: 검사와 쓰기를 '한 문장'으로 ──────────────────────────────
+    //  전에는 SELECT 로 겹침을 본 뒤 await 를 몇 번 지나 INSERT 했다. 그 사이에 같은 시각
+    //  예약이 끼어들면 둘 다 통과했다(이중 예약). D1 은 쓰기가 한 줄로 서므로, 조건을 INSERT 의
+    //  WHERE 에 넣으면 '검사 → 쓰기'가 쪼개지지 않는다. 겹침·미결 예약 수·잔액을 모두 여기서 다시 본다.
+    //  (마지막 방어선: 스키마의 부분 UNIQUE 인덱스 uq_bk_slot 이 같은 상담사·같은 시각을 한 번 더 막는다)
+    const lo = wantTs - BK.slotMs, hi = wantTs + BK.slotMs;
+    let cond = `NOT EXISTS (SELECT 1 FROM bookings WHERE counselor_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?)
+      AND NOT EXISTS (SELECT 1 FROM bookings WHERE client_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?)
+      AND (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status = 'confirmed' AND when_ts > ?) < ?`;
+    const cargs = [counselorId, lo, hi, clientId, lo, hi, clientId, tNow, BK.openMax];
+    if (bal !== null) {
+      // cashBalance 와 같은 식이다. 바꿀 땐 둘을 같이 고칠 것.
+      cond += `
+      AND ((SELECT COALESCE(SUM(cash), 0) FROM orders WHERE client_id = ? AND status = 'paid')
+         - (SELECT COALESCE(SUM(price - COALESCE(refund, 0)), 0) FROM bookings
+              WHERE client_id = ? AND status NOT IN ('cancelled', 'declined', 'noshow'))
+         - (SELECT COALESCE(SUM(billed), 0) FROM calls WHERE client_id = ?)) >= ?`;
+      cargs.push(clientId, clientId, clientId, price);
+    }
+    let changed = 0;
+    try {
+      const ins = await db.prepare(
+        `INSERT INTO bookings
+         (id, counselor_id, counselor_name, client_id, client_name, when_ts, time_label, price, status, created, channel, hospital_id)
+         SELECT ?,?,?,?,?,?,?,?,'confirmed',?,?,?
+          WHERE ${cond}
+         ON CONFLICT(id) DO NOTHING`
+      ).bind(id, counselorId, cname,
+        clientId, s(body.clientName) || '익명',
+        wantTs, s(body.time, 120), price,
+        nowMs(), ch.channel, ch.hospitalId, ...cargs).run();
+      changed = (ins && ins.meta && ins.meta.changes) || 0;
+    } catch (e) {
+      // 부분 UNIQUE 인덱스에 걸렸다 = 같은 순간 다른 요청이 그 시각을 먼저 가져갔다
+      if (!/UNIQUE|constraint/i.test(String((e && e.message) || e))) throw e;
+      changed = 0;
+    }
+
+    if (!changed) {
+      // 왜 못 넣었는지 다시 물어서 앱이 알아들을 코드로 돌려준다(앱은 이 코드로 캐시를 되돌린다).
+      let why = null;
+      try {
+        why = await db.prepare(
+          `SELECT
+             (SELECT client_id FROM bookings WHERE id = ?) AS dupOwner,
+             (SELECT COUNT(*) FROM bookings WHERE counselor_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?) AS clash,
+             (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?) AS mine,
+             (SELECT COUNT(*) FROM bookings WHERE client_id = ? AND status = 'confirmed' AND when_ts > ?) AS openN`
+        ).bind(id, counselorId, lo, hi, clientId, lo, hi, clientId, tNow).first();
+      } catch (e) {}
+      // 같은 id 가 동시에 두 번 들어왔다(재전송) — 먼저 들어간 쪽이 내 것이면 성공으로 본다
+      if (why && why.dupOwner === clientId) return json({ ok: true, id, already: true }, 200, cors);
+      if (why && why.clash > 0)
+        return json({ error: 'slot-taken', message: '방금 다른 분이 이 시간을 예약했어요. 다른 시간을 골라주세요.' }, 409, cors);
+      if (why && why.mine > 0)
+        return json({ error: 'client-overlap', message: '같은 시간에 이미 잡힌 상담 예약이 있어요. 다른 시간을 골라주세요.' }, 409, cors);
+      if (why && why.openN >= BK.openMax)
+        return json({ error: 'too-many-open', message: `아직 받지 않은 예약이 ${why.openN}건 있어요. 상담을 마치거나 취소한 뒤 더 잡을 수 있어요.` }, 429, cors);
+      if (bal !== null) {
+        const b2 = await cashBalance(db, clientId);
+        return json({ error: 'no-cash', message: '결제 기록이 확인되지 않아요. 캐시를 충전한 뒤 다시 예약해주세요.', balance: Math.max(0, b2 || 0), price }, 402, cors);
+      }
+      return json({ error: 'slot-taken', message: '방금 다른 분이 이 시간을 예약했어요. 다른 시간을 골라주세요.' }, 409, cors);
+    }
     try { await db.prepare('INSERT INTO rate_hits (key, ts) VALUES (?,?)').bind('bkip:' + bkIp, nowMs()).run(); } catch (e) {}
+    // 상담사에게 새 예약을 알린다 (앱이 꺼져 있어도)
+    bookingNotice(ctx, env, 'counselor', counselorId, '새 상담 예약',
+      `${s(body.clientName) || '내담자'} 님이 ${kstLabel(wantTs)} 상담(30분)을 예약했어요.`);
     return json({ ok: true, id, price, channel: ch.channel }, 200, cors);
   }
 
-  // 취소(내담자) · 미진행(내담자) · 거절(상담사)
-  for (const [seg, status, byCounselor, allow] of [
-    // allow = 이 길로 뒤집어도 되는 출발 상태.
-    //  취소는 아직 시작 전(confirmed)만, 미진행은 상담사가 완료를 눌렀더라도
-    //  받아야 한다 — 그게 내담자가 정산을 멈출 수 있는 유일한 길이라서.
-    ['/bookings/cancel', 'cancelled', false, "status = 'confirmed'"],
-    ['/bookings/noshow', 'noshow', false, "status IN ('confirmed','done')"],
-    ['/bookings/decline', 'declined', true, '']
-  ]) {
-    if (path === seg && method === 'POST') {
-      const id = s(body.id, MAX.id);
-      if (!id) return json({ error: 'missing-id' }, 400, cors);
-      if (byCounselor) {
-        const me = await whoami(db, cred);
-        if (!me) return json({ error: 'bad-code' }, 403, cors);
-        await db.prepare('UPDATE bookings SET status = ? WHERE id = ? AND counselor_id = ?')
-          .bind(status, id, me.id).run();
-      } else {
-        // 내담자 쪽. 예약 id 만 알면 누구나 남의 예약을 취소·미진행 처리할 수 있었다
-        //  (미진행은 상담사 정산을 그대로 날린다).
-        //   · clientId 를 보내는 앱에는 소유권을 강제한다.
-        //   · 아직 안 보내는 옛 앱을 위해, 최소한 '건드려도 되는 상태'로 좁힌다 —
-        //     이미 끝난(정산·환불·완료) 예약은 이 길로 뒤집을 수 없다.
-        const clientId = s(body.clientId, MAX.id);
-        const guard = allow + ' AND COALESCE(settled_at,0) = 0';
-        const sql = clientId
-          ? `UPDATE bookings SET status = ? WHERE id = ? AND client_id = ? AND ${guard}`
-          : `UPDATE bookings SET status = ? WHERE id = ? AND ${guard}`;
-        const args = clientId ? [status, id, clientId] : [status, id];
-        try {
-          await db.prepare(sql).bind(...args).run();
-        } catch (e) {
-          // settled_at·done_at 이 없는 옛 스키마 — 조건만 빼고 예전 흐름대로
-          const sql2 = clientId
-            ? 'UPDATE bookings SET status = ? WHERE id = ? AND client_id = ?'
-            : 'UPDATE bookings SET status = ? WHERE id = ?';
-          await db.prepare(sql2).bind(...args).run();
-        }
-      }
-      return json({ ok: true }, 200, cors);
+  // ── 취소(내담자) ────────────────────────────────────────────────────
+  //  약관 그대로: 상담 24시간 전까지는 무료 취소(전액 환불), 24시간 이내는 50% 환불,
+  //  시작 시각이 지나면 취소할 수 없다(노쇼는 환불 없음).
+  //  24시간 이내 취소는 'late_cancel' 로 남긴다 — 내담자가 낸 50% 는 상담사 몫이 되는 돈이라
+  //  'cancelled' 로 적으면 잔액 계산(cashBalance)과 정산에서 통째로 사라진다.
+  //   refund = 돌려준 금액(50%) → 잔액에는 price − refund(=수수료)가 계속 잡히고, 정산은 그 수수료를 나눈다.
+  //  예약 id 는 추측할 수 없게 바꿨지만(js/booking.js) 그것만 믿지 않는다 — 주인(clientId + clientKey)만 취소한다.
+  if (path === '/bookings/cancel' && method === 'POST') {
+    const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
+    if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
+    const t = nowMs(), DAY = 86400000;
+    const r = await db.prepare(
+      `UPDATE bookings
+          SET status = CASE WHEN when_ts - ? >= ? THEN 'cancelled' ELSE 'late_cancel' END,
+              refund = CASE WHEN when_ts - ? >= ? THEN price
+                            ELSE MAX(COALESCE(refund, 0), CAST(ROUND(price * 0.5) AS INTEGER)) END,
+              refund_at = ?, refund_why = CASE WHEN when_ts - ? >= ? THEN '내담자 취소' ELSE '내담자 취소(24시간 이내 · 50% 환불)' END
+        WHERE id = ? AND client_id = ? AND status = 'confirmed' AND when_ts > ? AND COALESCE(settled_at, 0) = 0`
+    ).bind(t, DAY, t, DAY, t, t, DAY, id, clientId, t).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) {
+      return json({ error: 'not-cancellable', message: '이미 시작됐거나 취소할 수 없는 예약이에요.' }, 409, cors);
     }
+    const b = await db.prepare('SELECT counselor_id, client_name, when_ts, status, price, refund FROM bookings WHERE id = ?').bind(id).first();
+    if (b) {
+      const late = b.status === 'late_cancel';
+      bookingNotice(ctx, env, 'counselor', b.counselor_id, '예약 취소',
+        `${b.client_name || '내담자'} 님이 ${kstLabel(b.when_ts)} 예약을 취소했어요.${late ? ' (24시간 이내 취소 — 상담료의 50% 는 정산됩니다)' : ''}`);
+    }
+    return json({ ok: true, status: b ? b.status : 'cancelled', refund: b ? (b.refund || 0) : 0 }, 200, cors);
+  }
+
+  // ── 미진행(내담자) ──────────────────────────────────────────────────
+  //  "상담이 진행되지 않았어요" — 상담사가 나타나지 않은 경우의 전액 환불 통로.
+  //  열어 두는 범위를 좁힌다. 전에는 '완료' 상태면 언제든(정산 직전까지) 뒤집을 수 있어서
+  //  확인까지 끝난 상담을 몇 주 뒤에 취소시킬 수 있었다.
+  //   · 확정(confirmed) 상태에서 상담 시각이 지난 뒤, 또는
+  //   · 상담사가 완료를 눌렀지만 내담자가 아직 확인하지 않았고 72시간 자동 확정 전일 때만.
+  if (path === '/bookings/noshow' && method === 'POST') {
+    const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
+    if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
+    const t = nowMs();
+    const r = await db.prepare(
+      `UPDATE bookings SET status = 'noshow'
+        WHERE id = ? AND client_id = ? AND COALESCE(settled_at, 0) = 0
+          AND ((status = 'confirmed' AND when_ts <= ?)
+            OR (status = 'done' AND COALESCE(confirm_at, 0) = 0 AND COALESCE(auto_at, 0) > ?))`
+    ).bind(id, clientId, t, t).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) {
+      return json({ error: 'not-allowed', message: '이미 확정된 상담이에요. 문제가 있었다면 고객센터로 알려주세요.' }, 409, cors);
+    }
+    const b = await db.prepare('SELECT counselor_id, client_name, when_ts FROM bookings WHERE id = ?').bind(id).first();
+    if (b) bookingNotice(ctx, env, 'counselor', b.counselor_id, '상담 미진행 접수',
+      `${b.client_name || '내담자'} 님이 ${kstLabel(b.when_ts)} 상담이 진행되지 않았다고 알려 왔어요. 전액 환불됩니다.`);
+    return json({ ok: true }, 200, cors);
+  }
+
+  // ── 거절(상담사) ────────────────────────────────────────────────────
+  //  아직 진행 전인 확정 예약만. 전에는 상태를 보지 않아서 완료·정산된 예약까지
+  //  '거절'로 뒤집을 수 있었다(내담자 앱은 거절을 보면 전액 환불한다).
+  if (path === '/bookings/decline' && method === 'POST') {
+    const id = s(body.id, MAX.id);
+    if (!id) return json({ error: 'missing-id' }, 400, cors);
+    const me = await whoami(db, cred);
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const r = await db.prepare(
+      `UPDATE bookings SET status = 'declined', refund = price, refund_at = ?
+        WHERE id = ? AND counselor_id = ? AND status = 'confirmed' AND COALESCE(settled_at, 0) = 0`
+    ).bind(nowMs(), id, me.id).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) {
+      return json({ error: '거절할 수 있는 상태가 아닙니다' }, 409, cors);
+    }
+    const b = await db.prepare('SELECT client_id, when_ts FROM bookings WHERE id = ?').bind(id).first();
+    if (b) bookingNotice(ctx, env, 'client', b.client_id, '예약 취소 안내',
+      `${me.name || '상담사'} 선생님 사정으로 ${kstLabel(b.when_ts)} 예약이 취소됐어요. 결제하신 캐시는 전액 돌려드려요.`);
+    return json({ ok: true }, 200, cors);
   }
 
   // ── 상담 완료 → 확인 → 정산 ─────────────────────────────────────────
@@ -1006,9 +1148,13 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (b.status !== 'confirmed') return json({ error: '완료 처리할 수 있는 상태가 아닙니다' }, 400, cors);
     if (b.when_ts > nowMs()) return json({ error: '상담 시각 전에는 완료 처리할 수 없습니다' }, 400, cors);
     const t = nowMs();
-    await db.prepare(
-      'UPDATE bookings SET status = ?, done_at = ?, auto_at = ?, cnote = COALESCE(?, cnote) WHERE id = ?'
-    ).bind('done', t, t + AUTO_CONFIRM_MS, s(body.note, 1000) || null, id).run();
+    // 읽은 뒤 그 사이에 내담자가 미진행을 눌렀을 수 있다 — 상태를 조건에 다시 건다
+    const r = await db.prepare(
+      "UPDATE bookings SET status = 'done', done_at = ?, auto_at = ?, cnote = COALESCE(?, cnote) WHERE id = ? AND status = 'confirmed'"
+    ).bind(t, t + AUTO_CONFIRM_MS, s(body.note, 1000) || null, id).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) return json({ error: '완료 처리할 수 있는 상태가 아닙니다' }, 409, cors);
+    bookingNotice(ctx, env, 'client', b.client_id, '상담 확인 요청',
+      `${me.name || '상담사'} 선생님이 ${kstLabel(b.when_ts)} 상담을 완료 처리했어요. 앱에서 확인해주세요.`);
     return json({ ok: true, autoAt: t + AUTO_CONFIRM_MS }, 200, cors);
   }
 
@@ -1016,20 +1162,27 @@ export async function handleMarket(request, env, cors, path, ctx) {
   if (path === '/bookings/confirm' && method === 'POST') {
     const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
     if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
-    const r = await db.prepare(
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
+    await db.prepare(
       "UPDATE bookings SET confirm_at = ? WHERE id = ? AND client_id = ? AND status = 'done' AND confirm_at = 0"
     ).bind(nowMs(), id, clientId).run();
     return json({ ok: true }, 200, cors);
   }
 
   // 내담자: 이의 있음 — 정산을 멈춘다
+  //  상담사가 완료를 누른 뒤(done)에만 받는다. 확정 전 예약은 취소·미진행 길이 따로 있고,
+  //  환불·취소로 끝난 예약을 '이의'로 다시 살리면 정산 대상에 되돌아온다.
   if (path === '/bookings/dispute' && method === 'POST') {
     const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
     const why = s(body.why, 500);
     if (!id || !clientId || !why) return json({ error: '사유를 적어주세요' }, 400, cors);
-    await db.prepare(
-      "UPDATE bookings SET dispute = ?, dispute_at = ?, status = 'disputed' WHERE id = ? AND client_id = ? AND settled_at = 0"
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
+    const r = await db.prepare(
+      "UPDATE bookings SET dispute = ?, dispute_at = ?, status = 'disputed' WHERE id = ? AND client_id = ? AND status = 'done' AND settled_at = 0"
     ).bind(why, nowMs(), id, clientId).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) return json({ error: '이의를 받을 수 있는 상태가 아니에요' }, 409, cors);
     return json({ ok: true }, 200, cors);
   }
 
@@ -1043,6 +1196,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
   }
 
   // 환불 — 상담사가 스스로, 또는 운영자가
+  //  확정·완료·이의 접수 상태에서, 아직 지급 전인 것만. 조건을 UPDATE 에 걸어 읽기와 쓰기 사이의 틈을 없앤다.
+  //  전액 환불이면 'refunded'. 일부 환불이면 상태를 그대로 두고 refund 만 적는다 —
+  //  그래야 남은 금액(price − refund)으로 계속 정산된다(전에는 일부 환불도 'refunded' 가 돼서
+  //  남은 상담료가 상담사에게 영영 지급되지 않았다).
   if (path === '/bookings/refund' && method === 'POST') {
     const id = s(body.id, MAX.id);
     const admin = isAdmin(env, code);
@@ -1056,45 +1213,129 @@ export async function handleMarket(request, env, cors, path, ctx) {
       : await db.prepare('SELECT * FROM bookings WHERE id = ? AND counselor_id = ?').bind(id, owner.id).first();
     if (!b) return json({ error: 'not-found' }, 404, cors);
     if (b.settled_at) return json({ error: '이미 정산이 끝난 상담입니다' }, 400, cors);
-    const amount = Math.max(0, Math.min(b.price || 0, num(body.amount) || (b.price || 0)));
-    await db.prepare(
-      "UPDATE bookings SET status = 'refunded', refund = ?, refund_at = ?, refund_why = ? WHERE id = ?"
-    ).bind(amount, nowMs(), s(body.why, 300), id).run();
-    return json({ ok: true, refund: amount }, 200, cors);
+    const price = b.price || 0;
+    const amount = Math.max(0, Math.min(price, num(body.amount) || price));
+    const full = amount >= price;
+    const r = await db.prepare(
+      `UPDATE bookings SET status = CASE WHEN ? THEN 'refunded' ELSE status END,
+              refund = ?, refund_at = ?, refund_why = ?
+        WHERE id = ? AND status IN ${BK_BUSY} AND COALESCE(settled_at, 0) = 0`
+    ).bind(full ? 1 : 0, amount, nowMs(), s(body.why, 300), id).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) return json({ error: '환불할 수 있는 상태가 아닙니다' }, 409, cors);
+    bookingNotice(ctx, env, 'client', b.client_id, '상담료 환불',
+      `${kstLabel(b.when_ts)} 상담료 중 ${amount.toLocaleString('ko-KR')}캐시가 환불됐어요.`);
+    return json({ ok: true, refund: amount, status: full ? 'refunded' : b.status }, 200, cors);
+  }
+
+  // 이의 처리 (운영자) — 이의가 접수된 예약은 정산이 멈춘 채로 남는다. 운영자가 결론을 내야 풀린다.
+  //   uphold: 상담은 정상이었다 → 완료(확인됨)로 되돌려 정산 대기로 보낸다(회기 기록 조건은 그대로).
+  //   refund: 환불한다. amount 가 없거나 상담료 이상이면 전액('refunded'),
+  //           일부면 완료(확인됨)로 두고 남은 금액만 정산한다.
+  if (path === '/bookings/resolve' && method === 'POST') {
+    if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
+    const id = s(body.id, MAX.id);
+    const action = body.action === 'refund' ? 'refund' : body.action === 'uphold' ? 'uphold' : '';
+    if (!id || !action) return json({ error: 'missing' }, 400, cors);
+    const b = await db.prepare('SELECT * FROM bookings WHERE id = ?').bind(id).first();
+    if (!b) return json({ error: 'not-found' }, 404, cors);
+    if (b.status !== 'disputed') return json({ error: '이의 접수 상태가 아닙니다' }, 409, cors);
+    const t = nowMs();
+    const price = b.price || 0;
+    const amount = action === 'refund' ? Math.max(0, Math.min(price, num(body.amount) || price)) : 0;
+    const full = action === 'refund' && amount >= price;
+    const r = await db.prepare(
+      `UPDATE bookings
+          SET status = ?, confirm_at = CASE WHEN COALESCE(confirm_at, 0) > 0 THEN confirm_at ELSE ? END,
+              refund = CASE WHEN ? > 0 THEN ? ELSE refund END,
+              refund_at = CASE WHEN ? > 0 THEN ? ELSE refund_at END,
+              refund_why = CASE WHEN ? > 0 THEN ? ELSE refund_why END
+        WHERE id = ? AND status = 'disputed' AND COALESCE(settled_at, 0) = 0`
+    ).bind(full ? 'refunded' : 'done', t, amount, amount, amount, t, amount, s(body.why, 300) || '이의 처리 환불', id).run();
+    if (!((r && r.meta && r.meta.changes) || 0)) return json({ error: '이미 처리된 이의입니다' }, 409, cors);
+    const when = kstLabel(b.when_ts);
+    if (action === 'uphold') {
+      bookingNotice(ctx, env, 'client', b.client_id, '이의 처리 결과', `${when} 상담에 대한 이의를 확인했어요. 상담이 정상 진행된 것으로 처리됐어요.`);
+    } else {
+      bookingNotice(ctx, env, 'client', b.client_id, '이의 처리 결과', `${when} 상담료 중 ${amount.toLocaleString('ko-KR')}캐시가 환불됐어요.`);
+    }
+    bookingNotice(ctx, env, 'counselor', b.counselor_id, '이의 처리 결과',
+      action === 'uphold' ? `${when} 상담의 이의가 기각돼 정산이 다시 진행돼요.` : `${when} 상담이 운영자 판단으로 ${full ? '전액' : '일부'} 환불됐어요.`);
+    return json({ ok: true, status: full ? 'refunded' : 'done', refund: amount }, 200, cors);
   }
 
   // 정산 대기 목록 (운영자)
+  //  · 예약: 완료 + (내담자 확인 또는 72시간 자동 확정이 '지난' 것) + 회기 기록, 그리고 24시간 이내 늦은 취소.
+  //    전에는 72시간을 기다리지 않아서, 내담자가 이의를 낼 시간이 남아 있는데도 지급할 수 있었다.
+  //  · 금액은 price − refund 로 나눈다(일부 환불·늦은 취소 수수료).
+  //  · 상담사 몫(settled_at)과 상담소 몫(hospital_settled_at)은 따로 지급된다. 소개 채널 한 건이
+  //    두 목록에 다 오르는데, 도장을 한 칸에 같이 찍으면 한쪽만 보내도 다른 쪽이 목록에서 사라졌다.
+  //    hospital_settled_at 칸이 없는 배포(schema-2026-10b.sql 미적용)에서는 예전처럼 settled_at 하나로 본다.
   if (path === '/settle' && method === 'GET') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
     const t = nowMs();
-    const r = await db.prepare(
-      `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
-         FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
-        WHERE b.status = 'done' AND b.settled_at = 0
-          AND EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)
-        ORDER BY b.done_at ASC LIMIT 300`
-    ).all();
+    const noCol = e => /no such column|has no column/i.test(String((e && e.message) || e));
+    let hasHS = true;
+    let r;
+    try {
+      r = await db.prepare(
+        `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
+           FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
+          WHERE (b.settled_at = 0 OR (b.channel IN ('hospital','referral') AND COALESCE(b.hospital_settled_at, 0) = 0))
+            AND ${BK_SETTLEABLE}
+          ORDER BY COALESCE(NULLIF(b.done_at, 0), b.refund_at) ASC LIMIT 300`
+      ).bind(t).all();
+    } catch (e) {
+      if (!noCol(e)) throw e;
+      hasHS = false;
+      r = await db.prepare(
+        `SELECT b.*, c.name cname, c.bank, c.bank_no, c.bank_holder
+           FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
+          WHERE b.settled_at = 0 AND ${BK_SETTLEABLE}
+          ORDER BY COALESCE(NULLIF(b.done_at, 0), b.refund_at) ASC LIMIT 300`
+      ).bind(t).all();
+    }
+    // 상담소 몫을 받았는지 — 소속(hospital) 채널은 예전 기록이 settled_at 에만 찍혀 있을 수 있다
+    const hsOf = x => hasHS ? (x.hospital_settled_at || (x.channel === 'hospital' ? x.settled_at : 0) || 0) : (x.settled_at || 0);
     const items = (r.results || []).map(x => {
-      const p = payoutOf(x.price || 0, x.channel);
+      const late = x.status === 'late_cancel';
+      const gross = Math.max(0, (x.price || 0) - (x.refund || 0));
+      const p = payoutOf(gross, x.channel);
       return {
-        id: x.id, counselorId: x.counselor_id, counselor: x.cname || x.counselor_name,
-        clientName: x.client_name, time: x.time_label, price: x.price,
-        doneAt: x.done_at, confirmed: !!x.confirm_at, auto: !x.confirm_at,
+        id: x.id, kind: 'booking', counselorId: x.counselor_id, counselor: x.cname || x.counselor_name,
+        clientName: x.client_name, time: (x.time_label || '') + (late ? ' · 24시간 이내 취소(50%)' : x.refund ? ' · 일부 환불' : ''),
+        price: gross, fullPrice: x.price || 0, refund: x.refund || 0, lateCancel: late,
+        doneAt: x.done_at || x.refund_at || 0, confirmed: !!x.confirm_at, auto: !late && !x.confirm_at, autoAt: x.auto_at || 0,
         payout: p, channel: p.channel, hospitalId: x.hospital_id || '',
-        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
+        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null,
+        _cs: x.settled_at || 0, _hs: hsOf(x)
       };
     });
     // 바로상담 통화도 정산 대상이다. 전에는 예약(bookings)만 집계해서,
     //  내담자 지갑에서는 캐시가 빠져나갔는데 상담사 몫은 어디에도 잡히지 않았다.
     //  통화는 '완료 확인' 절차가 없다 — 연결돼서 요금이 붙은 순간 이미 제공된 상담이다.
-    const rc = await db.prepare(
-      `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.channel, c.hospital_id,
-              k.name cname, k.bank, k.bank_no, k.bank_holder
-         FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
-        WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
-          AND EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))
-        ORDER BY c.end_at ASC LIMIT 300`
-    ).all();
+    const CALL_NOTE = `EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))`;
+    let rc;
+    const callCols = `c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.channel, c.hospital_id, c.settled_at,
+              k.name cname, k.bank, k.bank_no, k.bank_holder`;
+    try {
+      if (!hasHS) throw new Error('no such column: hospital_settled_at');
+      rc = await db.prepare(
+        `SELECT ${callCols}, c.hospital_settled_at
+           FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+          WHERE c.billed > 0 AND c.end_at > 0
+            AND (COALESCE(c.settled_at, 0) = 0 OR (c.channel IN ('hospital','referral') AND COALESCE(c.hospital_settled_at, 0) = 0))
+            AND ${CALL_NOTE}
+          ORDER BY c.end_at ASC LIMIT 300`
+      ).all();
+    } catch (e) {
+      if (!noCol(e)) throw e;
+      rc = await db.prepare(
+        `SELECT ${callCols}
+           FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
+          WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0 AND ${CALL_NOTE}
+          ORDER BY c.end_at ASC LIMIT 300`
+      ).all();
+    }
     const callItems = (rc.results || []).map(x => {
       const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
       const p = payoutOf(x.billed || 0, x.channel);   // 캐시 1 = 1원으로 본다
@@ -1104,34 +1345,38 @@ export async function handleMarket(request, env, cors, path, ctx) {
         time: '바로상담 통화 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
         price: x.billed, doneAt: x.end_at, confirmed: true, auto: false,
         payout: p, channel: p.channel, hospitalId: x.hospital_id || '',
-        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null
+        bank: x.bank_no ? { bank: x.bank, holder: x.bank_holder, masked: maskAcct(x.bank_no) } : null,
+        _cs: x.settled_at || 0, _hs: hsOf(x)
       };
     });
-    const all = items.map(x => ({ ...x, kind: 'booking' })).concat(callItems);
+    const all = items.concat(callItems);
     // 병원 채널은 앱이 상담사에게 보내지 않는다 — 병원에 보내고, 병원이 상담사에게 보낸다.
-    const toCounselor = all.filter(x => x.payout.payTo === 'counselor');
+    const strip = x => { const o = { ...x }; delete o._cs; delete o._hs; return o; };
+    const toCounselor = all.filter(x => x.payout.payTo === 'counselor' && !x._cs).map(strip);
     // 소개 채널 건은 두 목록에 다 들어간다 — 상담사에게 70%, 상담소에게 20% 를 각각 보낸다
-    const toHospital = all.filter(x => x.payout.hospital > 0);
+    const toHospital = all.filter(x => x.payout.hospital > 0 && !x._hs).map(strip);
     const sum = toCounselor.reduce((a, x) => a + x.payout.counselor, 0);
     const hospitalSum = toHospital.reduce((a, x) => a + x.payout.hospital, 0);
-    const platformSum = all.reduce((a, x) => a + x.payout.platform, 0);
+    // 플랫폼 몫은 건마다 한 번만 센다(두 목록에 다 오른 소개 건을 두 번 세지 않게)
+    const platformSum = all.filter(x => !x._cs || !x._hs).reduce((a, x) => a + x.payout.platform, 0);
     // 회기 기록이 없는 상담은 정산 보류다 — 사장님 지시: 기록을 정산 조건으로 건다.
     //  운영자가 '왜 안 올라오지?' 하지 않도록 보류 목록을 따로 준다. 지급은 막힌다(/settle/pay).
     const blocked = [];
     const rb = await db.prepare(
-      `SELECT b.id, b.counselor_id, b.client_name, b.time_label, b.price, b.done_at, b.channel, c.name cname
+      `SELECT b.id, b.counselor_id, b.client_name, b.time_label, b.price, b.refund, b.done_at, b.channel, c.name cname
          FROM bookings b LEFT JOIN counselors c ON c.id = b.counselor_id
         WHERE b.status = 'done' AND b.settled_at = 0
           AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = b.id)
         ORDER BY b.done_at ASC LIMIT 300`).all();
     (rb.results || []).forEach(x => blocked.push({ id: x.id, kind: 'booking', counselorId: x.counselor_id, counselor: x.cname || '상담사',
-      clientName: x.client_name, time: x.time_label, price: x.price, doneAt: x.done_at, payout: payoutOf(x.price || 0, x.channel), reason: 'no-note' }));
+      clientName: x.client_name, time: x.time_label, price: Math.max(0, (x.price || 0) - (x.refund || 0)), doneAt: x.done_at,
+      payout: payoutOf(Math.max(0, (x.price || 0) - (x.refund || 0)), x.channel), reason: 'no-note' }));
     try {
       const rbc = await db.prepare(
         `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.channel, k.name cname
            FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
           WHERE c.billed > 0 AND c.end_at > 0 AND COALESCE(c.settled_at, 0) = 0
-            AND NOT EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = c.id OR (COALESCE(c.booking_id, '') != '' AND n.booking_id = c.booking_id))
+            AND NOT ${CALL_NOTE}
           ORDER BY c.end_at ASC LIMIT 300`).all();
       (rbc.results || []).forEach(x => {
         const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
@@ -1149,28 +1394,57 @@ export async function handleMarket(request, env, cors, path, ctx) {
     return json({
       items: toCounselor, counselorTotal: sum,
       hospitalItems: toHospital, hospitalTotal: hospitalSum, platformTotal: platformSum,
-      blocked, blockedTotal: blocked.reduce((a, x) => a + x.payout.counselor, 0)
+      blocked, blockedTotal: blocked.reduce((a, x) => a + x.payout.counselor, 0),
+      hospitalSplit: hasHS
     }, 200, cors);
   }
 
   // 지급 완료 처리 (운영자)
+  //  ids         = 상담사에게 보낸 건 → settled_at
+  //  hospitalIds = 상담소에게 보낸 건 → hospital_settled_at (소속 채널은 상담사 몫이 없으므로 settled_at 도 함께 — 정산 끝)
+  //  지급 조건은 목록과 똑같이 UPDATE 의 WHERE 에 다시 건다(72시간·회기 기록·늦은 취소).
   if (path === '/settle/pay' && method === 'POST') {
     if (!isAdmin(env, code)) return json({ error: 'bad-code' }, 403, cors);
-    const ids = (Array.isArray(body.ids) ? body.ids : []).map(x => s(x, MAX.id)).filter(Boolean).slice(0, 200);
-    if (!ids.length) return json({ error: 'ids 없음' }, 400, cors);
+    const clean = v => (Array.isArray(v) ? v : []).map(x => s(x, MAX.id)).filter(Boolean).slice(0, 200);
+    const ids = clean(body.ids), hids = clean(body.hospitalIds);
+    if (!ids.length && !hids.length) return json({ error: 'ids 없음' }, 400, cors);
     const t = nowMs();
-    // 예약과 통화가 같은 목록에 섞여 온다. id 앞머리로 갈라 각자의 표에 도장을 찍는다.
-    const callIds = ids.filter(x => x.startsWith('call_'));
-    const bkIds = ids.filter(x => !x.startsWith('call_'));
-    const jobs = [];
-    bkIds.forEach(id => jobs.push(
-      db.prepare("UPDATE bookings SET settled_at = ? WHERE id = ? AND status = 'done' AND settled_at = 0 AND EXISTS (SELECT 1 FROM session_notes n WHERE n.booking_id = bookings.id)").bind(t, id)));
-    callIds.forEach(id => jobs.push(
-      db.prepare("UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND COALESCE(settled_at, 0) = 0 AND EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = calls.id OR (COALESCE(calls.booking_id, '') != '' AND n.booking_id = calls.booking_id))").bind(t, id)));
-    // 회기 기록이 없는 건은 WHERE 에서 걸러져 0건 바뀐다 — 그 수를 알려줘야 운영자가 안다
+    const CALL_NOTE = `EXISTS (SELECT 1 FROM session_notes n WHERE n.call_id = calls.id OR (COALESCE(calls.booking_id, '') != '' AND n.booking_id = calls.booking_id))`;
+    const changesOf = rs => rs.reduce((a, r) => a + ((r && r.meta && r.meta.changes) || 0), 0);
     let n = 0;
-    if (jobs.length) { const rs = await db.batch(jobs); n = rs.reduce((a, r) => a + ((r && r.meta && r.meta.changes) || 0), 0); }
-    return json({ ok: true, n, skipped: ids.length - n }, 200, cors);
+    // 예약과 통화가 같은 목록에 섞여 온다. id 앞머리로 갈라 각자의 표에 도장을 찍는다.
+    const jobs = [];
+    ids.forEach(id => jobs.push(id.startsWith('call_')
+      ? db.prepare(`UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND end_at > 0 AND COALESCE(settled_at, 0) = 0
+                     AND COALESCE(channel, 'app') != 'hospital' AND ${CALL_NOTE}`).bind(t, id)
+      : db.prepare(`UPDATE bookings AS b SET settled_at = ? WHERE b.id = ? AND b.settled_at = 0
+                     AND COALESCE(b.channel, 'app') != 'hospital' AND ${BK_SETTLEABLE}`).bind(t, id, t)));
+    if (jobs.length) n += changesOf(await db.batch(jobs));
+    if (hids.length) {
+      const hjobs = hids.map(id => id.startsWith('call_')
+        ? db.prepare(`UPDATE calls SET hospital_settled_at = ?,
+                        settled_at = CASE WHEN channel = 'hospital' AND COALESCE(settled_at, 0) = 0 THEN ? ELSE settled_at END
+                       WHERE id = ? AND channel IN ('hospital','referral') AND billed > 0 AND end_at > 0
+                         AND COALESCE(hospital_settled_at, 0) = 0 AND NOT (channel = 'hospital' AND COALESCE(settled_at, 0) > 0)
+                         AND ${CALL_NOTE}`).bind(t, t, id)
+        : db.prepare(`UPDATE bookings AS b SET hospital_settled_at = ?,
+                        settled_at = CASE WHEN b.channel = 'hospital' AND b.settled_at = 0 THEN ? ELSE b.settled_at END
+                       WHERE b.id = ? AND b.channel IN ('hospital','referral')
+                         AND COALESCE(b.hospital_settled_at, 0) = 0 AND NOT (b.channel = 'hospital' AND b.settled_at > 0)
+                         AND ${BK_SETTLEABLE}`).bind(t, t, id, t));
+      try {
+        n += changesOf(await db.batch(hjobs));
+      } catch (e) {
+        if (!/no such column|has no column/i.test(String((e && e.message) || e))) throw e;
+        // hospital_settled_at 칸이 없는 배포 — 예전처럼 settled_at 하나에 찍는다(소개 건은 상담사 몫도 함께 닫힌다)
+        const old = hids.map(id => id.startsWith('call_')
+          ? db.prepare(`UPDATE calls SET settled_at = ? WHERE id = ? AND billed > 0 AND COALESCE(settled_at, 0) = 0 AND ${CALL_NOTE}`).bind(t, id)
+          : db.prepare(`UPDATE bookings AS b SET settled_at = ? WHERE b.id = ? AND b.settled_at = 0 AND ${BK_SETTLEABLE}`).bind(t, id, t));
+        n += changesOf(await db.batch(old));
+      }
+    }
+    // 조건에 안 맞는 건(회기 기록 없음·확정 전·이미 처리)은 0건 바뀐다 — 그 수를 알려줘야 운영자가 안다
+    return json({ ok: true, n, skipped: ids.length + hids.length - n }, 200, cors);
   }
 
   // ── 숙제 ────────────────────────────────────────────────────────────
@@ -1234,6 +1508,9 @@ export async function handleMarket(request, env, cors, path, ctx) {
   if (path === '/homework/done' && method === 'POST') {
     const id = s(body.id, MAX.id), clientId = s(body.clientId, MAX.id);
     if (!id || !clientId) return json({ error: 'missing' }, 400, cors);
+    // 숙제 결과(note)는 상담사 화면에 그대로 뜬다 — 남의 clientId 로 써 넣지 못하게
+    if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     await db.prepare('UPDATE homework SET done_at = ?, note = ? WHERE id = ? AND client_id = ?')
       .bind(nowMs(), s(body.note, 300), id, clientId).run();
     return json({ ok: true }, 200, cors);
@@ -1341,6 +1618,9 @@ export async function handleMarket(request, env, cors, path, ctx) {
   }
 
   // ── 상담 채팅 ───────────────────────────────────────────────────────
+  //  목록은 '가장 최근 N개'를 시간순으로 준다. 전에는 ORDER BY ts ASC LIMIT 500 이라
+  //  대화가 500개를 넘는 순간 가장 오래된 500개만 나가고 새 메시지가 화면에 영영 안 떴다.
+  const CHAT_N = 500, CHAT_N_CLIENT = 300;
   if (path === '/chat-msg' && method === 'GET') {
     if (code || session) {
       const me = await whoami(db, cred);
@@ -1351,12 +1631,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
       if (want) {
         if (!await relatedPair(db, me.id, want)) return json({ error: 'forbidden' }, 403, cors);
         const r0 = await db.prepare(
-          'SELECT * FROM chat_msgs WHERE counselor_id = ? AND client_id = ? ORDER BY ts ASC LIMIT 500'
+          `SELECT * FROM (SELECT * FROM chat_msgs WHERE counselor_id = ? AND client_id = ? ORDER BY ts DESC LIMIT ${CHAT_N})
+            ORDER BY ts ASC`
         ).bind(me.id, want).all();
         return json({ items: (r0.results || []).map(rowMsg) }, 200, cors);
       }
       const r = await db.prepare(
-        'SELECT * FROM chat_msgs WHERE counselor_id = ? ORDER BY ts ASC LIMIT 500'
+        `SELECT * FROM (SELECT * FROM chat_msgs WHERE counselor_id = ? ORDER BY ts DESC LIMIT ${CHAT_N})
+          ORDER BY ts ASC`
       ).bind(me.id).all();
       return json({ items: (r.results || []).map(rowMsg) }, 200, cors);
     }
@@ -1368,8 +1650,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
       return json({ error: 'forbidden' }, 403, cors);
     const counselorId = s(q('counselorId'), MAX.id);
     const stmt = counselorId
-      ? db.prepare('SELECT * FROM chat_msgs WHERE client_id = ? AND counselor_id = ? ORDER BY ts ASC LIMIT 300').bind(cid, counselorId)
-      : db.prepare('SELECT * FROM chat_msgs WHERE client_id = ? ORDER BY ts ASC LIMIT 300').bind(cid);
+      ? db.prepare(`SELECT * FROM (SELECT * FROM chat_msgs WHERE client_id = ? AND counselor_id = ? ORDER BY ts DESC LIMIT ${CHAT_N_CLIENT})
+                     ORDER BY ts ASC`).bind(cid, counselorId)
+      : db.prepare(`SELECT * FROM (SELECT * FROM chat_msgs WHERE client_id = ? ORDER BY ts DESC LIMIT ${CHAT_N_CLIENT})
+                     ORDER BY ts ASC`).bind(cid);
     const r = await stmt.all();
     return json({ items: (r.results || []).map(rowMsg) }, 200, cors);
   }
@@ -1392,6 +1676,13 @@ export async function handleMarket(request, env, cors, path, ctx) {
         ).bind(me.id, s(body.clientName)).first();
         clientId = prev ? prev.client_id : '';
       }
+      // 모르는 사람에게 먼저 말을 걸 수 없다 — 대화·예약·통화·자료로 이어진 내담자에게만 보낸다.
+      //  (아무 clientId 에나 보내면 광고 도배 통로이자, 남의 기기를 깨우는 도구가 된다)
+      if (clientId && !await relatedPair(db, me.id, clientId)) return json({ error: 'forbidden' }, 403, cors);
+    } else {
+      // 내담자 메시지 — 남의 clientId 를 사칭해 그 사람 이름으로 상담사에게 말을 걸지 못하게
+      if (await verifyClient(env, clientId, s(body.clientKey || q('clientKey'), 64)) === 'deny')
+        return json({ error: 'forbidden' }, 403, cors);
     }
     if (!clientId || !counselorId) return json({ error: 'missing' }, 400, cors);
     // 도배 방지 — 상담사 수신함을 스크립트로 채워 업무를 마비시키는 걸 막는다
@@ -1552,10 +1843,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (SELECT COUNT(DISTINCT client_id) FROM inbox) AS clientsB,
       (SELECT COUNT(*) FROM bookings) AS bkTotal,
       (SELECT COUNT(*) FROM bookings WHERE status = 'confirmed' AND when_ts > ?) AS bkUpcoming,
-      (SELECT COUNT(*) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS bkDone,
-      (SELECT COUNT(*) FROM bookings WHERE status IN ('cancelled','declined','noshow')) AS bkCancelled,
-      (SELECT COALESCE(SUM(price),0) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS gross,
-      (SELECT COALESCE(SUM(ROUND(MIN(price, 60000) * 0.70 + MAX(price - 60000, 0) * 0.55)),0) FROM bookings WHERE status = 'confirmed' AND when_ts <= ?) AS grossCounselor,
+      (SELECT COUNT(*) FROM bookings WHERE status = 'done') AS bkDone,
+      (SELECT COUNT(*) FROM bookings WHERE status IN ('cancelled','late_cancel','declined','noshow','refunded')) AS bkCancelled,
       (SELECT COUNT(*) FROM inbox) AS ibTotal,
       (SELECT COUNT(*) FROM inbox WHERE read_at = 0) AS ibUnread,
       (SELECT COUNT(DISTINCT counselor_id || '|' || client_id) FROM chat_msgs) AS threads,
@@ -1563,7 +1852,25 @@ export async function handleMarket(request, env, cors, path, ctx) {
       (SELECT COALESCE(AVG(rating),0) FROM reviews) AS rvAvg,
       (SELECT COUNT(*) FROM subs WHERE plan = 'sub' AND until > ?) AS subsActive,
       (SELECT COUNT(*) FROM subs WHERE plan = 'trial' AND until > ?) AS trialActive
-    `).bind(t, t, t, t, t, t).first() || {};
+    `).bind(t, t, t).first() || {};
+
+    // 매출·분배는 '실제로 끝난 상담'만 센다 — 완료(done)와 24시간 이내 늦은 취소(late_cancel).
+    //  전에는 '확정 + 시각 지남'을 완료로 세서 미진행·거절될 예약까지 매출에 들어갔고,
+    //  상담사 몫도 70/55 리터럴로 계산해 소속·소개 채널이 틀렸다. 금액은 price − refund,
+    //  분배는 payoutOf(채널별) 하나로 — 같은 (채널, 금액) 끼리 묶어 한 번씩만 계산한다.
+    const rev = { gross: 0, counselor: 0, hospital: 0, pg: 0, platform: 0 };
+    try {
+      const g = await db.prepare(
+        `SELECT channel, MAX(price - COALESCE(refund, 0), 0) AS net, COUNT(*) AS n FROM bookings
+          WHERE status IN ('done','late_cancel') GROUP BY channel, net`
+      ).all();
+      (g.results || []).forEach(x => {
+        const p = payoutOf(x.net || 0, x.channel);
+        const k = x.n || 0;
+        rev.gross += p.gross * k; rev.counselor += p.counselor * k; rev.hospital += p.hospital * k;
+        rev.pg += p.pg * k; rev.platform += p.platform * k;
+      });
+    } catch (e) {}
 
     // 답장 대기: 스레드별 마지막 발신자가 내담자인 것
     const aw = await db.prepare(`SELECT COUNT(*) n FROM (
@@ -1572,7 +1879,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
         ON m.counselor_id = g.counselor_id AND m.client_id = g.client_id AND m.ts = g.mts
       WHERE m.sender = 'client'`).first() || {};
 
-    const gross = r.gross || 0;
+    const gross = rev.gross;
     // 분배 비율은 아래 payoutOf 와 같은 상수를 쓴다. 전에는 여기에 리터럴을
     //  한 벌 더 적어 뒀는데, 개편 때 한쪽만 고치면 콘솔 숫자가 조용히 거짓말을 한다.
 
@@ -1607,11 +1914,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
       reviews: { count: r.rvCount || 0, avg: Math.round((r.rvAvg || 0) * 10) / 10 },
       revenue: {
         gross,
-        // 60000·0.70·0.55 는 위 SQL 에 적힌 SPLITS.app 값 — 비율을 고치면 SQL 도 같이
-        counselor: r.grossCounselor || 0,
-        hospital: 0,
-        pg: Math.round(gross * SPLIT.pg / 100),
-        platform: Math.max(0, gross - (r.grossCounselor || 0) - Math.round(gross * SPLIT.pg / 100)),
+        counselor: rev.counselor,
+        hospital: rev.hospital,
+        pg: rev.pg,
+        platform: rev.platform,
         split: SPLIT
       },
       proSub,
@@ -1820,12 +2126,28 @@ export async function handleMarket(request, env, cors, path, ctx) {
   // 앱이 예약창에 쓸 '이 상담사의 가능 시간'
   if (path === '/slots' && method === 'GET') {
     const cid = s(q('counselorId'), MAX.id);
-    if (!cid) return json({ slots: {}, offdays: [] }, 200, cors);
+    if (!cid) return json({ slots: {}, offdays: [], found: false }, 200, cors);
     const c = await db.prepare('SELECT slots, offdays, price FROM counselors WHERE id = ? AND active = 1')
       .bind(cid).first();
-    if (!c) return json({ slots: {}, offdays: [] }, 200, cors);
+    // found:false = 없는·정지된 상담사 → 앱은 예약 가능한 날을 하나도 그리지 않는다
+    if (!c) return json({ slots: {}, offdays: [], found: false }, 200, cors);
+    const slots = safeJson(c.slots, {});
+    // 이미 찬 시각(앞으로 60일). 누가 잡았는지는 주지 않는다 — 시각만.
+    //  이게 없으면 앱은 '내 기기에 있는 예약'만 빼고 보여줘서, 남이 잡은 칸을 눌렀다가 결제 후 튕겼다.
+    let taken = [];
+    try {
+      const t = nowMs();
+      const r = await db.prepare(
+        `SELECT when_ts FROM bookings WHERE counselor_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?
+          ORDER BY when_ts ASC LIMIT 1000`
+      ).bind(cid, t - SESSION_MS, t + 61 * 86400000).all();
+      taken = (r.results || []).map(x => x.when_ts);
+    } catch (e) {}
     return json({
-      slots: safeJson(c.slots, {}), offdays: safeJson(c.offdays, []), price: c.price || 0
+      found: true, slots, offdays: safeJson(c.offdays, []), price: c.price || 0, taken,
+      // 요일별 시간을 한 칸이라도 저장했는가 — 아니면 서버는 시각을 따지지 않는다(/bookings 참고)
+      configured: Object.keys(slots || {}).some(d => Array.isArray(slots[d]) && slots[d].length),
+      sessionMin: SESSION_MS / 60000, tz: 'Asia/Seoul'
     }, 200, cors);
   }
 
@@ -1902,6 +2224,9 @@ export async function handleMarket(request, env, cors, path, ctx) {
     }
     const cid = s(q('clientId'), MAX.id);
     if (!cid) return json({ items: [] }, 200, cors);
+    // 신청서에는 이름·연락처·주소·이메일이 들어 있다 — 기기 주인만
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny')
+      return json({ error: 'forbidden' }, 403, cors);
     const r = await db.prepare(
       'SELECT * FROM applications WHERE client_id = ? ORDER BY ts DESC LIMIT 10').bind(cid).all();
     return json({ items: (r.results || []).map(a => rowApp(a, false)) }, 200, cors);
@@ -2690,7 +3015,10 @@ const rowBooking = r => ({
   dispute: r.dispute || '', disputeAt: r.dispute_at || 0,
   // 배분은 채널에 따라 다르다 — 병원 채널이면 상담사 몫은 0 이고 병원이 따로 지급한다
   channel: r.channel === 'hospital' ? 'hospital' : 'app', hospitalId: r.hospital_id || '',
-  payout: payoutOf(r.price || 0, r.channel)
+  // 나누는 금액은 price − refund — 일부 환불이면 남은 금액, 늦은 취소(late_cancel)면 내담자가 낸 50% 다.
+  //  (완료 전 확정 예약은 refund 가 0 이라 상담료 전액 기준 '예상 몫'이 나간다)
+  payout: payoutOf(Math.max(0, (r.price || 0) - (r.refund || 0)), r.channel),
+  hospitalSettledAt: r.hospital_settled_at || 0
   // cnote(상담사 메모)는 일부러 뺀다 — 내담자에게 나가면 안 된다
 });
 const rowInbox = r => ({
