@@ -158,7 +158,7 @@ window.Subscription = {
     window.Storage._safeSet('cbt_sub_until', base + (year ? 365 : 30) * 86400000);
     const m = document.getElementById('sub-paywall-modal');
     if (m) m.classList.add('hidden');
- window.UI.alert(`구독이 시작되었습니다! \n다음 결제일: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n느루와의 대화가 계속됩니다.`);
+ window.UI.alert(`구독이 시작되었습니다! \n이용 기한: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n느루와의 대화가 계속됩니다.`);
     this.renderCard();
     this.renderBadge();
   },
@@ -176,10 +176,10 @@ window.Subscription = {
     if (title && desc) {
       if (kind === 'call') {
         title.textContent = '보이스톡은 구독 전용이에요';
-        desc.innerHTML = '느루와 목소리로 나누는 통화는<br>구독하면 바로 이용할 수 있어요.';
+        desc.innerHTML = '느루와 목소리로 나누는 통화는<br>구독하면 열려요. (통화 중 30초당 150캐시가 사용돼요)';
       } else {
         title.textContent = '일주일 무료 체험이 끝났어요';
-        desc.innerHTML = '그동안 나눈 기록과 기억은 그대로 남아 있어요.<br>구독하면 무제한 대화 + 보이스톡이 다시 열립니다.';
+        desc.innerHTML = '그동안 나눈 기록과 기억은 그대로 남아 있어요.<br>구독하면 무제한 대화와 보이스톡(30초당 150캐시)이 다시 열립니다.';
       }
     }
     m.classList.remove('hidden');
