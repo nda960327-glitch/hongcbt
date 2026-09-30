@@ -44,6 +44,28 @@ window.App = {
         if (lt) window.Storage._safeSet('cbt_weekly_letters', letters);
         window.Storage._safeSet('cbt_rename_neuru', true);
       }
+      // 2차(2026-09-30): 장기기억·편지함·리포트·밤 일기 답글에 남은 옛 이름도 바꾼다.
+      //  장기기억은 매 대화 프롬프트에 실리므로, 여기 '우렁이'가 남아 있으면 느루가 계속 옛 이름을 쓴다.
+      //  단 '우렁의사'는 지금 살아 있는 비교용 상담사 이름이라 건드리지 않는다.
+      if (!window.Storage._safeGet('cbt_rename_neuru2', false)) {
+        const fix2 = t => String(t)
+          .split('우로로록').join('뇨로로롱').split('우로록').join('뇨롱')
+          .split('우렁우렁').join('느루느루').split('우덩우덩').join('느적느적')
+          .replace(/우렁이/g, '느루')
+          .replace(/우렁(?!의사)/g, '느루');
+        const mem = window.Storage.getUserMemory();
+        if (mem && /우렁/.test(mem)) window.Storage.setUserMemory(fix2(mem));
+        ['cbt_mailbox', 'cbt_my_reports', 'cbt_night_journal'].forEach(k => {
+          try {
+            const v = window.Storage._safeGet(k, null);
+            if (v != null) {
+              const s = JSON.stringify(v);
+              if (/우렁/.test(s)) window.Storage._safeSet(k, JSON.parse(fix2(s)));
+            }
+          } catch (e) {}
+        });
+        window.Storage._safeSet('cbt_rename_neuru2', true);
+      }
     } catch (e) {}
 
     // 1. Check first visit
