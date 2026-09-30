@@ -477,13 +477,15 @@ export async function handleHospital(request, env, cors, path, ctx) {
         ? (x.hospital_settled_at || 0)
         : (x.hospital_settled_at || x.settled_at || 0);
       const selRows = async (withH) => (await db.prepare(
-        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at, channel${withH ? ', hospital_settled_at' : ''}
-           FROM bookings WHERE hospital_id = ? AND channel IN ('hospital', 'referral') AND status = 'done' AND when_ts >= ?
+        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, COALESCE(refund, 0) AS refund, status, done_at, settled_at, channel${withH ? ', hospital_settled_at' : ''}
+           FROM bookings WHERE hospital_id = ? AND channel IN ('hospital', 'referral') AND status IN ('done', 'late_cancel') AND when_ts >= ?
           ORDER BY done_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
       let bk;
       try { bk = await selRows(true); } catch (e) { if (!isNoCol(e)) throw e; bk = await selRows(false); }
       bk.forEach(x => rows.push({ kind: 'booking', id: x.id, counselorId: x.counselor_id, counselor: x.counselor_name || '상담사',
-        clientId: x.client_id, clientName: x.client_name || '', label: x.time_label || '', gross: x.price || 0,
+        clientId: x.client_id, clientName: x.client_name || '', label: (x.time_label || '') + (x.status === 'late_cancel' ? ' (늦은 취소 50%)' : ''),
+        // 정산 대상은 환불을 뺀 금액이다 — 부분 환불·늦은 취소(50%)가 서버 정산(market.js)과 같은 숫자로 보이게
+        gross: Math.max(0, (x.price || 0) - (x.refund || 0)),
         at: x.done_at || 0, appPaidAt: paidAtOf(x), channel: x.channel || 'hospital' }));
       try {
         const selCalls = async (withH) => (await db.prepare(
@@ -597,7 +599,7 @@ export async function handleHospital(request, env, cors, path, ctx) {
       // 이번 달 상담소 채널 완료 상담 — 예약 + 통화
       let monthDone = 0, monthGross = 0, received = 0;
       try {
-        const bk = (await db.prepare(`SELECT price, done_at, settled_at FROM bookings WHERE hospital_id = ? AND channel = 'hospital' AND status = 'done' AND done_at >= ?`).bind(h.id, tNow - 400 * 86400000).all()).results || [];
+        const bk = (await db.prepare(`SELECT price - COALESCE(refund, 0) AS price, done_at, settled_at FROM bookings WHERE hospital_id = ? AND channel = 'hospital' AND status = 'done' AND done_at >= ?`).bind(h.id, tNow - 400 * 86400000).all()).results || [];
         bk.forEach(x => { if (x.done_at >= monthStart) { monthDone++; monthGross += x.price || 0; } if (x.settled_at) received += payoutOf(x.price || 0, 'hospital').hospital; });
       } catch (e) {}
       try {

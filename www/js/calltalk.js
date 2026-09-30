@@ -654,7 +654,7 @@ window.CallTalk = {
       stopRing(); ov.remove();
       try {
         window.Api.f('/api/rtc/end', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callId: call.id, by: 'client' }) }).catch(() => {});
+          body: JSON.stringify({ callId: call.id, by: 'client', rtoken: call.rtoken || '' }) }).catch(() => {});
       } catch (e) {}
     });
     document.getElementById('inc-accept').addEventListener('click', () => {
@@ -712,7 +712,18 @@ window.CallTalk = {
       if (type === 'error') this._setStatus(d.message || '연결하지 못했어요');
     };
     this._wakeLock();
-    const ok = await window.RtcCall.answer({ room: call.room, callId: call.id, as: 'client' });
+    // 방 토큰(rtoken)을 넘겨야 붙기 전의 answer/ICE 가 '통화 당사자'의 신호로 인정된다.
+    //  웹소켓으로 들어온 벨(app.js)에는 토큰이 없다 — 그때는 수신 조회로 한 번 받아 온다
+    //  (clientKey 는 Api 가 자동으로 붙인다). 못 받아도 통화는 건다 — 서버가 아직 유예 중이다.
+    let rtoken = call.rtoken || '';
+    if (!rtoken) {
+      try {
+        const cid = window.App && window.App.clientId ? window.App.clientId() : '';
+        const d = cid ? await window.Api.json('/api/rtc/incoming-client?clientId=' + encodeURIComponent(cid)) : null;
+        if (d && d.call && d.call.id === call.id) rtoken = d.call.rtoken || '';
+      } catch (e) {}
+    }
+    const ok = await window.RtcCall.answer({ room: call.room, callId: call.id, as: 'client', rtoken });
     if (!ok) { this._setStatus('마이크를 확인해주세요'); return; }
     // 받았는데 상대(발신자)가 얼어붙어 있으면 '연결 중'이 영원히 남는다 — 20초면 접는다
     clearTimeout(this._connTimer);
@@ -1132,3 +1143,26 @@ window.CallTalk = {
     document.body.appendChild(ov);
   }
 };
+
+// ── 서비스워커에게 '나는 누구인가'를 알려 둔다 ────────────────────────────
+//  웹푸시는 본문 없는 깨우기라, 서비스워커가 깨어나면 서버에 다시 물어야
+//  '상담사가 전화를 거는 중'인지 알 수 있다. 그런데 서비스워커는 localStorage 를
+//  못 읽어서 내 clientId·clientKey 를 모른다 — 그래서 전화가 와도
+//  '답장이나 숙제일 수 있어요'라는 엉뚱한 알림만 떴다.
+//  페이지가 Cache Storage 에 적어 두면 서비스워커가 읽는다 (pro/sw.js 의 /__me 와 같은 방식).
+//  clientKey 는 부팅 뒤 늦게 도착할 수 있어서, 화면을 떠날 때마다 다시 적는다.
+(function () {
+  const save = () => {
+    try {
+      if (!window.caches || !window.App || !window.App.clientId) return;
+      const clientId = window.App.clientId() || '';
+      if (!clientId) return;
+      const clientKey = (window.App.clientKey && window.App.clientKey()) || '';
+      caches.open('mi-client-cfg')
+        .then(c => c.put('/__me', new Response(JSON.stringify({ clientId, clientKey }))))
+        .catch(() => {});
+    } catch (e) {}
+  };
+  window.addEventListener('load', () => setTimeout(save, 4000));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+})();

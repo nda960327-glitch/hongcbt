@@ -211,6 +211,20 @@ window.Inbox = {
         case 'mypage':
           if (window.App) window.App.switchTab('mypage');
           break;
+        // 서버 푸시(상담사 답장·숙제·예약 소식)는 act:'counselors' 로 온다 — push.js 참고.
+        //  전에는 이 갈래가 없어서 알림을 눌러도 아무 데도 가지 않았다.
+        //  전화 심리상담 탭을 열고 '내 상담 채팅' 목록을 새로 받아 그 자리로 스크롤한다.
+        case 'counselors':
+          if (window.App) {
+            window.App.switchTab('counselors');
+            try { if (window.App.renderChatInbox) window.App.renderChatInbox(); } catch (e) {}
+            try { if (window.App._hchatBgTick) window.App._hchatBgTick(); } catch (e) {}
+            setTimeout(() => {
+              const box = document.getElementById('hchat-inbox');
+              if (box && box.innerHTML) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 250);
+          }
+          break;
         case 'dashboard':
           if (window.App) window.App.switchTab('dashboard');
           break;

@@ -353,7 +353,7 @@ document.addEventListener('click', function (e) {
   if (e.target.closest('[data-cm-hosp-close]')) { C.closeHospital(); return; }
   if (e.target.closest('[data-cm-hosp-link]')) {
     C.closeHospital(); C.close(); C.closeAll();
-    if (window.App && window.App.switchTab) window.App.switchTab('my');
+    if (window.App && window.App.switchTab) window.App.switchTab('mypage');
     const b = document.querySelector('[data-hosp-link]'); if (b) b.click();
   }
 });

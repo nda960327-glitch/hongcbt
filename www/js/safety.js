@@ -137,6 +137,7 @@ window.Safety = {
  <strong style="font-size: 0.85rem; color: var(--accent-primary);"> 전문가는 24시간 기다리고 있어요</strong>
             <a href="tel:109" style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">자살예방상담전화</span><b style="color: var(--accent-primary);">109</b></a>
             <a href="tel:15770199" style="display: flex; justify-content: space-between; margin-top: 0.4rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">정신건강위기상담</span><b style="color: var(--accent-primary);">1577-0199</b></a>
+            <a href="tel:1366" style="display: flex; justify-content: space-between; margin-top: 0.4rem; padding: 0.7rem 0.9rem; background: var(--bg-tertiary); border-radius: 12px; text-decoration: none;"><span style="color: var(--text-primary); font-weight: 700;">여성긴급전화 (폭력·위협)</span><b style="color: var(--accent-primary);">1366</b></a>
           </div>
  ${sec('','그래도 살아갈 이유 — 당신이 쓴 것', p.reasons)}
  ${sec('','나의 경고 신호였던 것', p.signals)}

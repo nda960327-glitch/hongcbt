@@ -1399,7 +1399,7 @@ window.App = {
     // 아직 한 번도 고른 적 없으면(온보딩) '현재 상담사' 표시를 하지 않는다
     const activeId = window.Personas.hasChosen() ? window.Personas.getActive().id : null;
     listEl.innerHTML = '';
-    window.Personas.list.forEach(p => {
+    (window.Personas.visible ? window.Personas.visible() : window.Personas.list).forEach(p => {
       const card = document.createElement('div');
       const isActive = p.id === activeId;
       card.style.cssText = `border: 2px solid ${isActive ? p.color : 'var(--glass-border)'}; border-radius: 14px; padding: 0.95rem; cursor: pointer; background: ${isActive ? `color-mix(in srgb, ${p.color} 10%, var(--bg-secondary))` : 'var(--bg-secondary)'}; transition: all 0.2s ease; box-shadow: var(--shadow-sm);`;
@@ -1598,7 +1598,7 @@ window.App = {
 
   proAppUrl() {
     const h = location.hostname;
-    if (/(^|\.)(mindinsideapp\\.com|neurumind\.com)$/.test(h)) return 'https://pro.mindinsideapp.com/';
+    if (/(^|\.)(mindinsideapp\.com|neurumind\.com)$/.test(h)) return 'https://pro.mindinsideapp.com/';
     if (/\.pages\.dev$/.test(h)) return 'https://neurumind-pro.pages.dev/';
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
   },
@@ -2221,7 +2221,7 @@ ${memory || '(없음)'}`;
       <div style="background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, transparent); border-radius: 12px; padding: 1rem; margin-top: 0.8rem;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.3rem;">
           <span style="background: var(--accent-primary); color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">예약 확정</span>
-          <span style="font-size: 0.78rem; color: var(--text-muted);">${b.price.toLocaleString()}캐시 결제</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">${b.price.toLocaleString()}캐시 결제${b.srvSynced === false ? ' · 상담사에게 전달 중' : ''}</span>
         </div>
         <h4 class="card-head" style="margin: 0 0 0.2rem 0;"><span class="h-ico" data-icon="counselor" data-icon-size="18"></span>${this._escHtml(b.name)}</h4>
         <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">${this._escHtml(b.hospital)}</p>
@@ -2492,24 +2492,44 @@ ${memory || '(없음)'}`;
     }
   },
 
-  // 예약 취소 — 안내문 그대로: 24시간 전 전액 환불, 이후 50%, 시작 후 불가
+  // 예약 취소 — 약관 그대로: 24시간 전까지 무료(전액 환불), 24시간 이내 50% 환불, 시작 시각 이후·노쇼는 환불 없음.
+  //  서버(market.js /bookings/cancel)가 같은 규칙으로 판정한다. 서버가 먼저 받아들여야 캐시를 돌려준다 —
+  //  전에는 기기에서 먼저 환불하고 서버에는 id 만 보내서, 서버가 거절해도(시작 후 등) 환불은 이미 나간 뒤였다.
   async cancelBooking(bookingId) {
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const b = bookings.find(x => x.id === bookingId);
     if (!b || b.status === 'cancelled') return;
     const now = Date.now();
-    if (b.whenTs && b.whenTs <= now) { window.UI.alert('이미 시작된 상담은 취소할 수 없어요.'); return; }
+    if (b.whenTs && b.whenTs <= now) { window.UI.alert('이미 시작된 상담은 취소할 수 없어요.\n(시작 시각 이후 취소·노쇼는 환불되지 않아요)'); return; }
     const hoursLeft = b.whenTs ? (b.whenTs - now) / 3600000 : 999;
     const refundRate = hoursLeft >= 24 ? 1 : 0.5;
-    const refund = Math.round(b.price * refundRate);
+    let refund = Math.round(b.price * refundRate);
     if (!await window.UI.confirm(`${b.name}님과의 예약을 취소할까요?\n[${b.time}]\n\n${hoursLeft >= 24 ? '상담 24시간 전이라 전액 환불돼요.' : '상담 24시간 이내라 50%만 환불돼요.'}\n환불 예정: ${refund.toLocaleString()}캐시`)) return;
+    // 서버에 아직 못 올라간 예약(srvSynced === false)은 기기에서만 닫는다 — 서버는 이 예약을 모른다
+    if (b.srvSynced !== false) {
+      let res = null;
+      try {
+        res = await window.Api.f('/api/bookings/cancel', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: bookingId, clientId: this.clientId() })
+        });
+      } catch (e) { res = null; }
+      if (!res || res.status >= 500) { window.UI.alert('지금은 취소를 처리하지 못했어요. 인터넷 연결을 확인하고 다시 시도해주세요.'); return; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        window.UI.alert((err && err.message) || '이 예약은 취소할 수 없어요.');
+        return;
+      }
+      const d = await res.json().catch(() => ({}));
+      // 환불 금액은 서버 판정을 따른다(경계 시각에 누르면 기기와 서버의 24시간 판정이 갈릴 수 있다)
+      if (d && d.status === 'cancelled') refund = b.price;
+      else if (d && d.status === 'late_cancel' && Number.isFinite(d.refund) && d.refund > 0) refund = Math.min(b.price, d.refund);
+    }
     b.status = 'cancelled';
-    b.cancelledTs = now;
+    b.cancelledTs = Date.now();
     b.refunded = refund;
     window.Storage._safeSet('cbt_bookings', bookings);
-    if (window.Wallet && refund > 0) window.Wallet.refund(refund, `${b.name} 예약 취소 환불${refundRate < 1 ? ' (50%)' : ''}`);
-    // 서버 장부에도 취소 반영 → 상담사 일정에서 '취소됨' 표시
-    try { window.Api.f('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
+    if (window.Wallet && refund > 0) window.Wallet.refund(refund, `${b.name} 예약 취소 환불${refund < b.price ? ' (50%)' : ''}`);
     this.renderMyBookings();
     this.showRecordToast(`예약이 취소되고 ${refund.toLocaleString()}캐시가 환불됐어요`);
   },
@@ -2567,8 +2587,10 @@ ${memory || '(없음)'}`;
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
     const now = Date.now();
     if (document.getElementById('noshow-overlay')) return; // 한 번에 하나만
+    // 상담사가 이미 완료 처리했거나(srvDone) 내가 확인까지 한(srvConfirmAt) 예약은 묻지 않는다 —
+    //  그 뒤로는 '확인/문제가 있었어요' 카드가 맡는다. 여기서 또 물으면 확정된 상담을 미진행으로 뒤집게 된다.
     const target = bookings.find(b =>
-      b.status === 'confirmed' && !b.resolved && b.whenTs &&
+      b.status === 'confirmed' && !b.resolved && b.whenTs && !b.srvDone && !b.srvConfirmAt &&
       b.whenTs + 40 * 60000 < now &&              // 상담 종료 시각 + 여유 지남
       b.whenTs > now - 7 * 86400000 &&            // 너무 오래된 건 묻지 않음
       (!b.askAfter || b.askAfter < now));
@@ -2608,11 +2630,33 @@ ${memory || '(없음)'}`;
       b.resolved = 'done';
     } else if (answer === 'noshow') {
       if (!await window.UI.confirm('상담이 진행되지 않았다면 전액 환불해드려요.\n환불을 진행할까요?')) { b.askAfter = Date.now() + 86400000; window.Storage._safeSet('cbt_bookings', bookings); return; }
+      // 서버가 받아들인 뒤에만 환불한다. 서버는 '시각이 지난 확정 예약' 또는 '완료 처리 후 확인 전(72시간 안)'만 받는다.
+      if (b.srvSynced !== false) {
+        let res = null;
+        try {
+          res = await window.Api.f('/api/bookings/noshow', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: bookingId, clientId: this.clientId() })
+          });
+        } catch (e) { res = null; }
+        if (!res || res.status >= 500) {
+          b.askAfter = Date.now() + 3600000;   // 한 시간 뒤 다시 묻는다
+          window.Storage._safeSet('cbt_bookings', bookings);
+          window.UI.alert('지금은 접수하지 못했어요. 잠시 후 다시 여쭤볼게요.');
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          b.resolved = 'done';
+          window.Storage._safeSet('cbt_bookings', bookings);
+          window.UI.alert((err && err.message) || '이 상담은 미진행으로 처리할 수 없어요. 문제가 있었다면 고객센터로 알려주세요.');
+          return;
+        }
+      }
       b.resolved = 'noshow';
       b.status = 'noshow';
       b.refunded = b.price;
       if (window.Wallet) window.Wallet.refund(b.price, `${b.name} 상담 미진행 전액 환불`);
-      try { window.Api.f('/api/bookings/noshow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: bookingId }) }).catch(() => {}); } catch (e) {}
  this.showRecordToast(`미진행 상담 ${b.price.toLocaleString()}캐시가 전액 환불됐어요`);
       if (this.currentTab === 'mypage') this.renderMyBookings();
     }
@@ -2829,6 +2873,10 @@ ${memory || '(없음)'}`;
   //  그때부터는 설정 앱을 뒤져야 하는데 그 길을 아는 사람은 거의 없다.
   //  버튼 하나로 그 화면까지 데려다준다 (네이티브 플러그인이 없으면 길을 글로 알려준다).
   async openNotifSettings() {
+    // 아직 한 번도 묻지 않은 상태면 시스템 팝업이 뜰 수 있다 — 이 버튼 누름이 '사용자 탭'이다
+    if (this._notifPrompt && this._pushPlugin()) {
+      try { if (await this._initFcmPush({ ask: true }) && !this._notifDenied && !this._notifPrompt) return true; } catch (e) {}
+    }
     try {
       const S = this.isNativeApp() && window.Capacitor && window.Capacitor.Plugins
         && window.Capacitor.Plugins.AppSettings;
@@ -2849,18 +2897,37 @@ ${memory || '(없음)'}`;
   _renderNotifPermRow() {
     try {
       const el = document.getElementById('noti-perm-row');
-      if (el) el.hidden = !this._notifDenied;
+      if (el) el.hidden = !(this._notifDenied || this._notifPrompt);
     } catch (e) {}
   },
 
-  // 설정 화면에 다녀오면 앱이 다시 앞으로 나온다 — 그 순간 조용히 한 번 더 시도한다.
+  // 설정 화면에 다녀오면 앱이 다시 앞으로 나온다 — 그 순간 조용히 한 번 더 확인한다.
+  //  돌아올 때는 '확인'(checkPermissions)만 한다. 여기서 requestPermissions 를 부르면
+  //  앱을 열 때마다 시스템 팝업이 튀어나오거나(아직 안 정한 사람), 권한 창이 앱을 가려
+  //  다시 visibilitychange 가 나는 고리가 생긴다. 요청은 사용자가 버튼을 눌렀을 때만.
   _watchNotifReturn() {
     if (this._notifWatch) return;
     this._notifWatch = true;
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden || !this._notifDenied) return;
-      this._initFcmPush().catch(() => {});
+      if (document.hidden || !(this._notifDenied || this._notifPrompt)) return;
+      this._initFcmPush({ ask: false }).catch(() => {});
     });
+  },
+
+  // 아직 알림 권한을 정하지 않은 사람에게 앱 안에서 먼저 묻는다.
+  //  [알림 켜기]를 누른 그 탭 안에서만 시스템 팝업(requestPermissions)을 띄운다.
+  async _notifSoftAsk() {
+    try {
+      if (!this._notifPrompt || this._notifAsking || !window.UI || !window.UI.confirm) return;
+      this._notifAsking = true;
+      const ok = await window.UI.confirm({
+        title: '알림을 켤까요?',
+        body: '상담사님의 답장·예약 소식·전화를 놓치지 않도록 알려드려요.',
+        okLabel: '알림 켜기', cancelLabel: '나중에'
+      });
+      this._notifAsking = false;
+      if (ok) await this._initFcmPush({ ask: true });
+    } catch (e) { this._notifAsking = false; }
   },
 
   // 거부한 사람에게 딱 한 번만 길을 알려준다. 매번 띄우면 그게 더 성가시다.
@@ -2882,7 +2949,9 @@ ${memory || '(없음)'}`;
   // ── 스토어 앱: FCM 네이티브 푸시 ────────────────────────────────────
   //  권한 요청 → 토큰 수신(registration) → 서버 등록.
   //  알림을 누르면 기존 라우팅(Inbox.runAct)을 그대로 탄다.
-  async _initFcmPush() {
+  //  opts.ask — 사용자가 방금 버튼을 눌렀을 때만 true. 그때만 시스템 권한 팝업을 띄운다.
+  async _initFcmPush(opts) {
+    const ask = !!(opts && opts.ask);
     const P = this._pushPlugin();
     const native = this.isNativeApp();
     if (!native) return false;
@@ -2894,11 +2963,15 @@ ${memory || '(없음)'}`;
       // 앱을 처음 켠 그 순간에 묻는다. 나중에 물으면 사용자는 이미 다른 걸 하는 중이고,
       //  그때 뜬 팝업은 '방해'로 느껴져 거부율이 크게 올라간다.
       //  (안드로이드 13+ 는 OS 정책상 앱이 대신 켜줄 수 없다 — 팝업이 유일한 길이다)
+      //  단, 팝업(requestPermissions)은 사용자 탭(ask) 안에서만 — 앱을 켜거나 돌아올 때는 상태만 확인하고,
+      //  아직 안 정한 사람에게는 앱 안내(_notifSoftAsk)의 [알림 켜기] 버튼으로 묻는다.
       let perm = await P.checkPermissions().catch(() => null);
-      if (!perm || perm.receive !== 'granted') perm = await P.requestPermissions().catch(() => null);
+      if ((!perm || perm.receive !== 'granted') && ask) perm = await P.requestPermissions().catch(() => null);
       if (!perm || perm.receive !== 'granted') {
         this._pushDiag('fcm-perm', (perm && perm.receive) || 'denied');
-        this._notifDenied = true;
+        // 'prompt'·'prompt-with-rationale' = 아직 안 정했다(물어볼 수 있다) / 'denied' = 거부
+        this._notifPrompt = !!(perm && /prompt/.test(String(perm.receive || '')));
+        this._notifDenied = !this._notifPrompt;
         // 설정에서 켜고 돌아오면 그 순간 자동으로 등록되게 — 다시 앱을 켜라고
         //  시키지 않는다. (거부 상태에서 다시 물어도 팝업은 뜨지 않는다. 조용한 재시도다)
         this._fcmBound = false;
@@ -2907,6 +2980,7 @@ ${memory || '(없음)'}`;
         return true;
       }
       this._notifDenied = false;
+      this._notifPrompt = false;
       this._renderNotifPermRow();
 
       P.addListener('registration', (t) => {
@@ -2957,9 +3031,11 @@ ${memory || '(없음)'}`;
     // 스토어 앱이면 FCM 이 먼저다. 성공하든 실패하든 웹푸시는 시도하지 않는다
     //  (앱 웹뷰에는 서비스워커가 없어서 어차피 받을 곳이 없다).
     try {
-      if (await this._initFcmPush()) {
+      if (await this._initFcmPush({ ask: false })) {
         // 거부했다면 잠깐 뒤에 한 번만 길을 알려준다 (첫 화면을 가리지 않게)
         if (this._notifDenied) setTimeout(() => this._notifRecoveryOnce(), 6000);
+        // 아직 정하지 않았다면 앱 안내로 먼저 묻는다 — [알림 켜기] 탭에서만 시스템 팝업을 띄운다
+        else if (this._notifPrompt) setTimeout(() => this._notifSoftAsk(), 2500);
         return;
       }
     } catch (e) {}
@@ -2996,7 +3072,9 @@ ${memory || '(없음)'}`;
       const connect = () => {
         if (this._globalWs) return;
         let ws;
-        try { ws = new WebSocket(`${base}/ws?ch=cl:${encodeURIComponent(this.clientId())}`); } catch (e) { return; }
+        // 'cl:' 채널은 clientKey 로 주인임을 증명해야 열린다(남의 채널을 엿듣지 못하게)
+        const ck = this.clientKey();
+        try { ws = new WebSocket(`${base}/ws?ch=cl:${encodeURIComponent(this.clientId())}${ck ? '&clientKey=' + encodeURIComponent(ck) : ''}`); } catch (e) { return; }
         this._globalWs = ws;
         ws.onmessage = (e) => {
           try {
@@ -3332,9 +3410,27 @@ ${memory || '(없음)'}`;
       if (!res || !res.ok) return;
       const server = (await res.json()).items || [];
       let changed = false;
+      const unsynced = [];
       active.forEach(b => {
         const sv = server.find(x => x.id === b.id);
-        if (!sv) return;
+        if (!sv) {
+          // 서버가 모르는 확정 예약 = 결제는 됐는데 장부에 못 올라간 것(예약 순간 네트워크가 끊겼거나 서버가 5xx).
+          //  전에는 여기서 그냥 넘어가서, 상담사는 예약을 모르는데 내담자만 기다리는 상태로 영영 남았다.
+          //  (서버 목록은 최근 100건이라 아주 오래된 것은 빠질 수 있다 — 최근 7일 안의 예약만 다룬다.
+          //   이미 서버에 있는 예약을 다시 보내도 서버는 id 로 알아보고 그대로 둔다)
+          if (b.status === 'confirmed' && b.srvSynced !== true && (!b.whenTs || b.whenTs > Date.now() - 7 * 86400000)) unsynced.push(b);
+          return;
+        }
+        if (b.srvSynced !== true) { b.srvSynced = true; changed = true; }
+
+        // 일부 환불 — 상태는 그대로(완료·확정)이고 refund 만 늘었다. 늘어난 만큼만 돌려준다.
+        if (sv.status !== 'refunded' && sv.status !== 'declined' && (sv.refund || 0) > (b.refunded || 0)) {
+          const delta = (sv.refund || 0) - (b.refunded || 0);
+          b.refunded = sv.refund;
+          changed = true;
+          if (window.Wallet) window.Wallet.refund(delta, `${b.name} 상담 일부 환불${sv.refundWhy ? ' · ' + sv.refundWhy : ''}`);
+          this.showRecordToast(`${b.name} 상담료 중 ${delta.toLocaleString()}캐시가 환불됐어요`);
+        }
 
         // 상담사가 거절 — 전액 환불
         if (sv.status === 'declined' && b.status === 'confirmed') {
@@ -3349,15 +3445,24 @@ ${memory || '(없음)'}`;
           return;
         }
 
-        // 상담사가 환불 처리 (병가 등)
-        if (sv.status === 'refunded' && !b.refunded) {
+        // 상담사·운영자가 전액 환불 (병가·이의 처리 등). 앞서 일부 환불을 받았으면 나머지만.
+        if (sv.status === 'refunded' && b.status !== 'cancelled') {
+          const total = sv.refund || b.price;
+          const delta = Math.max(0, total - (b.refunded || 0));
           b.status = 'cancelled';
           b.cancelledBy = 'counselor';
-          b.refunded = sv.refund || b.price;
+          b.refunded = total;
           changed = true;
-          if (window.Wallet) window.Wallet.refund(b.refunded, `${b.name} 상담 환불${sv.refundWhy ? ' · ' + sv.refundWhy : ''}`);
-          this.showRecordToast(`${b.name}님이 환불 처리했어요 (${(b.refunded).toLocaleString()}캐시)`);
+          if (window.Wallet && delta > 0) window.Wallet.refund(delta, `${b.name} 상담 환불${sv.refundWhy ? ' · ' + sv.refundWhy : ''}`);
+          this.showRecordToast(`${b.name} 상담이 환불 처리됐어요 (${total.toLocaleString()}캐시)`);
           return;
+        }
+
+        // 이의가 운영자 판단으로 '정상 진행'으로 정리됐다 — 이의 안내를 내리고 확인됨으로
+        if (b.srvDispute && sv.status === 'done' && sv.confirmAt) {
+          b.srvDispute = '';
+          b.srvConfirmAt = sv.confirmAt;
+          changed = true;
         }
 
         // 상담사가 완료 처리 — 내담자가 확인해야 정산이 확정된다
@@ -3378,11 +3483,33 @@ ${memory || '(없음)'}`;
         if (sv.confirmAt && !b.srvConfirmAt) { b.srvConfirmAt = sv.confirmAt; changed = true; }
         if (sv.settledAt && !b.srvSettledAt) { b.srvSettledAt = sv.settledAt; changed = true; }
       });
+      if (changed) window.Storage._safeSet('cbt_bookings', bookings);
+      // 못 올라간 예약을 다시 보낸다 (서버는 같은 id 를 두 번 넣지 않는다 — 멱등)
+      for (const b of unsynced) {
+        const r = window.Booking && window.Booking.sync ? await window.Booking.sync(b) : { result: 'retry' };
+        if (r.result === 'ok') { window.Booking._markSynced(b.id, r.id); continue; }
+        if (r.result === 'reject') {
+          // 서버가 이 예약을 받을 수 없다(시간이 지났거나 겹침·잔액 등) → 결제한 캐시를 전액 돌려준다
+          window.Booking._undoBooking(b, null, '예약이 확정되지 못했어요',
+            `${b.name} 선생님과의 [${b.time}] 예약이 서버에 등록되지 못했어요.${r.message ? '\n(' + r.message + ')' : ''}`);
+          continue;
+        }
+        // 네트워크·서버 오류 — 다음 틱에 다시. 그런데 상담 시각이 지나도록 못 올라갔다면
+        //  상담사는 이 예약을 끝내 모른다. 기다리게 두지 말고 환불하고 알린다.
+        const list = window.Storage._safeGet('cbt_bookings', []) || [];
+        const x = list.find(v => v && v.id === b.id);
+        if (x) { x.srvSyncTry = (x.srvSyncTry || 0) + 1; window.Storage._safeSet('cbt_bookings', list); }
+        //  (srvSynced === false 는 이 앱 버전이 만든 예약이라는 뜻. 옛 예약은 서버가 닿을 때 판정을 받는다)
+        if (b.whenTs && b.whenTs <= Date.now() && b.srvSynced === false) {
+          window.Booking._undoBooking(b, null, '예약이 전달되지 못했어요',
+            `${b.name} 선생님께 [${b.time}] 예약이 전달되지 못해 상담이 진행되지 않았어요.`);
+        }
+      }
+      // 저장은 위에서 이미 했다 — 여기서 bookings 를 다시 쓰면 재전송 결과(_markSynced·되돌림)를 옛 값으로 덮는다
       if (changed) {
-        window.Storage._safeSet('cbt_bookings', bookings);
         if (this.currentTab === 'mypage') this.renderMyBookings();
         this._setNavBadge('mypage', true);
-      }
+      } else if (unsynced.length && this.currentTab === 'mypage') this.renderMyBookings();
     } catch (e) {}
   },
 
@@ -3393,7 +3520,8 @@ ${memory || '(없음)'}`;
     if (!meaningful) return;
     const last = S._safeGet('cbt_backup_ts', 0) || 0;
     if (last && Date.now() - last < 30 * 86400000) return;
-    const monthKey = new Date().toISOString().slice(0, 7);
+    // 달 구분은 이 기기의 날짜로 — toISOString 은 UTC 라 한국의 1일 0~9시가 지난달로 잡혔다
+    const monthKey = (S.dayKey ? S.dayKey() : new Date().toLocaleDateString('sv-CA')).slice(0, 7);
     if (S._safeGet('cbt_backup_nudged', '') === monthKey) return;
     S._safeSet('cbt_backup_nudged', monthKey);
  setTimeout(() => this.showRecordToast('느루의 기억, 이번 달엔 아직 백업 전이에요 (마이페이지 › 기억 간직하기)'), 6000);
@@ -4707,7 +4835,8 @@ ${body}
     if (!window.CallTalk || !window.RtcCall) { this.showRecordToast('통화 모듈을 불러오지 못했어요. 앱을 완전히 껐다 다시 열어주세요'); return; }
     // 예약 시간 전후 1시간 안이면 회기권 통화(추가 과금 없음), 아니면 30초당 실시간 과금
     const bookings = window.Storage._safeGet('cbt_bookings', []) || [];
-    const prepaid = bookings.some(b => b.counselorId === c.id && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
+    //  살아 있는 예약(confirmed)만 — 취소·거절·환불된 예약 시각에 걸면 '정액'으로 잘못 안내돼 공짜 통화처럼 보였다
+    const prepaid = bookings.some(b => b.counselorId === c.id && b.status === 'confirmed' && b.whenTs && Math.abs(b.whenTs - Date.now()) < 60 * 60 * 1000);
     if (!prepaid) {
       // 이 상담사에게 예약이 있는데 시간 밖이면: 지금 통화는 별도 과금임을 분명히 알린다
       const nextBk = bookings
@@ -4808,7 +4937,8 @@ ${body}
     try {
       const wsBase = (window.LLM && window.LLM.BACKEND_URL || '').replace(/^http/, 'ws').replace(/\/+$/, '');
       if (wsBase) {
-        const ws = new WebSocket(`${wsBase}/ws?ch=cl:${encodeURIComponent(this.clientId())}`);
+        const ck = this.clientKey();
+        const ws = new WebSocket(`${wsBase}/ws?ch=cl:${encodeURIComponent(this.clientId())}${ck ? '&clientKey=' + encodeURIComponent(ck) : ''}`);
         this._hchatWs = ws;
         ws.onmessage = (e) => {
           try {

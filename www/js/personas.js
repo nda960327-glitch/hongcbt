@@ -245,6 +245,18 @@ window.Personas = {
     if (window.Storage) window.Storage._safeSet('cbt_active_persona', id);
   },
 
+  // 화면에 내보일 상담사 목록. A/B 비교용 '우렁의사'(woorung-ds)는 그 링크(?ai=woorung·b)로
+  //  들어온 사람에게만 보인다 — 전에는 모든 사용자의 선택 화면에 실험용 상담사가 떠 있었다.
+  //  (이미 그 상담사를 쓰고 있는 사람에게서 갑자기 사라지지 않게 현재 선택도 함께 본다)
+  visible() {
+    let linked = null, active = null;
+    try {
+      linked = window.Storage ? window.Storage._safeGet('cbt_ai_link_persona', null) : null;
+      active = window.Storage ? window.Storage._safeGet('cbt_active_persona', null) : null;
+    } catch (e) {}
+    return this.list.filter(p => p.id !== 'woorung-ds' || linked === 'woorung-ds' || active === 'woorung-ds');
+  },
+
   // ── 배정 링크 (A/B 비교용, 2026-09-30) ──────────────────────────────
   //  한 사람에게는 ?ai=neru(느루) 링크를, 다른 사람에게는 ?ai=woorung(우렁의사)
   //  링크를 준다. 링크로 열면 그 상담사가 기본으로 정해지고 선택 화면을
@@ -287,7 +299,7 @@ window.Personas = {
     if (!container) return;
 
     const active = this.getActive();
-    container.innerHTML = this.list.map(p => {
+    container.innerHTML = this.visible().map(p => {
       const isActive = p.id === active.id;
       return `
         <div onclick="window.Personas.selectPersona('${p.id}')" style="cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.45rem 0.2rem; border-radius: 12px; background: ${isActive ? 'color-mix(in srgb, var(--accent-primary) 15%, transparent)' : 'var(--bg-tertiary)'}; border: ${isActive ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)'}; transition: all 0.2s ease;">

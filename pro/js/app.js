@@ -1298,7 +1298,7 @@ function bookingCard(b) {
             <strong class="grow" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}">${esc(b.clientName)} 님${dead ? '' : ' · 30분'}</strong>
             ${badge}
           </div>
-          <p class="muted" style="margin-top:0.3rem;">${esc(b.time)}<br>${won(b.price)}캐시${dead ? '' : ` · 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>`}</p>
+          <p class="muted" style="margin-top:0.3rem;">${esc(b.time)}<br>${won(b.price)}캐시${dead ? '' : ` · 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>`}${b.status === 'late_cancel' ? ` · 취소 수수료 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>` : ''}</p>
           ${hint}${autoNote}${disputeNote}${noteBox}${actions}
         </div>
       </div>

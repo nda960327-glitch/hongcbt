@@ -64,7 +64,7 @@ window.I18N = {
   map: {
     en: {
       // 내비게이션
-      '홈': 'Home', '챗봇': 'Chat', '상담사 매칭': 'Counselors', '전화 심리상담': 'Phone Counseling', '대시보드': 'Dashboard', '마이': 'My',
+      '홈': 'Home', '챗봇': 'Chat', 'AI심리상담': 'AI Counseling', '상담사 매칭': 'Counselors', '전화 심리상담': 'Phone Counseling', '대시보드': 'Dashboard', '마이': 'My',
       // 홈
       '마인드 인사이드 홈': 'Mind Inside Home',
       '나와 잘 맞는 상담사를 선택하고 대화를 시작해보세요': 'Pick the counselor that fits you and start talking',

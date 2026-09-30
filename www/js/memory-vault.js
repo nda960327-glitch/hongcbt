@@ -86,7 +86,7 @@ window.MemoryVault = {
 
     const sealed = this.encrypt(JSON.stringify(snapshot));
     window.Storage._safeSet("cbt_backup_ts", Date.now()); // 백업 넛지 기준일 갱신
-    const dateStr = new Date().toISOString().split("T")[0];
+    const dateStr = new Date().toLocaleDateString("sv-CA"); // 기기 날짜 기준(UTC 로 하면 새벽 백업이 전날로 찍힌다)
     const blob = new Blob([sealed], { type: "application/octet-stream" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -32,6 +32,11 @@
   //  모델 응답의 '위험감지' 만 믿으면 이미 낮은 모델이 답을 쓴 뒤라 늦다.
   //  놓치는 것보다 과하게 잡는 편이 낫다 — 비용은 몇 원, 놓치면 사람이다.
   RISK_RE: /죽고\s?싶|죽어버리|자살|목숨|목\s?매|뛰어내리|사라지고\s?싶|없어지고\s?싶|없어졌으면|살기\s?싫|살고\s?싶지\s?않|자해|손목|칼로|약을?\s?(모으|삼키|먹)|번개탄|유서|다\s?끝내|끝내고\s?싶|죽여버리|해치고\s?싶|다\s?죽|폭발할\s?것|못\s?견디|버틸\s?수\s?없|한계|무너질\s?것|몸\s?파|성매매|조건\s?만남|유흥\s?업소|룸싸|출장\s?알바|스폰서|빚\s?때문|선불금|감금|팔려\s?가|맞았어|때려|폭행|스토킹|협박|강요당|도박|마약|필로폰|대마/,
+  // 자·타해 신호 — RISK_RE 보다 좁다(도박·폭행·'한계' 같은 말은 뺐다).
+  //  방금 보낸 말에 이게 있으면 모델이 '위험감지'를 빠뜨려도 안전 안내(109·1577-0199·1366)를 띄운다.
+  //  RISK_RE 는 모델을 올리는 데만 쓰고, 안내를 띄우는 건 이쪽이다 — 넓게 잡으면 '배터리 한계'에도 위기 창이 뜬다.
+  CRISIS_RE: /죽고\s?싶|죽어\s?버리|죽을\s?래|자살|목숨을?\s?끊|목\s?매|뛰어\s?내리|사라지고\s?싶|없어지고\s?싶|살기\s?싫|살고\s?싶지\s?않|자해|손목을?\s?(긋|그어|자르|잘라)|약을?\s?(모으|모아|삼키|한꺼번에)|번개탄|유서|끝내고\s?싶|죽여\s?버리|죽이고\s?싶|해치고\s?싶/,
+  CRISIS_REPEAT_MS: 30 * 60 * 1000,   // 말만으로 띄운 안내는 30분 안에 다시 띄우지 않는다
   // 재치가 필요한 턴 — 여기도 상위 모델로 올린다.
   //  한국어 말장난은 음운을 정확히 맞춰야 성립하는데 mini 가 이걸 못한다.
   //  ("칵테일 두 잔이면 기분이 훅-칵" 처럼 말이 안 되는 걸 만들어낸다)
@@ -154,9 +159,21 @@
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = '', full = '', mode = '';
+    // 조각이 한동안 안 오면 끊는다. _fetchT 의 시간 제한은 헤더가 도착하는 순간 풀리므로,
+    //  그 뒤 서버가 스트림을 연 채 멈추면 타이핑 표시가 영원히 돌았다.
+    //  첫 조각은 상위 모델이 생각하는 시간을 감안해 조금 더 기다린다.
+    const IDLE_MS = 20000, FIRST_MS = 30000;
+    const readWithTimeout = () => {
+      let timer;
+      const ms = full || buf ? IDLE_MS : FIRST_MS;
+      return Promise.race([
+        reader.read(),
+        new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('stream-idle')), ms); })
+      ]).finally(() => clearTimeout(timer));
+    };
     try {
       for (;;) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readWithTimeout();
         if (done) break;
         buf += dec.decode(value, { stream: true });
         if (!mode) {
@@ -183,8 +200,10 @@
         }
       }
     } catch (e) {
+      if (e && e.message === 'stream-idle') { try { reader.cancel().catch(() => {}); } catch (e2) {} }
       // 중간에 끊겼어도 받은 만큼은 살린다 — 그마저 없으면 실패로
       if (!full.trim()) return { ok: false, status: 0 };
+      mode = 'sse';   // 받은 만큼만 쓴다 (JSON 모드였다면 반쪽 JSON 을 파싱하지 않게)
     }
     if (mode === 'json') {
       try {
@@ -1039,6 +1058,15 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       if (botText.includes("위험감지")) {
         crisis = true;
         botText = botText.replace(/위험감지/g, "").trim();
+      } else if (this.CRISIS_RE.test(String(userText || ''))) {
+        // 모델(특히 하위 모델)이 '위험감지'를 빠뜨려도, 방금 보낸 말에 자·타해 신호가 있으면 안내를 띄운다.
+        //  같은 대화에서 매 턴 창이 뜨면 오히려 밀어내는 느낌이라, 최근 30분 안에 띄웠으면 건너뛴다.
+        //  (모델이 표시한 경우는 위처럼 언제나 띄운다)
+        let last = 0;
+        try { const f = window.Storage && window.Storage._safeGet('cbt_crisis_followup', null); last = (f && f.at) || 0; } catch (e) {}
+        if (!last || Date.now() - last > this.CRISIS_REPEAT_MS) crisis = true;
+      }
+      if (crisis) {
         // 다음 날 먼저 안부를 물을 수 있게 시각만 남긴다 (내용은 저장하지 않는다)
         try {
           if (window.Storage) window.Storage._safeSet('cbt_crisis_followup', { at: Date.now(), done: false });
@@ -1183,7 +1211,7 @@ Respond ENTIRELY in natural, casual English (like texting a close friend). All c
       if (!crisis) this._autoLaughSticker(items);
 
       if (crisis) {
-        items.push({ text: "당신의 안전이 무엇보다 중요해요. 혼자 견디지 말고 꼭 도움을 받아요.\n· 자살예방상담전화 109 (24시간)\n· 정신건강상담전화 1577-0199\n· 응급상황 시 112 / 119" });
+        items.push({ text: "당신의 안전이 무엇보다 중요해요. 혼자 견디지 말고 꼭 도움을 받아요.\n· 자살예방상담전화 109 (24시간)\n· 정신건강상담전화 1577-0199\n· 여성긴급전화 1366 (폭력·위협, 24시간)\n· 응급상황 시 112 / 119" });
       }
 
       const lastTextIdx = (() => { for (let i = items.length - 1; i >= 0; i--) if (items[i].text) return i; return -1; })();
