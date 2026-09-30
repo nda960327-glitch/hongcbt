@@ -221,7 +221,7 @@ window.LLM = {
   _crisisResponse(prefix) {
     const body = (prefix ? prefix + "\n\n" : "") +
       "혼자 견디지 마세요. 지금 바로 전문가의 도움을 받을 수 있어요.\n\n" +
-      "자살예방상담전화: 1393\n정신건강상담전화: 1577-0199\n희망의 전화: 129";
+      "자살예방상담전화: 109\n정신건강상담전화: 1577-0199\n보건복지상담센터: 129";
     return { text: body, crisis: true, delay: 500 };
   }
 };
