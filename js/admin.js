@@ -685,16 +685,14 @@ window.Admin = {
         <div>
  <h3 style="margin: 0 0 0.6rem; font-size: 0.95rem; color: var(--text-primary);"> 수익 구조</h3>
           <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.85rem 1rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.7;">
-            <b style="color: var(--text-primary);">인간 상담 (카드결제 PG)</b><br>
-            상담사 <b style="color: var(--text-primary);">97%</b> · 결제 수수료(PG) 3% · 플랫폼 <b style="color: var(--accent-primary);">0%</b> — 상담료에서는 가져가지 않습니다<br>
+            <b style="color: var(--text-primary);">인간 상담 (카드결제 PG) — 플랫폼 수익 = 상담료 수수료</b><br>
+            <b>앱으로 온 내담자</b> — 상담사 <b style="color: var(--text-primary);">70%</b>(6만원 넘는 부분 55%) · 결제 수수료 3% · 나머지 마인드 인사이드. 앱이 상담사에게 직접 지급합니다.<br>
+            <b>소개(상담소와 연결된 내담자 + 개인 상담사)</b> — 상담사 70/55 · 상담소 20% · 결제 수수료 3% · 나머지 마인드 인사이드(6만원 기준 7%).<br>
+            <b>상담소를 통해 온 내담자(소속 상담사)</b> — 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%. 앱은 상담소에만 지급하고, 상담사에게는 상담소가 직접 지급합니다.<br>
             <span id="admin-rev" style="font-size: 0.76rem; color: var(--text-muted);">완료 상담 정산 집계 중…</span>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">바로상담 (캐시 결제 · 30초당)</b><br>
-              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 동일 (상담사 97 · PG 3 · 플랫폼 0)
-            </div>
-            <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
-              <b style="color: var(--text-primary);">상담사 구독 (플랫폼 주 수익)</b><br>
-              월 <b style="color: var(--accent-primary);">99,000원</b> · 등록 승인 후 첫 1개월 무료 — 구독이 끊기면 매칭 목록에서 내려갑니다
+              요금 = 예약 상담료 ÷60 × <b>1.25</b> (즉시성 프리미엄, 자동 책정) — 정산 배분율은 예약 상담과 같습니다(채널별 위 비율)
             </div>
             <div style="border-top: 1px dashed var(--glass-border); margin: 0.5rem 0; padding-top: 0.5rem;">
               <b style="color: var(--text-primary);">AI 구독·캐시 (구글 인앱결제)</b><br>
@@ -796,15 +794,26 @@ window.Admin = {
     if (this._stats) paint(this._stats);
     else window.Api.json('/api/stats?code=' + encodeURIComponent(this.code()))
       .then(d => { if (d) this._stats = d; paint(d); });   // 실패해도 '서버 미연결'을 보여준다
-    // 서버 예약 장부에서 완료 상담 집계 → 플랫폼 실수익(7%) 표시
+    // 서버 예약 장부에서 '실제로 끝난' 상담만 모아 채널별 배분으로 합친다.
+    //  전에는 '취소 아님 + 시각 지남'을 모두 완료로 보고 70/27 을 한 번에 곱해서, 미진행·환불·거절까지
+    //  매출에 들어가고 상담소 채널(90/7/3)·6만원 구간(55%)도 틀렸다.
+    //  완료(done)와 24시간 이내 늦은 취소(late_cancel)만, 금액은 price − refund. 배분은 서버가 붙여 준
+    //  b.payout(market.js payoutOf)을 그대로 쓰고, 없으면 Payout.breakdown 으로 같은 식을 돌린다.
     window.Api.f('/api/bookings?code=' + this.code()).then(r => r.ok ? r.json() : null).then(d => {
       const el = document.getElementById('admin-rev');
       if (!el) return;
       if (!d) { el.textContent = '서버 미연결 — 정산 집계 불가'; return; }
-      const now = Date.now();
-      const done = (d.items || []).filter(b => b.status !== 'cancelled' && b.whenTs <= now);
-      const gross = done.reduce((s, b) => s + (b.price || 0), 0);
-      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${gross.toLocaleString()}캐시 → 상담사 ${Math.round(gross * 0.70).toLocaleString()} · <b style="color: var(--accent-primary);">플랫폼 ${Math.round(gross * 0.27).toLocaleString()}</b> (PG 실비 ${Math.round(gross * 0.03).toLocaleString()})`;
+      const done = (d.items || []).filter(b => b.status === 'done' || b.status === 'late_cancel');
+      const sum = { total: 0, counselor: 0, hospital: 0, pg: 0, platform: 0 };
+      done.forEach(b => {
+        const net = Math.max(0, (b.price || 0) - (b.refund || 0));
+        const p = b.payout && typeof b.payout.counselor === 'number' ? b.payout
+          : (window.Payout && window.Payout.breakdown ? window.Payout.breakdown(net, b.channel) : null);
+        if (!p) return;
+        sum.total += net; sum.counselor += p.counselor || 0; sum.hospital += p.hospital || 0;
+        sum.pg += p.pg || 0; sum.platform += p.platform || 0;
+      });
+      el.innerHTML = `완료 상담 ${done.length}건 · 총 결제 ${sum.total.toLocaleString()}캐시 → 상담사 ${sum.counselor.toLocaleString()}${sum.hospital ? ` · 상담소 ${sum.hospital.toLocaleString()}` : ''} · <b style="color: var(--accent-primary);">플랫폼 ${sum.platform.toLocaleString()}</b> (PG 실비 ${sum.pg.toLocaleString()})`;
     }).catch(() => {});
   }
 };

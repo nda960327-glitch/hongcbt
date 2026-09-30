@@ -29,10 +29,13 @@ CREATE TABLE IF NOT EXISTS bookings (
   when_ts        INTEGER NOT NULL,       -- 상담 시각
   time_label     TEXT,                   -- 화면에 그대로 쓰는 표기
   price          INTEGER NOT NULL DEFAULT 0,
-  status         TEXT NOT NULL DEFAULT 'confirmed',  -- confirmed|cancelled|declined|noshow
+  status         TEXT NOT NULL DEFAULT 'confirmed',  -- confirmed|done|disputed|cancelled|late_cancel|declined|noshow|refunded
   created        INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bk_counselor ON bookings(counselor_id, when_ts);
+-- 이중 예약 최후 방어선 (schema-2026-10b.sql 과 같은 인덱스) — 같은 상담사·같은 시각의 살아 있는 예약은 한 건만
+CREATE UNIQUE INDEX IF NOT EXISTS uq_bk_slot ON bookings(counselor_id, when_ts)
+  WHERE status IN ('confirmed', 'done', 'disputed');
 CREATE INDEX IF NOT EXISTS idx_bk_client    ON bookings(client_id, when_ts);
 
 CREATE TABLE IF NOT EXISTS inbox (

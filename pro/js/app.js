@@ -114,8 +114,12 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const won = n => (Math.round(n || 0)).toLocaleString();
-const DEAD = ['cancelled', 'declined', 'noshow', 'refunded'];
-const isEarned = b => !DEAD.includes(b.status) && b.whenTs <= Date.now();
+// 일정에서 빠지는 상태. late_cancel(24시간 이내 취소)도 상담은 열리지 않는다 — 다만 수입에는 잡힌다(아래).
+const DEAD = ['cancelled', 'late_cancel', 'declined', 'noshow', 'refunded'];
+// 번 돈으로 세는 예약 — 상담을 마친 것(done, 정산된 것 포함)과 늦은 취소(내담자가 낸 50%)뿐.
+//  전에는 '시각이 지난 확정·이의 접수'까지 상담료 전액으로 세서, 미진행·환불될 돈이 수입처럼 보였다.
+//  금액은 서버가 붙여 주는 b.payout — market.js payoutOf(price − refund, 채널)과 같은 값이다.
+const isEarned = b => b.status === 'done' || b.status === 'late_cancel';
 
 function toast(msg) {
   const t = $('toast');
@@ -315,7 +319,8 @@ async function loginWithCode() {
   btn.disabled = false; btn.textContent = '시작하기';
   if (!r || !r.ok) {
     // 상담사 코드가 아니면 상담소(소장) 코드일 수 있다 — 의사 앱으로 넘긴다
-    if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v)) {
+    //  (소장 관리 코드 HA-XXXX-XXXX-XXXX-XXXX 도 소장 앱의 것이다)
+    if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v) || /^HA(-?[A-Z0-9]{4}){4}$/i.test(v)) {
       errEl.textContent = '상담소 코드네요. 소장 앱으로 이동합니다…';
       errEl.style.display = 'block';
       setTimeout(() => { location.href = DOC_URL + '/?code=' + encodeURIComponent(v.toUpperCase()); }, 600);
@@ -615,7 +620,8 @@ async function loadChats() {
   D.chats = (d.items || []).sort((a, b) => a.ts - b.ts);
   // 내담자가 보낸 메시지가 늘었으면 소리로 알린다. 이게 '채팅이 안 온다'의 정체였다 —
   //  서버에는 와 있는데 화면이 조용해서 아무도 몰랐다.
-  const n = D.chats.filter(m => m.from === 'client').length;
+  //  서버는 '가장 최근 N개'를 준다 — 개수는 꽉 차면 더 늘지 않으므로, 내담자 메시지의 '가장 늦은 시각'으로 본다.
+  const n = D.chats.reduce((mx, m) => m.from === 'client' && (m.ts || 0) > mx ? (m.ts || 0) : mx, 0);
   if (lastClientMsgs !== null && n > lastClientMsgs) {
     const last = [...D.chats].reverse().find(m => m.from === 'client');
     // 통화 화면이 떠 있으면 소리를 내지 않는다 — 알림음이 통화 목소리를 덮는다.
@@ -1245,11 +1251,13 @@ function bookingCard(b) {
 
   const badge =
       b.status === 'cancelled' ? '<span class="chip off">내담자 취소</span>'
+    : b.status === 'late_cancel' ? `<span class="chip gold">늦은 취소 · 50% 정산${paid ? ' 완료' : ''}</span>`
     : b.status === 'declined' ? '<span class="chip bad">거절함 · 전액 환불</span>'
     : b.status === 'noshow' ? '<span class="chip bad">미진행</span>'
     : b.status === 'refunded' ? '<span class="chip bad">환불함</span>'
     : disputed ? '<span class="chip bad">이의 접수 · 정산 보류</span>'
-    : paid ? '<span class="chip ok">정산 완료</span>'
+    : paid ? `<span class="chip ok">정산 완료${b.refund ? ' · 일부 환불' : ''}</span>`
+    : done && b.refund ? '<span class="chip gold">일부 환불 · 남은 금액 정산</span>'
     : done && b.confirmAt ? '<span class="chip ok">확인됨 · 정산 대기</span>'
     : done ? '<span class="chip new">내담자 확인 대기</span>'
     : soon ? '<span class="chip new">곧 시작</span>'
@@ -1607,6 +1615,7 @@ function renderMoney() {
       <div style="text-align:right;">
         <strong style="font-size:0.88rem; color:var(--accent);">+${won(b.payout ? b.payout.counselor : 0)}</strong>
         <div>${b.settledAt ? '<span class="chip ok">지급 완료</span>'
+              : b.status === 'late_cancel' ? '<span class="chip gold">늦은 취소 50%</span>'
               : b.status === 'done' ? '<span class="chip gold">정산 대기</span>'
               : '<span class="chip off">완료 처리 전</span>'}</div>
       </div>
@@ -2331,7 +2340,7 @@ function showIncoming(call) {
   try {
     fetch(API_BASE + '/api/rtc/signal', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room: call.room, sender: 'counselor', kind: 'ring', payload: '1' })
+      body: JSON.stringify({ room: call.room, sender: 'counselor', kind: 'ring', payload: '1', rtoken: call.rtoken || '' })
     }).catch(() => {});
   } catch (e) {}
   $('call-who').textContent = nameOfClient(call.clientId) + ' 님';
@@ -2389,12 +2398,13 @@ async function answerCall() {
     if (type === 'audio-ok') $('call-st').textContent = '통화 중';
     if (type === 'error') $('call-st').textContent = d.message || '연결 실패';
   };
-  await window.RtcCall.answer({ room: CUR_CALL.room, callId: CUR_CALL.id });
+  // 방 토큰(rtoken) — 통화 당사자만 받는 값이다(/rtc/incoming 이 준다). 없으면 서버가 시그널을 거절한다.
+  await window.RtcCall.answer({ room: CUR_CALL.room, callId: CUR_CALL.id, rtoken: CUR_CALL.rtoken || '' });
 }
 
 async function rejectCall() {
   ringStop();
-  if (CUR_CALL) await postJson('/api/rtc/end', { callId: CUR_CALL.id, by: 'counselor' });
+  if (CUR_CALL) await postJson('/api/rtc/end', { callId: CUR_CALL.id, by: 'counselor', rtoken: CUR_CALL.rtoken || '' });
   closeCall();
 }
 
@@ -2730,8 +2740,17 @@ async function saveSessionNote(btn) {
     homework: (($('sn-hw') || {}).value || '').trim(), shared: !!($('sn-shared') && $('sn-shared').checked)
   }));
   btn.disabled = false;
-  if (!res || !res.ok) { toast(res && res.error === 'missing-summary' ? '요약이 너무 짧아요' : '저장하지 못했어요. 잠시 후 다시 시도해주세요.'); return; }
+  if (!res || !res.ok) {
+    const e = res && res.error;
+    toast(e === 'missing-summary' ? '요약이 너무 짧아요'
+      : e === 'no-session' ? '예약·전화 상담을 한 내담자에게만 기록을 남길 수 있어요'
+      : (e === 'bad-booking' || e === 'bad-call') ? '이 예약·통화를 찾지 못했어요'
+      : '저장하지 못했어요. 잠시 후 다시 시도해주세요.');
+    return;
+  }
   closeSheet();
+  // 위험도가 높아 상담소에 긴급 메일을 보내려 했는데 실패했다 — 조용히 넘어가면 아무도 모른다
+  if (res.alertError) setTimeout(() => toast('긴급 메일을 보내지 못했어요 — 상담소에 직접 연락해주세요'), 2400);
   toast(d.id ? '기록을 고쳤어요' : '회기 기록을 남겼어요');
   await loadNotes();
   renderHome(); renderDots();
@@ -2908,7 +2927,8 @@ const ACT = {
   // ── 예약 ──
   'bk-decline': async (el) => {
     if (!confirm(`${el.dataset.nm} 님의 예약을 거절할까요?\n내담자에게 전액 환불되며 취소 알림이 전달됩니다.\n(부득이한 경우에만 — 잦은 거절은 노출에 불이익)`)) return;
-    await postJson('/api/bookings/decline', authBody({ id: el.dataset.id }));
+    const r = await postJson('/api/bookings/decline', authBody({ id: el.dataset.id }));
+    if (!r || !r.ok) toast((r && r.error) || '거절하지 못했어요');
     await loadBookings(); renderBookings(); renderDots();
   },
   'bk-done': async (el) => {
