@@ -16,10 +16,22 @@
 //
 //  4번이 중요하다. 세션 토큰을 그대로 주소창에 실으면 방문기록·리퍼러·
 //  공유 링크에 로그인 자격이 통째로 남는다. 교환권은 60초, 한 번만 쓰인다.
+//
+//  보안 (2026-10)
+//   · 스토어 앱 '짝 번호(pair)' 로그인: pair 는 시작 주소에 실려 있어 누구나 만들 수 있다.
+//     예전에는 pair 만 알면 /oauth/pair 가 교환권을 내줘서, 공격자가 만든 로그인 링크를 누른
+//     사람의 구글 계정 세션을 공격자가 가져갈 수 있었다. 이제 콜백은 교환권 대신 6자리
+//     '확인 번호'를 로그인한 사람의 브라우저(authdone.html)에만 보여주고, 앱이 그 번호를
+//     /oauth/pair/confirm 으로 맞혀야 교환권을 준다 (틀리면 5번까지). 기기 로그인(TV 등)과 같은 방식.
+//   · 웹 로그인 CSRF: 앱이 sessionStorage 에 둔 난수(cn)를 state 에 붙여 보냈다가 돌아올 때 돌려준다.
+//     앱은 자기가 시작한 로그인(cn 일치)의 교환권만 쓴다 — 남이 만든 ?auth= 링크로 남의 계정에
+//     로그인돼 내 기록이 그 계정으로 올라가는 일을 막는다.
 // ============================================================================
 
 const STATE_TTL = 10 * 60 * 1000;      // 로그인 창을 10분 안에는 끝내야 한다
 const HANDOFF_TTL = 60 * 1000;         // 돌아오자마자 바꾼다. 길 이유가 없다
+const PAIR_TTL = 5 * 60 * 1000;        // 짝 번호 로그인은 사람이 확인 번호를 옮겨 적는 시간이 필요하다
+const PAIR_TRIES = 5;                  // 확인 번호 오답 허용 횟수 (6자리 → 맞힐 확률 5/1,000,000)
 const SESSION_TTL = 180 * 86400000;    // 반년. 마음 앱을 매번 다시 로그인시키지 않는다
 
 const nowMs = () => Date.now();
@@ -29,6 +41,13 @@ function token(n) {
   const b = new Uint8Array(n || 24);
   crypto.getRandomValues(b);
   return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+// 6자리 확인 번호 (앞자리 0 포함)
+function sixDigits() {
+  const b = new Uint32Array(1);
+  crypto.getRandomValues(b);
+  return String(b[0] % 1000000).padStart(6, '0');
 }
 
 function json(data, status, cors) {
@@ -154,9 +173,13 @@ export async function handleOauth(request, env, cors, path, body, url) {
 
     // ── 1단계: 사업자에게 보낸다 ────────────────────────────────────
     if (step === 'start') {
-      const st = token(16);
+      // cn: 앱이 이 로그인을 시작했다는 표시(웹은 sessionStorage 난수). state 끝에 붙여 두면
+      //  구글이 그대로 돌려주므로 따로 칸을 두지 않아도 콜백에서 되찾을 수 있다.
+      const cn = String(q('cn') || '').replace(/[^\w-]/g, '').slice(0, 40);
+      const st = token(16) + (cn ? '.' + cn : '');
       // pair: 스토어 앱이 들고 오는 '짝 번호'. 앱은 딥링크를 기다리지 않고
       //  이 번호로 서버에 물어본다 — 웹뷰에서 딥링크 수신이 막혀도 로그인이 된다.
+      //  (pair 는 누구나 만들 수 있으므로 교환권은 확인 번호를 맞혀야 나간다 — 아래 /oauth/pair/confirm)
       const pair = String(q('pair') || '').replace(/[^\w-]/g, '').slice(0, 40) || null;
       await db.prepare('INSERT INTO oauth_state (state, provider, back, expires, pair) VALUES (?,?,?,?,?)')
         .bind(st, key, back, nowMs() + STATE_TTL, pair).run();
@@ -221,30 +244,73 @@ export async function handleOauth(request, env, cors, path, body, url) {
     if (!prof || !prof.uid) return errPage('회원 정보를 읽지 못했어요.', realBack);
 
     const userId = await upsertUser(db, key, prof);
+    const cn = st.includes('.') ? st.slice(st.indexOf('.') + 1) : '';
 
     // 세션은 서버에 두고, 주소에는 1회용 교환권만 실어 보낸다
     const handoff = token(20);
-    await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires, pair) VALUES (?,?,?,?)')
-      .bind(handoff, userId, nowMs() + HANDOFF_TTL, row.pair || null).run();
     await db.prepare('DELETE FROM oauth_handoff WHERE expires < ?').bind(nowMs()).run();
 
+    // ── 스토어 앱(짝 번호) ── 교환권은 주소에 싣지 않는다. 로그인한 사람의 브라우저에 확인 번호만 보여준다.
+    if (row.pair) {
+      const pc = sixDigits();
+      try {
+        await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires, pair, pc, tries) VALUES (?,?,?,?,?,0)')
+          .bind(handoff, userId, nowMs() + PAIR_TTL, row.pair, pc).run();
+      } catch (e) {
+        // pc·tries 칸이 없는 DB — 확인 번호 없이 교환권을 내주면 예전 구멍이 그대로라 여기서 멈춘다
+        return errPage('로그인 서버를 점검하고 있어요. 잠시 뒤 다시 시도해주세요.', realBack);
+      }
+      const doneBase = /^https:\/\//.test(realBack) ? new URL(realBack).origin : safeBack(env, '');
+      return Response.redirect(doneBase + '/authdone.html?pc=' + pc + '&pair=' + encodeURIComponent(row.pair), 302);
+    }
+
+    await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires) VALUES (?,?,?)')
+      .bind(handoff, userId, nowMs() + HANDOFF_TTL).run();
+    const tail = 'auth=' + handoff + (cn ? '&cn=' + encodeURIComponent(cn) : '');
     // 딥링크(com.uroong.cbt://auth)는 경로를 덧붙이면 안 된다 — 그대로 물음표만 붙인다
     const isDeep = /^com\.uroong\.(cbt|pro):\/\//.test(realBack);
-    return Response.redirect(isDeep ? realBack + '?auth=' + handoff : realBack + '/?auth=' + handoff, 302);
+    return Response.redirect(isDeep ? realBack + '?' + tail : realBack + '/?' + tail, 302);
   }
 
   // ── 짝 번호 조회 (스토어 앱 전용) ───────────────────────────────
   //  앱은 브라우저에서 로그인이 끝났는지를 이 번호로 물어본다.
   //  딥링크가 막힌 웹뷰에서도 로그인이 완성되는 유일하게 확실한 길.
-  //  교환권 자체를 돌려줄 뿐이고, 세션은 앱이 /oauth/exchange 로 다시 받아간다.
+  //  여기서는 '끝났다'만 알려준다. 교환권은 확인 번호를 맞혀야(/oauth/pair/confirm) 나간다.
   if (path === '/oauth/pair' && method === 'GET') {
     const pair = String(q('pair') || '').replace(/[^\w-]/g, '').slice(0, 40);
     if (!pair) return json({ error: 'missing' }, 400, cors);
     const h = await db.prepare(
-      'SELECT code, expires FROM oauth_handoff WHERE pair = ? ORDER BY expires DESC LIMIT 1'
+      'SELECT expires FROM oauth_handoff WHERE pair = ? ORDER BY expires DESC LIMIT 1'
     ).bind(pair).first();
     if (!h || h.expires < nowMs()) return json({ ok: true, ready: false }, 200, cors);
-    return json({ ok: true, ready: true, code: h.code }, 200, cors);
+    return json({ ok: true, ready: true, confirm: true }, 200, cors);
+  }
+
+  // 확인 번호 → 교환권. 로그인한 사람의 브라우저 화면(authdone.html)에만 뜬 6자리를 앱이 보내야 한다.
+  if (path === '/oauth/pair/confirm' && method === 'POST') {
+    const pair = String(body.pair || '').replace(/[^\w-]/g, '').slice(0, 40);
+    const pc = String(body.pc || '').replace(/\D/g, '').slice(0, 6);
+    if (!pair || pc.length !== 6) return json({ error: 'missing' }, 400, cors);
+    const h = await db.prepare(
+      'SELECT code, expires, pc, tries FROM oauth_handoff WHERE pair = ? ORDER BY expires DESC LIMIT 1'
+    ).bind(pair).first();
+    if (!h || h.expires < nowMs() || !h.pc) return json({ error: 'expired' }, 403, cors);
+    if ((h.tries || 0) >= PAIR_TRIES) {
+      await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(h.code).run();
+      return json({ error: 'too-many' }, 403, cors);
+    }
+    if (h.pc !== pc) {
+      // 오답 횟수를 먼저 올린다 (동시에 여러 번 찔러도 한도를 못 넘게 조건부로)
+      await db.prepare('UPDATE oauth_handoff SET tries = tries + 1 WHERE code = ?').bind(h.code).run();
+      const left = Math.max(0, PAIR_TRIES - (h.tries || 0) - 1);
+      if (!left) await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(h.code).run();
+      return json({ error: left ? 'bad-code' : 'too-many', left }, 403, cors);
+    }
+    // 맞혔다 — 짝 번호를 떼어 두 번 나가지 않게 하고, 교환권은 원래처럼 60초 안에 쓰게 한다
+    const r = await db.prepare('UPDATE oauth_handoff SET pair = NULL, pc = NULL, expires = ? WHERE code = ? AND pair = ?')
+      .bind(nowMs() + HANDOFF_TTL, h.code, pair).run();
+    if (!(r.meta && r.meta.changes === 1)) return json({ error: 'expired' }, 403, cors);
+    return json({ ok: true, code: h.code }, 200, cors);
   }
 
   // ── 3단계: 교환권 → 세션 ────────────────────────────────────────
@@ -277,13 +343,19 @@ export async function handleOauth(request, env, cors, path, body, url) {
     return json({ ok: true }, 200, cors);
   }
 
-  // 탈퇴 — 계정과 세션을 지운다. 기기 안의 기록은 앱이 따로 지운다.
+  // 탈퇴 — 계정·세션·계정에 올라간 동기화 값(user_data)을 한 번에 지운다. 기기 안의 기록은 앱이 따로 지운다.
+  //  예전에는 user_data 를 /sync/wipe 로 따로 지웠는데, 그게 실패해도 앱이 무시하고 계정만 지워
+  //  주인 없는 기록이 서버에 남았다. 이제 한 batch(트랜잭션)로 묶어 전부 지워지거나 하나도 안 지워진다.
   if (path === '/oauth/delete' && method === 'POST') {
     const me = await resolveUser(db, String(body.session || '').slice(0, 128));
     if (!me) return json({ error: 'bad-session' }, 403, cors);
-    await db.prepare('DELETE FROM user_sessions WHERE user_id = ?').bind(me.id).run();
-    await db.prepare('DELETE FROM users WHERE id = ?').bind(me.id).run();
-    return json({ ok: true }, 200, cors);
+    const r = await db.batch([
+      db.prepare('DELETE FROM user_data WHERE user_id = ?').bind(me.id),
+      db.prepare('DELETE FROM oauth_handoff WHERE user_id = ?').bind(me.id),
+      db.prepare('DELETE FROM user_sessions WHERE user_id = ?').bind(me.id),
+      db.prepare('DELETE FROM users WHERE id = ?').bind(me.id)
+    ]);
+    return json({ ok: true, dataDeleted: (r[0] && r[0].meta && r[0].meta.changes) || 0 }, 200, cors);
   }
 
   return null;

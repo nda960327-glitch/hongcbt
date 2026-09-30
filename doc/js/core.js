@@ -2,7 +2,8 @@
 //  마인드 인사이드 닥터 — 상담소 관리 콘솔 (doc.mindinsideapp.com) · 공통
 //
 //  심리상담소 소장이 PC 에서 쓰는 관리 화면. 폰(≤900px)에서는 사이드바가 하단 탭바로 바뀐다.
-//   · 로그인: 이메일 매직링크 또는 상담소 코드(H-XXXX-XXXX). 세션은 이 기기의 localStorage 에만.
+//   · 로그인: 이메일 매직링크 또는 소장 관리 코드(HA-XXXX-XXXX-XXXX-XXXX). 세션은 이 기기의 localStorage 에만.
+//     내담자 연결 코드(H-XXXX-XXXX)로는 들어올 수 없다 — 상담소가 환자에게 나눠주는 값이기 때문 (2026-10).
 //   · 서버는 상담사 앱과 같은 Worker (/api/hospital/…). 내담자의 대화 원문은 절대 오지 않는다.
 //   · 파일 나눔: core.js(여기) → view-*.js 가 VIEWS[탭] = { title, sub, keys, html } 를 등록한다.
 // ============================================================================
@@ -63,7 +64,7 @@ const monthLabel = k => k ? k.slice(0, 4) + '년 ' + Number(k.slice(5)) + '월' 
 const RISK_LABEL = { none: '특이사항 없음', watch: '주의 관찰', urgent: '긴급 — 소장 확인 필요' };
 const RISK_CHIP = { none: '<span class="chip off">없음</span>', watch: '<span class="chip gold">주의</span>', urgent: '<span class="chip bad">긴급</span>' };
 const KIND_LABEL = { booking: '예약 상담', call: '전화 상담', chat: '채팅 상담' };
-const BK_STATUS = { confirmed: '예정', done: '완료', cancelled: '취소', declined: '거절', noshow: '불참' };
+const BK_STATUS = { pending: '확인 대기', confirmed: '예정', done: '완료', settled: '정산 완료', cancelled: '취소', late_cancel: '늦은 취소', declined: '거절', noshow: '불참', refunded: '환불', disputed: '분쟁 중' };
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('on');
@@ -246,12 +247,15 @@ async function verifyLink(t) {
 async function loginWithCode(v) {
   v = (v || ($('code').value || '')).trim().toUpperCase();
   showErr('err2', '');
-  if (!/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/.test(v)) { showErr('err2', 'H-XXXX-XXXX 형식의 상담소 코드를 넣어주세요.'); return; }
-  if (!v.includes('-')) v = 'H-' + v.slice(1, 5) + '-' + v.slice(5);
+  // 내담자 연결 코드(H-XXXX-XXXX)는 콘솔 열쇠가 아니다 — 알아보고 이메일 링크로 안내한다
+  if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/.test(v)) { showErr('err2', '이 코드는 내담자에게 알려주는 상담소 코드예요. 콘솔에는 이메일 로그인 링크나 운영팀이 드린 소장 관리 코드(HA-…)로 들어와주세요.'); return; }
+  const raw = v.replace(/[^A-Z0-9]/g, '');
+  if (!/^HA[A-Z0-9]{16}$/.test(raw)) { showErr('err2', 'HA-XXXX-XXXX-XXXX-XXXX 형식의 소장 관리 코드를 넣어주세요.'); return; }
+  v = 'HA-' + raw.slice(2).match(/.{4}/g).join('-');
   const btn = $('code-btn'); btn.disabled = true; btn.textContent = '확인 중…';
   const hd = await getJson('/api/hospital/me?hcode=' + encodeURIComponent(v));
   btn.disabled = false; btn.textContent = '시작하기';
-  if (!hd || !hd.ok) { showErr('err2', '코드가 올바르지 않거나 정지된 상담소예요.'); return; }
+  if (!hd || !hd.ok) { showErr('err2', '코드가 올바르지 않거나 정지된 상담소예요. 코드를 다시 받으려면 운영팀에 문의하세요.'); return; }
   HC = v; HS = '';
   localStorage.setItem('doc_code', HC); localStorage.removeItem('doc_session');
   enter(hd.hospital);
@@ -262,7 +266,7 @@ function enter(h) {
   $('side-name').textContent = h.name;
   $('side-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 소장' : ''].filter(Boolean).join(' · ') || '상담소 관리 콘솔';
   $('side-av').textContent = (h.name || '상').slice(0, 1);
-  $('side-login').textContent = HS ? '이메일 링크 로그인 · 이 기기 30일' : '상담소 코드 로그인';
+  $('side-login').textContent = HS ? '이메일 링크 로그인 · 이 기기 30일' : '소장 관리 코드 로그인';
   buildNav();
   showTab(UI.tab || 'dash', true);
 }
@@ -275,7 +279,7 @@ function dropSession(msg) {
   if (msg) toast(msg);
 }
 async function logout() {
-  if (!(await confirmBox({ title: '이 기기에서 로그아웃할까요?', body: '다시 들어오려면 이메일 링크를 새로 받거나 상담소 코드를 넣어야 해요.', okLabel: '로그아웃' }))) return;
+  if (!(await confirmBox({ title: '이 기기에서 로그아웃할까요?', body: '다시 들어오려면 이메일 링크를 새로 받거나 소장 관리 코드를 넣어야 해요.', okLabel: '로그아웃' }))) return;
   if (HS) await postJson('/api/hospital/auth/logout', { hsession: HS });
   dropSession('');
 }
@@ -336,9 +340,14 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (t) { if (await verifyLink(t)) return; }
   if (c) { history.replaceState(null, '', location.pathname); $('login-email').hidden = true; $('login-code').hidden = false; $('code').value = c; await loginWithCode(c); if (DATA.hospital) return; }
   if (HS || HC) {
+    const legacy = !HS && /^H-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(HC);
     const hd = await getJson('/api/hospital/me?' + authQS());
     if (hd && hd.ok) enter(hd.hospital);
-    else { HS = ''; HC = ''; localStorage.removeItem('doc_session'); localStorage.removeItem('doc_code'); }
+    else {
+      HS = ''; HC = ''; localStorage.removeItem('doc_session'); localStorage.removeItem('doc_code');
+      // 예전에 상담소 코드로 들어와 있던 기기 — 왜 풀렸는지 알려준다
+      if (legacy) showErr('err', '보안 강화로 상담소 코드(H-…)로는 더 이상 콘솔에 들어올 수 없어요. 등록된 이메일로 로그인 링크를 받아주세요. 이메일이 없다면 운영팀(help@neurumind.com)에 소장 관리 코드를 요청하세요.');
+    }
   }
 });
 // 화면이 켜져 있으면 3분마다 조용히 새로고침 — 긴급 표시가 늦게 보이면 안 된다. 패널이 열려 있거나 입력 중이면 건너뛴다.

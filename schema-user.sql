@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS oauth_state (
   state    TEXT PRIMARY KEY,
   provider TEXT NOT NULL,
   back     TEXT,                        -- 끝나고 돌아갈 앱 주소
-  expires  INTEGER NOT NULL
+  expires  INTEGER NOT NULL,
+  pair     TEXT                         -- 스토어 앱 '짝 번호' (없으면 웹 로그인)
 );
 
 -- 로그인 성공 뒤 앱으로 돌아갈 때 쓰는 1회용 교환권.
@@ -37,5 +38,10 @@ CREATE TABLE IF NOT EXISTS oauth_state (
 CREATE TABLE IF NOT EXISTS oauth_handoff (
   code    TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  expires INTEGER NOT NULL
+  expires INTEGER NOT NULL,
+  pair    TEXT,                         -- 스토어 앱 짝 번호 — 확인 번호를 맞히면 NULL 로 떼어 낸다
+  pc      TEXT,                         -- 6자리 확인 번호 (로그인한 사람의 브라우저에만 보인다)
+  tries   INTEGER NOT NULL DEFAULT 0    -- 확인 번호 오답 횟수 (5번이면 폐기)
 );
+CREATE INDEX IF NOT EXISTS idx_handoff_pair ON oauth_handoff(pair);
+-- 기존 DB 는 schema-2026-10c.sql 의 ALTER 로 칸을 더한다.

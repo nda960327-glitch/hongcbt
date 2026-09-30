@@ -354,7 +354,10 @@ export async function handleAuth(request, env, cors, path, body, url) {
     if (row.used_at) return json({ error: 'used' }, 403, cors);
     if (row.expires < nowMs()) return json({ error: 'expired' }, 403, cors);
 
-    await db.prepare('UPDATE login_tokens SET used_at = ? WHERE token = ?').bind(nowMs(), t).run();
+    // '확인 → 사용 표시'를 따로 하면 같은 링크를 동시에 두 번 눌렀을 때 세션이 둘 생긴다.
+    //  아직 안 쓴 것만 표시하고, 그 한 줄을 바꾼 요청만 통과시킨다.
+    const used = await db.prepare('UPDATE login_tokens SET used_at = ? WHERE token = ? AND used_at = 0').bind(nowMs(), t).run();
+    if (!(used.meta && used.meta.changes === 1)) return json({ error: 'used' }, 403, cors);
 
     const c = await db.prepare('SELECT id, name FROM counselors WHERE id = ? AND active = 1')
       .bind(row.counselor_id).first();
@@ -480,7 +483,8 @@ export async function sendHospitalLoginMail(env, db, to, hospital, link) {
 export async function sendUrgentMail(env, db, to, d) {
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const when = new Date(d.ts || Date.now()).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const docUrl = String(env.DOC_URL || '').replace(/\/+$/, '') || '#';
+  // DOC_URL 이 비어 있으면 버튼이 '#' 이 되어 아무 데도 안 간다 — 긴급 메일에서 그러면 안 된다
+  const docUrl = String(env.DOC_URL || 'https://doc.mindinsideapp.com').replace(/\/+$/, '');
   const html = mailWrap('마인드 인사이드 · 긴급', `${esc(d.patientName || '환자')} 님 — 상담사가 긴급 위험을 표시했습니다`, `
   <div style="background:#fbeeea;border:1px solid #efc8c0;border-radius:12px;padding:14px 16px;margin:0 0 18px;">
     <p style="font-size:14px;line-height:1.8;margin:0;color:#3f352a;">

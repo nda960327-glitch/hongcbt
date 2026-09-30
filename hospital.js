@@ -5,7 +5,8 @@
 //           동의하면 주 1회 '상태 요약'(체크인 평균·횟수 같은 숫자 몇 개)이 병원에 올라간다.
 //   · 상담사: 상담(예약·통화·채팅)이 끝나면 회기 기록(요약·계획·위험도·숙제)을 남긴다.
 //             '긴급'을 찍으면 담당의에게 즉시 메일이 간다. 기록이 없는 상담은 정산되지 않는다(market.js).
-//   · 소장(소장 콘솔 doc.mindinsideapp.com): 이메일 매직링크 또는 병원 코드로 들어온다.
+//   · 소장(소장 콘솔 doc.mindinsideapp.com): 이메일 매직링크 또는 '소장 관리 코드'(HA-…)로 들어온다.
+//             내담자 연결 코드(H-XXXX-XXXX)는 상담소가 환자에게 나눠주는 값이라 콘솔 열쇠로 쓰지 않는다 (2026-10).
 //             연결된 환자 목록 → 타임라인·주간 상태 → 피드백.
 //   · 운영자: 병원 등록(이메일 포함)·코드 발급·정지.
 //
@@ -17,12 +18,12 @@
 //     사실(누가·언제·긴급)만은 담당의에게 알린다 — 요약은 공유일 때만 싣는다.
 //
 //  경로 (앱은 /api/… 로 부르고 Worker 가 /api 를 뗀다)
-//   환자   POST /patient/link · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read
+//   환자   POST /patient/link · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read · /patient/erase
 //          GET  /patient/hospital · /patient/records
 //   상담사 POST /session-notes · GET /session-notes · GET /session-notes/pending · GET /doctor-feedback · POST /doctor-feedback/read
 //   의사   POST /hospital/auth/request · /hospital/auth/verify · /hospital/auth/logout
 //          GET  /hospital/me · /hospital/patients · /hospital/patient · POST /hospital/feedback
-//          (hsession 또는 hcode 로 인증)
+//          (hsession 또는 hcode=소장 관리 코드(admin_code) 로 인증 — 내담자 연결 코드는 안 된다)
 //   소장 콘솔(doc/, 2026-09 PC 개편) — 같은 인증
 //          GET  /hospital/dashboard · /hospital/notes · /hospital/counselors · /hospital/applications
 //               /hospital/bookings?from&to · /hospital/stats · /hospital/urgent · /hospital/memo?clientId · /hospital/info · /hospital/bank
@@ -30,7 +31,7 @@
 //               /hospital/urgent/ack {noteId} · /hospital/memo/save {id?, clientId, text} · /hospital/memo/delete {id}
 //               /hospital/info {bizno, tel, addr} · /hospital/bank {bank, bankNo, holder}
 //          소속 상담사(counselors.hospital_id)는 상담소가 승인(hospital_ok=1)해야 상담소 채널로 정산된다.
-//   운영자 GET /admin/hospitals · POST /admin/hospitals · /admin/hospitals/update · /active · /rotate
+//   운영자 GET /admin/hospitals · POST /admin/hospitals · /admin/hospitals/update · /active · /rotate · /admin-code
 import { json, isAdmin, verifyClient, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication } from './market.js';
 import { resolveCounselor, sendHospitalLoginMail, sendUrgentMail } from './auth.js';
 
@@ -60,6 +61,17 @@ function makeHospitalCode() {
   return out;
 }
 
+// 소장 관리 코드: HA-XXXX-XXXX-XXXX-XXXX (16자 · 약 80비트). 콘솔 전체(내담자 기록·정산)를 여는 열쇠라
+//  내담자 연결 코드보다 훨씬 길게 만든다. 운영자 콘솔에서만 발급·재발급한다.
+function makeAdminCode() {
+  const AB = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  let out = 'HA';
+  for (let i = 0; i < 16; i++) { if (i % 4 === 0) out += '-'; out += AB[b[i] % AB.length]; }
+  return out;
+}
+
 const hospitalPublic = h => h ? { id: h.id, name: h.name, dept: h.dept || '', doctor: h.doctor || '', hasEmail: !!h.email } : null;
 const rowNote = n => ({
   id: n.id, counselorId: n.counselor_id, counselor: n.counselor_name || '', clientId: n.client_id, clientName: n.client_name || '',
@@ -80,7 +92,9 @@ const rowWeek = w => ({
   missions: w.missions || 0, nights: w.nights || 0, records: w.records || 0, streak: w.streak || 0, ts: w.ts
 });
 
-// 세션(매직링크) 또는 병원 코드로 병원을 찾는다. 정지된 병원은 둘 다 통하지 않는다.
+// 세션(매직링크) 또는 소장 관리 코드(admin_code)로 병원을 찾는다. 정지된 병원은 둘 다 통하지 않는다.
+//  내담자 연결 코드(hospitals.code)는 받지 않는다 — 상담소가 환자에게 나눠주는 값이라, 그걸로 콘솔이 열리면
+//  환자 누구나 그 상담소 내담자 전원의 기록을 본다. admin_code 가 아직 없는 상담소는 이메일 링크로만 들어온다.
 export async function resolveHospital(db, { hsession, hcode }) {
   if (hsession) {
     const r = await db.prepare(
@@ -92,7 +106,12 @@ export async function resolveHospital(db, { hsession, hcode }) {
     }
     return null;
   }
-  if (hcode) return await db.prepare('SELECT * FROM hospitals WHERE code = ? AND active = 1').bind(String(hcode).trim().toUpperCase().slice(0, 64)).first();
+  if (hcode) {
+    const c = String(hcode).trim().toUpperCase().slice(0, 64);
+    if (!/^HA-[A-Z0-9-]{16,}$/.test(c)) return null;
+    try { return await db.prepare('SELECT * FROM hospitals WHERE admin_code = ? AND active = 1').bind(c).first(); }
+    catch (e) { return null; }   // admin_code 칸이 아직 없는 DB — 코드 로그인은 닫히고 이메일 링크만 된다
+  }
   return null;
 }
 
@@ -189,6 +208,15 @@ export async function handleHospital(request, env, cors, path, ctx) {
         feedback: fb.map(rowFb)
       }, 200, cors);
     }
+    // 내 연결 정보 지우기 (탈퇴·삭제 요청) — 연결을 끊는 데서 그치지 않고, 이름·생년이 담긴 연결 행과
+    //  주간 숫자를 지운다. 상담사가 쓴 회기 기록·의사 피드백은 상담 기관의 기록이라 여기서 지우지 않는다.
+    if (path === '/patient/erase' && method === 'POST') {
+      const r = await db.batch([
+        db.prepare('DELETE FROM patient_links WHERE client_id = ?').bind(cid),
+        db.prepare('DELETE FROM patient_weekly WHERE client_id = ?').bind(cid)
+      ]);
+      return json({ ok: true, links: (r[0] && r[0].meta && r[0].meta.changes) || 0, weekly: (r[1] && r[1].meta && r[1].meta.changes) || 0 }, 200, cors);
+    }
     if (path === '/patient/feedback/read' && method === 'POST') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(cleanId).filter(Boolean).slice(0, 50);
       for (const id of ids) await db.prepare('UPDATE doctor_feedback SET read_p = ? WHERE id = ? AND client_id = ? AND read_p = 0').bind(nowMs(), id, cid).run();
@@ -196,6 +224,18 @@ export async function handleHospital(request, env, cors, path, ctx) {
     }
     return null;
   }
+
+  // 이 상담사와 이 내담자 사이에 예약(취소·거절 제외) 또는 실제로 연결된 통화가 있었나.
+  //  market.js 의 relatedPair 는 채팅만 오가도 참이라 회기 기록 권한으로는 넓다.
+  const hadSessionWith = async (counselorId, clientId) => {
+    try {
+      if (await db.prepare(`SELECT 1 x FROM bookings WHERE counselor_id = ? AND client_id = ? AND status NOT IN ('cancelled','declined') LIMIT 1`).bind(counselorId, clientId).first()) return true;
+    } catch (e) {}
+    try {
+      if (await db.prepare('SELECT 1 x FROM calls WHERE counselor_id = ? AND client_id = ? AND connect_at > 0 LIMIT 1').bind(counselorId, clientId).first()) return true;
+    } catch (e) {}
+    return false;
+  };
 
   // ══════════════ 상담사 ══════════════
   if (path.startsWith('/session-notes') || path.startsWith('/doctor-feedback')) {
@@ -213,7 +253,27 @@ export async function handleHospital(request, env, cors, path, ctx) {
       const t = nowMs();
       const shared = body.shared === false ? 0 : 1;
       // 내 기록만 고칠 수 있다
-      const owned = await db.prepare('SELECT id, ts, alerted_at, client_name, kind FROM session_notes WHERE id = ? AND counselor_id = ?').bind(id, me.id).first();
+      const owned = await db.prepare('SELECT id, ts, alerted_at, client_name, kind, client_id FROM session_notes WHERE id = ? AND counselor_id = ?').bind(id, me.id).first();
+      // 남의 id 로 새 기록을 만들려는 것(이미 있는 id 인데 내 것이 아님)은 막는다
+      if (!owned && await db.prepare('SELECT 1 x FROM session_notes WHERE id = ?').bind(id).first()) return json({ error: 'forbidden' }, 403, cors);
+      if (owned && owned.client_id && owned.client_id !== clientId) return json({ error: 'forbidden' }, 403, cors);
+      // 새 기록은 이 상담사와 이 내담자 사이에 '실제 상담'(예약 또는 연결된 통화)이 있어야 쓸 수 있다.
+      //  아무 clientId 에나 기록을 붙이면 그 내담자의 담당의에게 가짜 기록·가짜 긴급 메일이 간다.
+      //  채팅만 오간 사이는 여기서 인정하지 않는다 (채팅은 누구나 먼저 걸 수 있다).
+      //  bookingId·callId 를 적었으면 그 예약·통화가 정말 이 상담사·이 내담자의 것인지 본다.
+      const bookingId = s(body.bookingId, 64), callId = s(body.callId, 64);
+      if (!owned) {
+        if (bookingId) {
+          const b = await db.prepare('SELECT 1 x FROM bookings WHERE id = ? AND counselor_id = ? AND client_id = ?').bind(bookingId, me.id, clientId).first();
+          if (!b) return json({ error: 'bad-booking' }, 403, cors);
+        }
+        if (callId) {
+          let c = null;
+          try { c = await db.prepare('SELECT 1 x FROM calls WHERE id = ? AND counselor_id = ? AND client_id = ? AND connect_at > 0').bind(callId, me.id, clientId).first(); } catch (e) { c = null; }
+          if (!c) return json({ error: 'bad-call' }, 403, cors);
+        }
+        if (!bookingId && !callId && !await hadSessionWith(me.id, clientId)) return json({ error: 'no-session' }, 403, cors);
+      }
       let noteTs = t, clientName = s(body.clientName, 40), noteKind = kind;
       if (owned) {
         await db.prepare(`UPDATE session_notes SET summary = ?, plan = ?, risk = ?, homework = ?, shared = ?, updated = ? WHERE id = ?`)
@@ -223,23 +283,32 @@ export async function handleHospital(request, env, cors, path, ctx) {
         noteTs = Math.min(t, Math.max(0, Number(body.ts) || t));
         await db.prepare(`INSERT INTO session_notes (id, counselor_id, counselor_name, client_id, client_name, booking_id, call_id, kind, ts, summary, plan, risk, homework, shared, updated, alerted_at)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`)
-          .bind(id, me.id, me.name || '', clientId, clientName, s(body.bookingId, 64), s(body.callId, 64), kind,
+          .bind(id, me.id, me.name || '', clientId, clientName, bookingId, callId, kind,
             noteTs, summary, s(body.plan, 1000), risk, s(body.homework, 500), shared, t).run();
       }
       // 긴급 → 담당의에게 즉시 메일. 한 기록당 한 번만 (고칠 때마다 또 보내지 않는다).
-      let alerted = false;
+      //  예전에는 alerted_at 을 먼저 찍고 메일은 뒤에서 보냈다 — 메일이 실패해도 '보냈다'로 남고
+      //  다시 저장해도 재발송되지 않았다. 이제 실제로 보낸 뒤에만 찍고, 결과를 그대로 돌려준다.
+      let alerted = false, alertError = '';
       if (risk === 'urgent' && !(owned && owned.alerted_at)) {
         const l = await activeLink(clientId);
-        if (l && l.h_email) {
-          await db.prepare('UPDATE session_notes SET alerted_at = ? WHERE id = ?').bind(t, id).run();
-          alerted = true;
-          later(sendUrgentMail(env, db, l.h_email, {
-            patientName: l.name || clientName, birth: l.birth || '', counselor: me.name || '상담사', ts: noteTs,
-            kindLabel: KIND_LABEL[noteKind] || '상담', summary: shared ? summary : '', plan: shared ? s(body.plan, 1000) : ''
-          }));
+        if (!l) alertError = 'not-linked';
+        else if (!l.h_email) alertError = 'no-hospital-email';
+        else {
+          let res = null;
+          try {
+            res = await sendUrgentMail(env, db, l.h_email, {
+              patientName: l.name || clientName, birth: l.birth || '', counselor: me.name || '상담사', ts: noteTs,
+              kindLabel: KIND_LABEL[noteKind] || '상담', summary: shared ? summary : '', plan: shared ? s(body.plan, 1000) : ''
+            });
+          } catch (e) { res = { sent: false, reason: 'error' }; }
+          if (res && res.sent) {
+            await db.prepare('UPDATE session_notes SET alerted_at = ? WHERE id = ?').bind(nowMs(), id).run();
+            alerted = true;
+          } else alertError = (res && res.reason) || 'send-failed';
         }
       }
-      return json({ ok: true, id, alerted }, 200, cors);
+      return json({ ok: true, id, alerted, alertError }, 200, cors);
     }
     if (path === '/session-notes' && method === 'GET') {
       const clientId = cleanId(q('clientId'));
@@ -285,7 +354,10 @@ export async function handleHospital(request, env, cors, path, ctx) {
     }
     if (path === '/doctor-feedback/read' && method === 'POST') {
       const ids = (Array.isArray(body.ids) ? body.ids : []).map(cleanId).filter(Boolean).slice(0, 50);
-      for (const id of ids) await db.prepare('UPDATE doctor_feedback SET read_c = ? WHERE id = ? AND read_c = 0').bind(nowMs(), id).run();
+      // 내가 볼 수 있는 피드백(GET /doctor-feedback 과 같은 범위)만 읽음 표시한다
+      for (const id of ids) await db.prepare(
+        `UPDATE doctor_feedback SET read_c = ? WHERE id = ? AND read_c = 0 AND to_who IN ('counselor','both')
+            AND client_id IN (SELECT DISTINCT client_id FROM session_notes WHERE counselor_id = ?)`).bind(nowMs(), id, me.id).run();
       return json({ ok: true }, 200, cors);
     }
     return null;
@@ -315,7 +387,9 @@ export async function handleHospital(request, env, cors, path, ctx) {
       if (!row) return json({ error: 'invalid' }, 403, cors);
       if (row.used_at) return json({ error: 'used' }, 403, cors);
       if (row.expires < nowMs()) return json({ error: 'expired' }, 403, cors);
-      await db.prepare('UPDATE hospital_tokens SET used_at = ? WHERE token = ?').bind(nowMs(), t).run();
+      // 동시에 두 번 눌려도 세션은 하나만 — 아직 안 쓴 행을 바꾼 요청만 통과
+      const used = await db.prepare('UPDATE hospital_tokens SET used_at = ? WHERE token = ? AND used_at = 0').bind(nowMs(), t).run();
+      if (!(used.meta && used.meta.changes === 1)) return json({ error: 'used' }, 403, cors);
       const h = await db.prepare('SELECT * FROM hospitals WHERE id = ? AND active = 1').bind(row.hospital_id).first();
       if (!h) return json({ error: 'inactive' }, 403, cors);
       const st = token(32);
@@ -340,7 +414,7 @@ export async function handleHospital(request, env, cors, path, ctx) {
     return null;
   }
 
-  // ══════════════ 의사 (세션 또는 병원 코드) ══════════════
+  // ══════════════ 의사 (세션 또는 소장 관리 코드) ══════════════
   if (path.startsWith('/hospital/')) {
     const h = await resolveHospital(db, { hsession: s(body.hsession || q('hsession'), 128), hcode: s(body.hcode || q('hcode'), 64) });
     if (!h) return json({ error: 'bad-code' }, 403, cors);
@@ -394,24 +468,36 @@ export async function handleHospital(request, env, cors, path, ctx) {
     if (path === '/hospital/settle' && method === 'GET') {
       const since = nowMs() - 400 * 86400000;
       const rows = [];
-      const bk = (await db.prepare(
-        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at, channel
+      // 앱이 '상담소 몫'을 보낸 시각. 소개(referral) 건은 settled_at 이 상담사 지급 시각이라 상담소에 보여주면
+      //  '받았다'로 잘못 읽힌다 — hospital_settled_at(상담소 소개료 지급 시각)을 쓴다.
+      //  상담소 채널 건은 한 번에 상담소로 가므로 hospital_settled_at 이 없으면 settled_at 을 쓴다.
+      //  hospital_settled_at 칸이 아직 없는 DB 는 예전처럼 settled_at 만 본다.
+      const isNoCol = e => /no such column/i.test(String(e && e.message || e));
+      const paidAtOf = x => x.channel === 'referral'
+        ? (x.hospital_settled_at || 0)
+        : (x.hospital_settled_at || x.settled_at || 0);
+      const selRows = async (withH) => (await db.prepare(
+        `SELECT id, counselor_id, counselor_name, client_id, client_name, time_label, price, done_at, settled_at, channel${withH ? ', hospital_settled_at' : ''}
            FROM bookings WHERE hospital_id = ? AND channel IN ('hospital', 'referral') AND status = 'done' AND when_ts >= ?
           ORDER BY done_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
+      let bk;
+      try { bk = await selRows(true); } catch (e) { if (!isNoCol(e)) throw e; bk = await selRows(false); }
       bk.forEach(x => rows.push({ kind: 'booking', id: x.id, counselorId: x.counselor_id, counselor: x.counselor_name || '상담사',
         clientId: x.client_id, clientName: x.client_name || '', label: x.time_label || '', gross: x.price || 0,
-        at: x.done_at || 0, appPaidAt: x.settled_at || 0, channel: x.channel || 'hospital' }));
+        at: x.done_at || 0, appPaidAt: paidAtOf(x), channel: x.channel || 'hospital' }));
       try {
-        const cl = (await db.prepare(
-          `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.settled_at, c.channel, k.name cname
+        const selCalls = async (withH) => (await db.prepare(
+          `SELECT c.id, c.counselor_id, c.client_id, c.billed, c.connect_at, c.end_at, c.settled_at, c.channel, k.name cname${withH ? ', c.hospital_settled_at' : ''}
              FROM calls c LEFT JOIN counselors k ON k.id = c.counselor_id
             WHERE c.hospital_id = ? AND c.channel IN ('hospital', 'referral') AND c.billed > 0 AND c.end_at >= ?
             ORDER BY c.end_at DESC LIMIT 300`).bind(h.id, since).all()).results || [];
+        let cl;
+        try { cl = await selCalls(true); } catch (e) { if (!isNoCol(e)) throw e; cl = await selCalls(false); }
         cl.forEach(x => {
           const secs = Math.max(0, Math.round(((x.end_at || 0) - (x.connect_at || 0)) / 1000));
           rows.push({ kind: 'call', id: x.id, counselorId: x.counselor_id, counselor: x.cname || '상담사',
             clientId: x.client_id, clientName: '', label: '전화 상담 ' + (secs >= 60 ? Math.floor(secs / 60) + '분 ' : '') + (secs % 60) + '초',
-            gross: x.billed || 0, at: x.end_at || 0, appPaidAt: x.settled_at || 0, channel: x.channel || 'hospital' });
+            gross: x.billed || 0, at: x.end_at || 0, appPaidAt: paidAtOf(x), channel: x.channel || 'hospital' });
         });
       } catch (e) {}
       // 소개 채널(referral)은 상담소가 20% 소개료만 받고 상담사에게는 앱이 지급한다 — 지급 기록 칸이 없다
@@ -653,7 +739,9 @@ export async function handleHospital(request, env, cors, path, ctx) {
       return json({ ok: true, from, to, items: rows.map(b => ({
         id: b.id, counselorId: b.counselor_id, counselor: b.counselor_name || '', clientId: b.client_id,
         clientName: b.link_name || b.client_name || '', linked: !!b.link_name, whenTs: b.when_ts, time: b.time_label || '',
-        price: b.price || 0, status: b.status, doneAt: b.done_at || 0, channel: b.channel === 'hospital' ? 'hospital' : 'app'
+        price: b.price || 0, status: b.status, doneAt: b.done_at || 0,
+        // referral(소개 — 상담소 20%)도 그대로 넘긴다. 전에는 'app' 으로 뭉개져 소개 건이 안 보였다.
+        channel: b.channel === 'hospital' || b.channel === 'referral' ? b.channel : 'app'
       })) }, 200, cors);
     }
 
@@ -815,15 +903,25 @@ export async function handleHospital(request, env, cors, path, ctx) {
                 (SELECT COUNT(*) FROM doctor_feedback f WHERE f.hospital_id = h.id) AS feedbacks,
                 (SELECT MAX(s.last_seen) FROM hospital_sessions s WHERE s.hospital_id = h.id) AS last_seen
            FROM hospitals h ORDER BY h.created DESC LIMIT 200`).all();
-      return json({ items: (r.results || []).map(x => ({ id: x.id, name: x.name, dept: x.dept || '', doctor: x.doctor || '', email: x.email || '', code: x.code, active: !!x.active, created: x.created, patients: x.patients || 0, feedbacks: x.feedbacks || 0, lastSeen: x.last_seen || 0 })) }, 200, cors);
+      return json({ items: (r.results || []).map(x => ({ id: x.id, name: x.name, dept: x.dept || '', doctor: x.doctor || '', email: x.email || '', code: x.code,
+        adminCode: x.admin_code || '', adminCodeMigrated: x.admin_code !== undefined,
+        active: !!x.active, created: x.created, patients: x.patients || 0, feedbacks: x.feedbacks || 0, lastSeen: x.last_seen || 0 })) }, 200, cors);
     }
     if (path === '/admin/hospitals' && method === 'POST') {
       const name = s(body.name, 60).trim();
       if (!name) return json({ error: 'missing-name' }, 400, cors);
       const id = rid('hp'), c = makeHospitalCode();
-      await db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created) VALUES (?,?,?,?,?,?,1,?)')
-        .bind(id, name, s(body.dept, 40), s(body.doctor, 40), emailOf(body.email), c, nowMs()).run();
-      return json({ ok: true, id, code: c }, 200, cors);
+      let ac = makeAdminCode();
+      try {
+        await db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created, admin_code) VALUES (?,?,?,?,?,?,1,?,?)')
+          .bind(id, name, s(body.dept, 40), s(body.doctor, 40), emailOf(body.email), c, nowMs(), ac).run();
+      } catch (e) {
+        if (!/no such column/i.test(String(e && e.message || e))) throw e;
+        ac = '';   // admin_code 칸이 아직 없다 — 소장은 이메일 링크로만 들어온다
+        await db.prepare('INSERT INTO hospitals (id, name, dept, doctor, email, code, active, created) VALUES (?,?,?,?,?,?,1,?)')
+          .bind(id, name, s(body.dept, 40), s(body.doctor, 40), emailOf(body.email), c, nowMs()).run();
+      }
+      return json({ ok: true, id, code: c, adminCode: ac }, 200, cors);
     }
     if (path === '/admin/hospitals/update' && method === 'POST') {
       await db.prepare('UPDATE hospitals SET name = ?, dept = ?, doctor = ?, email = ? WHERE id = ?')
@@ -834,6 +932,17 @@ export async function handleHospital(request, env, cors, path, ctx) {
       await db.prepare('UPDATE hospitals SET active = ? WHERE id = ?').bind(body.active ? 1 : 0, cleanId(body.id)).run();
       if (!body.active) await db.prepare('DELETE FROM hospital_sessions WHERE hospital_id = ?').bind(cleanId(body.id)).run();
       return json({ ok: true }, 200, cors);
+    }
+    // 소장 관리 코드 발급·재발급 — 이메일이 없거나 링크를 못 받는 소장에게 운영팀이 따로(전화·대면) 전달한다.
+    //  재발급하면 예전 관리 코드는 즉시 무효. 이메일 링크 세션은 그대로 둔다.
+    if (path === '/admin/hospitals/admin-code' && method === 'POST') {
+      const id = cleanId(body.id);
+      const ac = makeAdminCode();
+      let r;
+      try { r = await db.prepare('UPDATE hospitals SET admin_code = ? WHERE id = ?').bind(ac, id).run(); }
+      catch (e) { if (/no such column/i.test(String(e && e.message || e))) return json({ error: 'migrate' }, 503, cors); throw e; }
+      if (!(r.meta && r.meta.changes)) return json({ error: 'not-found' }, 404, cors);
+      return json({ ok: true, adminCode: ac }, 200, cors);
     }
     if (path === '/admin/hospitals/rotate' && method === 'POST') {
       const c = makeHospitalCode();

@@ -1,5 +1,7 @@
 // ── 예약 캘린더(주간) · 통계(6개월) · 설정 ─────────────────────────────────
 const CAL = { week: 0, hourFrom: 8, hourTo: 22, rowH: 48 };
+// 정산 채널 이름 — referral 은 '소개'(상담소는 소개료 20%, 상담사에게는 앱이 지급)
+const CH_LABEL = (ch, long) => ch === 'hospital' ? (long ? '상담소 (90%)' : '상담소') : ch === 'referral' ? '소개 (상담소 20%)' : (long ? '앱 (상담사 직접)' : '앱');
 const startOfWeek = ts => { const d = new Date(ts); d.setHours(0, 0, 0, 0); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow); return d.getTime(); };
 CAL.week = startOfWeek(Date.now());
 LOADERS.bookings = () => { const from = CAL.week, to = from + 7 * 86400000; return hget(`bookings?from=${from}&to=${to}`).then(d => (d && d.ok) ? (DATA.bookings = { from, to, items: d.items }) : null); };
@@ -11,28 +13,33 @@ VIEWS.calendar = {
   html() {
     const bk = DATA.bookings;
     const nav = `<div class="filters"><button class="btn ghost sm" data-act="cal-move" data-v="-1">‹ 지난주</button><button class="btn ghost sm" data-act="cal-move" data-v="0">이번 주</button><button class="btn ghost sm" data-act="cal-move" data-v="1">다음주 ›</button>
-      <span class="muted">${bk && bk.from === CAL.week ? `예약 ${bk.items.length}건` : ''}</span><span class="muted right">실선 = 상담소 채널 · 점선 = 앱 채널(승인 전 상담사)</span></div>`;
+      <span class="muted">${bk && bk.from === CAL.week ? `예약 ${bk.items.length}건` : ''}</span><span class="muted right">실선 = 상담소 채널 · 점선 = 앱 채널(승인 전 상담사) · '소개' = 소개 채널(상담소 20%)</span></div>`;
     if (!bk || bk.from !== CAL.week) return nav + (ST.bookings === 'err' ? failedHtml('calendar') : loadingHtml());
     const days = [...Array(7)].map((_, i) => CAL.week + i * 86400000);
     const today = startOfWeek(Date.now()) === CAL.week ? new Date().getDay() : -1;
-    const hours = []; for (let h = CAL.hourFrom; h <= CAL.hourTo; h++) hours.push(h);
-    const gridH = (CAL.hourTo - CAL.hourFrom) * CAL.rowH;
     const byDay = days.map(d0 => bk.items.filter(b => b.whenTs >= d0 && b.whenTs < d0 + 86400000));
+    // 기본은 8시~22시. 그 밖의 예약(이른 아침·밤늦게)이 있으면 그 주만 칸을 늘린다 —
+    //  전에는 맨 위·맨 아래 칸에 눌러 붙어 엉뚱한 시각에 있는 것처럼 보였다.
+    let hFrom = CAL.hourFrom, hTo = CAL.hourTo;
+    bk.items.forEach(b => { const d = new Date(b.whenTs); hFrom = Math.min(hFrom, d.getHours()); hTo = Math.max(hTo, d.getHours() + 1); });
+    hTo = Math.min(24, hTo);
+    const hours = []; for (let h = hFrom; h <= hTo; h++) hours.push(h);
+    const gridH = (hTo - hFrom) * CAL.rowH;
     const block = b => {
-      const d = new Date(b.whenTs); const mins = (d.getHours() - CAL.hourFrom) * 60 + d.getMinutes();
+      const d = new Date(b.whenTs); const mins = (d.getHours() - hFrom) * 60 + d.getMinutes();
       const top = Math.max(0, Math.min(gridH - 30, mins / 60 * CAL.rowH));
-      return `<div class="bk ${b.status} ${b.channel === 'app' ? 'app' : ''}" style="top:${top}px; height:${CAL.rowH * 0.95}px;" data-act="cal-open" data-id="${esc(b.id)}" title="${esc(fmtTime(b.whenTs) + ' ' + b.clientName + ' · ' + b.counselor)}"><b>${fmtTime(b.whenTs)} ${esc(b.clientName || '내담자')}</b>${esc(b.counselor)}</div>`;
+      return `<div class="bk ${b.status} ${b.channel === 'app' ? 'app' : ''} ${b.channel === 'referral' ? 'referral' : ''}" style="top:${top}px; height:${CAL.rowH * 0.95}px;" data-act="cal-open" data-id="${esc(b.id)}" title="${esc(fmtTime(b.whenTs) + ' ' + b.clientName + ' · ' + b.counselor + ' · ' + CH_LABEL(b.channel))}"><b>${fmtTime(b.whenTs)} ${esc(b.clientName || '내담자')}</b>${esc(b.counselor)}${b.channel === 'referral' ? ' · 소개' : ''}</div>`;
     };
     return nav + `
       <div class="calwrap"><div class="calgrid">
         <div class="dh"></div>${days.map((d0, i) => { const d = new Date(d0); return `<div class="dh ${i === 6 ? 'sun' : ''} ${d.getDay() === today ? 'today' : ''}">${['월', '화', '수', '목', '금', '토', '일'][i]}<b>${d.getDate()}</b></div>`; }).join('')}
-        <div class="hcol" style="height:${gridH}px;">${hours.map(h => `<span style="top:${(h - CAL.hourFrom) * CAL.rowH}px;">${h}시</span>`).join('')}</div>
+        <div class="hcol" style="height:${gridH}px;">${hours.map(h => `<span style="top:${(h - hFrom) * CAL.rowH}px;">${h}시</span>`).join('')}</div>
         ${days.map((d0, i) => `<div class="dcol ${new Date(d0).getDay() === today ? 'today' : ''}" style="height:${gridH}px;">${byDay[i].map(block).join('')}</div>`).join('')}
       </div></div>
       <div class="sec-title">목록 <span class="right">${bk.items.length}건</span></div>
       ${bk.items.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th class="t">일시</th><th>내담자</th><th>상담사</th><th>상태</th><th>채널</th><th class="r">상담료</th></tr></thead><tbody>
-        ${bk.items.map(b => `<tr class="clickable" data-act="cal-open" data-id="${esc(b.id)}"><td class="t">${fmtDT(b.whenTs)}</td><td><b>${esc(b.clientName || '내담자')}</b>${b.linked ? ' <span class="chip ok">연결</span>' : ''}</td><td>${esc(b.counselor)}</td><td>${BK_STATUS[b.status] || esc(b.status)}</td><td class="sub">${b.channel === 'hospital' ? '상담소' : '앱'}</td><td class="r num">${won(b.price)}원</td></tr>`).join('')}</tbody></table></div>`
-        : '<div class="card flat"><p class="muted">이 주에는 예약이 없어요. 상담사 앱에서 잡힌 예약이 여기에 보여요 (오전 8시~밤 10시 범위 밖은 목록에만).</p></div>'}`;
+        ${bk.items.map(b => `<tr class="clickable" data-act="cal-open" data-id="${esc(b.id)}"><td class="t">${fmtDT(b.whenTs)}</td><td><b>${esc(b.clientName || '내담자')}</b>${b.linked ? ' <span class="chip ok">연결</span>' : ''}</td><td>${esc(b.counselor)}</td><td>${BK_STATUS[b.status] || esc(b.status)}</td><td class="sub">${CH_LABEL(b.channel)}</td><td class="r num">${won(b.price)}원</td></tr>`).join('')}</tbody></table></div>`
+        : '<div class="card flat"><p class="muted">이 주에는 예약이 없어요. 상담사 앱에서 잡힌 예약이 여기에 보여요 (오전 8시~밤 10시 밖의 예약이 있으면 그 주는 칸이 늘어나요).</p></div>'}`;
   }
 };
 function openBooking(id) {
@@ -40,7 +47,7 @@ function openBooking(id) {
   modal({ title: `${fmtDT(b.whenTs)} · ${b.clientName || '내담자'}`, cancel: false, okLabel: '닫기', html: `
     <div class="kv4" style="grid-template-columns:1fr 1fr; margin-top:0.5rem;">
       <div><span class="muted">상담사</span><strong>${esc(b.counselor)}</strong></div><div><span class="muted">상태</span><strong>${BK_STATUS[b.status] || esc(b.status)}</strong></div>
-      <div><span class="muted">상담료</span><strong>${won(b.price)}원</strong></div><div><span class="muted">정산 채널</span><strong>${b.channel === 'hospital' ? '상담소 (90%)' : '앱 (상담사 직접)'}</strong></div>
+      <div><span class="muted">상담료</span><strong>${won(b.price)}원</strong></div><div><span class="muted">정산 채널</span><strong>${CH_LABEL(b.channel, true)}</strong></div>
     </div>
     ${b.doneAt ? `<p class="muted" style="margin-top:0.5rem;">${fmtDT(b.doneAt)} 완료 처리됨</p>` : ''}
     ${b.linked ? `<p style="margin-top:0.6rem;"><button class="btn soft sm" data-act="open-patient" data-id="${esc(b.clientId)}">내담자 열기 ›</button></p>` : '<p class="muted" style="margin-top:0.5rem;">상담소와 연결되지 않은 내담자예요 — 소속 상담사의 개인 예약입니다.</p>'}` });
@@ -117,7 +124,7 @@ VIEWS.settings = {
         <div>
           <div class="card">
             <b style="font-size:0.9rem;">상담소 코드</b>
-            <p class="muted" style="margin-top:0.2rem;">내담자 연결용 코드는 <b>대시보드</b> 아래에서 복사할 수 있어요. 코드가 새어 나갔다면 재발급을 운영팀에 요청하세요 — 재발급하면 옛 코드로는 더 이상 연결·로그인할 수 없어요.</p>
+            <p class="muted" style="margin-top:0.2rem;">내담자 연결용 코드는 <b>대시보드</b> 아래에서 복사할 수 있어요. 코드가 새어 나갔다면 재발급을 운영팀에 요청하세요 — 재발급하면 옛 코드로는 더 이상 연결할 수 없어요.<br>이 코드는 <b>내담자용</b>이라 콘솔 로그인에는 쓰이지 않아요. 콘솔은 이메일 링크나, 운영팀이 따로 드린 <b>소장 관리 코드(HA-…)</b>로 들어와요.</p>
           </div>
           <div class="card">
             <b style="font-size:0.9rem;">긴급 알림</b>
@@ -137,7 +144,7 @@ VIEWS.settings = {
           </div>
           <div class="card">
             <b style="font-size:0.9rem;">로그인</b>
-            <p class="muted" style="margin:0.2rem 0 0.6rem;">지금 방식: <b>${HS ? '이메일 링크 (이 기기 30일)' : '상담소 코드'}</b>. ${HS ? '다른 PC·폰에서도 링크로 들어왔다면 아래에서 한꺼번에 내보낼 수 있어요.' : '이메일이 등록돼 있다면 링크 로그인이 더 안전해요.'}</p>
+            <p class="muted" style="margin:0.2rem 0 0.6rem;">지금 방식: <b>${HS ? '이메일 링크 (이 기기 30일)' : '소장 관리 코드'}</b>. ${HS ? '다른 PC·폰에서도 링크로 들어왔다면 아래에서 한꺼번에 내보낼 수 있어요.' : '이메일이 등록돼 있다면 링크 로그인이 더 안전해요.'}</p>
             <div class="row wrap" style="gap:0.4rem;">${HS ? '<button class="btn ghost sm" data-act="logout-others">다른 기기 모두 로그아웃</button>' : ''}<button class="btn warnline sm" data-act="logout">이 기기에서 로그아웃</button></div>
           </div>
         </div>
