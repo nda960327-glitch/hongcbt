@@ -78,12 +78,14 @@ self.addEventListener('push', e => {
       } catch (err) {}
     }
 
-    // 앱이 이미 열려 있으면 화면이 알아서 울린다 — 알림까지 겹치지 않게 한다
+    // 앱이 이미 열려 있으면 화면이 알아서 울린다 — 알림까지 겹치지 않게 한다.
+    //  전화가 아닌 깨우기도 마찬가지다. 전에는 전화일 때만 멈춰서, 화면을 보고 있는
+    //  상담사에게도 '새 소식이 있어요'가 따로 떴다 (앱은 'push' 를 받아 채팅을 이미 새로 그린다).
     const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const visible = wins.some(w => w.visibilityState === 'visible');
     if (visible) {
       wins.forEach(w => w.postMessage({ type: 'push', call }));
-      if (call) return;
+      return;
     }
 
     if (call) {

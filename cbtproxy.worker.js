@@ -36,6 +36,8 @@ import { handleHospital } from "./hospital.js";
 import { handleCommunity } from "./community.js";
 import { handleClinics } from "./clinics.js";
 import { resolveCounselor } from "./auth.js";
+import { verifyClient } from "./market.js";
+import { notifyCounselor, notifyClient } from "./push.js";
 export { ChatHub } from "./hub.js";
 
 // ── 남용 방어 ───────────────────────────────────────────────────────────
@@ -110,10 +112,82 @@ async function abuseCheck(request, env, body) {
   return null;
 }
 
+// ── 예약 30분 전 알림 ─────────────────────────────────────────────────────
+//  예약은 잡아 두고 잊는다. 상담사도 내담자도 시간에 못 들어오면 노쇼가 되고,
+//  노쇼는 정산 분쟁으로 번진다. 5분마다 '25~35분 뒤 시작'인 확정 예약을 찾아
+//  양쪽에 한 번씩 알린다. 창을 10분으로 두는 이유: 크론이 한 번 늦거나 건너뛰어도
+//  다음 번(5분 뒤)에 여전히 창 안에 있어 놓치지 않는다.
+//  두 번 보내지 않는 건 reminded_at 의 '조건부 UPDATE' 가 맡는다 — 크론이 겹쳐 돌아도
+//  UPDATE 를 이긴(changes > 0) 쪽만 알린다.
+//  reminded_at 칸이 아직 없는 DB(schema-2026-10.sql 적용 전)에서는 조용히 건너뛴다 —
+//  칸 없이 보내면 5분마다 같은 알림이 반복된다.
+const REMIND_CRON = "*/5 * * * *";
+const CLEANUP_CRON = "0 18 * * *";
+
+// 상담 시각을 한국 시간 글자로 — 서버는 UTC 로 돈다. "오후 3:00" / 날짜가 다르면 "10월 2일 오후 3:00"
+function kstLabel(ts, now) {
+  const K = 9 * 3600000;
+  const d = new Date(ts + K), n = new Date(now + K);
+  const h = d.getUTCHours(), m = d.getUTCMinutes();
+  const hm = (h < 12 ? "오전 " : "오후 ") + ((h % 12) || 12) + ":" + String(m).padStart(2, "0");
+  const sameDay = d.getUTCFullYear() === n.getUTCFullYear() && d.getUTCMonth() === n.getUTCMonth() && d.getUTCDate() === n.getUTCDate();
+  return sameDay ? hm : (d.getUTCMonth() + 1) + "월 " + d.getUTCDate() + "일 " + hm;
+}
+
+async function remindBookings(env, ctx) {
+  const db = env.DB;
+  if (!db) return;
+  const t = Date.now();
+  let rows = [];
+  try {
+    const r = await db.prepare(
+      `SELECT id, counselor_id, counselor_name, client_id, client_name, when_ts FROM bookings
+        WHERE status = 'confirmed' AND when_ts BETWEEN ? AND ? AND COALESCE(reminded_at, 0) = 0
+        LIMIT 50`
+    ).bind(t + 25 * 60000, t + 35 * 60000).all();
+    rows = (r && r.results) || [];
+  } catch (e) { return; }                 // reminded_at 칸이 없다 — 반복 발송보다 안 보내는 게 낫다
+  const jobs = [];
+  for (const b of rows) {
+    let won = false;
+    try {
+      const u = await db.prepare("UPDATE bookings SET reminded_at = ? WHERE id = ? AND COALESCE(reminded_at, 0) = 0 AND status = 'confirmed'")
+        .bind(t, b.id).run();
+      won = !!(u && u.meta && u.meta.changes > 0);
+    } catch (e) { won = false; }
+    if (!won) continue;
+    const when = kstLabel(b.when_ts, t);
+    const mins = Math.max(1, Math.round((b.when_ts - t) / 60000));
+    jobs.push(notifyCounselor(env, b.counselor_id, {
+      kind: "notice", ttl: 1800, act: "bookings",
+      title: "상담 " + mins + "분 전",
+      body: (b.client_name || "내담자") + " 님과의 상담이 " + when + "에 시작돼요."
+    }).catch(() => {}));
+    jobs.push(notifyClient(env, b.client_id, {
+      kind: "notice", ttl: 1800, act: "counselors",
+      title: "상담 " + mins + "분 전",
+      body: (b.counselor_name || "상담사") + " 선생님과의 상담이 " + when + "에 시작돼요."
+    }).catch(() => {}));
+  }
+  if (jobs.length) {
+    const all = Promise.all(jobs);
+    if (ctx && ctx.waitUntil) ctx.waitUntil(all); else await all;
+  }
+}
+
 const APP = {
+  // 크론은 두 개다 — 5분마다 예약 알림, 매일 KST 03:00 야간 청소.
+  //  event.cron 으로 갈라야 한다. 안 가르면 5분마다 야간 청소(죽은 통화 강제 종료 포함)가 돈다.
+  async scheduled(event, env, ctx) {
+    const cron = (event && event.cron) || "";
+    if (cron === REMIND_CRON) return remindBookings(env, ctx);
+    if (cron && cron !== CLEANUP_CRON) return;
+    return APP.cleanup(event, env, ctx);
+  },
+
   // 야간 청소 (매일 KST 03:00) — 손으로 SQL 을 치던 정리를 자동으로.
   //  통화 신호·진단·사용량 카운터는 유통기한이 짧다. 안 치우면 D1 만 무거워진다.
-  async scheduled(event, env, ctx) {
+  async cleanup(event, env, ctx) {
     const db = env.DB;
     if (!db) return;
     const t = Date.now();
@@ -194,8 +268,10 @@ const APP = {
     // ── 실시간 웹소켓 (/ws?ch=cl:<clientId> | c:<counselorId>) ──────────
     //  받는 쪽이 8~15초 폴링을 기다리던 것을, 저장 즉시 밀어주는 것으로 바꾼다.
     //  상담사 채널은 자격증명으로 본인 확인 — 채널 이름만 알면 남의 대화를
-    //  엿들을 수 있으면 안 된다. 내담자 채널은 기기 고유 clientId 가 곧 열쇠다
-    //  (메시지 조회 GET 과 같은 신뢰 모델).
+    //  엿들을 수 있으면 안 된다. 내담자 채널도 마찬가지다: 상담사 답장 전문이 흐르는데
+    //  clientId 는 상담사에게도 보이는 값이라, 이름만으로 열어 두면 엿들을 수 있었다.
+    //  주인이 정해진 clientId 는 clientKey 로 증명해야 한다(아직 claim 전이면 유예 통과 —
+    //  verifyClient 의 'pass').
     if (path === "/ws") {
       const u = new URL(request.url);
       const ch = (u.searchParams.get("ch") || "").slice(0, 120);
@@ -206,6 +282,10 @@ const APP = {
           code: (u.searchParams.get("code") || "").slice(0, 64)
         }).catch(() => null);
         if (!me || "c:" + me.id !== ch) return json({ error: "forbidden" }, 403, cors);
+      }
+      if (ch.startsWith("cl:") && env.DB) {
+        const v = await verifyClient(env, ch.slice(3), (u.searchParams.get("clientKey") || "").slice(0, 64)).catch(() => "ok");
+        if (v === "deny") return json({ error: "forbidden" }, 403, cors);
       }
       if (!env.HUB) return json({ error: "no-hub" }, 503, cors);
       const stub = env.HUB.get(env.HUB.idFromName(ch));
@@ -225,8 +305,13 @@ const APP = {
       if (r) return r;
     }
     // 소개 페이지(neurumind.com/intro/) — 팀원이 비밀번호를 넣으면 테스트 코드를 본다.
-    //  코드를 HTML 에 박아 두면 소스 보기로 다 보인다. 여기서 주면 ADMIN_CODE 를 돌려도 페이지는 그대로다.
-    //  IP 당 10분에 8번까지 — 네 자리 번호를 무한정 찍어 보게 두지 않는다.
+    //  코드를 HTML 에 박아 두면 소스 보기로 다 보인다.
+    //  운영자 코드(ADMIN_CODE)는 더 이상 주지 않는다. 비밀번호가 네 자리('1234')라 사실상
+    //   공개인데, 그걸로 전체 이용자 데이터를 여는 마스터 코드가 나가고 있었다.
+    //   페이지는 admin 이 비면 '—' 로 보여준다 — 운영자 코드는 사장님이 직접 전한다.
+    //  상담사도 이름이 '테스트'로 시작하는 계정만 준다 — '첫 상담사'는 실제 상담사일 수 있다.
+    //  IP 당 10분에 8번까지 + 전체 합산 10분에 30번 틀리면 모두 잠근다
+    //  (IP 를 바꿔 가며 네 자리를 찍으면 IP 제한만으로는 못 막는다).
     if (path === "/intro/unlock" && request.method === "POST") {
       const db = env.DB;
       let body = {};
@@ -241,19 +326,28 @@ const APP = {
           await db.prepare("DELETE FROM rate_hits WHERE ts < ?").bind(now - 3600000).run();
         } catch (e) {}
       }
+      if (db) {
+        try {
+          const g = await db.prepare("SELECT COUNT(*) n FROM rate_hits WHERE key = 'intro-fail' AND ts > ?").bind(now - 600000).first();
+          if ((g && g.n) >= 30) return json({ error: "too-many", message: "잠시 잠겼어요. 10분 뒤에 다시 해주세요." }, 429, cors);
+        } catch (e) {}
+      }
       const pw = String(body.pw || "").trim();
-      if (!env.INTRO_PW || pw !== String(env.INTRO_PW)) return json({ error: "bad-pw" }, 403, cors);
+      if (!env.INTRO_PW || pw !== String(env.INTRO_PW)) {
+        if (db) { try { await db.prepare("INSERT INTO rate_hits (key, ts) VALUES ('intro-fail', ?)").bind(now).run(); } catch (e) {} }
+        return json({ error: "bad-pw" }, 403, cors);
+      }
       let hospital = null, counselor = null;
       if (db) {
         try {
           const h = await db.prepare("SELECT name, doctor, code, email FROM hospitals WHERE active = 1 AND name LIKE '테스트%' ORDER BY created ASC LIMIT 1").first();
           if (h) hospital = { name: h.name, doctor: h.doctor || "", code: h.code, email: h.email || "" };
-          const k = await db.prepare("SELECT name, code, email FROM counselors WHERE active = 1 ORDER BY created ASC LIMIT 1").first();
+          const k = await db.prepare("SELECT name, code, email FROM counselors WHERE active = 1 AND name LIKE '테스트%' ORDER BY created ASC LIMIT 1").first();
           if (k) counselor = { name: k.name, code: k.code, email: k.email || "" };
         } catch (e) {}
       }
       return json({
-        ok: true, admin: env.ADMIN_CODE || "", hospital, counselor,
+        ok: true, admin: "", hospital, counselor,
         urls: { app: env.APP_URL || "https://mindinsideapp.com", pro: env.PRO_URL || "https://pro.mindinsideapp.com", doc: env.DOC_URL || "https://doc.mindinsideapp.com", ops: "https://ops.mindinsideapp.com" }
       }, 200, cors);
     }

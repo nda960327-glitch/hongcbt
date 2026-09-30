@@ -98,14 +98,40 @@ async function consultRateOf(db, counselorId) {
   } catch (e) { return 700; }
 }
 
+// ── 신호에 '어느 통화의 것인지'를 붙인다 (rtc_signals.call_id) ─────────────
+//  방 이름은 한 쌍(상담사·내담자)마다 고정이다. 그래서 지난 통화의 bye/answer 가
+//  방에 남아 있으면, 다시 건 전화가 seq=0 부터 폴링하다 그걸 집어 먹고
+//  걸자마자 끊겼다(재발신 즉시 종료). 신호마다 callId 를 적고 폴링을 callId 로
+//  거르면, 끝난 통화의 신호는 새 통화에 절대 섞이지 않는다.
+//  call_id 칸이 아직 없는 DB(스키마 적용 전)에서도 죽지 않는다 — 한 번
+//  '칸이 없다'를 확인하면 그 인스턴스에서는 옛 방식(방 단위)으로만 돈다.
+let SIG_CALL_COL = null;
+const isNoColumn = e => /no such column|has no column|no column named/i.test(String((e && e.message) || e));
+
+async function insertSignal(db, room, sender, kind, payload, ts, callId) {
+  if (callId && SIG_CALL_COL !== false) {
+    try {
+      await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts, call_id) VALUES (?,?,?,?,?,?)')
+        .bind(room, sender, kind, payload, ts, callId).run();
+      SIG_CALL_COL = true;
+      return;
+    } catch (e) {
+      if (!isNoColumn(e)) throw e;          // 일시 오류는 판정을 굳히지 않는다
+      SIG_CALL_COL = false;
+    }
+  }
+  await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
+    .bind(room, sender, kind, payload, ts).run();
+}
+
 // 상담 신호는 서버만 발행한다. /rtc/signal 이 받아주는 kind 목록에 consult-* 가
 //  없으므로(claim 과 같은 방식) 밖에서는 위조할 수 없다.
 //  sender 로 '누구에게 갈지'가 정해진다 — 폴링이 sender != 나 인 것만 집어가므로
 //  'counselor' 는 내담자에게, 'client' 는 상담사에게, 'sys' 는 양쪽 모두에게 간다.
 async function consultSignal(db, room, sender, kind, payload) {
   try {
-    await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
-      .bind(room, sender, kind, JSON.stringify(payload || {}).slice(0, 2000), nowMs()).run();
+    await insertSignal(db, room, sender, kind, JSON.stringify(payload || {}).slice(0, 2000), nowMs(),
+      (payload && payload.callId) || '');
   } catch (e) {}
 }
 
@@ -372,6 +398,10 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   if (path === '/rtc/start' && method === 'POST') {
     const counselorId = s(body.counselorId), clientId = s(body.clientId);
     if (!counselorId || !clientId) return json({ error: 'missing' }, 400, cors);
+    // clientId 는 상담사에게도 보이는 값이다 — 남의 이름으로 전화를 걸면 그 사람의
+    //  통화방 토큰(rtoken)까지 받아 간다. 내담자 본인만 가진 clientKey 로 증명한다.
+    //  (Api.f 가 clientId 가 실린 바디에 clientKey 를 자동으로 붙인다)
+    if (await verifyClient(env, clientId, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
 
     const c = await db.prepare(
       'SELECT id, name, active FROM counselors WHERE id = ? AND active = 1'
@@ -401,7 +431,36 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const mine = await db.prepare(
       "SELECT * FROM calls WHERE room = ? AND end_at = 0 AND COALESCE(dir, '') != 'to-client' ORDER BY ring_at DESC LIMIT 1"
     ).bind(room).first();
-    if (mine) return json({ ok: true, room, callId: mine.id, resumed: true, rtoken }, 200, cors);
+    // 이어 쓰는 건 '아직 벨만 울리는' 통화뿐이다.
+    //  이미 붙었던 통화를 이어받으면 새 연결이 지난 연결의 answer 를 다시 집어
+    //  엉뚱한 세션에 붙으려다 실패한다. 내가 다시 걸었다는 건 그 통화가 이미
+    //  죽었다는 뜻(앱 재시작·크래시)이므로, 아래에서 끝내고 새로 만든다.
+    if (mine && !mine.connect_at) {
+      // 지난 시도의 offer/ICE 는 이미 사라진 연결의 것이다 — 새 offer 가 곧 온다.
+      //  남겨두면 상담사 폰이 옛 offer 에 answer 를 만들어 방이 꼬인다. (claim 자물쇠는 둔다)
+      try { await db.prepare("DELETE FROM rtc_signals WHERE room = ? AND kind != 'claim'").bind(room).run(); } catch (e) {}
+      return json({ ok: true, room, callId: mine.id, resumed: true, rtoken }, 200, cors);
+    }
+    if (mine && mine.connect_at) {
+      // 요금은 마지막 심박까지만 — 죽은 뒤의 시간에 돈을 받지 않는다 (리퍼와 같은 규칙)
+      const upto = mine.last_seen > mine.connect_at ? mine.last_seen : mine.connect_at;
+      const fin = await endConsult(db, mine, upto);
+      const info = await settledInfo(db, mine, fin);
+      try {
+        await db.prepare("UPDATE calls SET end_at = ?, end_by = 'redial', billed = MAX(COALESCE(billed, 0), ?) WHERE id = ? AND end_at = 0")
+          .bind(t, info.charge, mine.id).run();
+      } catch (e) {}
+      await releaseLine(db, counselorId, mine.id);
+      // 지난 통화의 신호를 비운다. bye 는 심지 않는다 — call_id 칸이 없는 DB 에서는
+      //  그 bye 가 방금 만들 새 통화를 곧장 끊어버린다. 상담사 앱은 6초 심박(/rtc/state)과
+      //  웹소켓 'ended' 로 끝났음을 안다.
+      try { await db.prepare("DELETE FROM rtc_signals WHERE room = ? AND kind != 'claim'").bind(room).run(); } catch (e) {}
+      // 상담 요금 마감 결과는 양쪽 앱이 지갑을 맞추는 근거라 남긴다 (callId 로 멱등)
+      if (fin) await consultSignal(db, room, 'sys', 'consult-ended', { callId: mine.id, ...fin, auto: true });
+      await logCallToChat(db, env, ctx, mine,
+        callLine(Math.max(0, upto - mine.connect_at), info, '(다시 걸기)'), 'client');
+      pushCallState(env, ctx, counselorId, clientId, 'ended', { callId: mine.id });
+    }
     // 회선 잠금은 '조건부 UPDATE 한 방'으로 잡는다.
     //  전에는 busy_until 을 읽고 → 판단하고 → 쓰는 3단계였는데,
     //  두 사람이 동시에 걸면 둘 다 '비어 있다'를 읽고 둘 다 통과한다.
@@ -429,14 +488,30 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     if (env.RL_ACT && env.RL_ACT.limit) {
       try {
         const lr = await env.RL_ACT.limit({ key: 'call:' + clientId });
-        if (!lr.success) return json({ error: 'too-many', message: '전화를 너무 자주 걸고 있어요. 1분 뒤에 다시 걸어주세요.' }, 429, cors);
+        if (!lr.success) {
+          // 방금 잡은 회선 잠금을 돌려놓는다 — 안 풀면 통화 행도 없는 잠금이
+          //  90분 동안 남아 이 상담사에게 오는 모든 전화가 '통화 중'으로 튕긴다
+          await releaseLine(db, counselorId, '');
+          return json({ error: 'too-many', message: '전화를 너무 자주 걸고 있어요. 1분 뒤에 다시 걸어주세요.' }, 429, cors);
+        }
       } catch (e) {}
     }
     const id = rid('call');
     const cch = await callChannel(db, clientId, counselorId);
-    await db.prepare(
-      "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir, channel, hospital_id) VALUES (?,?,?,?,?,?,?,'to-counselor',?,?)"
-    ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t, cch.channel, cch.hospitalId).run();
+    try {
+      await db.prepare(
+        "INSERT INTO calls (id, room, counselor_id, client_id, booking_id, rate, ring_at, dir, channel, hospital_id) VALUES (?,?,?,?,?,?,?,'to-counselor',?,?)"
+      ).bind(id, room, counselorId, clientId, s(body.bookingId), Math.max(0, Number(body.rate) || 0), t, cch.channel, cch.hospitalId).run();
+    } catch (e) {
+      // 통화를 못 만들었으면 잠금을 들고 있을 이유가 없다 (c2c 와 같은 처리)
+      await releaseLine(db, counselorId, '');
+      return json({ error: 'start-failed' }, 500, cors);
+    }
+    // 새 통화의 방은 깨끗해야 한다. 방 이름은 한 쌍마다 고정이라, 지난 통화가
+    //  끝날 때 심은 bye·지난 answer 가 남아 있으면 seq=0 부터 폴링하는 새 통화가
+    //  그걸 집어 걸자마자 끊겼다(재발신 즉시 종료). c2c 와 같은 청소를 여기서도 한다.
+    //  (벨만 울리는 통화를 이어 쓰는 위쪽 resumed 경로에서는 옛 offer 만 지웠다)
+    try { await db.prepare('DELETE FROM rtc_signals WHERE room = ? AND ts < ?').bind(room, t).run(); } catch (e) {}
 
     // 상담사 기기를 깨운다. 앱이 닫혀 있어도, 잠긴 화면이어도 벨이 울린다.
     //  응답보다 뒤에 보낸다 — 푸시가 느려도 전화 거는 쪽은 기다리지 않는다.
@@ -530,6 +605,9 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   if (path === '/rtc/incoming-client' && method === 'GET') {
     const cid = s(q('clientId'));
     if (!cid) return json({ call: null }, 200, cors);
+    // 응답에 room·rtoken 이 실린다 — clientId 만 아는 사람(상담사 포함)이 이걸 받아 가면
+    //  남의 통화를 가로챌 수 있다. 내담자 본인의 clientKey 로 증명한다.
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny') return json({ call: null, error: 'forbidden' }, 403, cors);
     const t = nowMs();
     // 흘러간 발신을 부재중으로 정리 (상담사 폴링과 대칭)
     try {
@@ -746,10 +824,13 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     // 상대 피어에게 '끝났다'를 시그널로도 심는다 — 거절·취소를 상대가
     //  1초 안에 안다 (폴링이 bye 를 집어간다). 이게 없으면 발신자는
     //  거절당한 줄도 모르고 '통화 대기 중…'을 계속 본다.
+    //  보내는 이는 'sys'(양쪽 모두에게 감)다. 전에는 by 로 발신자를 정했는데,
+    //  상담사 쪽 연결이 실패하면 by='failed' → sender 'client' 가 되어 정작 내담자는
+    //  그 bye 를 못 받았다(자기 것으로 보고 거른다). 끊은 쪽은 이미 폴링을 멈췄으므로
+    //  양쪽에 뿌려도 해가 없다.
+    //  callId 를 붙인다 — 이 bye 는 방에 남지만 다음 통화의 폴링(callId 필터)에는 안 걸린다.
     try {
-      const byeSender = (by === 'counselor') ? 'counselor' : 'client';
-      await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
-        .bind(r.room, byeSender, 'bye', '1', t).run();
+      await insertSignal(db, r.room, 'sys', 'bye', '1', t, id);
     } catch (e) {}
     // 상담이 열린 채 통화가 끊겼다면 마감 결과도 양쪽에 심는다 —
     //  bye 만 보면 상대 앱은 '얼마가 청구됐는지'를 영영 모른다.
@@ -909,6 +990,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
   if (path === '/rtc/my-charges' && method === 'GET') {
     const cid = s(q('clientId'));
     if (!cid) return json({ items: [] }, 200, cors);
+    // 누구와 언제 얼마짜리 상담을 했는지는 민감 정보다 — 본인만 본다
+    if (await verifyClient(env, cid, s(q('clientKey'), 64)) === 'deny') return json({ items: [], error: 'forbidden' }, 403, cors);
     const since = nowMs() - 30 * 86400000;
     try {
       const r = await db.prepare(
@@ -966,9 +1049,12 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
       return json({ error: 'bad-signal' }, 400, cors);
     }
     // 토큰을 냈으면 반드시 맞아야 한다(안 내면 유예). SDP/ICE 도청·answer 주입 차단.
+    //  토큰 없는 요청을 아직 막지 못하는 이유: 받는 쪽 앱(상담사 answerCall·내담자
+    //  receiveHuman)이 answer() 에 rtoken 을 넘기지 않아, 붙기 전의 answer/ICE 가
+    //  토큰 없이 온다. 두 앱이 모두 넘기게 바뀐 뒤에 '없으면 거부'로 조인다.
     if (!(await rtokenOk(env, room, s(body.rtoken, 80)))) return json({ error: 'bad-rtoken' }, 403, cors);
-    await db.prepare('INSERT INTO rtc_signals (room, sender, kind, payload, ts) VALUES (?,?,?,?,?)')
-      .bind(room, sender, kind, String(body.payload || '').slice(0, 20000), nowMs()).run();
+    // callId 는 이 신호가 어느 통화의 것인지 — 옛 앱은 안 보내고, 그때는 방 단위로 남는다
+    await insertSignal(db, room, sender, kind, String(body.payload || '').slice(0, 20000), nowMs(), s(body.callId, 80));
     return json({ ok: true }, 200, cors);
   }
 
@@ -976,12 +1062,30 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const room = s(q('room'), 160);
     const me = q('as') === 'counselor' ? 'counselor' : 'client';
     const since = Number(q('since')) || 0;
+    const callId = s(q('callId'), 80);
     if (!room) return json({ items: [], seq: since }, 200, cors);
     // 토큰을 냈으면 반드시 맞아야 한다(안 내면 유예). SDP/ICE 훔쳐보기 차단.
     if (!(await rtokenOk(env, room, q('rtoken')))) return json({ items: [], seq: since, error: 'bad-rtoken' }, 403, cors);
-    const r = await db.prepare(
-      'SELECT seq, sender, kind, payload FROM rtc_signals WHERE room = ? AND seq > ? AND sender != ? ORDER BY seq ASC LIMIT 60'
-    ).bind(room, since, me).all();
+    // callId 를 주면 그 통화의 신호만 준다 — 지난 통화의 bye/answer 가 새 통화를 끊지 않게.
+    //  call_id 가 빈 신호(옛 앱이 보냈거나 칸이 생기기 전의 것)는 같이 준다 —
+    //  상대가 옛 앱이어도 통화는 붙어야 한다. (그런 잔재는 통화 시작 때 방 청소로 걷힌다)
+    let r = null;
+    if (callId && SIG_CALL_COL !== false) {
+      try {
+        r = await db.prepare(
+          "SELECT seq, sender, kind, payload FROM rtc_signals WHERE room = ? AND seq > ? AND sender != ? AND (call_id = ? OR COALESCE(call_id, '') = '') ORDER BY seq ASC LIMIT 60"
+        ).bind(room, since, me, callId).all();
+        SIG_CALL_COL = true;
+      } catch (e) {
+        if (!isNoColumn(e)) throw e;
+        SIG_CALL_COL = false;
+      }
+    }
+    if (!r) {
+      r = await db.prepare(
+        'SELECT seq, sender, kind, payload FROM rtc_signals WHERE room = ? AND seq > ? AND sender != ? ORDER BY seq ASC LIMIT 60'
+      ).bind(room, since, me).all();
+    }
     const items = r.results || [];
     const last = items.length ? items[items.length - 1].seq : since;
     // 지나간 신호 청소 (가끔)

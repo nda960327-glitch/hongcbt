@@ -58,5 +58,17 @@ let pro = fs.readFileSync(R + 'pro/index.html', 'utf8');
 pro = pro.replace(/(src="js\/[^"?]+\.js)\?v=\d+/g, '$1?v=' + next);
 fs.writeFileSync(R + 'pro/index.html', pro);
 
+// 상담소장 콘솔(doc)·운영자 콘솔(ops)도 같은 번호로.
+//  doc 은 ?v=3 에 멈춰 있었고 ops 는 ?v= 자체가 없어서, 고쳐 배포해도 콘솔이 4시간 묵은 JS 를
+//  계속 썼다 — 옛 화면으로 정산·회기 기록을 처리하는 게 가장 나쁘다.
+//  ?v= 가 없는 태그에는 새로 붙이고, 있으면 번호만 바꾼다.
+for (const app of ['doc', 'ops']) {
+  const f = R + app + '/index.html';
+  if (!fs.existsSync(f)) continue;
+  let h = fs.readFileSync(f, 'utf8');
+  h = h.replace(/((?:src="js\/|href="css\/)[^"?]+\.(?:js|css))(?:\?v=\d+)?"/g, '$1?v=' + next + '"');
+  fs.writeFileSync(f, h);
+}
+
 console.log('판 번호 ' + cur + ' → ' + next);
-console.log('  sw.js · index.html(APP_BUILD) · version.json · www/(js·css ' + copied + '개 포함) · pro(?v=) 동기화 완료');
+console.log('  sw.js · index.html(APP_BUILD) · version.json · www/(js·css ' + copied + '개 포함) · pro·doc·ops(?v=) 동기화 완료');

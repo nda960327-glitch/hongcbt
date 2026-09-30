@@ -1,7 +1,7 @@
 // 마인드 인사이드 닥터 — 의사 앱 서비스워커
 //  홈 화면 설치용 최소 구성. 캐시는 '네트워크 우선'이고 API 는 절대 캐시하지 않는다.
 //  환자 기록이 기기에 남지 않도록 응답 본문은 캐시에 두지 않는다 (셸 파일만).
-const CACHE = 'neurumind-doc-v1';
+const CACHE = 'neurumind-doc-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png'];
 
 self.addEventListener('install', e => {
@@ -18,8 +18,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.pathname.startsWith('/api') || u.origin !== location.origin) return;
-  e.respondWith(fetch(e.request).then(r => {
+  // cache:'reload' 가 없으면 브라우저 HTTP 캐시(Pages 의 4시간 max-age)가 옛 파일을 돌려준다 —
+  //  다른 앱들의 서비스워커와 같은 이유로 여기도 반드시 붙인다
+  e.respondWith(fetch(e.request, { cache: 'reload' }).then(r => {
     if (r.ok && /\.(html|json|js|png)$|\/$/.test(u.pathname)) { const c = r.clone(); caches.open(CACHE).then(x => x.put(e.request, c)).catch(() => {}); }
     return r;
-  }).catch(() => caches.match(e.request)));
+  }).catch(() => caches.match(e.request, { ignoreSearch: true })));   // ?v= 가 바뀌어도 오프라인이면 마지막 판을 쓴다
 });

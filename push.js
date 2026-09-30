@@ -24,8 +24,17 @@
 // ============================================================================
 
 import { resolveCounselor } from './auth.js';
+import { verifyClient } from './market.js';
 
-const TTL = 60;                    // 60초 안에 못 꽂으면 버려라 — 전화는 유통기한이 짧다
+// 푸시가 기기에 못 닿을 때 푸시 서비스가 들고 기다려 주는 시간.
+//  전에는 무엇이든 60초였다 — 전화에는 맞지만, 상담사 답장·숙제 깨우기까지
+//  폰이 1분 넘게 꺼져 있거나 도즈에 들어가 있으면 통째로 버려졌다.
+//  전화는 60초(늦게 울리는 벨은 이미 끊긴 전화다), 나머지는 하루를 기다린다.
+const TTL_CALL = 60;
+const TTL_WAKE = 86400;
+// call 인자의 모양으로 '전화 신호'인지 가른다. notice(예약 알림 등)는 전화가 아니다.
+const isCallMsg = m => !!(m && m.kind !== 'notice');
+const ttlOf = m => isCallMsg(m) ? TTL_CALL : Math.max(60, Math.min(TTL_WAKE, Number(m && m.ttl) || TTL_WAKE));
 const MAX_FAIL = 3;                // 세 번 연속 실패하면 죽은 구독으로 본다
 // 한 사람이 들고 다니는 기기는 많아야 폰·태블릿·PC 몇 대다.
 //  그런데 앱을 지웠다 깔거나 브라우저를 갈아엎으면 매번 '새 기기'가 하나 생기고,
@@ -177,10 +186,13 @@ async function fcmOne(env, db, row, call, retried) {
   const access = await fcmAccessToken(env);
   if (!access) return 'no-key';
   const isClient = String(row.counselor_id || '').startsWith('cl:');
+  // notice 는 전화가 아니라 글자가 있는 알림이다(예약 30분 전 등) — 아래 일반 알림 모양으로 간다
+  const notice = call && call.kind === 'notice' ? call : null;
+  if (notice) call = null;
   const body = call ? {
     message: {
       token: row.endpoint,
-      android: { priority: 'high', ttl: TTL + 's' },
+      android: { priority: 'high', ttl: TTL_CALL + 's' },
       data: {
         act: 'call',
         kind: call.kind === 'cancel' ? 'cancel' : 'invite',
@@ -193,19 +205,20 @@ async function fcmOne(env, db, row, call, retried) {
     message: {
       token: row.endpoint,
       notification: {
-        title: isClient ? '마인드 인사이드' : '마인드 인사이드 프로',
-        body: '새 소식이 도착했어요'
+        title: String((notice && notice.title) || (isClient ? '마인드 인사이드' : '마인드 인사이드 프로')).slice(0, 60),
+        body: String((notice && notice.body) || '새 소식이 도착했어요').slice(0, 200)
       },
       android: {
         priority: 'HIGH',
-        ttl: TTL + 's',
+        ttl: ttlOf(notice) + 's',
         notification: {
           sound: 'default',
-          tag: 'woorung-wake',
+          // 예약 알림은 따로 쌓는다 — 뒤이어 온 답장 깨우기가 '30분 뒤 상담' 알림을 덮어쓰면 안 된다
+          tag: notice ? 'woorung-remind' : 'woorung-wake',
           default_vibrate_timings: true
         }
       },
-      data: { act: isClient ? 'counselors' : 'call' }
+      data: { act: String((notice && notice.act) || (isClient ? 'counselors' : 'call')) }
     }
   };
   let res;
@@ -245,14 +258,14 @@ async function fcmOne(env, db, row, call, retried) {
 }
 
 // ── 한 사람에게 보내기 ───────────────────────────────────────────────
-async function pushOne(env, db, row) {
+async function pushOne(env, db, row, msg) {
   const auth = await vapidAuth(env, row.endpoint);
   if (!auth) return 'no-key';
   let res;
   try {
     res = await fetch(row.endpoint, {
       method: 'POST',
-      headers: { 'Authorization': auth, 'TTL': String(TTL), 'Urgency': 'high', 'Content-Length': '0' }
+      headers: { 'Authorization': auth, 'TTL': String(ttlOf(msg)), 'Urgency': 'high', 'Content-Length': '0' }
     });
   } catch (e) {
     return 'net';
@@ -326,7 +339,7 @@ export async function notifyCounselor(env, counselorId, call) {
     // 전화 취소는 앱의 울리는 알림을 끄는 신호다 — 웹에는 보낼 이유가 없다
     //  (웹은 2.5초마다 /rtc/state 를 보고 알아서 벨을 멈춘다)
     if (!fcm && call && call.kind === 'cancel') return Promise.resolve('skip-web');
-    return (fcm ? fcmOne(env, db, r, call) : pushOne(env, db, r)).catch(() => 'err');
+    return (fcm ? fcmOne(env, db, r, call) : pushOne(env, db, r, call)).catch(() => 'err');
   }));
   return { sent: out.filter(x => x === 'ok').length, total: rows.length, results: out };
 }
@@ -396,6 +409,11 @@ export async function handlePush(request, env, cors, path, body, url) {
   //   '깨우기 신호'만 받을 뿐, 내용은 어차피 푸시에 실리지 않는다).
   if (path === '/push/client-subscribe' && method === 'POST') {
     const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
+    // 남의 clientId 로 구독하면 그 사람에게 가는 깨우기(상담사 전화 포함)가 내 기기로도 온다.
+    //  주인이 정해진 clientId 는 clientKey 로 증명해야 한다 (Api.f 가 자동으로 붙인다)
+    if (clientId && await verifyClient(env, clientId, String(body.clientKey || '').slice(0, 64)) === 'deny') {
+      return json({ error: 'forbidden' }, 403, cors);
+    }
     const sub = body.sub || {};
     const endpoint = String(sub.endpoint || '').slice(0, 900);
     if (!clientId || !/^https:\/\//.test(endpoint)) return json({ error: 'missing' }, 400, cors);
@@ -420,6 +438,10 @@ export async function handlePush(request, env, cors, path, body, url) {
     let key = '';
     const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
     if (clientId) {
+      // 웹 구독과 같은 이유 — 남의 전화 신호를 내 폰으로 받아 볼 수 없게
+      if (await verifyClient(env, clientId, String(body.clientKey || '').slice(0, 64)) === 'deny') {
+        return json({ error: 'forbidden' }, 403, cors);
+      }
       key = 'cl:' + clientId;
     } else {
       const me = await resolveCounselor(db, {
