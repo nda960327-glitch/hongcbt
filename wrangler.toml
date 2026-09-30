@@ -37,7 +37,8 @@ PRO_URL = "https://pro.mindinsideapp.com"
 DOC_URL = "https://doc.mindinsideapp.com"
 
 # 소개 페이지(neurumind.com/intro/)에서 팀원이 테스트 코드를 열어보는 비밀번호.
-#  진짜 비밀이 아니라 '팀원끼리 아는 번호' 수준이다. 운영자 코드가 같이 열리니 새면 ADMIN_CODE 를 돌려라.
+#  진짜 비밀이 아니라 '팀원끼리 아는 번호' 수준이다. 운영자 코드는 더 이상 같이 열리지 않는다(2026-10).
+#  그래도 출시 전에는 긴 값으로 바꿔 secret 으로 넣는 걸 권한다: npx wrangler secret put INTRO_PW (그리고 이 줄 삭제)
 INTRO_PW = "1234"
 
 # 상담사 마켓 저장소. 먼저 만들고 아래 database_id 를 채우세요:
