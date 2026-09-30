@@ -140,7 +140,7 @@
   </div>
   <div class="card">
     <b>서버는 하나</b>입니다. 네 앱 모두 같은 Cloudflare Worker(<code>/api/…</code>)와 같은 데이터베이스(D1)를 씁니다.
-    AI 대화는 DeepSeek(일상 대화)와 OpenAI(위기 대응·리포트)를 프록시로 부르고, 내담자 기기 안의 대화 원문은 서버에 <b>남기지 않습니다</b>.
+    AI 대화는 외부 AI 업체(일상 대화 / 위기 대응·리포트)를 프록시로 부르고, 내담자 기기 안의 대화 원문은 서버에 <b>남기지 않습니다</b>.
     서버에 있는 건 상담사가 쓴 회기 기록, 낸 숙제, 소장 피드백, 그리고 내담자가 동의한 주간 숫자뿐입니다.
   </div>
   <div class="card" style="background:var(--accent-soft);border-color:transparent;">
@@ -258,7 +258,7 @@
       <div class="card"><b>결제 · 리뷰 · 내담자</b><p class="muted">느루 캐시 충전·구독 결제 내역, 리뷰 관리, 내담자 조회.</p></div>
       <div class="card"><b>추천 콘텐츠</b><p class="muted">유튜브 링크나 글을 올리면 내담자 홈 '내 마음 도구' 아래 추천 콘텐츠로 뜹니다. 태그·투표 현황 확인.</p></div>
       <div class="card"><b>상담소 관리</b><p class="muted">상담소 등록(이름·전문 분야·소장·이메일) → 코드 발급. 연결 내담자 수·피드백 수·마지막 접속. 코드 재발급·정지.</p></div>
-      <div class="card"><b>사용량 · 점검</b><p class="muted">AI 토큰 사용량(DeepSeek·OpenAI), 메일 발송 로그, 통화 연결 점검, 서비스 상태.</p></div>
+      <div class="card"><b>사용량 · 점검</b><p class="muted">AI 토큰 사용량, 메일 발송 로그, 통화 연결 점검, 서비스 상태.</p></div>
     </div>
     <p class="muted"><b>운영자 코드</b>는 전체 데이터를 여는 마스터키입니다. 새면 즉시 재설정합니다 (Worker 시크릿 <code>ADMIN_CODE</code>).</p>
   </div>
