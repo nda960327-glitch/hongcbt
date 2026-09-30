@@ -18,6 +18,12 @@
     pc: null, stream: null, remote: null,
     room: '', callId: '', role: 'client',
     seq: 0, pollTimer: null, tickTimer: null,
+    // 상대의 ICE 후보가 offer/answer 보다 먼저 도착할 수 있다(폴링 한 번에 섞여 오거나,
+    //  answer 적용이 늦어지거나). remoteDescription 이 없을 때 addIceCandidate 를 부르면
+    //  예외가 나고 그 후보는 영영 버려진다 — 릴레이(TURN) 후보가 그렇게 사라지면
+    //  LTE 끼리는 붙지 않는다. 그래서 설명이 붙을 때까지 여기 모아 뒀다가 한꺼번에 넣는다.
+    _pendingIce: [],
+    _polling: false,
     connectAt: 0, rate: 0, onEvent: null,
     // 방 토큰 — 통화 생성/수신 응답에서 받아 보관, signal/poll/end/connected 에 함께 보낸다.
     //  통화 당사자만 이 토큰을 받으므로 제3자의 도청·가로채기·강제 종료를 막는다.
@@ -211,33 +217,75 @@
     },
 
     _send(kind, payload) {
+      // callId 를 같이 싣는다 — 방은 한 쌍마다 고정이라, 서버가 '어느 통화의 신호인지'를
+      //  알아야 지난 통화의 bye/answer 가 다음 통화에 섞이지 않는다.
       return API().f('/api/rtc/signal', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ room: this.room, sender: this.role, kind, payload, rtoken: this._rtoken })
+        body: JSON.stringify({ room: this.room, callId: this.callId, sender: this.role, kind, payload, rtoken: this._rtoken })
       }).catch(() => {});
     },
 
+    // 모아 둔 ICE 후보를 넣는다 — setRemoteDescription 직후에만 부른다
+    async _flushIce(pc) {
+      const list = this._pendingIce.splice(0);
+      for (const c of list) {
+        if (this.pc !== pc) return;          // 그 사이 통화가 바뀌었다
+        try { await pc.addIceCandidate(c); } catch (e) {}
+      }
+    },
+
+    // 폴링은 '앞 요청이 끝나야 다음 요청'이다.
+    //  전에는 setInterval(1200ms) 에 async 를 걸어서, 네트워크가 느리면 앞 요청이
+    //  끝나기 전에 다음 요청이 같은 seq 로 또 나갔다 — 같은 offer 를 두 번 처리해
+    //  answer 가 두 벌 나가거나, 늦게 온 응답이 seq 를 뒤로 되돌려 신호를 또 먹었다.
+    //  자기 자신을 다시 예약하는 setTimeout 으로 바꾸고, seq 는 앞으로만 간다.
     _startPoll() {
-      clearInterval(this.pollTimer);
-      this.pollTimer = setInterval(async () => {
-        const d = await API().json(`/api/rtc/poll?room=${encodeURIComponent(this.room)}&as=${this.role}&since=${this.seq}${this._rtoken ? '&rtoken=' + encodeURIComponent(this._rtoken) : ''}`);
-        if (!d || !d.items) return;
-        this.seq = d.seq || this.seq;
-        for (const m of d.items) {
+      clearTimeout(this.pollTimer);
+      const room = this.room, callId = this.callId;
+      const alive = () => this.pollTimer && this.room === room && this.callId === callId;
+      const tick = async () => {
+        // hangup/abandon 이 타이머를 치웠거나 다른 통화로 넘어갔으면 멈춘다
+        if (!alive()) return;
+        if (!this._polling) {
+          this._polling = true;
+          try { await this._pollOnce(); } catch (e) {}
+          this._polling = false;
+        }
+        if (alive()) this.pollTimer = setTimeout(tick, 1200);
+      };
+      this.pollTimer = setTimeout(tick, 1200);
+    },
+
+    async _pollOnce() {
+      const pc = this.pc;
+      const d = await API().json(`/api/rtc/poll?room=${encodeURIComponent(this.room)}&callId=${encodeURIComponent(this.callId)}&as=${this.role}&since=${this.seq}${this._rtoken ? '&rtoken=' + encodeURIComponent(this._rtoken) : ''}`);
+      if (!d || !d.items) return;
+      // 응답을 기다리는 사이 통화가 끝났거나 바뀌었으면 이 결과는 남의 것이다
+      if (!pc || this.pc !== pc) return;
+      this.seq = Math.max(this.seq, Number(d.seq) || 0);
+      for (const m of d.items) {
+        if (this.pc !== pc) return;
           try {
             if (m.kind === 'offer') {
-              await this.pc.setRemoteDescription({ type: 'offer', sdp: m.payload });
-              const ans = await this.pc.createAnswer();
-              await this.pc.setLocalDescription(ans);
-              this._send('answer', ans.sdp);
+              await pc.setRemoteDescription({ type: 'offer', sdp: m.payload });
+              await this._flushIce(pc);
+              const ans = await pc.createAnswer();
+              await pc.setLocalDescription(ans);
+              // 끝까지 기다린다 — answer 가 서버에 닿기 전에 다음 신호(bye 등)를
+              //  처리해 버리면 상대는 답을 못 받은 채 한참 '연결 중'에 머문다
+              await this._send('answer', ans.sdp);
             } else if (m.kind === 'answer') {
               // 재협상(ICE restart) offer 에 대한 answer 도 받아야 한다 —
               //  '첫 answer 만'으로 막으면 네트워크 전환 복구가 안 된다
-              if (!this.pc.currentRemoteDescription || this.pc.signalingState === 'have-local-offer') {
-                await this.pc.setRemoteDescription({ type: 'answer', sdp: m.payload });
+              if (!pc.currentRemoteDescription || pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription({ type: 'answer', sdp: m.payload });
+                await this._flushIce(pc);
               }
             } else if (m.kind === 'ice') {
-              await this.pc.addIceCandidate(JSON.parse(m.payload));
+              const cand = JSON.parse(m.payload);
+              // 상대 설명이 아직 없으면 모아 둔다 (위 _pendingIce 설명 참고)
+              if (!pc.remoteDescription) this._pendingIce.push(cand);
+              else await pc.addIceCandidate(cand);
             } else if (m.kind === 'ring') {
               this._emit('peer-ringing', {}); // 상대 기기에서 벨이 울리기 시작했다
             } else if (m.kind.indexOf('consult-') === 0) {
@@ -249,10 +297,10 @@
             } else if (m.kind === 'bye') {
               this._emit('remote-hangup', {});
               this.hangup('remote', true);
+              return;
             }
           } catch (e) {}
-        }
-      }, 1200);
+      }
     },
 
     // 화면의 시간·요금 표시. 서버 시각 기준이라 양쪽이 같은 숫자를 본다.
@@ -300,7 +348,7 @@
         return false;
       }
       this._diag('call-start-ok', started.callId + (started.resumed ? ' resumed' : ''));
-      this.room = started.room; this.callId = started.callId; this.seq = 0;
+      this.room = started.room; this.callId = started.callId; this.seq = 0; this._pendingIce = [];
       this._rtoken = started.rtoken || '';   // 이 통화의 방 토큰
 
       this.stream = await this._mic();
@@ -318,7 +366,7 @@
 
     // ── 받는다 (기본: 상담사. 내담자가 받을 땐 as: 'client') ──────────────
     async answer({ room, callId, as, rtoken }) {
-      this.room = room; this.callId = callId; this.role = as || 'counselor'; this.seq = 0;
+      this.room = room; this.callId = callId; this.role = as || 'counselor'; this.seq = 0; this._pendingIce = [];
       // 수신 조회(/rtc/incoming·incoming-client)가 준 토큰을 넘겨받으면 보관한다.
       //  못 받아도(현재 앱) 서버가 유예로 통과시키고, 붙는 순간 connected 응답이 채운다.
       this._rtoken = rtoken || '';
@@ -337,7 +385,8 @@
     //  끝났다는 신호를 보내는 순간 남의 통화를 끊는 일이 된다.
     //  callId 를 비우는 것도 중요하다 — pagehide 비콘이 그걸 보고 /rtc/end 를 쏜다.
     abandon() {
-      clearInterval(this.pollTimer); clearInterval(this.tickTimer); clearInterval(this.audioTimer);
+      clearTimeout(this.pollTimer); this.pollTimer = null; this._pendingIce = [];
+      clearInterval(this.tickTimer); clearInterval(this.audioTimer);
       clearTimeout(this.graceTimer); this.graceTimer = null;
       try { this.pc && this.pc.close(); } catch (e) {}
       try { this.stream && this.stream.getTracks().forEach(t => t.stop()); } catch (e) {}
@@ -347,7 +396,8 @@
     },
 
     async hangup(by, skipSignal) {
-      clearInterval(this.pollTimer); clearInterval(this.tickTimer); clearInterval(this.audioTimer);
+      clearTimeout(this.pollTimer); this.pollTimer = null; this._pendingIce = [];
+      clearInterval(this.tickTimer); clearInterval(this.audioTimer);
       clearTimeout(this.graceTimer); this.graceTimer = null;
       if (!skipSignal) { try { await this._send('bye', '1'); } catch (e) {} }
       try { this.pc && this.pc.close(); } catch (e) {}
