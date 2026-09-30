@@ -18,6 +18,7 @@
 
 import { notifyCounselor, notifyClient } from './push.js';
 import { resolveCounselor } from './auth.js';
+import { verifyClient, cashBalance } from './market.js';
 
 const SIGNAL_TTL = 10 * 60 * 1000;     // 신호는 10분이면 버린다
 const RING_TIMEOUT = 60 * 1000;        // 60초 안 받으면 부재중
@@ -118,7 +119,10 @@ async function endConsult(db, call, upto) {
   try {
     if (!call || !call.consult_start || call.consult_end) return null;
     const end = Math.max(call.consult_start, Math.min(Number(upto) || nowMs(), nowMs()));
-    const ms = end - call.consult_start;
+    let ms = end - call.consult_start;
+    // 동의 순간의 서버 잔액까지만 청구한다 — 잔액을 넘긴 시간은 받을 돈이 없는데
+    //  정산에서는 상담사에게 70% 가 나가 버린다 (마이너스 잔액)
+    if (call.consult_cap_ms > 0) ms = Math.min(ms, call.consult_cap_ms);
     const charge = billFor(call.consult_rate, ms);
     const r = await db.prepare(
       'UPDATE calls SET consult_end = ?, billed = ? WHERE id = ? AND consult_end = 0'
@@ -820,17 +824,32 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const r = await db.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
     if (!clientId || r.client_id !== clientId) return json({ error: 'forbidden' }, 403, cors);
+    // clientId 는 상담사도 안다(/rtc/my-calls) — 내담자 본인만 가진 clientKey 로 동의를 증명한다.
+    //  없으면 상담사가 내담자 몰래 유료 상담을 열 수 있다.
+    if (await verifyClient(env, clientId, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
     if (!r.connect_at || r.end_at) return json({ error: 'not-connected' }, 409, cors);
     // 멱등 — 폴링이 offer 를 두 번 집어 왔거나 버튼이 두 번 눌려도 시각은 하나다
     if (r.consult_start && !r.consult_end) {
       return json({ ok: true, already: true, rate: r.consult_rate, at: r.consult_start }, 200, cors);
     }
     const rate = await consultRateOf(db, r.counselor_id);
+    // 서버 잔액 확인 — 30초 한 칸도 못 낼 잔액이면 열지 않고, 열면 잔액만큼만 청구한다
+    const bal = await cashBalance(db, r.client_id);
+    if (bal != null && bal < rate) return json({ error: 'no-cash', balance: bal, rate }, 402, cors);
+    const capMs = bal != null ? Math.floor(bal / rate) * 30000 : 0;
     const t = nowMs();
     try {
-      const up = await db.prepare(
-        'UPDATE calls SET consult_start = ?, consult_rate = ?, consult_end = 0 WHERE id = ? AND end_at = 0 AND consult_start = 0'
-      ).bind(t, rate, id).run();
+      let up;
+      try {
+        up = await db.prepare(
+          'UPDATE calls SET consult_start = ?, consult_rate = ?, consult_end = 0, consult_cap_ms = ? WHERE id = ? AND end_at = 0 AND consult_start = 0'
+        ).bind(t, rate, capMs, id).run();
+      } catch (e) {
+        // consult_cap_ms 컬럼이 아직 없는 배포 — 상한 없이 연다 (전과 같음)
+        up = await db.prepare(
+          'UPDATE calls SET consult_start = ?, consult_rate = ?, consult_end = 0 WHERE id = ? AND end_at = 0 AND consult_start = 0'
+        ).bind(t, rate, id).run();
+      }
       if (!(up && up.meta && up.meta.changes > 0)) {
         // 한 통화에 상담은 한 번이다. 이미 마감된 상담을 다시 열지 않는다.
         const now = await db.prepare('SELECT consult_start, consult_rate FROM calls WHERE id = ?').bind(id).first();
@@ -850,6 +869,7 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     const r = await db.prepare('SELECT room, client_id FROM calls WHERE id = ?').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
     if (!clientId || r.client_id !== clientId) return json({ error: 'forbidden' }, 403, cors);
+    if (await verifyClient(env, clientId, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
     await consultSignal(db, r.room, 'client', 'consult-declined',
       { callId: id, why: s(body.why, 40) });
     return json({ ok: true }, 200, cors);
@@ -864,7 +884,8 @@ export async function handleRtc(request, env, cors, path, body, url, ctx) {
     if (!r) return json({ error: 'not-found' }, 404, cors);
     let by = 'counselor';
     const clientId = s(body.clientId);
-    if (clientId && r.client_id === clientId) {
+    if (clientId && r.client_id === clientId
+        && await verifyClient(env, clientId, s(body.clientKey, 64)) !== 'deny') {
       by = 'client';
     } else {
       const me = await resolveCounselor(db, { session: s(body.session, 128), code: s(body.code, 64) });

@@ -38,7 +38,7 @@ const num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const nowMs = () => Date.now();
 
 // 추천 콘텐츠 모듈(feed.js)이 같은 인증·응답 헬퍼를 쓴다
-export { json, isAdmin, verifyClient, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication };
+export { json, isAdmin, verifyClient, cashBalance, s, nowMs, payoutOf, maskAcct, approveApplication, rejectApplication };
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 8);
 
 // 상담사 코드. 이 문자열 하나가 그 사람의 수신함 열쇠라서

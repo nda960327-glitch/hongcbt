@@ -26,3 +26,7 @@ ALTER TABLE calls ADD COLUMN consult_rate  INTEGER NOT NULL DEFAULT 0;  -- 30초
 
 -- 내담자 앱이 '놓친 차감'을 복구할 때 client_id + end_at 으로 훑는다
 CREATE INDEX IF NOT EXISTS idx_calls_client ON calls(client_id, end_at);
+
+-- 2026-10: 상담 동의 순간의 서버 잔액으로 계산한 청구 상한(ms). 0 = 상한 없음(옛 행).
+--  잔액을 넘긴 시간까지 청구하면 받을 돈이 없는데 상담사 정산은 나가 버린다.
+ALTER TABLE calls ADD COLUMN consult_cap_ms INTEGER NOT NULL DEFAULT 0;
