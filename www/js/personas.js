@@ -245,19 +245,17 @@ window.Personas = {
     if (window.Storage) window.Storage._safeSet('cbt_active_persona', id);
   },
 
-  // 화면에 내보일 상담사 목록. A/B 비교용 '우렁의사'(woorung-ds)는 그 링크(?ai=woorung·b)로
-  //  들어온 사람에게만 보인다 — 전에는 모든 사용자의 선택 화면에 실험용 상담사가 떠 있었다.
-  //  (이미 그 상담사를 쓰고 있는 사람에게서 갑자기 사라지지 않게 현재 선택도 함께 본다)
+  // 화면에 내보일 상담사 목록 (사장님 지시, 2026-10).
+  //  · A 링크(?ai=neru)로 들어온 사람: 느루만 (우렁의사 숨김)
+  //  · B 링크(?ai=woorung)로 들어온 사람: 우렁의사만 (느루 숨김)
+  //  · 링크 없이 들어온 사람: 느루·우렁의사 둘 다
+  //  A·B 는 서로 다른 쪽을 보면 비교가 섞이므로 하나씩만 보여준다.
   visible() {
-    let linked = null, active = null;
-    try {
-      linked = window.Storage ? window.Storage._safeGet('cbt_ai_link_persona', null) : null;
-      active = window.Storage ? window.Storage._safeGet('cbt_active_persona', null) : null;
-    } catch (e) {}
-    // B 링크(?ai=woorung)로 들어온 사람에게는 느루를 숨긴다 — A 는 느루만, B 는 우렁의사만 봐야
-    //  비교가 섞이지 않는다. (전에는 B 쪽에 느루·우렁의사가 둘 다 떴다)
+    let linked = null;
+    try { linked = window.Storage ? window.Storage._safeGet('cbt_ai_link_persona', null) : null; } catch (e) {}
     if (linked === 'woorung-ds') return this.list.filter(p => p.id !== 'woorung');
-    return this.list.filter(p => p.id !== 'woorung-ds' || active === 'woorung-ds');
+    if (linked === 'woorung') return this.list.filter(p => p.id !== 'woorung-ds');
+    return this.list.slice();
   },
 
   // ── 배정 링크 (A/B 비교용, 2026-09-30) ──────────────────────────────
