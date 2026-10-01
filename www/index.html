@@ -3,7 +3,7 @@
 <head>
   <!-- 도메인 이전(2026-09): 옛 주소는 새 주소로 — 안드로이드 앱 웹뷰는 제외 -->
   <script>(function(){try{var h=location.hostname;if(/(^|\.)neurumind\.com$/.test(h)&&!window.Capacitor&&!/\bwv\b/.test(navigator.userAgent)){location.replace('https://'+h.replace(/neurumind\.com$/,'mindinsideapp.com')+location.pathname+location.search+location.hash);}}catch(e){}})();</script>
-  <script>window.APP_BUILD = 270;</script>
+  <script>window.APP_BUILD = 271;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드인사이드(Mind Inside) — 심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 심리상담을 받는 앱. 인지행동치료(CBT) 기반 AI 상담, 기분 체크인, 자가검사, 정신과·상담소 연결.">
@@ -49,7 +49,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=270">
+  <link rel="stylesheet" href="css/style.css?v=271">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -154,6 +154,20 @@
         <!-- 스트릭 칩 자리를 알림함이 물려받았다. 연속 일수는 대시보드에서 계속 보인다. -->
         <button id="notif-chip" class="home-streak" style="display:inline-flex;" onclick="window.Inbox && window.Inbox.open()"></button>
       </header>
+      <!-- 홈 화면 안내 — 간단한 홈·글씨 크기를 설정 깊숙이에서만 바꿀 수 있어 아무도 몰랐다 (js/homesimple.js renderTip). 닫으면 다시 안 뜬다 -->
+      <div id="home-tip" class="hidden" style="margin: 0.2rem 1rem 0.6rem; padding: 0.8rem 0.9rem; border-radius: 16px; background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
+        <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+          <div style="flex: 1 1 auto; min-width: 0;">
+            <b id="home-tip-title" style="font-size: 0.9rem; color: var(--text-primary);"></b>
+            <p id="home-tip-sub" style="margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;"></p>
+          </div>
+          <button type="button" aria-label="닫기" onclick="window.HomeSimple.dismissTip()" style="all: unset; cursor: pointer; flex: 0 0 auto; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 1.15rem; margin: -0.3rem -0.4rem 0 0;">×</button>
+        </div>
+        <div style="display: flex; gap: 0.45rem; margin-top: 0.65rem; flex-wrap: wrap;">
+          <button type="button" id="home-tip-variant" class="btn-primary" style="flex: 1 1 9rem; width: auto; font-size: 0.84rem; padding: 0.6rem 0.8rem;" onclick="window.HomeSimple.tipSwitch()"></button>
+          <button type="button" id="home-tip-font" class="btn-secondary" style="flex: 1 1 7rem; width: auto; font-size: 0.84rem; padding: 0.6rem 0.8rem;" onclick="window.HomeSimple.tipFont()"></button>
+        </div>
+      </div>
       <!-- ========== 심플 홈 (A/B) — 기본은 숨김. js/homesimple.js 가 켜고 끈다 ========== -->
       <div id="home-simple" class="hidden">
         <!-- 기본 홈의 기분 체크인·오늘 할 일·추천 영상 카드가 심플 모드일 때 이 자리로 옮겨 온다 (HomeSimple._place) -->
@@ -1580,66 +1594,66 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=270"></script>
-  <script defer src="js/storage.js?v=270"></script>
-  <script defer src="js/inbox.js?v=270"></script>
-  <script defer src="js/cards.js?v=270"></script>
-  <script defer src="js/chatviz.js?v=270"></script>
-  <script defer src="js/memory-vault.js?v=270"></script>
-  <script defer src="js/aboutme.js?v=270"></script>
-  <script defer src="js/personas.js?v=270"></script>
-  <script defer src="js/stickers.js?v=270"></script>
-  <script defer src="js/ui.js?v=270"></script>
-  <script defer src="js/api.js?v=270"></script>
-  <script defer src="js/rtccall.js?v=270"></script>
-  <script defer src="js/prolink.js?v=270"></script>
-  <script defer src="js/account.js?v=270"></script>
-  <script defer src="js/freshness.js?v=270"></script>
-  <script defer src="js/i18n.js?v=270"></script>
-  <script defer src="js/wallet.js?v=270"></script>
-  <script defer src="js/pay.js?v=270"></script>
-  <script defer src="js/subscription.js?v=270"></script>
-  <script defer src="js/calltalk.js?v=270"></script>
-  <script defer src="js/calm.js?v=270"></script>
-  <script defer src="js/voice.js?v=270"></script>
-  <script defer src="js/llm.js?v=270"></script>
-  <script defer src="js/chatbot.js?v=270"></script>
-  <script defer src="js/marketplace.js?v=270"></script>
-  <script defer src="js/booking.js?v=270"></script>
-  <script defer src="js/thought-record.js?v=270"></script>
-  <script defer src="js/growth.js?v=270"></script>
-  <script defer src="js/missions.js?v=270"></script>
-  <script defer src="js/weekly.js?v=270"></script>
-  <script defer src="js/sleep.js?v=270"></script>
-  <script defer src="js/onboard.js?v=270"></script>
-  <script defer src="js/stickershop.js?v=270"></script>
-  <script defer src="js/applock.js?v=270"></script>
-  <script defer src="js/safety.js?v=270"></script>
-  <script defer src="js/admin.js?v=270"></script>
-  <script defer src="js/dashboard.js?v=270"></script>
-  <script defer src="js/learn.js?v=270"></script>
-  <script defer src="js/sfx.js?v=270"></script>
-  <script defer src="js/mail.js?v=270"></script>
-  <script defer src="js/payout.js?v=270"></script>
-  <script defer src="js/careplan.js?v=270"></script>
-  <script defer src="js/goals.js?v=270"></script>
-  <script defer src="js/progress.js?v=270"></script>
-  <script defer src="js/safetyplan.js?v=270"></script>
-  <script defer src="js/homework.js?v=270"></script>
-  <script defer src="js/feed.js?v=270"></script>
-  <script defer src="js/forest.js?v=270"></script>
-  <script defer src="js/hospital.js?v=270"></script>
-  <script defer src="js/clinics.js?v=270"></script>
-  <script defer src="js/community.js?v=270"></script>
-  <script defer src="js/consent.js?v=270"></script>
-  <script defer src="js/homesimple.js?v=270"></script>
-  <script defer src="js/assess-charts.js?v=270"></script>
-  <script defer src="js/assess.js?v=270"></script>
-  <script defer src="js/game.js?v=270"></script>
-  <script defer src="js/room.js?v=270"></script>
-  <script defer src="js/farm.js?v=270"></script>
-  <script defer src="js/closet.js?v=270"></script>
-  <script defer src="js/app.js?v=270"></script>
+  <script defer src="js/icons.js?v=271"></script>
+  <script defer src="js/storage.js?v=271"></script>
+  <script defer src="js/inbox.js?v=271"></script>
+  <script defer src="js/cards.js?v=271"></script>
+  <script defer src="js/chatviz.js?v=271"></script>
+  <script defer src="js/memory-vault.js?v=271"></script>
+  <script defer src="js/aboutme.js?v=271"></script>
+  <script defer src="js/personas.js?v=271"></script>
+  <script defer src="js/stickers.js?v=271"></script>
+  <script defer src="js/ui.js?v=271"></script>
+  <script defer src="js/api.js?v=271"></script>
+  <script defer src="js/rtccall.js?v=271"></script>
+  <script defer src="js/prolink.js?v=271"></script>
+  <script defer src="js/account.js?v=271"></script>
+  <script defer src="js/freshness.js?v=271"></script>
+  <script defer src="js/i18n.js?v=271"></script>
+  <script defer src="js/wallet.js?v=271"></script>
+  <script defer src="js/pay.js?v=271"></script>
+  <script defer src="js/subscription.js?v=271"></script>
+  <script defer src="js/calltalk.js?v=271"></script>
+  <script defer src="js/calm.js?v=271"></script>
+  <script defer src="js/voice.js?v=271"></script>
+  <script defer src="js/llm.js?v=271"></script>
+  <script defer src="js/chatbot.js?v=271"></script>
+  <script defer src="js/marketplace.js?v=271"></script>
+  <script defer src="js/booking.js?v=271"></script>
+  <script defer src="js/thought-record.js?v=271"></script>
+  <script defer src="js/growth.js?v=271"></script>
+  <script defer src="js/missions.js?v=271"></script>
+  <script defer src="js/weekly.js?v=271"></script>
+  <script defer src="js/sleep.js?v=271"></script>
+  <script defer src="js/onboard.js?v=271"></script>
+  <script defer src="js/stickershop.js?v=271"></script>
+  <script defer src="js/applock.js?v=271"></script>
+  <script defer src="js/safety.js?v=271"></script>
+  <script defer src="js/admin.js?v=271"></script>
+  <script defer src="js/dashboard.js?v=271"></script>
+  <script defer src="js/learn.js?v=271"></script>
+  <script defer src="js/sfx.js?v=271"></script>
+  <script defer src="js/mail.js?v=271"></script>
+  <script defer src="js/payout.js?v=271"></script>
+  <script defer src="js/careplan.js?v=271"></script>
+  <script defer src="js/goals.js?v=271"></script>
+  <script defer src="js/progress.js?v=271"></script>
+  <script defer src="js/safetyplan.js?v=271"></script>
+  <script defer src="js/homework.js?v=271"></script>
+  <script defer src="js/feed.js?v=271"></script>
+  <script defer src="js/forest.js?v=271"></script>
+  <script defer src="js/hospital.js?v=271"></script>
+  <script defer src="js/clinics.js?v=271"></script>
+  <script defer src="js/community.js?v=271"></script>
+  <script defer src="js/consent.js?v=271"></script>
+  <script defer src="js/homesimple.js?v=271"></script>
+  <script defer src="js/assess-charts.js?v=271"></script>
+  <script defer src="js/assess.js?v=271"></script>
+  <script defer src="js/game.js?v=271"></script>
+  <script defer src="js/room.js?v=271"></script>
+  <script defer src="js/farm.js?v=271"></script>
+  <script defer src="js/closet.js?v=271"></script>
+  <script defer src="js/app.js?v=271"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

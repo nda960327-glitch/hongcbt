@@ -64,6 +64,38 @@ window.HomeSimple = {
 
   toggle() { this.set(this.get() === 'simple' ? 'classic' : 'simple'); },
 
+  // ── 홈 안내 카드 ────────────────────────────────────────────────────
+  //  '홈 화면 모양'과 '글씨 크기'는 설정 안쪽에만 있어서 있는 줄 모르고 쓴다(임상 자문 피드백 2026-10:
+  //  "버튼이 많고 글씨가 작다, 심플 옵션이 있지만 처음에 안내가 없다"). 홈 맨 위에 한 번 알려준다.
+  renderTip() {
+    const el = document.getElementById('home-tip');
+    if (!el) return;
+    let off = false;
+    try { off = !!window.Storage._safeGet('cbt_home_tip_off', false); } catch (e) {}
+    if (off) { el.classList.add('hidden'); return; }
+    const simple = this.get() === 'simple';
+    const big = String(window.Storage._safeGet('cbt_font_scale', '100')) === '116';
+    document.getElementById('home-tip-title').textContent = simple ? '지금은 간단한 홈이에요' : '홈이 복잡하게 느껴지나요?';
+    document.getElementById('home-tip-sub').textContent = simple
+      ? '큰 버튼 몇 개만 보여요. 기능을 한 화면에 다 보고 싶으면 바꿀 수 있어요.'
+      : '큰 버튼 몇 개만 남긴 간단한 홈으로 바꿀 수 있어요. 글씨도 키울 수 있어요.';
+    document.getElementById('home-tip-variant').textContent = simple ? '전체 홈으로 보기' : '간단한 홈으로 바꾸기';
+    document.getElementById('home-tip-font').textContent = big ? '글씨 보통으로' : '글씨 크게';
+    el.classList.remove('hidden');
+  },
+  tipSwitch() { this.toggle(); this.renderTip(); },
+  tipFont() {
+    const big = String(window.Storage._safeGet('cbt_font_scale', '100')) === '116';
+    if (window.App && window.App.setFontScale) window.App.setFontScale(big ? '108' : '116');
+    this.renderTip();
+  },
+  dismissTip() {
+    try { window.Storage._safeSet('cbt_home_tip_off', true); } catch (e) {}
+    const el = document.getElementById('home-tip');
+    if (el) el.classList.add('hidden');
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('마이 › 설정에서 언제든 바꿀 수 있어요', null);
+  },
+
   apply() {
     const simple = this.get() === 'simple';
     const c = document.getElementById('home-classic');
@@ -93,6 +125,7 @@ window.HomeSimple = {
       if (q === 'simple' || q === 'classic') window.Storage._safeSet(this.KEY, q);
     } catch (e) {}
     this.apply();
+    this.renderTip();
   },
 
   // ── 다섯 버튼이 여는 곳 ──

@@ -560,32 +560,98 @@ window.Forest = {
       setTimeout(strike, 200);
     }
     if (kind === 'music') {
-      // 잔잔한 음악: 따뜻한 화음(C·Am·F·G 계열)이 16초마다 아주 느리게 바뀐다. 멜로디 없이 공간만 채운다
-      const CH = [[130.8, 196, 261.6, 329.6], [110, 164.8, 220, 261.6], [87.3, 130.8, 174.6, 220], [98, 146.8, 196, 246.9]];
+      // 잔잔한 음악 (2026-10 다시 만듦 — 임상 자문: "잡음이 들리고 기계음 같다").
+      //  전에는 87~130Hz 의 낮은 삼각파를 썼다. 폰 스피커는 그 음역을 못 내서 떨리는 잡음이 되고,
+      //  삼각파의 모서리가 '전자음'으로 들렸다. 이제는:
+      //   · 사인파만 쓴다(모서리 없음) · 가장 낮은 음도 196Hz 위 — 작은 스피커가 깨끗이 낼 수 있는 음역
+      //   · 잔향(리버브)을 입혀 소리 끝을 길게 풀어 준다 · 화음은 8초에 걸쳐 스며들고 스며 나간다
+      //   · 가끔(9~17초에 한 번) 5음 음계의 맑은 음 하나가 물방울처럼 떨어진다 — 멜로디가 아니라 숨 쉴 틈
+      //  녹음 파일이 아니라 기기에서 바로 만드는 소리라 저작권이 없고 내려받을 것도 없다.
+      //  (실제 음악 파일을 쓰려면 audio/bgm/calm.mp3 를 넣으면 된다 — 아래에서 그 파일이 있으면 그걸 먼저 튼다)
+      const rev = ac.createConvolver();
+      {
+        // 2.8초짜리 부드러운 잔향 — 감쇠하는 잡음으로 방의 울림을 흉내 낸다
+        const len = Math.floor(ac.sampleRate * 2.8), ir = ac.createBuffer(2, len, ac.sampleRate);
+        for (let c = 0; c < 2; c++) {
+          const d = ir.getChannelData(c);
+          for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+        }
+        rev.buffer = ir;
+      }
+      const wet = ac.createGain(); wet.gain.value = 0.55;
+      const dry = ac.createGain(); dry.gain.value = 0.6;
+      const warm = ac.createBiquadFilter(); warm.type = 'lowpass'; warm.frequency.value = 1500; warm.Q.value = 0.2;
+      warm.connect(dry); dry.connect(out);
+      warm.connect(rev); rev.connect(wet); wet.connect(out);
+
+      // 화음: C add9 → A minor 7 → F major 7 → G sus — 어디에도 긴장이 없는 진행. 전부 196Hz(G3) 이상.
+      const CH = [[261.63, 329.63, 392.0, 587.33], [220.0, 261.63, 329.63, 392.0], [261.63, 349.23, 440.0, 523.25], [196.0, 293.66, 392.0, 440.0]];
       let ci = 0;
       const pad = () => {
         if (!this._amb || this._amb.kind !== 'music') return;
-        const t = ac.currentTime, chord = CH[ci++ % CH.length];
+        const t0 = ac.currentTime, chord = CH[ci++ % CH.length];
         chord.forEach((fq, k) => {
-          [-3, 3].forEach(det => {   // 살짝 어긋난 두 줄로 겹쳐 따뜻하게
-            const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter();
-            o.type = 'triangle'; o.frequency.value = fq; o.detune.value = det;
-            f.type = 'lowpass'; f.frequency.value = 900;
-            const peak = (k === 0 ? 0.05 : 0.03);
-            g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + 5); g.gain.setValueAtTime(peak, t + 13); g.gain.linearRampToValueAtTime(0, t + 20);
-            o.connect(f); f.connect(g); g.connect(out); o.start(t); o.stop(t + 20.5);
+          [-4, 4].forEach(det => {   // 살짝 어긋난 두 줄 — 겹치면 천천히 일렁이는 따뜻함이 생긴다
+            const o = ac.createOscillator(), g = ac.createGain();
+            o.type = 'sine'; o.frequency.value = fq; o.detune.value = det;
+            const peak = k === 0 ? 0.045 : 0.028;
+            g.gain.setValueAtTime(0.0001, t0);
+            g.gain.linearRampToValueAtTime(peak, t0 + 8);
+            g.gain.setValueAtTime(peak, t0 + 14);
+            g.gain.linearRampToValueAtTime(0.0001, t0 + 24);
+            o.connect(g); g.connect(warm); o.start(t0); o.stop(t0 + 24.5);
           });
         });
       };
-      this._padTimer = setInterval(pad, 16000);
-      setTimeout(pad, 100);
+      // 맑은 음 하나 — 5음 음계(C D E G A)라 어느 화음 위에서도 어긋나지 않는다
+      const PENTA = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
+      const drop = () => {
+        if (!this._amb || this._amb.kind !== 'music') return;
+        const t0 = ac.currentTime, fq = PENTA[Math.floor(Math.random() * PENTA.length)];
+        [[1, 0.05], [2, 0.012]].forEach(([mul, a]) => {
+          const o = ac.createOscillator(), g = ac.createGain();
+          o.type = 'sine'; o.frequency.value = fq * mul;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(a, t0 + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.0002, t0 + 5.5);
+          o.connect(g); g.connect(warm); o.start(t0); o.stop(t0 + 5.8);
+        });
+        this._dropTimer = setTimeout(drop, 9000 + Math.random() * 8000);
+      };
+      const startSynth = () => {
+        this._padTimer = setInterval(pad, 16000);
+        setTimeout(pad, 100);
+        this._dropTimer = setTimeout(drop, 7000);
+      };
+      // 음악 파일이 있으면 그걸 튼다(없으면 위의 합성음). 파일은 반복 재생하고 같은 볼륨 규칙을 따른다.
+      let fileEl = null;
+      try {
+        fileEl = new Audio('audio/bgm/calm.mp3');
+        fileEl.loop = true; fileEl.preload = 'auto'; fileEl.volume = 0;
+        let decided = false;
+        const useSynth = () => { if (decided) return; decided = true; try { fileEl.pause(); } catch (e) {} fileEl = null; this._bgmEl = null; startSynth(); };
+        fileEl.addEventListener('error', useSynth, { once: true });
+        fileEl.addEventListener('canplaythrough', () => {
+          if (decided || !this._amb || this._amb.kind !== 'music') return;
+          decided = true;
+          this._bgmEl = fileEl;
+          fileEl.play().then(() => { this._bgmVol(); }).catch(() => { decided = false; useSynth(); });
+        }, { once: true });
+        setTimeout(useSynth, 2500);   // 2.5초 안에 못 불러오면 합성음으로
+      } catch (e) { startSynth(); }
     }
     this._ambOut = out;
-    const stopTimers = () => { clearInterval(this._bowlTimer); clearInterval(this._padTimer); };
+    const stopTimers = () => { clearInterval(this._bowlTimer); clearInterval(this._padTimer); clearTimeout(this._dropTimer); if (this._bgmEl) { try { this._bgmEl.pause(); } catch (e) {} this._bgmEl = null; } };
     this._amb = { kind, stop: () => { stopTimers(); try { out.gain.cancelScheduledValues(ac.currentTime); out.gain.setTargetAtTime(0, ac.currentTime, 0.6); } catch (e) {} setTimeout(() => { nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { out.disconnect(); soft.disconnect(); } catch (e) {} }, 2500); } };
   },
   // 안내 음성이 나오는 동안 배경음을 조금 낮춘다
+  // 파일 음악(audio/bgm/calm.mp3)의 볼륨 — 합성 배경음과 같은 규칙(작게, 음성이 나오면 더 작게)
+  _bgmVol(duck) {
+    if (!this._bgmEl) return;
+    try { this._bgmEl.volume = Math.max(0, Math.min(1, this.pref().vol * 0.5 * (duck ? 0.55 : 1))); } catch (e) {}
+  },
   _duck(on) {
+    this._bgmVol(on);
     if (!this._ambOut || !this._ac) return;
     const v = this.pref().vol * 0.35 * (on ? 0.55 : 1);
     try { this._ambOut.gain.setTargetAtTime(v, this._ac.currentTime, on ? 0.3 : 1.2); } catch (e) {}
@@ -795,6 +861,7 @@ document.addEventListener('input', function (e) {
   if (e.target.id === 'fr-vol') {
     const v = +e.target.value; F.setPref({ vol: v });
     if (F._ambOut && F._ac) try { F._ambOut.gain.setTargetAtTime(v * 0.35, F._ac.currentTime, 0.3); } catch (x) {}
+    if (F._bgmVol) F._bgmVol();
   }
 });
 document.addEventListener('change', function (e) {

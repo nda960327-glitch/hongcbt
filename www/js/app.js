@@ -1406,7 +1406,28 @@ window.App = {
     // 아직 한 번도 고른 적 없으면(온보딩) '현재 상담사' 표시를 하지 않는다
     const activeId = window.Personas.hasChosen() ? window.Personas.getActive().id : null;
     listEl.innerHTML = '';
-    (window.Personas.visible ? window.Personas.visible() : window.Personas.list).forEach(p => {
+    const shown = (window.Personas.visible ? window.Personas.visible() : window.Personas.list);
+    // ── 한눈에 비교 ── 카드가 길어 스크롤해야만 차이가 보였다(임상 자문 피드백 2026-10).
+    //  맨 위에 한 사람당 한 줄: '이럴 때' + '이렇게 해줘요'. 줄을 누르면 바로 그 상담사로 정해진다.
+    {
+      const cmp = document.createElement('div');
+      cmp.style.cssText = 'border: 1px solid var(--glass-border); border-radius: 14px; background: var(--bg-tertiary); padding: 0.35rem 0.5rem; margin-bottom: 0.2rem;';
+      cmp.innerHTML = '<div style="font-size: 0.72rem; font-weight: 800; color: var(--text-muted); padding: 0.35rem 0.4rem 0.2rem;">한눈에 비교 — 줄을 누르면 바로 선택돼요</div>'
+        + shown.map(p => `
+        <button type="button" data-pick="${p.id}" style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.5rem 0.4rem; border-radius: 10px; min-height: 48px; ${p.id === activeId ? `background: color-mix(in srgb, ${p.color} 12%, transparent);` : ''}">
+          <span style="flex-shrink: 0; line-height: 0;">${window.Personas.avatarSvg(p.id, 34)}</span>
+          <span style="flex: 0 0 3.6rem; font-weight: 800; font-size: 0.9rem; color: ${p.color};">${p.name}</span>
+          <span style="flex: 1 1 auto; min-width: 0; font-size: 0.8rem; line-height: 1.4; color: var(--text-primary);">${p.pickWhen || p.tagline}<br><span style="color: var(--text-muted); font-size: 0.74rem;">${p.pickHow || ''}</span></span>
+          <span style="flex-shrink: 0; color: var(--text-muted); font-size: 0.9rem;">${p.id === activeId ? '●' : '›'}</span>
+        </button>`).join('')
+        + '<div style="font-size: 0.72rem; color: var(--text-muted); padding: 0.3rem 0.4rem 0.4rem;">아래에서 한 명씩 자세히 볼 수 있어요. 언제든 바꿀 수 있어요.</div>';
+      cmp.addEventListener('click', e => {
+        const b = e.target.closest('[data-pick]');
+        if (b) this.selectPersona(b.getAttribute('data-pick'));
+      });
+      listEl.appendChild(cmp);
+    }
+    shown.forEach(p => {
       const card = document.createElement('div');
       const isActive = p.id === activeId;
       card.style.cssText = `border: 2px solid ${isActive ? p.color : 'var(--glass-border)'}; border-radius: 14px; padding: 0.95rem; cursor: pointer; background: ${isActive ? `color-mix(in srgb, ${p.color} 10%, var(--bg-secondary))` : 'var(--bg-secondary)'}; transition: all 0.2s ease; box-shadow: var(--shadow-sm);`;
@@ -5693,6 +5714,12 @@ ${body}
     // 구버전 단계(112/124)는 새 단계로 이관 (레이아웃 깨짐 방지)
     if (scale === '112') scale = '108';
     if (scale === '124') scale = '116';
+    // 기본 글씨가 작다는 임상 자문 피드백(2026-10) — 기본(100)으로 쓰던 사람은 한 번만 한 단계(108) 키운다.
+    //  직접 고른 값인지 기본값인지 구분할 방법이 없어, 딱 한 번만 올리고 표시를 남긴다. 설정에서 언제든 되돌릴 수 있다.
+    if (!window.Storage._safeGet('cbt_font_bump_v2', false)) {
+      if (scale === '100') scale = '108';
+      window.Storage._safeSet('cbt_font_bump_v2', true);
+    }
     window.Storage._safeSet('cbt_font_scale', scale);
     document.documentElement.style.fontSize = scale + '%';
     const sel = document.getElementById('setting-font-scale');
