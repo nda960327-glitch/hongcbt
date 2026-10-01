@@ -179,9 +179,17 @@ window.Account = {
     } catch (e) {}
 
     this.providers = await this._api('/api/oauth/providers')
-      .then(d => (d && d.items) || []).catch(() => [])
-      // 카카오·네이버 제거(2026-09-29) — 옛 서버가 내려줘도 앱은 구글만 보여준다
-      .then(items => items.filter(p => p.key === 'google'));
+      .then(d => (d && d.items) || []).catch(() => []);
+    // 로그인 화면의 버튼은 서버에 키가 들어 있는 사업자만 남긴다 — 키가 없는 버튼을 누르면
+    //  '준비 중' 화면으로 튕겨서 고장처럼 보인다. (목록을 못 받았으면 그대로 둔다)
+    try {
+      if (this.providers.length) {
+        const on = new Set(this.providers.map(p => p.key));
+        document.querySelectorAll('#login-screen [data-login]').forEach(b => {
+          b.style.display = on.has(b.getAttribute('data-login')) ? '' : 'none';
+        });
+      }
+    } catch (e) {}
 
     if (this._session()) {
       // 확인이 안 됐다고 로그아웃시키면 안 된다.
@@ -306,7 +314,7 @@ window.Account = {
     for (let i = 0; i < 6; i++) {
       const v = await window.UI.prompt({
         title: '확인 번호를 넣어주세요',
-        body: (note ? note + '\n\n' : '') + '구글 로그인을 마친 브라우저 화면에 6자리 확인 번호가 떠 있어요.\n뒤로 가기로 이 화면에 돌아와 그 번호를 넣어주세요.',
+        body: (note ? note + '\n\n' : '') + '로그인을 마친 브라우저 화면에 6자리 확인 번호가 떠 있어요.\n뒤로 가기로 이 화면에 돌아와 그 번호를 넣어주세요.',
         inputType: 'tel', maxLength: 7, placeholder: '000 000', okLabel: '로그인', cancelLabel: '취소'
       });
       if (this._pairDone === pair) return;          // 그 사이 딥링크로 끝났다
@@ -599,7 +607,6 @@ window.Account = {
     const el = document.getElementById(boxId);
     if (!el) return;
     const esc = t => String(t || '').replace(/[<>&"]/g, m => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[m]));
-    // kakao·naver 는 새 로그인에서 뺐지만(2026-09-29), 옛 세션 표시용으로 이름은 남긴다
     const NAME = { kakao: '카카오', naver: '네이버', google: '구글' };
 
     if (this.user) {
@@ -633,6 +640,8 @@ window.Account = {
       return;
     }
     const BTN = {
+      kakao: 'background:#FEE500; color:#191600;',
+      naver: 'background:#03C75A; color:#fff;',
       google: 'background:#fff; color:#3c4043; border:1px solid #dadce0;'
     };
     el.innerHTML = `

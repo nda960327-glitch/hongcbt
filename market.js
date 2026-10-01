@@ -724,7 +724,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
     if (r) return r;
   }
 
-  // 소셜 로그인 (구글)
+  // 소셜 로그인 (카카오·네이버·구글)
   if (path.startsWith('/oauth/')) {
     const r = await handleOauth(request, env, cors, path, body, url);
     if (r) return r;
