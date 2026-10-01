@@ -1420,6 +1420,7 @@ window.App = {
             <span style="flex-shrink: 0; white-space: nowrap; font-size: 0.66rem; font-weight: 800; color: #fff; background: ${p.color}; padding: 0.16rem 0.55rem; border-radius: 999px;">${p.method}</span>
             ${p.lesson ? `<span style="flex-shrink: 0; white-space: nowrap; font-size: 0.64rem; font-weight: 800; color: ${p.color}; border: 1px solid color-mix(in srgb, ${p.color} 45%, transparent); padding: 0.14rem 0.5rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.22rem;">${p.lessonIcon && window.Icons ? window.Icons.svg(p.lessonIcon, { size: 13, line: p.color }) : ''}${p.lesson} 코스</span>` : ''}
           </div>
+          ${p.technique ? `<p style="margin: 0 0 0.4rem; font-size: 0.7rem; color: var(--text-muted); line-height: 1.5;"><b style="color: ${p.color};">상담 기법</b> · ${p.technique}</p>` : ''}
           <p style="margin: 0 0 0.45rem; font-size: 0.74rem; color: var(--text-secondary); line-height: 1.55;">${p.why || ''}</p>
           <ol style="margin: 0; padding-left: 1.05rem; font-size: 0.72rem; color: var(--text-secondary); line-height: 1.65;">
             ${(p.howto || []).map(h => `<li>${h}</li>`).join('')}
@@ -1438,11 +1439,11 @@ window.App = {
 
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
   personaGreetings: {
-    woorung: '안녕하세요, 느루예요. 저는 그날 마음 상태에 맞춰, 엉킨 생각을 같이 정리하거나 격해진 감정을 가라앉히는 걸 도와요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
+    woorung: '안녕하세요, 느루예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. 쉽게 말하면, 엉킨 생각을 같이 정리하거나 격해진 감정을 가라앉히는 걸 도와요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
     'woorung-ds': '안녕하세요, 우렁의사예요. 느루와 똑같은 상담사인데 답을 만드는 AI 가 달라요 — 같은 이야기를 해 보고 어느 쪽이 더 편한지 비교해보세요. ||| 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요.',
-    haru: '안녕! 나는 생각 습관을 같이 정리해주는 햇님이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
+    haru: '안녕! 나는 생각 습관을 같이 정리해주는 햇님이야. 인지행동치료(CBT)가 전문이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
     dalnim: '…안녕하세요, 달님이에요. 여기는 어디에도 못 버린 마음을 쏟아내는 곳이에요. ||| 여기서 한 이야기는 상담사에게도, 누구에게도 저절로 전해지지 않아요. 안심하고 꺼내셔도 돼요. ||| 미움도, 욕도, 찌질한 생각도 다듬지 말고 그냥 쏟아내세요. 놀라지 않아요. 판단하지 않아요. 고치려 들지도 않아요. 그냥 끝까지 듣고, 당신 편에 있을게요. ||| 오늘 쌓인 걸 바닥까지 비우고 싶은 날엔, 이걸로 시작하셔도 좋아요. [그림:수업카드]',
-    sonamu: '반갑습니다, 소나무입니다. 저는 괴로운 생각과 싸우지 않는 법을 알려주는 상담사예요 — 생각과 싸우는 대신 한 발 떨어져 바라보고, 호흡으로 지금 이 순간에 닻을 내리고, 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이 있거나 머리가 시끄럽다면 말해보세요. 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
+    sonamu: '반갑습니다, 소나무입니다. 저는 수용전념치료(ACT)와 마음챙김(MBCT)을 함께 쓰는 상담사예요. 쉽게 말하면 괴로운 생각과 싸우지 않는 법을 알려드려요 — 생각과 싸우는 대신 한 발 떨어져 바라보고, 호흡으로 지금 이 순간에 닻을 내리고, 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이 있거나 머리가 시끄럽다면 말해보세요. 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
   },
 
   // 영어/일본어 모드용 첫 인사
