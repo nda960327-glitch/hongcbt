@@ -12,6 +12,11 @@
   "lang": "ko",
   "dir": "ltr",
   "categories": ["business", "health", "productivity"],
+  "shortcuts": [
+    { "name": "채팅", "short_name": "채팅", "url": "./index.html?tab=chat", "icons": [{ "src": "icon-96.png", "sizes": "96x96" }] },
+    { "name": "예약", "short_name": "예약", "url": "./index.html?tab=book", "icons": [{ "src": "icon-96.png", "sizes": "96x96" }] },
+    { "name": "내담자", "short_name": "내담자", "url": "./index.html?tab=client", "icons": [{ "src": "icon-96.png", "sizes": "96x96" }] }
+  ],
   "icons": [
     { "src": "icon-48.png",  "sizes": "48x48",   "type": "image/png", "purpose": "any" },
     { "src": "icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any" },
