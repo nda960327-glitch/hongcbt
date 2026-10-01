@@ -28,6 +28,8 @@ const ALLOW = new Set([
   'cbt_tts_enabled', 'cbt_tts_gender', 'cbt_checkin_mode', 'cbt_checkin_times',
   // 장기기억 — 대화 원문이 아니라 느루가 간추린 요약
   'cbt_user_memory',
+  // 다른 AI 에서 가져온 자기소개 — 사용자가 직접 확인·저장한 정리본 (js/aboutme.js)
+  'cbt_about_me',
   // 마음 리포트와 검사
   'cbt_my_reports', 'cbt_latest_summary_report', 'cbt_assessments',
   'cbt_assess_history', 'cbt_careplan', 'cbt_careplan_history',

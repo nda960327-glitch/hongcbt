@@ -15,7 +15,7 @@ window.Account = {
     'cbt_user_name', 'cbt_user_gender', 'cbt_user_concerns', 'cbt_active_persona',
     'cbt_lang', 'cbt_font_scale', 'cbt_sound_on', 'cbt_haptic_on',
     'cbt_tts_enabled', 'cbt_tts_gender', 'cbt_checkin_mode', 'cbt_checkin_times',
-    'cbt_user_memory',
+    'cbt_user_memory', 'cbt_about_me',
     'cbt_night_journal', 'cbt_kept_cards', 'cbt_mailbox',
     'cbt_my_reports', 'cbt_latest_summary_report', 'cbt_assessments',
     'cbt_assess_history', 'cbt_careplan', 'cbt_careplan_history',
