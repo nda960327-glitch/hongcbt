@@ -507,6 +507,77 @@ async function loginWithCode() {
   loadAll().then(() => connectHub()); // 로그인 직후에도 실시간 소켓을 붙인다
 }
 
+// ── 간편 로그인 (구글·카카오·네이버) ─────────────────────────────────
+//  로그인 왕복은 이용자 앱과 같은 길(/oauth/<사업자>/start)이다. 돌아오면 ?auth=<1회용 교환권> 을
+//  /oauth/staff/exchange 로 바꾼다 — 이미 이어 둔 계정이면 바로 입장, 처음이면 상담사 코드를 한 번 받는다.
+//  서버에 키가 있는 사업자만 버튼을 그린다. 스토어 앱(웹뷰)에서는 구글이 웹뷰 로그인을 막으므로
+//  구글 버튼을 빼고, 코드 로그인은 언제나 그대로 남는다.
+const SOCIAL_STYLE = {
+  kakao: 'background:#FEE500;color:#191600;border-color:#FEE500;',
+  naver: 'background:#03C75A;color:#fff;border-color:#03C75A;',
+  google: 'background:#fff;color:#3c4043;border:1px solid #dadce0;'
+};
+function socialErr(msg) {
+  const e = $('err-social'); if (!e) return;
+  e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none';
+}
+async function initSocial() {
+  const d = await api('/api/oauth/providers').then(r => r.ok ? r.json() : null).catch(() => null);
+  let items = (d && d.items) || [];
+  if (isNativeApp()) items = items.filter(p => p.key !== 'google');
+  if (!items.length || !$('social-btns')) return;
+  $('social-btns').innerHTML = items.map(p =>
+    `<button class="btn" data-social="${esc(p.key)}" style="${SOCIAL_STYLE[p.key] || ''}">${esc(p.name)}로 로그인</button>`).join('');
+  $('login-social').hidden = false;
+  $('social-btns').addEventListener('click', e => {
+    const b = e.target.closest('[data-social]');
+    if (b) socialLogin(b.getAttribute('data-social'));
+  });
+}
+function socialLogin(provider) {
+  // cn: 이 화면이 시작한 로그인이라는 표시 — 남이 만든 로그인 링크로 들어온 교환권은 쓰지 않는다
+  const cn = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join('');
+  try { sessionStorage.setItem('pro_auth_cn', cn); } catch (e) {}
+  location.href = API_BASE + '/api/oauth/' + encodeURIComponent(provider) + '/start?back=' + encodeURIComponent(location.origin) + '&cn=' + cn;
+}
+// 돌아온 교환권 처리. 로그인됐으면 true.
+async function finishSocial(code, cn) {
+  history.replaceState(null, '', location.pathname);
+  let want = '';
+  try { want = sessionStorage.getItem('pro_auth_cn') || ''; sessionStorage.removeItem('pro_auth_cn'); } catch (e) {}
+  if (!want || want !== cn) { socialErr('이 화면에서 시작한 로그인이 아니라서 쓰지 않았어요. 다시 눌러주세요.'); return false; }
+  const r = await postJson('/api/oauth/staff/exchange', { code, role: 'counselor' });
+  if (!r || !r.ok) {
+    socialErr(r && r.error === 'not-ready' ? '간편 로그인을 준비하고 있어요. 지금은 코드로 로그인해주세요.' : '로그인이 만료됐어요. 다시 눌러주세요.');
+    return false;
+  }
+  const done = d => {
+    SESSION = d.session;
+    localStorage.setItem('counselor_session', SESSION);
+    CODE = ''; localStorage.removeItem('inbox_code');
+    return true;
+  };
+  if (r.linked) return done(r);
+  // 처음 보는 소셜 계정 — 상담사 코드로 한 번만 잇는다
+  const who = (r.account && (r.account.nickname || r.account.email)) || '';
+  let hint = '';
+  for (;;) {
+    const v = await uiPrompt({
+      title: '처음 한 번만 연결해요',
+      body: (who ? who + ' 계정을 ' : '이 계정을 ') + '상담사 계정과 이어 둘게요.\n입점 승인 메일로 받은 상담사 코드를 넣어주세요. 다음부터는 코드 없이 들어와요.' + (hint ? '\n\n' + hint : ''),
+      input: { placeholder: '상담사 코드', maxlength: 64 }, ok: '연결하고 들어가기'
+    });
+    if (v === null || v === undefined || v === false) { socialErr('연결을 취소했어요. 코드가 없다면 아래에서 운영팀에 문의해주세요.'); return false; }
+    const codeIn = String(v).trim();
+    if (!codeIn) { hint = '코드를 넣어주세요.'; continue; }
+    const l = await postJson('/api/oauth/staff/link', { linkToken: r.linkToken, role: 'counselor', code: codeIn });
+    if (l && l.ok) { toast('연결됐어요. 다음부터는 버튼만 누르면 돼요'); return done(l); }
+    if (l && l.error === 'bad-code' && l.left > 0) { hint = '코드가 맞지 않아요. 다시 확인해주세요. (남은 횟수 ' + l.left + '번)'; continue; }
+    socialErr((l && l.message) || '연결하지 못했어요. 로그인부터 다시 해주세요.');
+    return false;
+  }
+}
+
 // 메일의 링크로 들어온 경우: ?t=... 를 세션으로 바꾼다
 async function verifyLink(t) {
   const d = await postJson('/api/auth/verify', { t });
@@ -3569,20 +3640,36 @@ function notiSheetHtml() {
     </div>`;
 
   // ── 어떤 알림이 오나 ──
-  const kind = (ic, t, s) => `<div class="kv"><span class="mi" style="width:34px; height:34px; border-radius:11px; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+  // key 가 있으면 켜고 끄는 스위치가 붙는다. 끈 종류는 서버에도 알려서(/push/prefs) 앱이 꺼져 있을 때 오는 푸시도 멈춘다.
+  const kind = (ic, t, s, key) => `<div class="kv" style="align-items:center;"><span class="mi" style="width:34px; height:34px; border-radius:11px; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></span>
-      <span class="k" style="color:var(--text);"><b>${t}</b><br><span class="muted">${s}</span></span></div>`;
+      <span class="k grow" style="color:var(--text);"><b>${t}</b><br><span class="muted">${s}</span></span>
+      ${key ? `<button class="sw ${notiKindOn(key) ? 'on' : ''}" data-act="noti-kind" data-key="${key}" role="switch" aria-checked="${notiKindOn(key)}" aria-label="${t} 알림"><i></i></button>`
+            : '<span class="chip ok" style="flex-shrink:0;">항상 켜짐</span>'}</div>`;
   const kinds = `<div class="sec-title">이런 알림이 와요</div>
     <div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">
       ${kind('<path d="M5 4h3.5l1.6 4.2-2.2 1.5a12 12 0 0 0 6.4 6.4l1.5-2.2L20 15.5V19a2 2 0 0 1-2.2 2A15.8 15.8 0 0 1 3 6.2 2 2 0 0 1 5 4Z"/>', '전화', '내담자가 전화를 걸면 벨과 진동이 받을 때까지 울려요.')}
-      ${kind('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/>', '채팅', '새 메시지가 오면 알려요. 연달아 올 때는 2분에 한 번만 울려요.')}
-      ${kind('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>', '예약 · 취소', '새 예약이 잡히거나 내담자가 취소하면 알려요.')}
-      ${kind('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>', '상담 30분 전', '예약한 상담이 시작되기 30분 전에 한 번 알려요.')}
+      ${kind('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/>', '채팅', '새 메시지가 오면 알려요. 연달아 올 때는 2분에 한 번만 울려요.', 'chat')}
+      ${kind('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>', '예약 · 취소', '새 예약이 잡히거나 내담자가 취소하면 알려요.', 'booking')}
+      ${kind('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>', '상담 30분 전', '예약한 상담이 시작되기 30분 전에 한 번 알려요.', 'remind')}
     </div>
     ${ns.native ? '' : '<p class="muted" style="margin:-0.2rem 0.2rem 0.6rem;">브라우저 알림에는 전화가 아니면 "새 소식이 있어요"라고만 떠요. 누르면 앱이 열리고 내용이 보여요.</p>'}`;
 
   return top + detail + tests + sound + kinds +
     (ME ? `<div class="sec-title">기기</div><div class="card" style="padding-top:0.3rem;">${devicesRow()}</div>` : '');
+}
+
+// 알림 종류별 켜고 끄기 — 이 기기에 적어 두고, 서버에도 '끈 종류'를 알린다.
+//  서버가 모르면 앱을 닫은 뒤 오는 푸시는 계속 온다. 전화는 목록에 없다(끌 수 없다).
+const NOTI_KINDS = ['chat', 'booking', 'remind'];
+function notiKindOn(key) { return lsGet('pro_noti_' + key, true) !== false; }
+let notiPrefT = null;
+function syncNotiPrefs() {
+  clearTimeout(notiPrefT);
+  notiPrefT = setTimeout(() => {
+    if (!ME && !(SESSION || CODE)) return;
+    postJson('/api/push/prefs', Object.assign({}, authBody(), { muted: NOTI_KINDS.filter(k => !notiKindOn(k)) })).catch(() => {});
+  }, 600);
 }
 
 function openNotiSheet() {
@@ -3967,6 +4054,16 @@ const ACT = {
     const st = notiSnap().state;
     if (st === 'default') { askNotify(); return; }
     toast(st === 'ok' ? '알림이 켜졌어요' : st === 'denied' ? '아직 막혀 있어요. 위 순서를 한 번 더 확인해주세요' : '상태를 다시 확인했어요');
+  },
+  'noti-kind': el => {
+    const key = el.dataset.key;
+    if (NOTI_KINDS.indexOf(key) === -1) return;
+    const on = !notiKindOn(key);
+    lsSet('pro_noti_' + key, on);
+    syncNotiPrefs();
+    renderNotiSheet();
+    const name = { chat: '채팅', booking: '예약 · 취소', remind: '상담 30분 전' }[key];
+    toast(on ? `${name} 알림을 켰어요` : `${name} 알림을 껐어요 (전화 벨은 그대로 울려요)`);
   },
   'sound-test': () => { unlockAudio(); tone([[659, 0], [988, 0.11], [1319, 0.22]], 0.12); toast('새 메시지가 오면 이 소리가 나요'); },
   'ring-test': () => {
@@ -4618,7 +4715,10 @@ function initBackButton() {
 initBackButton();
 
 (async () => {
-  const t = new URLSearchParams(location.search).get('t');
+  const qs0 = new URLSearchParams(location.search);
+  const t = qs0.get('t'), au = qs0.get('auth');
+  initSocial();   // 버튼은 기다리지 않고 그린다
+  if (au) { if (await finishSocial(au, qs0.get('cn') || '')) askNotify(); }
   if (t) { if (await verifyLink(t)) askNotify(); }
   if (SESSION || CODE) {
     enterApp();

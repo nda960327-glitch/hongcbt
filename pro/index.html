@@ -757,6 +757,14 @@
       <h1>마인드 인사이드 프로</h1>
       <p>상담사 전용 · 예약 · 채팅 · 통화 · 정산</p>
     </div>
+    <!-- 간편 로그인 — 처음 한 번만 코드로 이어 두면 다음부터는 버튼 하나로 들어온다 (app.js initSocial) -->
+    <div class="card" id="login-social" hidden>
+      <p style="font-weight: 700; text-align: center;">간편 로그인</p>
+      <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
+        처음 한 번만 <b>상담사 코드</b>를 넣어 연결하면,<br>다음부터는 아래 버튼 하나로 바로 들어와요.</p>
+      <div id="social-btns" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+      <p id="err-social" class="muted" style="color: var(--danger); display: none; margin-top: 0.5rem; text-align: center;"></p>
+    </div>
     <div class="card">
       <p style="font-weight: 700; text-align: center;">상담사 로그인</p>
       <p class="muted" style="text-align: center; margin: 0.35rem 0 0.9rem;">
@@ -908,7 +916,7 @@
 
   <div id="toast" role="status" aria-live="polite"></div>
 
-  <script src="js/rtccall.js?v=259"></script>
-  <script src="js/app.js?v=259"></script>
+  <script src="js/rtccall.js?v=260"></script>
+  <script src="js/app.js?v=260"></script>
 </body>
 </html>
