@@ -411,7 +411,7 @@ window.Account = {
       return;
     }
     if (window.UI) {
-      window.UI.alert(`${d.user.nickname || ''}님, 반가워요!\n\n이제 폰을 바꿔도 리포트와 레벨이 따라와요.\n대화 내용은 이 기기에만 남습니다.`);
+      window.UI.alert(`${d.user.nickname ? d.user.nickname + '님, ' : ''}반가워요!\n\n이제 폰을 바꿔도 리포트와 레벨이 따라와요.\n대화 내용은 이 기기에만 남습니다.`);
     }
     this.render();
   },
