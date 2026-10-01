@@ -14,16 +14,11 @@ window.HomeSimple = {
   KEY: 'cbt_home_variant',
   DEFAULT: 'classic',
 
-  // A/B (2026-09-28 팀 결정): 처음 여는 사람은 반은 심플, 반은 기본으로 시작한다.
-  //  한 번 정해지면 기억되고, 마이 → 홈 화면 모양에서 언제든 바꿀 수 있다. 어느 쪽으로 시작했는지는 cbt_home_ab 에.
+  // 처음 여는 사람은 모두 원래 화면(classic)으로 시작한다 (2026-10-01 결정 — 반반 무작위 A/B 는 그만둔다).
+  //  홈 맨 위 고르기 카드나 마이 → 홈 화면 모양에서 간단한 화면으로 바꿀 수 있고, 한 번 고르면 기억된다.
   get() {
-    let v = window.Storage._safeGet(this.KEY, null);
-    if (v !== 'simple' && v !== 'classic') {
-      v = Math.random() < 0.5 ? 'simple' : 'classic';
-      window.Storage._safeSet(this.KEY, v);
-      window.Storage._safeSet('cbt_home_ab', { start: v, at: Date.now() });
-    }
-    return v;
+    const v = window.Storage._safeGet(this.KEY, null);
+    return (v === 'simple' || v === 'classic') ? v : this.DEFAULT;
   },
 
   // 심플 홈에도 '오늘'(기분 체크인·오늘 할 일)과 추천 영상을 올린다 (2026-09-28 팀 피드백).
