@@ -3,7 +3,7 @@
 <head>
   <!-- 도메인 이전(2026-09): 옛 주소는 새 주소로 — 안드로이드 앱 웹뷰는 제외 -->
   <script>(function(){try{var h=location.hostname;if(/(^|\.)neurumind\.com$/.test(h)&&!window.Capacitor&&!/\bwv\b/.test(navigator.userAgent)){location.replace('https://'+h.replace(/neurumind\.com$/,'mindinsideapp.com')+location.pathname+location.search+location.hash);}}catch(e){}})();</script>
-  <script>window.APP_BUILD = 262;</script>
+  <script>window.APP_BUILD = 263;</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="description" content="마인드인사이드(Mind Inside) — 심리상담 AI 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅 심리상담을 받는 앱. 인지행동치료(CBT) 기반 AI 상담, 기분 체크인, 자가검사, 정신과·상담소 연결.">
@@ -49,7 +49,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
   
   <!-- Main Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=262">
+  <link rel="stylesheet" href="css/style.css?v=263">
 </head>
 <body>
   <!-- Crisis Modal (hidden by default) -->
@@ -364,6 +364,13 @@
             <button onclick="window.App.toggleChatMenu(); window.App.resetChat()" style="all: unset; box-sizing: border-box; display: block; width: 100%; padding: 0.75rem 1rem; font-size: 0.88rem; font-weight: 600; color: #c0564f; cursor: pointer; display: flex; align-items: center; gap: 0.5rem;" data-ic="broom" data-ic-size="18">대화 초기화</button>
           </div>
         </div>
+      </div>
+      <!-- 다른 AI 가 아는 나 — 진입 배너 (js/aboutme.js renderNudge) -->
+      <div id="aboutme-nudge" class="hidden" style="display: flex; align-items: center; gap: 0.55rem; padding: 0.55rem 0.85rem; background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-secondary)); border-bottom: 1px solid var(--glass-border);">
+        <button type="button" onclick="window.AboutMe.open()" style="all: unset; cursor: pointer; flex: 1 1 auto; min-width: 0; font-size: 0.8rem; line-height: 1.45; color: var(--text-primary);">
+          <b>ChatGPT·제미나이를 써 오셨나요?</b><br><span style="color: var(--text-secondary);">그 AI가 아는 나를 전해주면 처음부터 맞춰 상담해요 ›</span>
+        </button>
+        <button type="button" aria-label="닫기" onclick="window.AboutMe.dismissNudge()" style="all: unset; cursor: pointer; flex: 0 0 auto; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 1.15rem;">×</button>
       </div>
       <div id="chat-messages" class="chat-messages" aria-live="polite" aria-label="상담 대화">
         <!-- Messages will be inserted dynamically -->
@@ -972,6 +979,18 @@
         <button class="my-hero__edit" onclick="window.App.openSettings()" title="프로필 수정" aria-label="프로필 수정"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15.6 4.4 19.6 8.4 8.6 19.4l-4.8.8.8-4.8Z"/><path d="m14.2 5.8 4 4"/></svg></button>
       </div>
 
+      <!-- 다른 AI 가 아는 나 가져오기 (js/aboutme.js) — ChatGPT·제미나이·클로드에게 '나를 정리해 줘'라고 시켜 받은 글을 느루에게 전한다 -->
+      <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
+        <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;">
+          <span data-sticker="think" data-sticker-size="52" style="flex-shrink: 0; line-height: 0;"></span>
+          <div>
+            <h3 style="margin: 0;">다른 AI가 아는 나</h3>
+            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">처음부터 다시 설명하지 않아도 돼요.</p>
+          </div>
+        </div>
+        <div id="aboutme-card-body"></div>
+      </div>
+
       <!-- 계정(로그인·로그아웃)은 [설정] 안에만 둔다.
            마이 탭 맨 위에 두니 계정 관리가 앱의 주된 일처럼 보였다 —
            여기서 볼 것은 내 기록이지 계정이 아니다. -->
@@ -1106,18 +1125,6 @@
           <span style="font-size: 0.76rem; color: var(--text-muted);">제휴 상담소로 등록하면 내담자 연결·소속 상담사 정산·커뮤니티 글을 소장 앱에서 관리해요.</span>
         </div>
         <button class="btn-secondary" style="width: auto; font-size: 0.78rem; padding: 0.45rem 0.8rem; flex-shrink: 0;" onclick="window.App.openHospReg()">제휴 신청</button>
-      </div>
-
-      <!-- 다른 AI 가 아는 나 가져오기 (js/aboutme.js) — ChatGPT·제미나이·클로드에게 '나를 정리해 줘'라고 시켜 받은 글을 느루에게 전한다 -->
-      <div class="glass-card" style="margin: 1rem; padding: 1.15rem; border: 1px solid color-mix(in srgb, var(--accent-primary) 25%, transparent);">
-        <div style="display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;">
-          <span data-sticker="think" data-sticker-size="52" style="flex-shrink: 0; line-height: 0;"></span>
-          <div>
-            <h3 style="margin: 0;">다른 AI가 아는 나</h3>
-            <p style="margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--accent-primary); font-weight: 700;">처음부터 다시 설명하지 않아도 돼요.</p>
-          </div>
-        </div>
-        <div id="aboutme-card-body"></div>
       </div>
 
       <!-- 느루의 기억 (백업/복원) -->
@@ -1573,66 +1580,66 @@
   </div>
 
   <!-- JavaScript -->
-  <script defer src="js/icons.js?v=262"></script>
-  <script defer src="js/storage.js?v=262"></script>
-  <script defer src="js/inbox.js?v=262"></script>
-  <script defer src="js/cards.js?v=262"></script>
-  <script defer src="js/chatviz.js?v=262"></script>
-  <script defer src="js/memory-vault.js?v=262"></script>
-  <script defer src="js/aboutme.js?v=262"></script>
-  <script defer src="js/personas.js?v=262"></script>
-  <script defer src="js/stickers.js?v=262"></script>
-  <script defer src="js/ui.js?v=262"></script>
-  <script defer src="js/api.js?v=262"></script>
-  <script defer src="js/rtccall.js?v=262"></script>
-  <script defer src="js/prolink.js?v=262"></script>
-  <script defer src="js/account.js?v=262"></script>
-  <script defer src="js/freshness.js?v=262"></script>
-  <script defer src="js/i18n.js?v=262"></script>
-  <script defer src="js/wallet.js?v=262"></script>
-  <script defer src="js/pay.js?v=262"></script>
-  <script defer src="js/subscription.js?v=262"></script>
-  <script defer src="js/calltalk.js?v=262"></script>
-  <script defer src="js/calm.js?v=262"></script>
-  <script defer src="js/voice.js?v=262"></script>
-  <script defer src="js/llm.js?v=262"></script>
-  <script defer src="js/chatbot.js?v=262"></script>
-  <script defer src="js/marketplace.js?v=262"></script>
-  <script defer src="js/booking.js?v=262"></script>
-  <script defer src="js/thought-record.js?v=262"></script>
-  <script defer src="js/growth.js?v=262"></script>
-  <script defer src="js/missions.js?v=262"></script>
-  <script defer src="js/weekly.js?v=262"></script>
-  <script defer src="js/sleep.js?v=262"></script>
-  <script defer src="js/onboard.js?v=262"></script>
-  <script defer src="js/stickershop.js?v=262"></script>
-  <script defer src="js/applock.js?v=262"></script>
-  <script defer src="js/safety.js?v=262"></script>
-  <script defer src="js/admin.js?v=262"></script>
-  <script defer src="js/dashboard.js?v=262"></script>
-  <script defer src="js/learn.js?v=262"></script>
-  <script defer src="js/sfx.js?v=262"></script>
-  <script defer src="js/mail.js?v=262"></script>
-  <script defer src="js/payout.js?v=262"></script>
-  <script defer src="js/careplan.js?v=262"></script>
-  <script defer src="js/goals.js?v=262"></script>
-  <script defer src="js/progress.js?v=262"></script>
-  <script defer src="js/safetyplan.js?v=262"></script>
-  <script defer src="js/homework.js?v=262"></script>
-  <script defer src="js/feed.js?v=262"></script>
-  <script defer src="js/forest.js?v=262"></script>
-  <script defer src="js/hospital.js?v=262"></script>
-  <script defer src="js/clinics.js?v=262"></script>
-  <script defer src="js/community.js?v=262"></script>
-  <script defer src="js/consent.js?v=262"></script>
-  <script defer src="js/homesimple.js?v=262"></script>
-  <script defer src="js/assess-charts.js?v=262"></script>
-  <script defer src="js/assess.js?v=262"></script>
-  <script defer src="js/game.js?v=262"></script>
-  <script defer src="js/room.js?v=262"></script>
-  <script defer src="js/farm.js?v=262"></script>
-  <script defer src="js/closet.js?v=262"></script>
-  <script defer src="js/app.js?v=262"></script>
+  <script defer src="js/icons.js?v=263"></script>
+  <script defer src="js/storage.js?v=263"></script>
+  <script defer src="js/inbox.js?v=263"></script>
+  <script defer src="js/cards.js?v=263"></script>
+  <script defer src="js/chatviz.js?v=263"></script>
+  <script defer src="js/memory-vault.js?v=263"></script>
+  <script defer src="js/aboutme.js?v=263"></script>
+  <script defer src="js/personas.js?v=263"></script>
+  <script defer src="js/stickers.js?v=263"></script>
+  <script defer src="js/ui.js?v=263"></script>
+  <script defer src="js/api.js?v=263"></script>
+  <script defer src="js/rtccall.js?v=263"></script>
+  <script defer src="js/prolink.js?v=263"></script>
+  <script defer src="js/account.js?v=263"></script>
+  <script defer src="js/freshness.js?v=263"></script>
+  <script defer src="js/i18n.js?v=263"></script>
+  <script defer src="js/wallet.js?v=263"></script>
+  <script defer src="js/pay.js?v=263"></script>
+  <script defer src="js/subscription.js?v=263"></script>
+  <script defer src="js/calltalk.js?v=263"></script>
+  <script defer src="js/calm.js?v=263"></script>
+  <script defer src="js/voice.js?v=263"></script>
+  <script defer src="js/llm.js?v=263"></script>
+  <script defer src="js/chatbot.js?v=263"></script>
+  <script defer src="js/marketplace.js?v=263"></script>
+  <script defer src="js/booking.js?v=263"></script>
+  <script defer src="js/thought-record.js?v=263"></script>
+  <script defer src="js/growth.js?v=263"></script>
+  <script defer src="js/missions.js?v=263"></script>
+  <script defer src="js/weekly.js?v=263"></script>
+  <script defer src="js/sleep.js?v=263"></script>
+  <script defer src="js/onboard.js?v=263"></script>
+  <script defer src="js/stickershop.js?v=263"></script>
+  <script defer src="js/applock.js?v=263"></script>
+  <script defer src="js/safety.js?v=263"></script>
+  <script defer src="js/admin.js?v=263"></script>
+  <script defer src="js/dashboard.js?v=263"></script>
+  <script defer src="js/learn.js?v=263"></script>
+  <script defer src="js/sfx.js?v=263"></script>
+  <script defer src="js/mail.js?v=263"></script>
+  <script defer src="js/payout.js?v=263"></script>
+  <script defer src="js/careplan.js?v=263"></script>
+  <script defer src="js/goals.js?v=263"></script>
+  <script defer src="js/progress.js?v=263"></script>
+  <script defer src="js/safetyplan.js?v=263"></script>
+  <script defer src="js/homework.js?v=263"></script>
+  <script defer src="js/feed.js?v=263"></script>
+  <script defer src="js/forest.js?v=263"></script>
+  <script defer src="js/hospital.js?v=263"></script>
+  <script defer src="js/clinics.js?v=263"></script>
+  <script defer src="js/community.js?v=263"></script>
+  <script defer src="js/consent.js?v=263"></script>
+  <script defer src="js/homesimple.js?v=263"></script>
+  <script defer src="js/assess-charts.js?v=263"></script>
+  <script defer src="js/assess.js?v=263"></script>
+  <script defer src="js/game.js?v=263"></script>
+  <script defer src="js/room.js?v=263"></script>
+  <script defer src="js/farm.js?v=263"></script>
+  <script defer src="js/closet.js?v=263"></script>
+  <script defer src="js/app.js?v=263"></script>
   
   <script>
     // 아이콘/일러스트 부트스트랩: data-icon / data-art 플레이스홀더 채우기

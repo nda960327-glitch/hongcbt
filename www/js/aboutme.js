@@ -111,6 +111,20 @@ window.AboutMe = {
       </div>`;
   },
 
+  // ── AI 상담 화면의 배너 ─────────────────────────────────────────────
+  //  아직 전해주지 않았고, 닫은 적도 없는 사람에게만 보인다.
+  renderNudge() {
+    const el = document.getElementById('aboutme-nudge');
+    if (!el) return;
+    let off = false;
+    try { off = !!(window.Storage && window.Storage._safeGet('cbt_aboutme_nudge_off', false)); } catch (e) {}
+    el.classList.toggle('hidden', !!this.get() || off);
+  },
+  dismissNudge() {
+    try { window.Storage._safeSet('cbt_aboutme_nudge_off', true); } catch (e) {}
+    this.renderNudge();
+  },
+
   // ── 시트 ────────────────────────────────────────────────────────────
   _step: 1,
   _draft: '',     // ③에서 고치는 정리본
@@ -130,6 +144,7 @@ window.AboutMe = {
     if (ov) ov.remove();
     document.removeEventListener('keydown', this._onKey);
     this.renderCard();
+    this.renderNudge();
   },
 
   _mount() {
@@ -340,7 +355,18 @@ window.AboutMe = {
       this._err('지금은 자동 정리가 안 돼서 붙여넣은 글을 그대로 가져왔어요. 필요한 부분만 남기고 저장해주세요.');
       return;
     }
-    this._step = 3; this._draft = out.slice(0, this.MAX_SAVE); this._render();
+    this._step = 3; this._draft = this._tidy(out).slice(0, this.MAX_SAVE); this._render();
+  },
+
+  // 모델이 내용 없는 머리말([건강·수면·생활] 만 덩그러니)을 남기거나 줄 끝에 공백을 붙이는 일이 있다
+  _tidy(s) {
+    const blocks = String(s || '').replace(/[ \t]+$/gm, '').split(/\n(?=\[)/);
+    return blocks.map(b => b.trim()).filter(b => {
+      const m = b.match(/^\[[^\]]+\]\s*([\s\S]*)$/);
+      if (!m) return b.length > 0;
+      const body = m[1].replace(/[\s.·\-–—]/g, '');
+      return body.length > 0 && !/^(모름|없음|해당없음)$/.test(body);
+    }).join('\n\n');
   },
 
   save() {
@@ -375,4 +401,4 @@ window.AboutMe = {
 };
 
 // 마이 탭 카드는 화면이 그려진 뒤에 채운다
-document.addEventListener('DOMContentLoaded', () => { try { window.AboutMe.renderCard(); } catch (e) {} });
+document.addEventListener('DOMContentLoaded', () => { try { window.AboutMe.renderCard(); window.AboutMe.renderNudge(); } catch (e) {} });
