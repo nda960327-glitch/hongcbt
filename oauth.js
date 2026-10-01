@@ -122,7 +122,7 @@ function safeBack(env, want) {
   //  앱은 계속 로그아웃 상태가 된다 — 앱이 '안 되는' 것처럼 보이던 진짜 이유.
   //  우리 앱의 스킴만 허용한다 (아무 스킴이나 열어주면 오픈 리디렉터가 된다).
   if (/^com\.uroong\.(cbt|pro):\/\//.test(w)) return w;
-  const allow = [env.APP_URL, env.PRO_URL, 'https://mindinsideapp.com', 'https://www.mindinsideapp.com', 'https://neurumind.com', 'https://www.neurumind.com']
+  const allow = [env.APP_URL, env.PRO_URL, env.DOC_URL, 'https://pro.mindinsideapp.com', 'https://doc.mindinsideapp.com', 'https://mindinsideapp.com', 'https://www.mindinsideapp.com', 'https://neurumind.com', 'https://www.neurumind.com']
     .filter(Boolean).map(x => String(x).replace(/\/+$/, ''));
   if (w && allow.some(a => w === a || w.startsWith(a + '/'))) return w;
   return allow[0] || 'https://mindinsideapp.com';
@@ -370,9 +370,132 @@ export async function handleOauth(request, env, cors, path, body, url) {
   }
 
   // ── 3단계: 교환권 → 세션 ────────────────────────────────────────
+
+  // ══ 상담사·상담소장의 소셜 로그인 (2026-10) ══════════════════════════
+  //  상담사 앱(pro)·상담소 콘솔(doc)도 구글·카카오·네이버로 들어온다.
+  //  소셜 계정만으로는 '누구의 상담사 계정인지' 알 수 없으므로, <처음 한 번만> 코드로 잇는다:
+  //   ① 앱이 /oauth/<사업자>/start?back=<pro·doc 주소> 로 보낸다 (이용자 앱과 같은 흐름·같은 콜백)
+  //   ② 돌아온 1회용 교환권을 /oauth/staff/exchange 로 보낸다
+  //        · 이미 이어진 소셜 계정 → 그 자리에서 세션을 준다 (코드 입력 없음)
+  //        · 처음 보는 소셜 계정 → 10분짜리 '연결 표(linkToken)'만 준다
+  //   ③ 처음이면 앱이 코드를 한 번 받아 /oauth/staff/link 로 보낸다 → 이어 두고 세션을 준다
+  //  role: 'counselor'(상담사 코드) | 'hospital'(소장 관리 코드 HA-…)
+  //  코드는 여전히 열쇠다 — 연결은 '코드를 아는 사람'만 할 수 있고, 5번 틀리면 연결 표가 죽는다.
+  //  staff_links 표가 없으면(스키마 적용 전) 503 을 주고, 앱은 코드 로그인으로 그대로 쓴다.
+  if (path === '/oauth/staff/exchange' || path === '/oauth/staff/link' || path === '/oauth/staff/unlink') {
+    if (method !== 'POST') return json({ error: 'method' }, 405, cors);
+    const role = body.role === 'hospital' ? 'hospital' : 'counselor';
+    const STAFF_SESSION_TTL = 30 * 86400000;   // 상담사·상담소 세션은 30일 (auth.js·hospital.js 와 같게)
+    const LINK_TTL = 10 * 60 * 1000;
+    const agent = String(request.headers.get('user-agent') || '').slice(0, 160);
+
+    // 이어진 계정으로 세션을 만든다. 비활성 계정이면 null.
+    const openSession = async (refId) => {
+      const st = token(32), t = nowMs();
+      if (role === 'hospital') {
+        const h = await db.prepare('SELECT * FROM hospitals WHERE id = ? AND active = 1').bind(refId).first();
+        if (!h) return null;
+        await db.prepare('INSERT INTO hospital_sessions (token, hospital_id, expires, created, last_seen, agent) VALUES (?,?,?,?,?,?)')
+          .bind(st, h.id, t + STAFF_SESSION_TTL, t, t, agent).run();
+        return { ok: true, linked: true, role, hsession: st,
+          hospital: { id: h.id, name: h.name, dept: h.dept || '', doctor: h.doctor || '', hasEmail: !!h.email } };
+      }
+      const c = await db.prepare('SELECT id, name FROM counselors WHERE id = ? AND active = 1').bind(refId).first();
+      if (!c) return null;
+      await db.prepare('INSERT INTO sessions (token, counselor_id, expires, created, last_seen, agent) VALUES (?,?,?,?,?,?)')
+        .bind(st, c.id, t + STAFF_SESSION_TTL, t, t, agent).run();
+      return { ok: true, linked: true, role, session: st, name: c.name, id: c.id };
+    };
+
+    try {
+      // ── 연결 끊기 (로그인한 본인) — 소셜 계정을 바꾸거나 잃어버렸을 때
+      if (path === '/oauth/staff/unlink') {
+        let refId = '';
+        if (role === 'hospital') {
+          const r = await db.prepare('SELECT hospital_id FROM hospital_sessions WHERE token = ? AND expires > ?')
+            .bind(String(body.hsession || '').slice(0, 128), nowMs()).first();
+          refId = r ? r.hospital_id : '';
+        } else {
+          const r = await db.prepare('SELECT counselor_id FROM sessions WHERE token = ? AND expires > ?')
+            .bind(String(body.session || '').slice(0, 128), nowMs()).first();
+          refId = r ? r.counselor_id : '';
+        }
+        if (!refId) return json({ error: 'bad-session' }, 403, cors);
+        await db.prepare('DELETE FROM staff_links WHERE role = ? AND ref_id = ?').bind(role, refId).run();
+        return json({ ok: true }, 200, cors);
+      }
+
+      // ── ② 교환권 → 세션 또는 연결 표
+      if (path === '/oauth/staff/exchange') {
+        const code = String(body.code || '').slice(0, 64);
+        if (!code) return json({ error: 'missing' }, 400, cors);
+        const h = await db.prepare('SELECT * FROM oauth_handoff WHERE code = ?').bind(code).first();
+        await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(code).run();   // 한 번만
+        if (!h || h.expires < nowMs() || code.indexOf('sl_') === 0) return json({ error: 'expired' }, 403, cors);
+
+        const link = await db.prepare('SELECT ref_id FROM staff_links WHERE user_id = ? AND role = ?')
+          .bind(h.user_id, role).first();
+        if (link) {
+          const out = await openSession(link.ref_id);
+          if (out) return json(out, 200, cors);
+          // 이어 둔 계정이 비활성(삭제·정지)이다 — 연결을 지우고 다시 잇게 한다
+          await db.prepare('DELETE FROM staff_links WHERE user_id = ? AND role = ?').bind(h.user_id, role).run();
+        }
+        const u = await db.prepare('SELECT provider, email, nickname FROM users WHERE id = ?').bind(h.user_id).first();
+        // 연결 표는 교환권 표를 같이 쓴다 — 'sl_' 로 시작하게 해서 일반 교환권과 섞이지 않게 한다.
+        //  pair 칸은 비워 둔다: 값이 있으면 짝 번호 조회(/oauth/pair·/oauth/pair/confirm)로 이 표를 꺼내 갈 수 있다.
+        const linkToken = 'sl_' + token(24);
+        await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires, pair, pc, tries) VALUES (?,?,?,NULL,?,0)')
+          .bind(linkToken, h.user_id, nowMs() + LINK_TTL, role).run();
+        return json({ ok: true, linked: false, role, linkToken,
+          account: { provider: (u && u.provider) || '', email: (u && u.email) || '', nickname: (u && u.nickname) || '' } }, 200, cors);
+      }
+
+      // ── ③ 처음 한 번: 코드로 잇기
+      const linkToken = String(body.linkToken || '').slice(0, 64);
+      const codeIn = String(body.code || '').trim().slice(0, 64);
+      if (!linkToken || !codeIn) return json({ error: 'missing' }, 400, cors);
+      const tk = await db.prepare('SELECT * FROM oauth_handoff WHERE code = ?').bind(linkToken).first();
+      if (!tk || tk.expires < nowMs() || linkToken.indexOf('sl_') !== 0 || tk.pc !== role) {
+        return json({ error: 'expired', message: '시간이 지났어요. 로그인부터 다시 해주세요.' }, 403, cors);
+      }
+      let refId = '';
+      if (role === 'hospital') {
+        const h = await db.prepare('SELECT id FROM hospitals WHERE admin_code = ? AND active = 1').bind(codeIn.toUpperCase()).first();
+        refId = h ? h.id : '';
+      } else {
+        // 코드는 대문자다 — 소문자로 쳐도 받는다
+        const c = await db.prepare('SELECT id FROM counselors WHERE (code = ? OR code = ?) AND active = 1').bind(codeIn, codeIn.toUpperCase()).first();
+        refId = c ? c.id : '';
+      }
+      if (!refId) {
+        // 코드 찍어보기 차단 — 5번 틀리면 이 연결 표는 못 쓴다
+        const tries = (tk.tries || 0) + 1;
+        if (tries >= 5) await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(linkToken).run();
+        else await db.prepare('UPDATE oauth_handoff SET tries = ? WHERE code = ?').bind(tries, linkToken).run();
+        return json({ error: 'bad-code', left: Math.max(0, 5 - tries),
+          message: tries >= 5 ? '여러 번 틀려서 멈췄어요. 로그인부터 다시 해주세요.' : '코드가 맞지 않아요. 다시 확인해주세요.' }, 403, cors);
+      }
+      await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(linkToken).run();
+      // 한 소셜 계정은 역할마다 한 곳에만, 한 상담사·상담소 계정에는 소셜 계정 여러 개가 붙을 수 있다(구글·카카오 둘 다 등)
+      await db.prepare(
+        `INSERT INTO staff_links (user_id, role, ref_id, created) VALUES (?,?,?,?)
+         ON CONFLICT(user_id, role) DO UPDATE SET ref_id = excluded.ref_id, created = excluded.created`
+      ).bind(tk.user_id, role, refId, nowMs()).run();
+      const out = await openSession(refId);
+      if (!out) return json({ error: 'inactive' }, 403, cors);
+      return json(out, 200, cors);
+    } catch (e) {
+      // staff_links 표·pc 칸이 아직 없다 — 앱은 코드 로그인으로 계속 쓸 수 있다
+      return json({ error: 'not-ready', message: '소셜 로그인을 준비하고 있어요. 지금은 코드로 로그인해주세요.' }, 503, cors);
+    }
+  }
+
   if (path === '/oauth/exchange' && method === 'POST') {
     const code = String(body.code || '').slice(0, 64);
     if (!code) return json({ error: 'missing' }, 400, cors);
+    // 상담사·상담소 연결 표('sl_')는 이용자 세션으로 바꿔 주지 않는다
+    if (code.indexOf('sl_') === 0) return json({ error: 'expired' }, 403, cors);
     const h = await db.prepare('SELECT * FROM oauth_handoff WHERE code = ?').bind(code).first();
     await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(code).run();  // 한 번만
     if (!h || h.expires < nowMs()) return json({ error: 'expired' }, 403, cors);

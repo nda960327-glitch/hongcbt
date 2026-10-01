@@ -260,13 +260,81 @@ async function loginWithCode(v) {
   localStorage.setItem('doc_code', HC); localStorage.removeItem('doc_session');
   enter(hd.hospital);
 }
+// ── 소셜 로그인 (구글·카카오·네이버) ─────────────────────────────────
+//  서버에 키가 들어 있는 사업자만 버튼을 그린다. 로그인 왕복은 이용자 앱과 같은 길(/oauth/<사업자>/start)이고,
+//  돌아오면 ?auth=<1회용 교환권> 을 /oauth/staff/exchange 로 바꾼다:
+//   · 이미 이어 둔 계정 → 바로 입장
+//   · 처음 보는 계정 → 소장 관리 코드(HA-…)를 한 번 받아 이어 둔다
+const SOCIAL_STYLE = {
+  kakao: 'background:#FEE500;color:#191600;border-color:#FEE500;',
+  naver: 'background:#03C75A;color:#fff;border-color:#03C75A;',
+  google: 'background:#fff;color:#3c4043;border:1px solid #dadce0;'
+};
+async function initSocial() {
+  const d = await getJson('/api/oauth/providers');
+  const items = (d && d.items) || [];
+  if (!items.length) return;
+  $('social-btns').innerHTML = items.map(p =>
+    `<button class="btn block" data-social="${esc(p.key)}" style="${SOCIAL_STYLE[p.key] || ''}">${esc(p.name)}로 로그인</button>`).join('');
+  $('login-social').hidden = false;
+  $('social-btns').addEventListener('click', e => {
+    const b = e.target.closest('[data-social]');
+    if (b) socialLogin(b.getAttribute('data-social'));
+  });
+}
+function socialLogin(provider) {
+  // cn: 이 탭이 시작한 로그인이라는 표시 — 돌아온 교환권이 내가 시작한 것일 때만 쓴다(남이 만든 로그인 링크 차단)
+  const cn = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join('');
+  try { sessionStorage.setItem('doc_auth_cn', cn); } catch (e) {}
+  location.href = API_BASE + '/api/oauth/' + encodeURIComponent(provider) + '/start?back=' + encodeURIComponent(location.origin) + '&cn=' + cn;
+}
+// 돌아온 교환권 처리. 들어갔으면 true.
+async function finishSocial(code, cn) {
+  history.replaceState(null, '', location.pathname);
+  let want = '';
+  try { want = sessionStorage.getItem('doc_auth_cn') || ''; sessionStorage.removeItem('doc_auth_cn'); } catch (e) {}
+  if (!want || want !== cn) { showErr('err3', '이 화면에서 시작한 로그인이 아니라서 쓰지 않았어요. 다시 눌러주세요.'); return false; }
+  const r = await postJson('/api/oauth/staff/exchange', { code, role: 'hospital' });
+  if (!r || !r.ok) {
+    showErr('err3', r && r.error === 'not-ready' ? '간편 로그인을 준비하고 있어요. 지금은 이메일 링크나 소장 관리 코드로 들어와주세요.' : '로그인이 만료됐어요. 다시 눌러주세요.');
+    return false;
+  }
+  if (r.linked) return enterSocial(r);
+  // 처음 보는 소셜 계정 — 소장 관리 코드로 한 번만 잇는다
+  const who = (r.account && (r.account.nickname || r.account.email)) || '';
+  let msg = '';
+  for (;;) {
+    const v = await modal({
+      title: '처음 한 번만 연결해요',
+      body: (who ? who + ' 계정을 ' : '이 계정을 ') + '상담소와 이어 둘게요. 운영팀이 드린 소장 관리 코드(HA-…)를 넣어주세요. 다음부터는 코드 없이 들어와요.' + (msg ? '\n\n' + msg : ''),
+      input: { placeholder: 'HA-XXXX-XXXX-XXXX-XXXX' }, okLabel: '연결하고 들어가기'
+    });
+    if (v === null || v === false) { showErr('err3', '연결을 취소했어요. 코드가 없다면 이메일 링크로 들어온 뒤 운영팀에 요청해주세요.'); return false; }
+    const raw = String(v === true ? '' : v).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!/^HA[A-Z0-9]{16}$/.test(raw)) { msg = 'HA-XXXX-XXXX-XXXX-XXXX 형식으로 넣어주세요. (내담자용 상담소 코드 H-…는 쓸 수 없어요)'; continue; }
+    const code2 = 'HA-' + raw.slice(2).match(/.{4}/g).join('-');
+    const l = await postJson('/api/oauth/staff/link', { linkToken: r.linkToken, role: 'hospital', code: code2 });
+    if (l && l.ok) return enterSocial(l);
+    if (l && l.error === 'bad-code' && l.left > 0) { msg = '코드가 맞지 않아요. 다시 확인해주세요. (남은 횟수 ' + l.left + '번)'; continue; }
+    showErr('err3', (l && l.message) || '연결하지 못했어요. 로그인부터 다시 해주세요.');
+    return false;
+  }
+}
+function enterSocial(r) {
+  HS = r.hsession; HC = '';
+  localStorage.setItem('doc_session', HS); localStorage.removeItem('doc_code');
+  enter(r.hospital);
+  toast('로그인됐어요');
+  return true;
+}
+
 function enter(h) {
   DATA.hospital = h;
   $('screen-login').hidden = true; $('shell').hidden = false; $('tabbar').hidden = false;
   $('side-name').textContent = h.name;
   $('side-sub').textContent = [h.dept, h.doctor ? h.doctor + ' 소장' : ''].filter(Boolean).join(' · ') || '상담소 관리 콘솔';
   $('side-av').textContent = (h.name || '상').slice(0, 1);
-  $('side-login').textContent = HS ? '이메일 링크 로그인 · 이 기기 30일' : '소장 관리 코드 로그인';
+  $('side-login').textContent = HS ? '로그인됨 · 이 기기 30일' : '소장 관리 코드 로그인';
   buildNav();
   showTab(UI.tab || 'dash', true);
 }
@@ -336,7 +404,9 @@ $('to-email').addEventListener('click', () => { $('login-code').hidden = true; $
 // ── 시작 ──
 window.addEventListener('DOMContentLoaded', async () => {
   const qs = new URLSearchParams(location.search);
-  const t = qs.get('t'), c = qs.get('code');
+  const t = qs.get('t'), c = qs.get('code'), a = qs.get('auth');
+  initSocial();   // 버튼은 기다리지 않고 그린다
+  if (a) { if (await finishSocial(a, qs.get('cn') || '')) return; }
   if (t) { if (await verifyLink(t)) return; }
   if (c) { history.replaceState(null, '', location.pathname); $('login-email').hidden = true; $('login-code').hidden = false; $('code').value = c; await loginWithCode(c); if (DATA.hospital) return; }
   if (HS || HC) {

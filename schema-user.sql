@@ -45,3 +45,15 @@ CREATE TABLE IF NOT EXISTS oauth_handoff (
 );
 CREATE INDEX IF NOT EXISTS idx_handoff_pair ON oauth_handoff(pair);
 -- 기존 DB 는 schema-2026-10c.sql 의 ALTER 로 칸을 더한다.
+
+-- 2026-10: 상담사·상담소장의 소셜 로그인. users(소셜 계정)를 상담사(counselors.id)·상담소(hospitals.id)에 이어 둔다.
+--  처음 한 번 코드로 이으면, 그 뒤로는 구글·카카오·네이버 로그인만으로 세션이 나온다.
+--  role: 'counselor' | 'hospital'. 한 소셜 계정은 역할마다 한 곳에만 이어진다.
+CREATE TABLE IF NOT EXISTS staff_links (
+  user_id  TEXT NOT NULL,
+  role     TEXT NOT NULL,
+  ref_id   TEXT NOT NULL,
+  created  INTEGER NOT NULL,
+  PRIMARY KEY (user_id, role)
+);
+CREATE INDEX IF NOT EXISTS idx_staff_links_ref ON staff_links(role, ref_id);
