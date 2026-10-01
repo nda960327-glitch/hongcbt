@@ -151,15 +151,20 @@ window.Forest = {
     { t: '계속 이어가기', p: ['body', 'space'], h: '앞으로도 이어갈 연습 하나를 골라 매일의 자리를 정하기' }
   ],
 
-  AMBIENT: [['music', '잔잔한 음악'], ['pine', '산들바람'], ['rain', '가는 비'], ['stream', '시냇물'], ['bowl', '싱잉볼'], ['off', '끄기']],
+  // 녹음된 배경 음악 (2026-10-01) — Pixabay Content License(상업 이용 가능·출처 표기 불필요). 64kbps 로 줄여 넣었다.
+  //  relax: "Meditation Relaxing Music" DanaMusic · deep: "Deep Meditation" Grand_Project · ambient: "Meditation Ambient" leberch
+  //  순서는 사장님 선호도(relax > deep > ambient). 'music' 은 기기에서 바로 만드는 합성음 — 파일을 못 불러올 때의 대비이기도 하다.
+  BGM: { relax: 'audio/bgm/relax.mp3', deep: 'audio/bgm/deep.mp3', ambient: 'audio/bgm/ambient.mp3' },
+  AMBIENT: [['relax', '편안한 선율'], ['deep', '깊은 명상'], ['ambient', '고요한 울림'], ['music', '잔잔한 화음'], ['pine', '산들바람'], ['rain', '가는 비'], ['stream', '시냇물'], ['bowl', '싱잉볼'], ['off', '끄기']],
 
   // ── 저장 ─────────────────────────────────────────────────────────
   _get(k, d) { try { return window.Storage ? window.Storage._safeGet(k, d) : d; } catch (e) { return d; } },
   _set(k, v) { try { window.Storage && window.Storage._safeSet(k, v); } catch (e) {} },
   log() { return this._get(this.LOG_KEY, []) || []; },
   pref() {
-    const p = Object.assign({ ambient: 'music', vol: 0.6, voice: true, vib: true }, this._get(this.PREF_KEY, {}) || {});
-    if (!p.v2) { p.ambient = 'music'; p.vol = 0.6; p.v2 = 1; this._set(this.PREF_KEY, p); }   // 2026-09-28 소리 전면 교체 — 옛 설정은 새 기본으로
+    const p = Object.assign({ ambient: 'relax', vol: 0.6, voice: true, vib: true }, this._get(this.PREF_KEY, {}) || {});
+    if (!p.v2) { p.ambient = 'music'; p.vol = 0.6; p.v2 = 1; this._set(this.PREF_KEY, p); }
+    if (!p.v3) { if (p.ambient === 'music') p.ambient = 'relax'; p.v3 = 1; this._set(this.PREF_KEY, p); }   // 2026-10-01 녹음 음악이 새 기본   // 2026-09-28 소리 전면 교체 — 옛 설정은 새 기본으로
     return p;
   },
   setPref(p) { this._set(this.PREF_KEY, Object.assign(this.pref(), p)); },
@@ -559,7 +564,7 @@ window.Forest = {
       this._bowlTimer = setInterval(strike, 12000);
       setTimeout(strike, 200);
     }
-    if (kind === 'music') {
+    if (kind === 'music' || this.BGM[kind]) {
       // 잔잔한 음악 (2026-10 다시 만듦 — 임상 자문: "잡음이 들리고 기계음 같다").
       //  전에는 87~130Hz 의 낮은 삼각파를 썼다. 폰 스피커는 그 음역을 못 내서 떨리는 잡음이 되고,
       //  삼각파의 모서리가 '전자음'으로 들렸다. 이제는:
@@ -567,7 +572,6 @@ window.Forest = {
       //   · 잔향(리버브)을 입혀 소리 끝을 길게 풀어 준다 · 화음은 8초에 걸쳐 스며들고 스며 나간다
       //   · 가끔(9~17초에 한 번) 5음 음계의 맑은 음 하나가 물방울처럼 떨어진다 — 멜로디가 아니라 숨 쉴 틈
       //  녹음 파일이 아니라 기기에서 바로 만드는 소리라 저작권이 없고 내려받을 것도 없다.
-      //  (실제 음악 파일을 쓰려면 audio/bgm/calm.mp3 를 넣으면 된다 — 아래에서 그 파일이 있으면 그걸 먼저 튼다)
       const rev = ac.createConvolver();
       {
         // 2.8초짜리 부드러운 잔향 — 감쇠하는 잡음으로 방의 울림을 흉내 낸다
@@ -588,7 +592,7 @@ window.Forest = {
       const CH = [[261.63, 329.63, 392.0, 587.33], [220.0, 261.63, 329.63, 392.0], [261.63, 349.23, 440.0, 523.25], [196.0, 293.66, 392.0, 440.0]];
       let ci = 0;
       const pad = () => {
-        if (!this._amb || this._amb.kind !== 'music') return;
+        if (!this._amb || this._amb.kind !== kind) return;
         const t0 = ac.currentTime, chord = CH[ci++ % CH.length];
         chord.forEach((fq, k) => {
           [-4, 4].forEach(det => {   // 살짝 어긋난 두 줄 — 겹치면 천천히 일렁이는 따뜻함이 생긴다
@@ -606,7 +610,7 @@ window.Forest = {
       // 맑은 음 하나 — 5음 음계(C D E G A)라 어느 화음 위에서도 어긋나지 않는다
       const PENTA = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5];
       const drop = () => {
-        if (!this._amb || this._amb.kind !== 'music') return;
+        if (!this._amb || this._amb.kind !== kind) return;
         const t0 = ac.currentTime, fq = PENTA[Math.floor(Math.random() * PENTA.length)];
         [[1, 0.05], [2, 0.012]].forEach(([mul, a]) => {
           const o = ac.createOscillator(), g = ac.createGain();
@@ -623,29 +627,34 @@ window.Forest = {
         setTimeout(pad, 100);
         this._dropTimer = setTimeout(drop, 7000);
       };
-      // 음악 파일이 있으면 그걸 튼다(없으면 위의 합성음). 파일은 반복 재생하고 같은 볼륨 규칙을 따른다.
-      let fileEl = null;
-      try {
-        fileEl = new Audio('audio/bgm/calm.mp3');
-        fileEl.loop = true; fileEl.preload = 'auto'; fileEl.volume = 0;
-        let decided = false;
-        const useSynth = () => { if (decided) return; decided = true; try { fileEl.pause(); } catch (e) {} fileEl = null; this._bgmEl = null; startSynth(); };
-        fileEl.addEventListener('error', useSynth, { once: true });
-        fileEl.addEventListener('canplaythrough', () => {
-          if (decided || !this._amb || this._amb.kind !== 'music') return;
-          decided = true;
-          this._bgmEl = fileEl;
-          fileEl.play().then(() => { this._bgmVol(); }).catch(() => { decided = false; useSynth(); });
-        }, { once: true });
-        setTimeout(useSynth, 2500);   // 2.5초 안에 못 불러오면 합성음으로
-      } catch (e) { startSynth(); }
+      // 녹음 음악을 고르면 그 파일을 반복 재생한다. 못 불러오면(오프라인 등) 6초 뒤 합성음으로 대신한다.
+      const src = this.BGM[kind];
+      if (!src) startSynth();
+      else {
+        let fileEl = null;
+        try {
+          fileEl = new Audio(src);
+          fileEl.loop = true; fileEl.preload = 'auto'; fileEl.volume = 0;
+          let decided = false;
+          const useSynth = () => { if (decided) return; decided = true; try { fileEl.pause(); } catch (e) {} this._bgmEl = null; if (this._amb && this._amb.kind === kind) startSynth(); };
+          fileEl.addEventListener('error', useSynth, { once: true });
+          fileEl.addEventListener('canplay', () => {
+            if (decided) return;
+            decided = true;
+            if (!this._amb || this._amb.kind !== kind) return;
+            this._bgmEl = fileEl;
+            fileEl.play().then(() => { this._bgmVol(); }).catch(() => { decided = false; useSynth(); });
+          }, { once: true });
+          setTimeout(useSynth, 6000);
+        } catch (e) { startSynth(); }
+      }
     }
     this._ambOut = out;
     const stopTimers = () => { clearInterval(this._bowlTimer); clearInterval(this._padTimer); clearTimeout(this._dropTimer); if (this._bgmEl) { try { this._bgmEl.pause(); } catch (e) {} this._bgmEl = null; } };
     this._amb = { kind, stop: () => { stopTimers(); try { out.gain.cancelScheduledValues(ac.currentTime); out.gain.setTargetAtTime(0, ac.currentTime, 0.6); } catch (e) {} setTimeout(() => { nodes.forEach(n => { try { n.stop(); } catch (e) {} }); try { out.disconnect(); soft.disconnect(); } catch (e) {} }, 2500); } };
   },
   // 안내 음성이 나오는 동안 배경음을 조금 낮춘다
-  // 파일 음악(audio/bgm/calm.mp3)의 볼륨 — 합성 배경음과 같은 규칙(작게, 음성이 나오면 더 작게)
+  // 녹음 음악(BGM)의 볼륨 — 합성 배경음과 같은 규칙(작게, 음성이 나오면 더 작게)
   _bgmVol(duck) {
     if (!this._bgmEl) return;
     try { this._bgmEl.volume = Math.max(0, Math.min(1, this.pref().vol * 0.5 * (duck ? 0.55 : 1))); } catch (e) {}
