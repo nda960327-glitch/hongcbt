@@ -283,7 +283,10 @@ export async function handleOauth(request, env, cors, path, body, url) {
       return errPage('로그인 서버에 연결하지 못했어요.', realBack);
     }
     if (!tok || !tok.access_token) {
-      return errPage(`${P.name}에서 로그인을 확인하지 못했어요. 다시 시도해주세요.`, realBack);
+      // 사업자가 준 오류 코드를 같이 보여준다(비밀값은 없다) — 'KOE010'(클라이언트 시크릿 불일치)처럼
+      //  설정 문제는 이 코드 없이는 원인을 알 길이 없다.
+      const why = String((tok && (tok.error_code || tok.error)) || '').replace(/[^\w.-]/g, '').slice(0, 40);
+      return errPage(`${P.name}에서 로그인을 확인하지 못했어요. 다시 시도해주세요.${why ? ' (' + why + ')' : ''}`, realBack);
     }
 
     // 프로필 조회
