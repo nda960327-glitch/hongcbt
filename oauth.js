@@ -66,7 +66,10 @@ const PROVIDERS = {
     auth: 'https://kauth.kakao.com/oauth/authorize',
     token: 'https://kauth.kakao.com/oauth/token',
     profile: 'https://kapi.kakao.com/v2/user/me',
-    scope: 'account_email profile_nickname',
+    // scope 를 요청하지 않는다(2026-10, 사장님: 개인정보 필요 없음). 전에는 이메일·닉네임 동의를 요청했는데,
+    //  카카오 콘솔에서 그 동의항목이 꺼져 있으면 '잘못된 요청 (KOE205)'로 로그인 자체가 막혔다.
+    //  요청하지 않으면 카카오 고유번호만으로 로그인된다 — 이메일·닉네임은 콘솔에서 켜 둔 경우에만 온다.
+    scope: '',
     // 카카오의 Client Secret 은 콘솔에서 켜야 생기는 '선택' 값이다.
     //  필수로 요구했더니 REST API 키만 넣은 상태에서 버튼이 아예 안 떴다.
     secretOptional: true,
@@ -83,6 +86,7 @@ const PROVIDERS = {
     token: 'https://nid.naver.com/oauth2.0/token',
     profile: 'https://openapi.naver.com/v1/nid/me',
     scope: '',
+    noReferrer: true,   // 아래 start 단계 주석 참고
     id: e => e.NAVER_CLIENT_ID, secret: e => e.NAVER_CLIENT_SECRET,
     parse: p => {
       const r = p.response || {};
@@ -222,7 +226,25 @@ export async function handleOauth(request, env, cors, path, body, url) {
         state: st
       });
       if (P.scope) p.set('scope', P.scope);
-      return Response.redirect(P.auth + '?' + p.toString(), 302);
+      const dest = P.auth + '?' + p.toString();
+      // 네이버는 로그인을 '시작한 사이트'(Referer)가 개발자센터의 서비스 URL 과 다르면
+      //  "등록되지 않은 사이트에서 로그인을 시도했습니다"로 막는다. 도메인을 mindinsideapp.com 으로
+      //  옮긴 뒤 등록값이 옛 도메인으로 남아 있어 그렇게 막혔다(2026-10). 출발지를 싣지 않고 보내면
+      //  등록된 콜백 주소만으로 통과한다. 302 는 앞 페이지의 Referer 를 그대로 물려주므로,
+      //  Referer 를 끊는 작은 페이지를 한 번 거친다.
+      //  (정석은 네이버 개발자센터 서비스 URL 에 https://mindinsideapp.com 을 넣는 것 — 넣어도 이 코드는 무해하다)
+      if (P.noReferrer) {
+        const safe = dest.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        return new Response(
+          `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer">`
+          + `<meta name="viewport" content="width=device-width, initial-scale=1"><title>${P.name} 로그인으로 이동</title>`
+          + `<meta http-equiv="refresh" content="0;url=${safe}"></head>`
+          + `<body style="font-family:sans-serif;text-align:center;padding:3rem 1rem;color:#555;">`
+          + `<p>${P.name} 로그인으로 이동하고 있어요…</p><p><a rel="noreferrer" href="${safe}">넘어가지 않으면 여기를 눌러주세요</a></p>`
+          + `<script>location.replace(${JSON.stringify(dest)});</script></body></html>`,
+          { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Referrer-Policy': 'no-referrer', 'Cache-Control': 'no-store' } });
+      }
+      return Response.redirect(dest, 302);
     }
 
     // ── 2단계: 돌아왔다 ─────────────────────────────────────────────
