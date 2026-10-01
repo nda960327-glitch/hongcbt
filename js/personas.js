@@ -254,7 +254,10 @@ window.Personas = {
       linked = window.Storage ? window.Storage._safeGet('cbt_ai_link_persona', null) : null;
       active = window.Storage ? window.Storage._safeGet('cbt_active_persona', null) : null;
     } catch (e) {}
-    return this.list.filter(p => p.id !== 'woorung-ds' || linked === 'woorung-ds' || active === 'woorung-ds');
+    // B 링크(?ai=woorung)로 들어온 사람에게는 느루를 숨긴다 — A 는 느루만, B 는 우렁의사만 봐야
+    //  비교가 섞이지 않는다. (전에는 B 쪽에 느루·우렁의사가 둘 다 떴다)
+    if (linked === 'woorung-ds') return this.list.filter(p => p.id !== 'woorung');
+    return this.list.filter(p => p.id !== 'woorung-ds' || active === 'woorung-ds');
   },
 
   // ── 배정 링크 (A/B 비교용, 2026-09-30) ──────────────────────────────
