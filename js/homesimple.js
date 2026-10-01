@@ -17,6 +17,15 @@ window.HomeSimple = {
   // 처음 여는 사람은 모두 원래 화면(classic)으로 시작한다 (2026-10-01 결정 — 반반 무작위 A/B 는 그만둔다).
   //  홈 맨 위 고르기 카드나 마이 → 홈 화면 모양에서 간단한 화면으로 바꿀 수 있고, 한 번 고르면 기억된다.
   get() {
+    // 이미 쓰던 사람도 한 번 원래 화면으로 돌려놓는다 (2026-10-01 결정). 무작위로 간단한 화면이 배정됐던 사람과
+    //  직접 고른 사람을 구분할 수 없어 모두 돌리고, 고르기 카드를 다시 띄워 원하면 간단한 화면을 고르게 한다.
+    if (!window.Storage._safeGet('cbt_home_reset_v274', false)) {
+      window.Storage._safeSet('cbt_home_reset_v274', true);
+      if (window.Storage._safeGet(this.KEY, null) === 'simple') {
+        window.Storage._safeSet(this.KEY, 'classic');
+        window.Storage._safeSet('cbt_home_tip_off', false);
+      }
+    }
     const v = window.Storage._safeGet(this.KEY, null);
     return (v === 'simple' || v === 'classic') ? v : this.DEFAULT;
   },
