@@ -23,7 +23,9 @@ async function api(path, opts) {
     try {
       const r = await fetch(path, opts);
       const ct = r.headers.get('content-type') || '';
-      if (r.status !== 404 && !ct.includes('text/html')) { sameOrigin = true; return r; }
+      // 정적 호스팅(Pages)은 /api 로 온 POST 에 405 를 준다 — 그걸 '여기에 서버가 있다'로 읽으면
+      //  첫 요청이 POST 인 길(메일 링크·간편 로그인으로 돌아온 직후)이 통째로 실패한다. JSON 을 주는 곳만 서버로 본다.
+      if (r.status !== 404 && r.status !== 405 && ct.includes('json')) { sameOrigin = true; return r; }
       sameOrigin = false;
     } catch (e) { sameOrigin = false; }
   }
