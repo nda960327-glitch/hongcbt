@@ -1120,6 +1120,11 @@ ${about}
     }
 
     const messages = this._buildMessages(sessionNote);
+    // 상담사별 '다짐'(말투·태도의 핵심 몇 줄)을 대화 끝에 한 번 더 둔다 — 있는 상담사만.
+    try {
+      const pr = window.Personas && window.Personas.getActive && window.Personas.getActive();
+      if (pr && pr.reminder) messages.push({ role: 'system', content: pr.reminder });
+    } catch (e) {}
     // 맨 끝에 둔다 — 긴 시스템 지침 한가운데 있으면 모델이 흘려보낸다(2026-10 시험에서 실제로 그랬다)
     if (turnDirective) messages.push({ role: 'system', content: turnDirective });
     else if (recentCrisis) messages.push({ role: 'system', content: '[위기 후속] 조금 전 자살·자해 신호가 있었습니다. 안전(수단과 거리 두기 · 연락할 사람 · 109)이 아직 확인되지 않았다면, 화제가 바뀌었더라도 이유를 말하고 그것부터 확인한 뒤 넘어가세요. 한 줄로 막지 마세요.' });
