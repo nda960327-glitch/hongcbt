@@ -541,8 +541,10 @@ async function haApprove(id, btn) {
   else alertBox('승인하지 못했어요', (r && r.error) || '잠시 후 다시 시도해주세요.');
 }
 async function haReject(id) {
-  const reason = prompt('보류 사유 (신청자에게 메일로 전달돼요)', '');
-  if (reason === null) return;
+  // 입력칸이 있는 modal() 은 확인 시 입력값(빈 문자열 포함), 취소 시 null 을 준다
+  const reason = await modal({ title: '보류 사유', body: '신청자에게 메일로 전달돼요. 비워둬도 됩니다.', okLabel: '보류 처리',
+    input: { placeholder: '예: 사업자등록증이 흐려서 확인이 어려워요' } });
+  if (reason === null || reason === undefined) return;
   const r = await adminPost('/api/admin/hospital-apps/reject', { id, reason });
   if (r && r.ok) { toast('보류 처리했어요'); await loadHospitals(); } else toast('처리하지 못했어요');
 }
