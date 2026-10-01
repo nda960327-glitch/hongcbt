@@ -2479,3 +2479,98 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 /* 상담소 제휴 신청 폼 */
 .hreg-in { padding: 0.65rem 0.8rem; border-radius: 10px; background: var(--bg-tertiary); border: 1px solid var(--glass-border); color: var(--text-primary); outline: none; font-size: 0.88rem; width: 100%; box-sizing: border-box; font-family: inherit; }
 .hreg-in:focus { border-color: var(--accent-primary); }
+
+
+/* ========== 알림 설정 (마이 › 설정) ========== */
+/* 상태 카드 — 왼쪽 점 색으로 켜짐/꺼짐/차단을 한눈에 */
+.notif-state {
+  padding: 0.7rem 0.75rem;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+}
+.notif-state--bad { border-color: rgba(208, 96, 92, 0.45); background: rgba(208, 96, 92, 0.08); }
+.notif-state--warn { border-color: rgba(214, 149, 43, 0.45); background: rgba(214, 149, 43, 0.08); }
+.notif-state__row { display: flex; align-items: flex-start; gap: 0.55rem; }
+.notif-state__dot { flex: none; width: 10px; height: 10px; margin-top: 0.36rem; border-radius: 50%; background: var(--text-muted); }
+.notif-state__txt { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.notif-state__txt b { font-size: 0.88rem; color: var(--text-primary); line-height: 1.4; word-break: keep-all; }
+.notif-state__txt span { font-size: 0.77rem; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
+.notif-state__acts { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.6rem; }
+.notif-state__btn {
+  border: 0; border-radius: 999px; padding: 0.5rem 0.95rem; min-height: 36px;
+  font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+  background: var(--accent-primary); color: #fff;
+}
+.notif-state__btn--ghost { background: transparent; color: var(--text-primary); border: 1px solid var(--glass-border); }
+[data-theme="light"] .notif-state__btn--ghost { border-color: rgba(120, 96, 66, 0.28); }
+.notif-state__env { margin-left: auto; font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+.notif-kinds { display: flex; flex-direction: column; margin-top: 0.5rem; }
+.notif-kind {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.6rem 0.1rem; min-height: 44px; cursor: pointer;
+  border-bottom: 1px solid var(--glass-border);
+}
+.notif-kind:last-child { border-bottom: 0; }
+.notif-kind--fixed { cursor: default; }
+.notif-kind__txt { min-width: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+.notif-kind__txt b { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.notif-kind__txt span { font-size: 0.74rem; color: var(--text-muted); line-height: 1.4; word-break: keep-all; }
+.notif-kind__tag { flex: none; font-size: 0.7rem; font-weight: 700; color: var(--accent-primary); white-space: nowrap; }
+/* 폰 알림 자체가 꺼져 있으면 스위치가 소용없다는 걸 흐리게 해서 보여준다 (누를 수는 있다) */
+.notif-kinds--off .notif-kind { opacity: 0.55; }
+.notif-kinds__note { margin: 0.45rem 0 0; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; word-break: keep-all; }
+/* 켜는 방법 안내 (UI.alert 의 html 로 들어간다) */
+.notif-steps { margin: 0; padding: 0; list-style: none; counter-reset: nstep; display: flex; flex-direction: column; gap: 0.5rem; }
+.notif-steps li {
+  counter-increment: nstep; display: flex; align-items: flex-start; gap: 0.6rem;
+  font-size: 0.86rem; line-height: 1.55; color: var(--text-primary); word-break: keep-all;
+}
+.notif-steps li::before {
+  content: counter(nstep); flex: none; width: 1.45rem; height: 1.45rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.74rem; font-weight: 800; color: #fff; background: var(--accent-primary);
+}
+.notif-steps__foot { margin: 0.8rem 0 0; font-size: 0.76rem; color: var(--text-muted); line-height: 1.55; word-break: keep-all; }
+
+/* 스위치 — 체크박스를 그대로 쓰되 모양만 바꾼다 (id·onchange 는 그대로라 기존 코드가 안 깨진다) */
+.ui-switch {
+  -webkit-appearance: none; appearance: none; flex: none;
+  position: relative; width: 44px; height: 26px; margin: 0; border-radius: 999px; cursor: pointer;
+  background: rgba(128, 128, 128, 0.38); border: 0; outline: none;
+  transition: background 0.18s ease;
+}
+.ui-switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.18s ease;
+}
+.ui-switch:checked { background: var(--accent-primary); }
+.ui-switch:checked::after { transform: translateX(18px); }
+.ui-switch:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+
+/* ========== 모달 공통 다듬기 ========== */
+/* 모달마다 max-height 를 인라인으로 줬다 안 줬다 해서, 안 준 것(위기 안내·면책·구독·설치)은
+   작은 폰이나 '글자 크게'에서 화면 밖으로 넘쳐 닫기 버튼에 손이 닿지 않았다.
+   전부 같은 규칙으로: 화면 높이를 넘지 않고, 넘치면 창 안에서만 스크롤. */
+.modal-overlay { overscroll-behavior: contain; }
+.modal-content {
+  box-sizing: border-box;
+  max-height: calc(100vh - 2.5rem);
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 22px;
+}
+.modal-content h2, .modal-content h3 { word-break: keep-all; overflow-wrap: anywhere; }
+.modal-content img, .modal-content svg { max-width: 100%; }
+@media (max-width: 420px) {
+  /* 좁은 폰에서는 바깥 여백을 줄여 내용 폭을 확보한다 */
+  .modal-overlay { padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .modal-content { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px - env(safe-area-inset-bottom)); }
+}
+
+/* 설정 줄의 오른쪽 버튼 — 좁은 폰에서 "잠금 / 켜기"처럼 두 줄로 쪼개지던 것을 막는다 */
+#settings-overlay .btn-secondary { white-space: nowrap; flex: none; }
+/* 한글은 낱말 중간에서 끊기면 읽기 어렵다 — 모달 안 글은 어절 단위로 줄바꿈 */
+.modal-content { word-break: keep-all; overflow-wrap: anywhere; }

@@ -36,8 +36,33 @@ window.Admin = {
     if (window.UI) {
       window.UI.confirm({ title: '잠시만요', body: msg, okLabel: '새로고침', cancelLabel: '닫기' })
         .then(ok => { if (ok) location.reload(true); });
-    } else if (confirm(msg + '\n\n새로고침할까요?')) location.reload(true);
+    } else {
+      // ui.js 까지 못 실려 온 경우 — 기본 창을 띄우지 않고 화면 위쪽에 줄 하나로 알린다.
+      //  (기본 confirm 은 웹뷰에서 주소가 제목으로 찍혀 앱이 깨진 것처럼 보인다)
+      this._reloadBar(msg);
+    }
     return null;
+  },
+
+  _reloadBar(msg) {
+    if (document.getElementById('reload-bar')) return;
+    const bar = document.createElement('div');
+    bar.id = 'reload-bar';
+    bar.setAttribute('role', 'alert');
+    bar.style.cssText = 'position: fixed; left: 12px; right: 12px; top: calc(12px + env(safe-area-inset-top)); z-index: 10099;' +
+      'display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.8rem; border-radius: 14px;' +
+      'background: #2b251f; color: #f3ead9; font-size: 0.82rem; line-height: 1.45; box-shadow: 0 10px 30px rgba(0,0,0,0.35);';
+    const txt = document.createElement('span');
+    txt.style.cssText = 'flex: 1; min-width: 0;';
+    txt.textContent = String(msg).replace(/\n/g, ' ');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '새로고침';
+    btn.style.cssText = 'flex: none; border: 0; border-radius: 10px; padding: 0.5rem 0.8rem; font-weight: 800; font-size: 0.8rem; background: #7fc29b; color: #1d2a22; cursor: pointer;';
+    btn.addEventListener('click', () => location.reload(true));
+    bar.appendChild(txt); bar.appendChild(btn);
+    document.body.appendChild(bar);
+    setTimeout(() => { try { bar.remove(); } catch (e) {} }, 12000);
   },
 
   open() {
@@ -503,11 +528,16 @@ window.Admin = {
   //  이 기기에만 존재했다. 서버를 쓰는 approveApp()/rejectApp() 으로 대체.
 
   // 입점 상담사 노출 중단 (기본 제공 상담사는 제외, 입점분만)
-  delist(counselorId) {
+  async delist(counselorId) {
     const customs = this._customs();
     const c = customs.find(x => x.id === counselorId);
     if (!c) return;
-    if (!confirm(`'${c.name}' 상담사의 매칭 탭 노출을 중단할까요?`)) return;
+    const ok = await window.UI.confirm({
+      title: '노출을 중단할까요?',
+      body: `'${c.name}' 상담사가 매칭 탭에서 보이지 않게 돼요.`,
+      okLabel: '노출 중단', danger: true
+    });
+    if (!ok) return;
     window.Storage._safeSet('cbt_custom_counselors', customs.filter(x => x.id !== counselorId));
     // 연결된 신청서 상태도 '노출 중단'으로 — 신청자 마이페이지 표시가 어긋나지 않게
     if (c.fromApp) {

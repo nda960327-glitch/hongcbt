@@ -139,9 +139,11 @@ window.Consent = {
 
   // 동의 철회 — 기기 기록을 지우고 동의 화면을 다시 띄운다
   async withdraw() {
-    const ok = window.UI && window.UI.confirm
-      ? await window.UI.confirm('동의를 철회할까요? 철회하면 다시 동의하기 전까지 앱을 쓸 수 없어요. 서버의 계정·기록 삭제는 설정의 데이터 삭제에서 요청할 수 있어요.')
-      : window.confirm('동의를 철회할까요?');
+    const ok = await window.UI.confirm({
+      title: '동의를 철회할까요?',
+      body: '철회하면 다시 동의하기 전까지 앱을 쓸 수 없어요.\n서버의 계정·기록 삭제는 설정의 데이터 삭제에서 요청할 수 있어요.',
+      okLabel: '철회하기', danger: true
+    });
     if (!ok) return;
     try {
       const cid = (window.App && window.App.clientId) ? window.App.clientId() : '';
