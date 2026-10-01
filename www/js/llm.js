@@ -225,7 +225,7 @@
   _scrubDraft(t) {
     return String(t || '')
       .replace(/\[(그림|스티커|이동|주제리포트|세션끝)[^\]]*\]/g, '')
-      .replace(/위험감지/g, '')
+      .replace(/[\[(（'"‘“<]?\s*위험감지\s*[\])）'"’”>]?/g, '')
       .replace(/\[[^\]]*$/, '')          // 꼬리에서 아직 안 닫힌 마커
       .replace(/\s*\|+\s*/g, '\n')       // ||| → 줄바꿈 (DeepSeek 는 | 하나만 쓰기도 한다)
       .replace(/\|+\s*$/, '')
@@ -1193,7 +1193,8 @@ ${about}
       let crisis = false;
       if (botText.includes("위험감지")) {
         crisis = true;
-        botText = botText.replace(/위험감지/g, "").trim();
+        // 모델이 표식을 [위험감지]·(위험감지)·'위험감지' 처럼 감싸 쓰기도 한다 — 단어만 지우면 빈 괄호·따옴표가 말풍선에 남는다
+        botText = botText.replace(/[\[(（'"‘“<]?\s*위험감지\s*[\])）'"’”>]?/g, "").replace(/[ 	]{2,}/g, " ").trim();
       } else if (this.CRISIS_RE.test(String(userText || ''))) {
         // 모델(특히 하위 모델)이 '위험감지'를 빠뜨려도, 방금 보낸 말에 자·타해 신호가 있으면 안내를 띄운다.
         //  같은 대화에서 매 턴 창이 뜨면 오히려 밀어내는 느낌이라, 최근 30분 안에 띄웠으면 건너뛴다.
