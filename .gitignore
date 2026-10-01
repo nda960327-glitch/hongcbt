@@ -27,3 +27,4 @@ android/app/google-services.json
 # wrangler 로컬 개발 비밀값·상태 (커밋 금지)
 .dev.vars
 .wrangler/
+wrangler.test.toml

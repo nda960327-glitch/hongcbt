@@ -2975,7 +2975,8 @@ ${memory || '(없음)'}`;
       unsupported: { tone: 'off', title: '이 기기에서는 알림을 쓸 수 없어요', sub: '앱을 켜 두면 알림함으로는 계속 받아볼 수 있어요.' }
     }[st.perm];
     const dot = { on: '#4f9d73', warn: '#d6952b', off: 'var(--text-muted)', bad: '#d0605c' }[V.tone];
-    const canTest = st.perm === 'granted' && 'Notification' in window;
+    // 웹은 이 기기에서 바로 띄우고, 스토어 앱은 서버가 진짜 푸시를 보내 확인한다
+    const canTest = st.perm === 'granted' && ('Notification' in window || st.env === 'native');
     box.className = 'notif-state notif-state--' + V.tone;
     box.innerHTML =
       '<div class="notif-state__row">' +
@@ -3015,6 +3016,20 @@ ${memory || '(없음)'}`;
 
   setNotifKind(key, on) {
     window.Storage._safeSet('cbt_notif_' + key, !!on);
+    this._syncNotifPrefs();
+  },
+
+  // 꺼 둔 종류를 서버에도 알린다 — 앱이 꺼져 있을 때 오는 푸시는 서버가 보내므로,
+  //  서버가 모르면 스위치를 꺼도 알림이 계속 온다. (전화는 끌 수 없어 목록에 없다)
+  _syncNotifPrefs() {
+    clearTimeout(this._notifPrefT);
+    this._notifPrefT = setTimeout(() => {
+      try {
+        if (!window.Api || !window.Api.post) return;
+        const muted = ['chat', 'booking', 'remind'].filter(k => !this._notifOn(k));
+        window.Api.post('/api/push/prefs', { clientId: this.clientId(), muted }).catch(() => {});
+      } catch (e) {}
+    }, 600);
   },
 
   // 브라우저 권한 창 — 반드시 사용자가 버튼을 누른 그 자리에서만 부른다
@@ -3064,6 +3079,19 @@ ${memory || '(없음)'}`;
 
   // 테스트 알림 — 서버를 거치지 않고 이 기기에서 바로 띄운다(서비스워커 등록 경유).
   async testNotif() {
+    // 스토어 앱(웹뷰)에는 Notification 이 없다 — 서버에 '내 기기로 한 번 보내줘'를 부탁한다.
+    //  이쪽이 오히려 진짜 시험이다: 등록된 기기가 없으면 sent 가 0 으로 돌아와 이유를 알 수 있다.
+    if (this.isNativeApp && this.isNativeApp()) {
+      try {
+        const r = await window.Api.post('/api/push/test', { clientId: this.clientId() }).then(x => x.json()).catch(() => null);
+        if (r && r.ok && r.sent > 0) this.showRecordToast('테스트 알림을 보냈어요 — 몇 초 안에 도착해요');
+        else if (r && r.ok) {
+          if (window.UI) window.UI.alert({ tone: 'warning', title: '이 폰이 아직 알림에 연결되지 않았어요', body: '아래 [다시 연결]을 누른 뒤 한 번 더 시험해주세요.' });
+          this.renderNotifSettings();
+        } else if (window.UI) window.UI.alert({ tone: 'warning', title: '테스트 알림을 보내지 못했어요', body: '잠시 뒤 다시 시도해주세요.' });
+      } catch (e) {}
+      return;
+    }
     try {
       if (!('Notification' in window) || Notification.permission !== 'granted') { this.renderNotifSettings(); return; }
       const opts = { body: '알림이 잘 도착했어요. 이렇게 알려드릴게요.', icon: 'icon.png', badge: 'icon.png', tag: 'mi-test', renotify: true, vibrate: [120, 60, 120], data: { act: '' } };

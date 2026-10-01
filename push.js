@@ -433,6 +433,29 @@ export async function handlePush(request, env, cors, path, body, url) {
   // ── 알림 종류별 끄기 저장 ───────────────────────────────────────────
   //  내담자는 clientId(+clientKey), 상담사는 세션·코드로 본인을 증명한다.
   //  muted 는 꺼 둔 종류의 목록이다. 전화(call)는 받지 않는다 — 끌 수 없다.
+  // ── 테스트 알림 ───────────────────────────────────────────────────
+  //  '알림이 진짜 오는지'는 서버가 실제 푸시를 한 번 보내 봐야 안다. 스토어 앱(웹뷰)에는
+  //  기기에서 직접 알림을 띄우는 방법이 없어서, 이 길이 유일한 확인 수단이다.
+  //  본인 기기에만 간다(내담자는 clientKey, 상담사는 세션·코드). sent 가 0 이면 서버에 등록된 기기가 없다는 뜻.
+  if (path === '/push/test' && method === 'POST') {
+    const msg = { kind: 'notice', type: 'test', ttl: 300, act: '', title: '테스트 알림', body: '알림이 잘 도착했어요. 이렇게 알려드릴게요.' };
+    const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
+    if (clientId) {
+      if (await verifyClient(env, clientId, String(body.clientKey || '').slice(0, 64)) === 'deny') {
+        return json({ error: 'forbidden' }, 403, cors);
+      }
+      const r = await notifyClient(env, clientId, msg);
+      return json({ ok: true, sent: r.sent || 0, total: r.total || 0 }, 200, cors);
+    }
+    const me = await resolveCounselor(db, {
+      session: String(body.session || '').slice(0, 128),
+      code: String(body.code || '').slice(0, 64)
+    });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const r = await notifyCounselor(env, me.id, msg);
+    return json({ ok: true, sent: r.sent || 0, total: r.total || 0 }, 200, cors);
+  }
+
   if (path === '/push/prefs' && method === 'POST') {
     const ALLOWED = ['chat', 'booking', 'remind'];
     const muted = (Array.isArray(body.muted) ? body.muted : [])
