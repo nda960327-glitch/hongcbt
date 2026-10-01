@@ -1323,7 +1323,7 @@ function renderHome() {
             <button class="btn sm" style="width:auto; margin:0; flex-shrink:0;" data-act="install">설치</button>
           </div>`}
           <p class="muted" style="text-align:center; margin-top:1.2rem;">
-            코드를 잃어버렸거나 코드가 샌 것 같으면 <b>help@neurumind.com</b> 으로 알려주세요.</p>
+            코드를 잃어버렸거나 코드가 샌 것 같으면 <b>mindinsideapp@gmail.com</b> 으로 알려주세요.</p>
         </div>
       </div>
     </div>`;
@@ -2213,7 +2213,7 @@ function openSubPay() {
     title: '구독 안내',
     html: `월 <b>${won(PRO_SUB_PRICE)}원</b> (등록 승인 후 첫 1개월 무료)<br>` +
       (s ? (s.active ? `지금 구독은 ${subDay(s.until)}까지예요.<br>` : '지금은 만료 상태예요.<br>') : '') +
-      '<br>앱 안에서 결제하는 기능은 준비 중이에요.<br>운영팀에 연락 주시면 바로 연장해드립니다.<br><b>help@neurumind.com</b>'
+      '<br>앱 안에서 결제하는 기능은 준비 중이에요.<br>운영팀에 연락 주시면 바로 연장해드립니다.<br><b>mindinsideapp@gmail.com</b>'
   });
 }
 
@@ -2388,7 +2388,7 @@ function renderMoney() {
         <p class="muted" style="margin:0.2rem 0 0.5rem;">상담이 끝나면 회기 기록(요약·계획·위험도)을 남겨야 정산 대상이 돼요. 기록을 남기는 순간 바로 올라갑니다.</p>
         <button class="btn sm" style="width:auto; margin:0;" data-act="sn-home">기록 남기러 가기</button>
       </div>` : ''}
-      <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
+      <button class="btn ghost" style="margin-top:0.7rem;" data-act="withdraw">정산은 언제, 어떻게 들어오나요?</button>
     </div>
     ${subBox || ''}
     </div>
@@ -2441,7 +2441,7 @@ function openMoneyHelp() {
       ${st('<span class="chip bad">미진행</span>', '상담이 열리지 않았어요. 정산은 없어요.')}
       ${st('<span class="chip bad">이의 접수</span>', '내담자가 이의를 냈어요. 운영자가 확인할 때까지 정산이 멈춰요.')}
     </div>
-    <p class="muted">상담소를 통해 온 내담자의 상담은 상담소가 직접 지급해요. 궁금한 점은 <b>help@neurumind.com</b> 으로 물어보세요.</p>`,
+    <p class="muted">상담소를 통해 온 내담자의 상담은 상담소가 직접 지급해요. 궁금한 점은 <b>mindinsideapp@gmail.com</b> 으로 물어보세요.</p>`,
   { title: '정산은 이렇게 진행돼요' });
 }
 
@@ -3716,7 +3716,7 @@ async function serverPushTest() {
     PUSH.testAt = 0; renderNotiSheet();
     uiAlert({ title: '도착을 확인하지 못했어요', tone: 'warn',
       html: '알림창에 <b>새 알림</b>이 떠 있다면 정상이에요.<br>아무것도 오지 않았다면 이렇게 해보세요.' +
-        '<ol class="steps"><li><b>[이 기기 다시 등록하기]</b> 누르기</li><li>폰의 <b>방해 금지·절전 모드</b> 끄기</li><li>그래도 안 되면 <b>help@neurumind.com</b></li></ol>' });
+        '<ol class="steps"><li><b>[이 기기 다시 등록하기]</b> 누르기</li><li>폰의 <b>방해 금지·절전 모드</b> 끄기</li><li>그래도 안 되면 <b>mindinsideapp@gmail.com</b></li></ol>' });
   }, 15000);
 }
 
@@ -3769,7 +3769,7 @@ function openSettings() {
     <button class="menurow" data-act="logout" style="margin-top:0.6rem; color:var(--danger);">
       <span class="mi" style="background:rgba(207,107,96,0.12); color:var(--danger);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
       <span class="grow">앱 잠그기<br><span class="ms">다시 열려면 코드를 입력해야 해요</span></span></button>
-    <p class="muted" style="text-align:center; margin-top:0.8rem;">도움이 필요하면 <b>help@neurumind.com</b></p>`,
+    <p class="muted" style="text-align:center; margin-top:0.8rem;">도움이 필요하면 <b>mindinsideapp@gmail.com</b></p>`,
   { title: '설정', sub: ME ? `${esc(ME.name || '')} · ${esc(ME.email || '이메일 미등록')}` : (D.scope === 'admin' ? '운영자 · 전체 열람 모드' : '') });
 }
 
@@ -4331,10 +4331,22 @@ const ACT = {
   // ── 정산 ──
   // 앱에서 바로 출금을 넣는 서버 기능은 아직 없다. '접수됐다'고 말하면 거짓말이 되므로
   //  지금 정산이 어떻게 나가는지를 그대로 알려준다.
-  withdraw: () => uiAlert({
-    title: '출금 신청 안내',
-    html: '앱에서 바로 출금을 신청하는 기능은 준비 중이에요.<br>정산 대기 금액은 <b>등록하신 계좌</b>로 정산돼요.<br><br>언제 들어오는지 궁금하시면 <b>help@neurumind.com</b> 으로 물어보세요.'
-  }),
+  withdraw: () => {
+    const hasAcct = !!(ME && ME.payout && ME.payout.set);
+    const viaHosp = !!(ME && ME.hospitalId && ME.hospitalOk);
+    uiAlert({
+      title: '따로 신청하지 않아도 돼요',
+      html: (viaHosp
+        ? '소속 상담소를 통해 온 상담은 <b>상담소가 선생님께 직접 지급</b>해요. 그 밖의 상담은 아래 순서로 정산돼요.<br><br>'
+        : '')
+        + '① 상담을 마치고 <b>회기 기록</b>을 남깁니다.<br>'
+        + '② 내담자가 확인하거나, 확인이 없으면 <b>3일 뒤 자동으로 확정</b>돼요.<br>'
+        + '③ 확정된 금액을 운영팀이 <b>등록하신 계좌로 보내드려요</b>. (개인은 3.3% 원천징수 후)<br><br>'
+        + (hasAcct
+          ? '계좌가 등록돼 있어요. 입금 일정이 궁금하시면 <b>mindinsideapp@gmail.com</b> 으로 물어보세요.'
+          : '<b>아직 정산 계좌가 없어요.</b> 설정 › 정산 계좌에서 먼저 등록해주세요. 계좌가 없으면 보내드릴 수 없어요.')
+    });
+  },
   'money-month': (el) => {
     const a = String(el.dataset.arg || '');
     const now = new Date();

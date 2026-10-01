@@ -319,7 +319,7 @@ async function geocodeInto(db, id, addr) {
   try {
     const r = await fetch(
       'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q),
-      { headers: { 'User-Agent': 'neurumind/1.0 (help@neurumind.com)', 'Accept-Language': 'ko' } }
+      { headers: { 'User-Agent': 'neurumind/1.0 (mindinsideapp@gmail.com)', 'Accept-Language': 'ko' } }
     );
     if (!r.ok) return;
     const j = await r.json();

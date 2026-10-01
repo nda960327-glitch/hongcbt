@@ -189,7 +189,7 @@ export async function sendApplyReceipt(env, db, to, name, withTerms) {
   <hr style="border:0;border-top:1px solid #e8ddcd;margin:22px 0 12px;">
   <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
     신청한 적이 없다면 이 메일은 그냥 버리셔도 됩니다.<br>
-    문의: <a href="mailto:help@neurumind.com" style="color:#4f8a6b;">help@neurumind.com</a></p>
+    문의: <a href="mailto:mindinsideapp@gmail.com" style="color:#4f8a6b;">mindinsideapp@gmail.com</a></p>
 </div>`;
   let res;
   try {
@@ -254,7 +254,7 @@ export async function sendCodeMail(env, db, to, name, code, appUrl) {
   <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">
     이 코드는 비밀번호와 같습니다. 단톡방이나 메신저에 올리지 마세요.<br>
     코드가 샌 것 같으면 바로 알려주세요 — 새로 발급해 드립니다.<br>
-    코드를 잃어버리면 help@neurumind.com 으로 알려주세요. 새 코드를 보내드립니다.</p>
+    코드를 잃어버리면 mindinsideapp@gmail.com 으로 알려주세요. 새 코드를 보내드립니다.</p>
 </div>`;
   try {
     const r = await fetch('https://api.resend.com/emails', {
@@ -437,7 +437,7 @@ export async function sendHtml(env, db, to, subject, html, extra) {
 
 // 운영팀 알림 주소 — 시크릿 NOTIFY_MAIL. 없으면 보내지 않는다(신청은 이미 저장돼 있다).
 export const opsMail = env => String(env.NOTIFY_MAIL || '').trim();
-export const OPS_REPLY = 'help@neurumind.com';
+export const OPS_REPLY = 'mindinsideapp@gmail.com';
 // 앱에서 들어온 신청서를 운영팀 메일함으로 통째로 보낸다 — 콘솔에 들어가지 않아도 바로 보고 회신할 수 있게.
 //  rows: [[라벨, 값], ...]. 값은 여기서 이스케이프한다.
 export async function sendApplicationToOps(env, db, subject, intro, rows, extra) {

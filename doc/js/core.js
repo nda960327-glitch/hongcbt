@@ -418,7 +418,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     else {
       HS = ''; HC = ''; localStorage.removeItem('doc_session'); localStorage.removeItem('doc_code');
       // 예전에 상담소 코드로 들어와 있던 기기 — 왜 풀렸는지 알려준다
-      if (legacy) showErr('err', '보안 강화로 상담소 코드(H-…)로는 더 이상 콘솔에 들어올 수 없어요. 등록된 이메일로 로그인 링크를 받아주세요. 이메일이 없다면 운영팀(help@neurumind.com)에 소장 관리 코드를 요청하세요.');
+      if (legacy) showErr('err', '보안 강화로 상담소 코드(H-…)로는 더 이상 콘솔에 들어올 수 없어요. 등록된 이메일로 로그인 링크를 받아주세요. 이메일이 없다면 운영팀(mindinsideapp@gmail.com)에 소장 관리 코드를 요청하세요.');
     }
   }
 });

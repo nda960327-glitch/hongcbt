@@ -101,7 +101,7 @@ VIEWS.settings = {
         <div>
           <div class="card">
             <b style="font-size:0.9rem;">상담소 정보</b>
-            <p class="muted" style="margin:0.2rem 0 0.6rem;">이름·전문 분야·소장·이메일은 운영팀(help@neurumind.com)에 문의해 바꿔요.</p>
+            <p class="muted" style="margin:0.2rem 0 0.6rem;">이름·전문 분야·소장·이메일은 운영팀(mindinsideapp@gmail.com)에 문의해 바꿔요.</p>
             <table class="tbl" style="font-size:0.84rem;"><tbody>
               <tr><td class="sub" style="width:120px;">상담소</td><td><b>${esc(i.name)}</b></td></tr>
               <tr><td class="sub">전문 분야</td><td>${esc(i.dept || '—')}</td></tr>

@@ -90,7 +90,7 @@ async function vapidAuth(env, endpoint) {
   const claim = b64u(enc.encode(JSON.stringify({
     aud,
     exp: Math.floor(Date.now() / 1000) + 12 * 3600,
-    sub: env.VAPID_SUBJECT || 'mailto:help@neurumind.com'
+    sub: env.VAPID_SUBJECT || 'mailto:mindinsideapp@gmail.com'
   })));
   const unsigned = head + '.' + claim;
   // Web Crypto 의 ECDSA 서명은 r||s 원시 64바이트 — JWS ES256 이 요구하는 그대로다.
