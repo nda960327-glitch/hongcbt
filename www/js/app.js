@@ -5714,11 +5714,11 @@ ${body}
     // 구버전 단계(112/124)는 새 단계로 이관 (레이아웃 깨짐 방지)
     if (scale === '112') scale = '108';
     if (scale === '124') scale = '116';
-    // 기본 글씨가 작다는 임상 자문 피드백(2026-10) — 기본(100)으로 쓰던 사람은 한 번만 한 단계(108) 키운다.
-    //  직접 고른 값인지 기본값인지 구분할 방법이 없어, 딱 한 번만 올리고 표시를 남긴다. 설정에서 언제든 되돌릴 수 있다.
-    if (!window.Storage._safeGet('cbt_font_bump_v2', false)) {
-      if (scale === '100') scale = '108';
-      window.Storage._safeSet('cbt_font_bump_v2', true);
+    // 빌드 271 에서 기본(100)을 108 로 한 번 올렸다가 되돌린다 — 원래 화면 그대로가 낫다는 결정(2026-10).
+    //  그때 올려진 사람(표시 cbt_font_bump_v2)만 한 번 100 으로 돌려놓는다. 글씨 크기는 설정에서 직접 고른다.
+    if (window.Storage._safeGet('cbt_font_bump_v2', false) && !window.Storage._safeGet('cbt_font_bump_v2_undo', false)) {
+      if (scale === '108') scale = '100';
+      window.Storage._safeSet('cbt_font_bump_v2_undo', true);
     }
     window.Storage._safeSet('cbt_font_scale', scale);
     document.documentElement.style.fontSize = scale + '%';

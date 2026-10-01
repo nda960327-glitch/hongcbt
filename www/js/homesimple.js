@@ -73,22 +73,15 @@ window.HomeSimple = {
     let off = false;
     try { off = !!window.Storage._safeGet('cbt_home_tip_off', false); } catch (e) {}
     if (off) { el.classList.add('hidden'); return; }
+    // 원래 화면 / 간단한 화면 — 둘 중 하나를 고른다. 지금 쓰는 쪽이 채워진 버튼.
     const simple = this.get() === 'simple';
-    const big = String(window.Storage._safeGet('cbt_font_scale', '100')) === '116';
-    document.getElementById('home-tip-title').textContent = simple ? '지금은 간단한 홈이에요' : '홈이 복잡하게 느껴지나요?';
-    document.getElementById('home-tip-sub').textContent = simple
-      ? '큰 버튼 몇 개만 보여요. 기능을 한 화면에 다 보고 싶으면 바꿀 수 있어요.'
-      : '큰 버튼 몇 개만 남긴 간단한 홈으로 바꿀 수 있어요. 글씨도 키울 수 있어요.';
-    document.getElementById('home-tip-variant').textContent = simple ? '전체 홈으로 보기' : '간단한 홈으로 바꾸기';
-    document.getElementById('home-tip-font').textContent = big ? '글씨 보통으로' : '글씨 크게';
+    document.getElementById('home-tip-title').textContent = '홈 화면을 골라 주세요';
+    document.getElementById('home-tip-sub').textContent = '원래 화면은 기능이 한눈에 보이고, 간단한 화면은 큰 버튼 몇 개만 보여요.';
+    document.getElementById('home-tip-classic').className = simple ? 'btn-secondary' : 'btn-primary';
+    document.getElementById('home-tip-simple').className = simple ? 'btn-primary' : 'btn-secondary';
     el.classList.remove('hidden');
   },
-  tipSwitch() { this.toggle(); this.renderTip(); },
-  tipFont() {
-    const big = String(window.Storage._safeGet('cbt_font_scale', '100')) === '116';
-    if (window.App && window.App.setFontScale) window.App.setFontScale(big ? '108' : '116');
-    this.renderTip();
-  },
+  tipPick(v) { this.set(v, true); this.dismissTip(); },
   dismissTip() {
     try { window.Storage._safeSet('cbt_home_tip_off', true); } catch (e) {}
     const el = document.getElementById('home-tip');
