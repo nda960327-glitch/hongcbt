@@ -260,7 +260,8 @@ window.Community = {
 
   async del(cid) {
     const d = this._post; if (!d) return;
-    const ok = window.App && window.App.confirmBox ? await window.App.confirmBox({ title: '댓글을 지울까요?', okLabel: '지우기', cancelLabel: '아니요' }) : confirm('댓글을 지울까요?');
+    // App.confirmBox 라는 건 없다 — 그래서 늘 기본 confirm 으로 떨어지고 있었다. 공용 팝업으로.
+    const ok = await window.UI.confirm({ title: '댓글을 지울까요?', okLabel: '지우기', cancelLabel: '아니요', danger: true });
     if (!ok) return;
     try {
       const r = await window.Api.post('/api/community/comment/delete', { cid, clientId: this._cid() });

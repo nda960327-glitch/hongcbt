@@ -242,8 +242,7 @@ window.Missions = {
   async uncomplete() {
     const s = this.state();
     if (!s || !s.done) return;
-    const msg = '미션 체크를 취소할까요? 받은 물 3개도 되돌려요.';
-    const ok = window.UI && window.UI.confirm ? await window.UI.confirm(msg) : window.confirm(msg);
+    const ok = await window.UI.confirm({ title: '미션 체크를 취소할까요?', body: '받은 물 3개도 되돌려요.', okLabel: '체크 취소', cancelLabel: '그대로 두기' });
     if (!ok) return;
     const raw = window.Storage._safeGet('cbt_daily_mission', null);
     if (!raw || !raw.done) return;

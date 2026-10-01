@@ -341,7 +341,7 @@ window.App = {
     if (soundCb) soundCb.checked = window.Storage._safeGet('cbt_sound_on', true) !== false;
     const hapticCb = document.getElementById('setting-haptic');
     if (hapticCb) hapticCb.checked = window.Storage._safeGet('cbt_haptic_on', true) !== false;
-    ['chat', 'booking', 'letter'].forEach(k => {
+    this.NOTIF_KINDS.forEach(k => {
       const cb = document.getElementById('notif-' + k);
       if (cb) cb.checked = this._notifOn(k);
     });
@@ -1325,6 +1325,8 @@ window.App = {
     this._showBuild();
     // 계정 칸은 열 때마다 다시 그린다 — 다른 화면에서 로그인/로그아웃했을 수 있다
     if (window.Account) window.Account.render();
+    // 알림 칸도 마찬가지 — 폰 설정에서 권한을 바꾸고 왔을 수 있다
+    this.renderNotifSettings();
     // 설정 화면도 초기 아이콘 심기 대상이 아니어서, 열 때 한 번 채운다
     if (ov) this.hydrateInlineIcons(ov);
     if (window.Sfx) window.Sfx.play('pop');
@@ -1694,8 +1696,15 @@ window.App = {
   },
 
   // 알림 종류별 on/off (설정 > 알림 받기)
+  //  '상담 30분 전(remind)'은 원래 '예약(booking)' 스위치에 묶여 있었다 —
+  //  따로 정한 적이 없는 사람은 예전에 고른 값을 그대로 따른다.
   _notifOn(key) {
-    return window.Storage._safeGet('cbt_notif_' + key, true) !== false;
+    const v = window.Storage._safeGet('cbt_notif_' + key, null);
+    if (v === null || v === undefined) {
+      if (key === 'remind') return window.Storage._safeGet('cbt_notif_booking', true) !== false;
+      return true;
+    }
+    return v !== false;
   },
 
   // 마이탭 프로필 헤더 — 이름·레벨·스트릭
@@ -1753,10 +1762,12 @@ window.App = {
 
   // === 시스템 알림 (채팅 도착 등) — 안드로이드 크롬은 SW 경유가 필수 ===
   //  act: 알림을 눌렀을 때 갈 곳('breath'|'night'|'calm'|'chat'|'mypage'|'dashboard')
-  notify(title, body, act) {
+  //  kind: 설정 › 알림에서 끌 수 있는 종류('checkin' 등). 꺼져 있으면 폰 알림만 건너뛴다.
+  notify(title, body, act, kind) {
     // 알림함에는 무조건 쌓는다. 권한을 안 줬거나 알림을 쓸어 넘겨도
     //  느루가 한 말이 사라지면 안 되기 때문에, 권한 검사보다 앞에 둔다.
     if (window.Inbox) window.Inbox.add(title, body, act);
+    if (kind && !this._notifOn(kind)) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
     const opts = { body, icon: 'icon.png', badge: 'icon.png', vibrate: [120, 60, 120], tag: 'woorung-chat', renotify: true, data: { act: act || '' } };
     try {
@@ -1825,14 +1836,12 @@ window.App = {
     //  스토어 앱은 여기로 오지 않는다 — 앱을 켜는 즉시 _initFcmPush 가 시스템 팝업을
     //  띄운다(안드로이드 13+ 는 그 팝업이 유일한 길이다). 여기서 웹 쪽 권한을 또 물으면
     //  같은 걸 두 번 묻는 꼴이 되거나, 웹뷰에서는 아무 일도 일어나지 않아 '먹통'으로 보인다.
+    //  웹도 같은 규칙으로 맞춘다: 켜자마자 브라우저 권한 창을 띄우지 않는다.
+    //  (사용자 탭 없이 부른 요청은 사파리가 무시하고, 크롬은 '조용히 차단'으로 돌려버려
+    //   그 뒤로는 설정의 [알림 켜기]를 눌러도 창이 안 뜨는 상태가 됐다)
+    //  앱 안내를 한 번만 보여주고, [알림 켜기]를 누른 그 탭에서만 권한을 묻는다.
     if (!this.isNativeApp() && cnt > 0 && 'Notification' in window && Notification.permission === 'default') {
-      setTimeout(() => {
-        try {
-          Notification.requestPermission().then(p => {
-            if (p === 'granted') this._initClientPush(); // 허락한 순간 푸시 구독까지
-          });
-        } catch (e) {}
-      }, 3000);
+      setTimeout(() => this._webNotifSoftAsk(), 3000);
     }
 
     this._checkinTick();
@@ -2031,7 +2040,7 @@ window.App = {
       if (h < 10 || h >= 21) return;                 // 낮 시간에만
       window.Storage._safeSet('cbt_crisis_followup', { ...f, done: true });
       const p = window.Personas ? window.Personas.getActive() : { name: '느루' };
-      this.notify(p.name, '어제 마음이 많이 무거워 보였어요. 오늘은 조금 어때요? 잠깐이라도 좋으니 이야기해요.', 'chat');
+      this.notify(p.name, '어제 마음이 많이 무거워 보였어요. 오늘은 조금 어때요? 잠깐이라도 좋으니 이야기해요.', 'chat', 'checkin');
     } catch (e) {}
   },
 
@@ -2065,7 +2074,7 @@ window.App = {
     if (window.Storage._safeGet('cbt_morning_notif_date', '') === today) return;
     if (this.todayIntent()) return;
     window.Storage._safeSet('cbt_morning_notif_date', today);
-    this.notify('느루', '좋은 아침이에요. 오늘 하루, 어떤 마음으로 보내고 싶어요?', 'intent');
+    this.notify('느루', '좋은 아침이에요. 오늘 하루, 어떤 마음으로 보내고 싶어요?', 'intent', 'checkin');
   },
 
   _actionCheckinTick() {
@@ -2109,7 +2118,7 @@ window.App = {
 
     if (anxious) {
       window.Storage._safeSet('cbt_action_checkin_date', today);
-      this.notify('느루', '자기 전에 3분 호흡 어때요? 몸이 먼저 편해져요', 'breath');
+      this.notify('느루', '자기 전에 3분 호흡 어때요? 몸이 먼저 편해져요', 'breath', 'checkin');
       return;
     }
 
@@ -2121,7 +2130,7 @@ window.App = {
     window.Storage._safeSet('cbt_action_checkin_date', today);
     this.notify('느루', low
       ? '오늘 좀 무거웠죠? 자기 전 3분만 같이 정리해요'
-      : '오늘 하루는 어땠어요? 자기 전 3분만 같이 정리해요', 'night');
+      : '오늘 하루는 어땠어요? 자기 전 3분만 같이 정리해요', 'night', 'checkin');
   },
 
   async _sendCheckin() {
@@ -2170,7 +2179,7 @@ ${memory || '(없음)'}`;
       window.Storage.saveMessage(msg);
       this.playWoorung(); // "느루!" + 진동
       if (window.Voice) window.Voice.speak(text, persona.id);
-      this.notify(persona.name, text, 'chat'); // 시스템 알림 (백그라운드에서도 도착) — 누르면 채팅방으로
+      this.notify(persona.name, text, 'chat', 'checkin'); // 시스템 알림 (백그라운드에서도 도착) — 누르면 채팅방으로
       if (this.currentTab !== 'chat') this._setNavBadge('chat', true);
     } catch (e) {}
   },
@@ -2883,12 +2892,7 @@ ${memory || '(없음)'}`;
         && window.Capacitor.Plugins.AppSettings;
       if (S && S.openNotifications) { await S.openNotifications(); return true; }
     } catch (e) {}
-    if (window.UI) {
-      window.UI.alert({
-        title: '알림을 켜주세요',
-        body: '폰 설정 → 앱 → 마인드 인사이드 → 알림 을 켜시면\n상담사님의 답장과 전화를 놓치지 않아요.'
-      });
-    }
+    await this.notifHelp();
     return false;
   },
 
@@ -2896,10 +2900,226 @@ ${memory || '(없음)'}`;
   //  스위치를 다 켜놔도 폰 알림이 꺼져 있으면 아무것도 오지 않는다 —
   //  그 사실을 말해주지 않으면 사용자는 앱이 고장 났다고 생각한다.
   _renderNotifPermRow() {
+    this.renderNotifSettings();
+  },
+
+  // ── 설정 › 알림 설정 ────────────────────────────────────────────────
+  //  종류별 스위치 (index.html 의 #notif-<종류> 체크박스와 짝)
+  NOTIF_KINDS: ['chat', 'booking', 'remind', 'letter', 'checkin'],
+
+  _isIOS() {
+    const ua = navigator.userAgent || '';
+    // 아이패드는 맥으로 자기를 소개한다 — 터치가 되는 맥은 아이패드다
+    return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+  },
+  _isStandalone() {
+    try { return !!(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone); } catch (e) { return false; }
+  },
+
+  // 지금 이 기기의 알림이 실제로 어떤 상태인지 — 화면은 이 결과만 보고 그린다.
+  //  env : 'native'(스토어 앱) | 'web'
+  //  perm: 'granted' | 'denied' | 'default'(아직 안 물어봄) | 'need-install'(아이폰 사파리) | 'unsupported'
+  //  sub : 서버가 이 기기로 보낼 주소(토큰·구독)를 갖고 있는가
+  async _notifState() {
+    const st = { env: this.isNativeApp() ? 'native' : 'web', perm: 'unsupported', sub: false };
+    if (st.env === 'native') {
+      const P = this._pushPlugin();
+      if (!P) return st;
+      let perm = null;
+      try { perm = await P.checkPermissions(); } catch (e) {}
+      const r = String((perm && perm.receive) || '');
+      st.perm = r === 'granted' ? 'granted' : (/prompt/.test(r) ? 'default' : 'denied');
+      try { st.sub = !!window.Storage._safeGet('cbt_fcm_token', ''); } catch (e) {}
+      return st;
+    }
+    if (!('Notification' in window)) {
+      // 아이폰은 사파리 탭에서는 웹 알림을 못 쓴다 — 홈 화면에 추가한 앱에서만 된다
+      st.perm = (this._isIOS() && !this._isStandalone()) ? 'need-install' : 'unsupported';
+      return st;
+    }
+    st.perm = Notification.permission === 'granted' ? 'granted' : (Notification.permission === 'denied' ? 'denied' : 'default');
     try {
-      const el = document.getElementById('noti-perm-row');
-      if (el) el.hidden = !(this._notifDenied || this._notifPrompt);
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        // ready 는 서비스워커가 없으면 영영 안 풀린다 — getRegistration 으로 본다
+        const reg = await navigator.serviceWorker.getRegistration();
+        st.sub = !!(reg && reg.pushManager && await reg.pushManager.getSubscription());
+      }
     } catch (e) {}
+    return st;
+  },
+
+  async renderNotifSettings() {
+    const box = document.getElementById('notif-state');
+    if (!box) return;
+    this._watchNotifSettings();
+    const seq = this._notifRenderSeq = (this._notifRenderSeq || 0) + 1;
+    let st;
+    try { st = await this._notifState(); } catch (e) { st = { env: 'web', perm: 'unsupported', sub: false }; }
+    if (seq !== this._notifRenderSeq) return; // 더 최근에 부른 쪽이 그린다
+    this._notifLast = st;
+    const where = st.env === 'native' ? '스토어 앱' : (this._isStandalone() ? '홈 화면 앱' : '웹 브라우저');
+    // 상태마다 '할 수 있는 일 하나'만 보여준다
+    const V = {
+      granted: st.sub
+        ? { tone: 'on', title: '알림이 켜져 있어요', sub: '답장·전화·예약 소식을 이 기기로 알려드려요.' }
+        : { tone: 'warn', title: '알림 연결이 아직 안 됐어요', sub: '권한은 켜져 있어요. 한 번 더 연결해주세요.', btn: '다시 연결', act: 'enableNotif' },
+      'default': { tone: 'off', title: '알림이 꺼져 있어요', sub: '켜두면 상담사님의 답장과 전화를 놓치지 않아요.', btn: '알림 켜기', act: 'enableNotif' },
+      denied: { tone: 'bad', title: '알림이 차단되어 있어요', sub: '이대로면 답장·전화를 놓칩니다. ' + (st.env === 'native' ? '폰 설정에서 켜주세요.' : '브라우저 설정에서 풀어주세요.'),
+        btn: st.env === 'native' ? '설정 열기' : '켜는 방법', act: st.env === 'native' ? 'openNotifSettings' : 'notifHelp' },
+      'need-install': { tone: 'off', title: '홈 화면에 추가하면 알림을 받을 수 있어요', sub: '아이폰은 홈 화면에 추가한 앱에서만 알림이 와요.', btn: '추가하는 방법', act: 'notifHelp' },
+      unsupported: { tone: 'off', title: '이 기기에서는 알림을 쓸 수 없어요', sub: '앱을 켜 두면 알림함으로는 계속 받아볼 수 있어요.' }
+    }[st.perm];
+    const dot = { on: '#4f9d73', warn: '#d6952b', off: 'var(--text-muted)', bad: '#d0605c' }[V.tone];
+    const canTest = st.perm === 'granted' && 'Notification' in window;
+    box.className = 'notif-state notif-state--' + V.tone;
+    box.innerHTML =
+      '<div class="notif-state__row">' +
+        '<span class="notif-state__dot" style="background: ' + dot + ';"></span>' +
+        '<span class="notif-state__txt"><b>' + V.title + '</b><span>' + V.sub + '</span></span>' +
+      '</div>' +
+      '<div class="notif-state__acts">' +
+        (V.btn ? '<button type="button" class="notif-state__btn" onclick="window.App.' + V.act + '()">' + V.btn + '</button>' : '') +
+        (canTest ? '<button type="button" class="notif-state__btn notif-state__btn--ghost" onclick="window.App.testNotif()">테스트 알림 보내기</button>' : '') +
+        '<span class="notif-state__env">' + where + '</span>' +
+      '</div>';
+    // 폰 알림이 꺼져 있으면 아래 스위치는 의미가 없다 — 흐리게 해서 그 사실을 보여준다
+    const kinds = document.getElementById('notif-kinds');
+    if (kinds) kinds.classList.toggle('notif-kinds--off', st.perm !== 'granted');
+    this.NOTIF_KINDS.forEach(k => {
+      const cb = document.getElementById('notif-' + k);
+      if (cb) cb.checked = this._notifOn(k);
+    });
+  },
+
+  // 폰 설정·브라우저 설정에 다녀오면 그 순간 상태를 다시 읽는다.
+  //  웹에서 차단을 풀고 돌아왔다면 구독까지 조용히 이어 붙인다(권한 창은 띄우지 않는다).
+  _watchNotifSettings() {
+    if (this._notifSetWatch) return;
+    this._notifSetWatch = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      const ov = document.getElementById('settings-overlay');
+      if (!ov || ov.classList.contains('hidden')) return;
+      const was = this._notifLast;
+      const now = !this.isNativeApp() && 'Notification' in window ? Notification.permission : '';
+      if (was && was.env === 'web' && was.perm !== 'granted' && now === 'granted') {
+        this._initClientPush().then(() => this.renderNotifSettings(), () => this.renderNotifSettings());
+      } else this.renderNotifSettings();
+    });
+  },
+
+  setNotifKind(key, on) {
+    window.Storage._safeSet('cbt_notif_' + key, !!on);
+  },
+
+  // 브라우저 권한 창 — 반드시 사용자가 버튼을 누른 그 자리에서만 부른다
+  _askWebNotif() {
+    return new Promise(resolve => {
+      try {
+        const p = Notification.requestPermission(r => resolve(r)); // 옛 사파리는 콜백만 준다
+        if (p && p.then) p.then(resolve, () => resolve(Notification.permission));
+      } catch (e) { resolve('denied'); }
+    });
+  },
+
+  // [알림 켜기] · [다시 연결] — 상태에 맞는 한 가지 일만 한다
+  async enableNotif() {
+    if (this._notifBusy) return; // 두 번 누르면 권한 창이 겹친다
+    this._notifBusy = true;
+    try {
+      const st = await this._notifState();
+      if (st.env === 'native') {
+        if (st.perm === 'denied') { await this.openNotifSettings(); return; }
+        if (st.perm === 'unsupported') { await this.notifHelp(); return; }
+        // 권한은 있는데 토큰이 없다 — 등록만 다시 부른다.
+        //  (리스너는 이미 달려 있다. 처음부터 다시 태우면 리스너가 겹쳐 서버 등록이 두 번 간다)
+        if (st.perm === 'granted' && this._fcmBound) {
+          try { await this._pushPlugin().register(); } catch (e) {}
+        } else await this._initFcmPush({ ask: true });
+        if (!this._notifDenied && !this._notifPrompt) this.showRecordToast('알림을 켰어요');
+        return;
+      }
+      if (st.perm === 'need-install' || st.perm === 'unsupported' || st.perm === 'denied') { await this.notifHelp(); return; }
+      let p = st.perm;
+      if (p === 'default') p = await this._askWebNotif();
+      if (p === 'granted') {
+        await this._initClientPush();
+        const after = await this._notifState();
+        if (after.sub) this.showRecordToast('알림을 켰어요');
+        else if (window.UI) window.UI.alert({ tone: 'warning', title: '알림을 연결하지 못했어요', body: '인터넷 연결을 확인하고 [다시 연결]을 눌러주세요.\n앱을 켜 둔 동안의 알림은 지금도 받을 수 있어요.' });
+      } else if (p === 'denied') {
+        await this.notifHelp();
+      }
+    } catch (e) {
+    } finally {
+      this._notifBusy = false;
+      this.renderNotifSettings();
+    }
+  },
+
+  // 테스트 알림 — 서버를 거치지 않고 이 기기에서 바로 띄운다(서비스워커 등록 경유).
+  async testNotif() {
+    try {
+      if (!('Notification' in window) || Notification.permission !== 'granted') { this.renderNotifSettings(); return; }
+      const opts = { body: '알림이 잘 도착했어요. 이렇게 알려드릴게요.', icon: 'icon.png', badge: 'icon.png', tag: 'mi-test', renotify: true, vibrate: [120, 60, 120], data: { act: '' } };
+      let reg = null;
+      try { reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); } catch (e) {}
+      if (reg && reg.showNotification) await reg.showNotification('마인드 인사이드', opts);
+      else new Notification('마인드 인사이드', opts);
+      this.showRecordToast('테스트 알림을 보냈어요');
+    } catch (e) {
+      if (window.UI) window.UI.alert({ tone: 'warning', title: '테스트 알림을 띄우지 못했어요', body: '폰의 방해 금지 모드나 브라우저 알림 설정을 확인해주세요.' });
+    }
+  },
+
+  // 차단됐을 때 다시 켜는 방법 — 기기마다 길이 달라서 그 기기의 길만 보여준다
+  async notifHelp() {
+    if (!window.UI) return;
+    let title = '알림을 다시 켜는 방법', steps, foot = '켜고 이 화면으로 돌아오면 바로 반영돼요.';
+    if (this.isNativeApp()) {
+      steps = ['폰 <b>설정</b>을 열어요', '<b>앱</b> → <b>마인드 인사이드</b>', '<b>알림</b>을 켜요'];
+    } else if (this._isIOS() && !this._isStandalone()) {
+      title = '홈 화면에 추가하기';
+      steps = ['사파리 아래쪽 <b>공유</b> 버튼을 눌러요', '<b>홈 화면에 추가</b>를 골라요', '홈 화면에 생긴 <b>마인드 인사이드</b>로 다시 열어요', '<b>마이 › 설정 › 알림 설정</b>에서 [알림 켜기]'];
+      foot = '아이폰은 홈 화면에 추가한 앱에서만 알림이 와요. (iOS 16.4 이상)';
+    } else if (this._isIOS()) {
+      steps = ['아이폰 <b>설정</b>을 열어요', '<b>알림</b> → <b>마인드 인사이드</b>', '<b>알림 허용</b>을 켜요'];
+    } else if (/Android/i.test(navigator.userAgent || '')) {
+      steps = this._isStandalone()
+        ? ['홈 화면의 앱 아이콘을 <b>길게</b> 눌러요', '<b>앱 정보(ⓘ)</b> → <b>알림</b>', '<b>알림 허용</b>을 켜요']
+        : ['주소창 왼쪽 <b>자물쇠(또는 ⓘ)</b>를 눌러요', '<b>권한</b> → <b>알림</b>', '<b>허용</b>으로 바꿔요'];
+    } else {
+      steps = ['주소창 왼쪽 <b>자물쇠</b> 아이콘을 눌러요', '<b>알림</b>을 <b>허용</b>으로 바꿔요', '페이지를 새로고침해요'];
+      foot = '새로고침한 뒤 [알림 켜기]를 한 번 더 눌러주세요.';
+    }
+    await window.UI.alert({
+      tone: 'info', title,
+      html: '<ol class="notif-steps">' + steps.map(s => '<li><span>' + s + '</span></li>').join('') + '</ol>' +
+            '<p class="notif-steps__foot">' + foot + '</p>'
+    });
+  },
+
+  // 웹: 아직 안 정한 사람에게 앱 안내를 딱 한 번 — [알림 켜기] 탭에서만 브라우저 창을 띄운다.
+  async _webNotifSoftAsk() {
+    try {
+      if (!window.UI || this._notifAsking) return;
+      if (!('Notification' in window) || Notification.permission !== 'default') return;
+      if (window.Storage._safeGet('cbt_noti_web_asked', 0)) return;
+      // 동의·온보딩·로그인 화면 위에 끼어들지 않는다 — 다음에 켤 때 다시 본다
+      if (document.getElementById('consent-overlay') || document.getElementById('onboard-overlay')) return;
+      const login = document.getElementById('login-screen');
+      if (login && login.offsetParent !== null) return;
+      if (window.UI._stack && window.UI._stack.length) return;
+      window.Storage._safeSet('cbt_noti_web_asked', 1);
+      this._notifAsking = true;
+      const ok = await window.UI.confirm({
+        title: '알림을 켤까요?',
+        body: '상담사님의 답장·예약 소식·전화를 놓치지 않도록 알려드려요.\n나중에 마이 › 설정에서도 켤 수 있어요.',
+        okLabel: '알림 켜기', cancelLabel: '나중에'
+      });
+      this._notifAsking = false;
+      if (ok) await this.enableNotif();
+    } catch (e) { this._notifAsking = false; }
   },
 
   // 설정 화면에 다녀오면 앱이 다시 앞으로 나온다 — 그 순간 조용히 한 번 더 확인한다.
@@ -3312,8 +3532,13 @@ ${memory || '(없음)'}`;
 
   // 채팅방 나가기 — 기록은 이 폰에만 있으므로 지우면 끝이다.
   //  상담사 쪽 화면의 기록은 상담사 것이라 건드리지 않는다(카톡 '나가기'와 같은 규칙).
-  leaveChat(cid) {
-    if (!confirm('이 채팅방을 나갈까요?\n대화 기록이 이 폰에서 지워지고 되돌릴 수 없어요.')) return;
+  async leaveChat(cid) {
+    const ok = await window.UI.confirm({
+      title: '이 채팅방을 나갈까요?',
+      body: '대화 기록이 이 폰에서 지워지고 되돌릴 수 없어요.',
+      okLabel: '나가기', danger: true
+    });
+    if (!ok) return;
     try { localStorage.removeItem('cbt_hchat_' + cid); } catch (e) {}
     const read = window.Storage._safeGet('cbt_hchat_read', {}) || {};
     delete read[cid];
@@ -3539,7 +3764,7 @@ ${memory || '(없음)'}`;
       if (diff > 0 && diff <= 30 * 60000) {
         reminded.push(b.id);
         window.Storage._safeSet('cbt_booking_reminded', reminded.slice(-50));
-        if (this._notifOn('booking')) { this.notify('상담 예약 알림 ⏰', `${b.name}님과의 상담이 30분 뒤에 시작돼요.`); this.playWoorung(); }
+        if (this._notifOn('remind')) { this.notify('상담 예약 알림 ⏰', `${b.name}님과의 상담이 30분 뒤에 시작돼요.`); this.playWoorung(); }
         this.showRecordToast(`⏰ ${b.name}님과의 상담이 30분 뒤 시작돼요`);
       }
     });
