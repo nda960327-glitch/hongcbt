@@ -322,12 +322,35 @@ async function subsOf(db, key) {
 //   웹 구독은 예전 그대로 '깨우기'다. 웹은 어차피 서비스워커가 깨어나
 //   서버에 다시 물어보므로 본문이 필요 없고, 여기를 건드리면
 //   잘 돌아가던 브라우저 알림까지 같이 흔들린다.
+// 이 알림이 어떤 종류인지 — 설정 화면의 스위치 이름과 같다.
+//  call(전화)은 여기 없다: 전화는 끌 수 없다(놓치면 상담이 통째로 날아간다).
+//   · notice 에 type 이 있으면 그대로 (remind: 상담 30분 전, booking: 예약·취소·환불 안내)
+//   · 내용 없는 깨우기(call 이 없음) = 채팅·숙제가 왔다는 신호 → chat
+function kindOf(call) {
+  if (!call) return 'chat';
+  if (call.kind === 'notice') return call.type || (call.act === 'bookings' ? 'booking' : 'booking');
+  return 'call';
+}
+
+// 받는 사람이 꺼 둔 종류인가 (push_prefs.muted = 'chat,remind' 같은 쉼표 목록).
+//  표가 없거나 읽기에 실패하면 '안 껐다'로 본다 — 알림이 조용히 사라지는 쪽이 더 나쁘다.
+async function isMuted(db, owner, kind) {
+  if (kind === 'call') return false;
+  try {
+    const r = await db.prepare('SELECT muted FROM push_prefs WHERE owner = ?').bind(owner).first();
+    if (!r || !r.muted) return false;
+    return String(r.muted).split(',').indexOf(kind) !== -1;
+  } catch (e) { return false; }
+}
+
 export async function notifyCounselor(env, counselorId, call) {
   const db = env.DB;
   if (!db || !counselorId) return { sent: 0 };
   const canWeb = !!env.VAPID_PRIVATE;
   const canFcm = fcmReady(env);
   if (!canWeb && !canFcm) return { sent: 0 };
+  // 설정에서 꺼 둔 종류는 보내지 않는다 (앱이 꺼져 있을 때 오는 푸시에도 스위치가 통하게)
+  if (await isMuted(db, String(counselorId), kindOf(call))) return { sent: 0, muted: true };
   let rows = [];
   try {
     rows = await subsOf(db, String(counselorId));
@@ -407,6 +430,39 @@ export async function handlePush(request, env, cors, path, body, url) {
   // 내담자 구독 — 내담자에겐 코드가 없다. 기기 고유 clientId 가 곧 본인이다
   //  (메시지 조회 GET 과 같은 신뢰 모델. 남의 clientId 를 알아내면 그 사람의
   //   '깨우기 신호'만 받을 뿐, 내용은 어차피 푸시에 실리지 않는다).
+  // ── 알림 종류별 끄기 저장 ───────────────────────────────────────────
+  //  내담자는 clientId(+clientKey), 상담사는 세션·코드로 본인을 증명한다.
+  //  muted 는 꺼 둔 종류의 목록이다. 전화(call)는 받지 않는다 — 끌 수 없다.
+  if (path === '/push/prefs' && method === 'POST') {
+    const ALLOWED = ['chat', 'booking', 'remind'];
+    const muted = (Array.isArray(body.muted) ? body.muted : [])
+      .map(x => String(x)).filter(x => ALLOWED.indexOf(x) !== -1);
+    let owner = '';
+    const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
+    if (clientId) {
+      if (await verifyClient(env, clientId, String(body.clientKey || '').slice(0, 64)) === 'deny') {
+        return json({ error: 'forbidden' }, 403, cors);
+      }
+      owner = 'cl:' + clientId;
+    } else {
+      const me = await resolveCounselor(db, {
+        session: String(body.session || '').slice(0, 128),
+        code: String(body.code || '').slice(0, 64)
+      });
+      if (!me) return json({ error: 'bad-code' }, 403, cors);
+      owner = String(me.id);
+    }
+    try {
+      await db.prepare(
+        `INSERT INTO push_prefs (owner, muted, updated) VALUES (?,?,?)
+         ON CONFLICT(owner) DO UPDATE SET muted = excluded.muted, updated = excluded.updated`
+      ).bind(owner, Array.from(new Set(muted)).join(','), Date.now()).run();
+    } catch (e) {
+      return json({ error: 'not-ready' }, 503, cors);   // 표가 아직 없다
+    }
+    return json({ ok: true, muted }, 200, cors);
+  }
+
   if (path === '/push/client-subscribe' && method === 'POST') {
     const clientId = String(body.clientId || '').slice(0, 64).replace(/[^\w-]/g, '');
     // 남의 clientId 로 구독하면 그 사람에게 가는 깨우기(상담사 전화 포함)가 내 기기로도 온다.

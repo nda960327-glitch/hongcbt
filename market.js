@@ -74,7 +74,7 @@ function bookingNotice(ctx, env, who, id, title, body) {
   const fn = who === 'client' ? notifyClient : notifyCounselor;
   let p;
   // push.js 의 'notice' 형식 — 전화 벨이 아니라 제목·본문이 있는 알림으로 나간다 (TTL 하루)
-  const msg = { kind: 'notice', title, body, act: who === 'client' ? 'counselors' : 'bookings', ttl: 86400 };
+  const msg = { kind: 'notice', type: 'booking', title, body, act: who === 'client' ? 'counselors' : 'bookings', ttl: 86400 };
   try { p = Promise.resolve(fn(env, id, msg)).catch(() => {}); } catch (e) { return; }
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(p);
 }

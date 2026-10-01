@@ -3015,6 +3015,20 @@ ${memory || '(없음)'}`;
 
   setNotifKind(key, on) {
     window.Storage._safeSet('cbt_notif_' + key, !!on);
+    this._syncNotifPrefs();
+  },
+
+  // 꺼 둔 종류를 서버에도 알린다 — 앱이 꺼져 있을 때 오는 푸시는 서버가 보내므로,
+  //  서버가 모르면 스위치를 꺼도 알림이 계속 온다. (전화는 끌 수 없어 목록에 없다)
+  _syncNotifPrefs() {
+    clearTimeout(this._notifPrefT);
+    this._notifPrefT = setTimeout(() => {
+      try {
+        if (!window.Api || !window.Api.post) return;
+        const muted = ['chat', 'booking', 'remind'].filter(k => !this._notifOn(k));
+        window.Api.post('/api/push/prefs', { clientId: this.clientId(), muted }).catch(() => {});
+      } catch (e) {}
+    }, 600);
   },
 
   // 브라우저 권한 창 — 반드시 사용자가 버튼을 누른 그 자리에서만 부른다

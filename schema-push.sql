@@ -31,3 +31,11 @@ CREATE INDEX IF NOT EXISTS idx_push_counselor ON push_subs(counselor_id);
 --
 --  ※ 칸이 없어도 서버는 죽지 않는다(push.js 가 kind 없는 조회로 되돌아간다).
 --    다만 그 전까지는 앱의 FCM 구독이 저장되지 않는다 — 웹푸시만 나간다.
+
+-- 2026-10: 알림 종류별 끄기. owner 는 push_subs.counselor_id 와 같은 값(상담사 id 또는 'cl:'+clientId),
+--  muted 는 꺼 둔 종류의 쉼표 목록(chat,booking,remind). 전화는 끌 수 없어 들어오지 않는다.
+CREATE TABLE IF NOT EXISTS push_prefs (
+  owner   TEXT PRIMARY KEY,
+  muted   TEXT,
+  updated INTEGER NOT NULL DEFAULT 0
+);

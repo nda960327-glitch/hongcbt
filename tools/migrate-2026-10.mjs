@@ -52,6 +52,8 @@ const STEPS = [
   ['로그인 대기 색인', 'CREATE INDEX IF NOT EXISTS idx_handoff_pair ON oauth_handoff(pair)'],
   // 앱 안 캐시 사용 장부 — 구독·리포트 등으로 쓴 돈을 서버 잔액에서도 뺀다 (market.js cashBalance)
   ['앱 안 캐시 사용 장부', 'CREATE TABLE IF NOT EXISTS cash_spends (id TEXT PRIMARY KEY, client_id TEXT NOT NULL, amount INTEGER NOT NULL, reason TEXT, ts INTEGER NOT NULL, voided_at INTEGER NOT NULL DEFAULT 0)'],
+  // 알림 종류별 끄기 — 앱이 꺼져 있을 때 서버가 보내는 푸시도 설정을 따르게 (push.js isMuted)
+  ['알림 설정 표', 'CREATE TABLE IF NOT EXISTS push_prefs (owner TEXT PRIMARY KEY, muted TEXT, updated INTEGER NOT NULL DEFAULT 0)'],
   ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
 

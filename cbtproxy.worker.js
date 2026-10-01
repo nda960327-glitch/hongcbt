@@ -159,12 +159,12 @@ async function remindBookings(env, ctx) {
     const when = kstLabel(b.when_ts, t);
     const mins = Math.max(1, Math.round((b.when_ts - t) / 60000));
     jobs.push(notifyCounselor(env, b.counselor_id, {
-      kind: "notice", ttl: 1800, act: "bookings",
+      kind: "notice", type: "remind", ttl: 1800, act: "bookings",
       title: "상담 " + mins + "분 전",
       body: (b.client_name || "내담자") + " 님과의 상담이 " + when + "에 시작돼요."
     }).catch(() => {}));
     jobs.push(notifyClient(env, b.client_id, {
-      kind: "notice", ttl: 1800, act: "counselors",
+      kind: "notice", type: "remind", ttl: 1800, act: "counselors",
       title: "상담 " + mins + "분 전",
       body: (b.counselor_name || "상담사") + " 선생님과의 상담이 " + when + "에 시작돼요."
     }).catch(() => {}));
