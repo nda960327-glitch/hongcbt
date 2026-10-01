@@ -1,9 +1,11 @@
 // ============================================================================
 //  마인드 인사이드 프로 — 상담사 앱
 //
-//  화면은 넷뿐이다: 홈 · 채팅 · 예약 · 정산.
+//  화면은 다섯이다: 홈 · 채팅 · 내담자 · 예약 · 정산.
 //   상담사는 진료 사이 3분에 이 앱을 연다. 스크롤로 찾게 만들면 안 본다.
 //   그래서 세로로 늘어놓지 않고 탭으로 나눴다.
+//   묻는 창·알리는 창은 전부 앱이 직접 그린다(uiAlert·uiConfirm·uiPrompt) —
+//   브라우저 기본 창은 쓰지 않는다.
 //
 //  이 파일이 지켜야 할 두 가지:
 //   1) 내담자가 보낸 메시지는 '반드시 눈에 띈다' — 뱃지 · 소리 · 미확인 표시
@@ -109,6 +111,19 @@ let SOUND = lsGet('pro_sound', true) !== false;        // 알림음 on/off
 let CHATQ = '';                                        // 채팅 검색어
 let BOOKVIEW = lsGet('pro_bookview', 'list');          // 예약 탭: list | cal
 const CAL = { y: new Date().getFullYear(), m: new Date().getMonth(), sel: '' };
+let BOOKF = 'all';                                     // 예약 걸러 보기: all | todo | up | past | off
+let BOOKMORE = false;                                  // 지난 예약을 40건 넘게 펼쳤는가
+let CLIENTQ = '';                                      // 내담자 검색어
+let CLIENTF = 'all';                                   // 내담자 걸러 보기: all | next | todo
+const MONEYM = { y: new Date().getFullYear(), m: new Date().getMonth() };   // 정산 탭에서 보고 있는 달
+let SLOTDAY = new Date().getDay();                     // 시간표에서 펼쳐 둔 요일
+
+// 처음 불러오는 중인가 · 못 불러왔는가.
+//  이걸 모르면 '아직 안 받은 것'과 '받았는데 없는 것'이 같은 빈 화면으로 보인다.
+const LOAD = { first: false, fail: false, busy: false };
+// 저장 안 한 변경이 있는가. 화면을 다시 켤 때마다 /api/me 를 새로 받는데,
+//  그게 방금 고친 시간표·태그·사진을 서버의 옛 값으로 덮어써 버렸다.
+const DIRTY = { profile: false, slots: false };
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
@@ -121,11 +136,157 @@ const DEAD = ['cancelled', 'late_cancel', 'declined', 'noshow', 'refunded'];
 //  금액은 서버가 붙여 주는 b.payout — market.js payoutOf(price − refund, 채널)과 같은 값이다.
 const isEarned = b => b.status === 'done' || b.status === 'late_cancel';
 
-function toast(msg) {
+// 토스트. o.action 을 주면 오른쪽에 버튼이 하나 붙는다(주로 [되돌리기]).
+//  지우기 전에 '정말요?'를 묻는 것보다, 지우고 나서 되돌릴 길을 주는 쪽이 손이 덜 간다.
+function toast(msg, o) {
   const t = $('toast');
-  t.textContent = msg; t.classList.add('on');
+  o = o || {};
+  t.textContent = '';
+  const s = document.createElement('span');
+  s.textContent = msg;
+  t.appendChild(s);
+  t.classList.toggle('act', !!o.action);
+  if (o.action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = o.action;
+    b.addEventListener('click', () => { t.classList.remove('on'); if (o.onAction) o.onAction(); });
+    t.appendChild(b);
+  }
+  t.classList.add('on');
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.classList.remove('on'), 2200);
+  toast._t = setTimeout(() => t.classList.remove('on'), o.ms || (o.action ? 5500 : 2400));
+}
+
+// ============================================================================
+//  다이얼로그 — alert · confirm · prompt 를 대신한다
+//   브라우저 기본 창은 (1) 주소가 찍혀 수상해 보이고 (2) 글씨가 작고
+//   (3) 버튼 이름을 못 바꿔서 '확인'이 무엇을 확인하는지 알 수 없다.
+//   여기서는 버튼에 그 일의 이름을 적는다("전액 환불", "잠그기").
+//   전부 Promise 로 답한다:  if (!await uiConfirm({...})) return;
+// ============================================================================
+let DLG = null;                       // 지금 떠 있는 다이얼로그 { close }
+let DLG_CHAIN = Promise.resolve();    // 두 개가 겹치면 차례로 띄운다 — 뒤의 것이 앞의 것을 덮으면 답을 잃는다
+const DLG_ICON = {
+  info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.2"/></svg>',
+  warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.5M12 17v.2"/></svg>',
+  danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7"/></svg>'
+};
+
+/**
+ * o = { title, body(글, 줄바꿈 가능) | html(이미 안전한 HTML), tone: info|warn|danger,
+ *       ok: '버튼 이름', cancel: '취소 버튼 이름' | null(버튼 하나),
+ *       input: { label, value, placeholder, multiline, maxlength, validate(v) → '오류 문구' | '' },
+ *       sticky: true 면 바깥을 눌러도 안 닫힌다 }
+ * → Promise<{ ok: boolean, value: string }>
+ */
+function uiDialog(o) {
+  const run = () => new Promise(resolve => {
+    o = o || {};
+    const tone = o.tone || 'info';
+    const inp = o.input || null;
+    const prevFocus = document.activeElement;
+    const root = document.createElement('div');
+    root.id = 'dlg';
+    const body = o.html != null ? o.html : esc(o.body || '').replace(/\n/g, '<br>');
+    root.innerHTML = `
+      <div class="bd"></div>
+      <div class="box" role="${inp ? 'dialog' : 'alertdialog'}" aria-modal="true" aria-labelledby="dlg-title" ${body ? 'aria-describedby="dlg-body"' : ''}>
+        <div class="dlg-ic ${tone}">${DLG_ICON[tone] || DLG_ICON.info}</div>
+        <div class="dlg-title" id="dlg-title">${esc(o.title || '')}</div>
+        ${body ? `<div class="dlg-body" id="dlg-body">${body}</div>` : ''}
+        ${inp ? `<label class="dlg-field">${inp.label ? `<span>${esc(inp.label)}</span>` : ''}
+          ${inp.multiline
+            ? `<textarea id="dlg-input" rows="4" maxlength="${inp.maxlength || 500}" placeholder="${esc(inp.placeholder || '')}">${esc(inp.value || '')}</textarea>`
+            : `<input id="dlg-input" type="text" maxlength="${inp.maxlength || 200}" placeholder="${esc(inp.placeholder || '')}" value="${esc(inp.value || '')}">`}
+          <div class="dlg-err" id="dlg-err" role="alert"></div></label>` : ''}
+        <div class="dlg-btns">
+          ${o.cancel === null ? '' : `<button type="button" class="btn ghost" id="dlg-no">${esc(o.cancel || '취소')}</button>`}
+          <button type="button" class="btn ${tone === 'danger' ? 'danger' : ''}" id="dlg-yes">${esc(o.ok || '확인')}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(root);
+    const q = sel => root.querySelector(sel);
+    const field = q('#dlg-input'), yes = q('#dlg-yes'), no = q('#dlg-no'), err = q('#dlg-err');
+
+    const done = (ok) => {
+      if (ok && inp && inp.validate) {
+        const why = inp.validate((field.value || '').trim());
+        if (why) {                       // 닫지 않는다 — 무엇이 모자란지 칸 바로 아래에 적는다
+          err.textContent = why;
+          field.classList.add('bad');
+          field.focus();
+          return;
+        }
+      }
+      root.removeEventListener('keydown', onKey);
+      root.remove();
+      DLG = null;
+      // 열기 전에 있던 자리로 돌려놓는다 — 키보드로 쓰는 사람이 페이지 맨 위로 튕기지 않게
+      try { if (prevFocus && prevFocus.isConnected && prevFocus.focus) prevFocus.focus(); } catch (e) {}
+      resolve({ ok: !!ok, value: field ? (field.value || '').trim() : '' });
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); done(false); return; }
+      // 한 줄 입력에서는 Enter 가 곧 '확인'이다. 여러 줄에서는 줄바꿈이어야 한다.
+      if (e.key === 'Enter' && field && !inp.multiline && e.target === field && !e.isComposing) { e.preventDefault(); done(true); return; }
+      if (e.key === 'Tab') {             // 포커스를 창 안에 가둔다 — 밖으로 새면 뒤의 화면이 눌린다
+        const f = [field, no, yes].filter(Boolean);
+        const i = f.indexOf(document.activeElement);
+        e.preventDefault();
+        f[(i + (e.shiftKey ? f.length - 1 : 1) + f.length) % f.length].focus();
+      }
+    };
+    root.addEventListener('keydown', onKey);
+    yes.addEventListener('click', () => done(true));
+    if (no) no.addEventListener('click', () => done(false));
+    q('.bd').addEventListener('click', () => { if (!o.sticky) done(false); });
+    if (field) field.addEventListener('input', () => { err.textContent = ''; field.classList.remove('bad'); });
+    DLG = { close: done };
+    // 위험한 일은 [취소]에 먼저 포커스를 둔다 — Enter 한 번에 환불이 나가면 안 된다
+    const first = field || (tone === 'danger' && no ? no : yes);
+    setTimeout(() => {
+      try { first.focus(); if (field && field.value) field.setSelectionRange(field.value.length, field.value.length); } catch (e) {}
+    }, 30);
+  });
+  const p = DLG_CHAIN.then(run, run);
+  DLG_CHAIN = p.catch(() => {});
+  return p;
+}
+const dlgOpt = o => (typeof o === 'string' ? { title: o } : (o || {}));
+// 알림 — 버튼 하나
+const uiAlert = o => uiDialog(Object.assign({ ok: '확인' }, dlgOpt(o), { cancel: null, input: null })).then(() => {});
+// 확인 — true / false
+const uiConfirm = o => uiDialog(Object.assign({}, dlgOpt(o), { input: null })).then(r => r.ok);
+// 입력 — 적은 글(취소하면 null)
+const uiPrompt = o => { o = dlgOpt(o); return uiDialog(Object.assign({}, o, { input: o.input || {} })).then(r => r.ok ? r.value : null); };
+
+// 화면 뼈대 — 처음 받아오는 동안 보여줄 회색 자리
+const skelCard = (lines) => `<div class="card" aria-hidden="true">
+    <div class="row"><div class="skel" style="width:44px; height:44px; border-radius:50%;"></div>
+      <div class="grow"><div class="skel" style="height:14px; width:46%;"></div><div class="skel" style="height:11px; width:72%; margin-top:0.5rem;"></div></div></div>
+    ${Array.from({ length: lines || 0 }, (_, i) => `<div class="skel" style="height:11px; width:${88 - i * 17}%; margin-top:0.7rem;"></div>`).join('')}
+  </div>`;
+const skelView = (n) => `<div role="status" aria-label="불러오는 중">${Array.from({ length: n || 3 }, (_, i) => skelCard(i ? 0 : 2)).join('')}</div>`;
+
+// 아직 그릴 수 없는가. 받아오는 중이면 뼈대를, 처음부터 못 받아왔으면 '다시 시도'만 보여준다
+//  (그때 '아직 예약이 없어요'를 띄우면 연결이 끊긴 걸 예약이 없는 걸로 읽는다).
+function notReady(el, skel) {
+  if (LOAD.first === true) return false;
+  el.innerHTML = LOAD.first ? netBanner() : skel;
+  return true;
+}
+
+// 못 받아왔을 때 — 화면 맨 위에 한 줄. 조용히 옛 내용만 보여주면 '새 예약이 없다'로 읽힌다.
+function netBanner() {
+  const off = navigator.onLine === false;
+  if (!LOAD.fail && !off) return '';
+  return `<div class="card" style="border:1.5px solid var(--warn);" role="alert">
+      <div class="row"><div class="grow">
+        <strong style="font-size:0.9rem;">${off ? '인터넷이 끊겼어요' : '새 내용을 불러오지 못했어요'}</strong>
+        <p class="muted" style="margin-top:0.15rem;">${LOAD.first === true ? '지금 보이는 건 마지막으로 받은 내용이에요.' : '연결을 확인한 뒤 다시 시도해주세요.'}</p>
+      </div><button class="btn sm" data-act="refresh">다시 시도</button></div>
+    </div>`;
 }
 
 // 입력 중인 칸 위에 덮어쓰지 않는다 — 30초 폴링이 답장을 지워버리면 아무도 안 쓴다
@@ -287,7 +448,8 @@ function sparkline(vals) {
 }
 
 // 월별 막대 — 값 라벨을 막대 위에 얹는다. 축만 있는 차트는 읽는 데 시간이 더 걸린다.
-function barchart(items) {
+//  sel = 진하게 칠할 칸(보고 있는 달). 막대를 누르면 그 달로 옮겨 간다.
+function barchart(items, sel) {
   const W = 300, H = 108, P = 10;
   const max = Math.max(1, ...items.map(x => x.v));
   const bw = (W - P * 2) / items.length;
@@ -295,8 +457,10 @@ function barchart(items) {
       ${items.map((x, i) => {
         const h = Math.max(2, (x.v / max) * (H - 34));
         const cx = P + bw * i + bw / 2;
-        const cur = i === items.length - 1;
-        return `<rect x="${(cx - bw * 0.29).toFixed(1)}" y="${(H - 16 - h).toFixed(1)}" width="${(bw * 0.58).toFixed(1)}" height="${h.toFixed(1)}"
+        const cur = i === (sel == null ? items.length - 1 : sel);
+        return `<rect x="${(P + bw * i).toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}" fill="transparent"
+            ${x.key ? `data-act="money-month" data-arg="${x.key}"` : ''}><title>${esc(x.label)} ${won(x.v)}캐시</title></rect>
+          <rect pointer-events="none" x="${(cx - bw * 0.29).toFixed(1)}" y="${(H - 16 - h).toFixed(1)}" width="${(bw * 0.58).toFixed(1)}" height="${h.toFixed(1)}"
             rx="5" fill="${cur ? '#4f8a6b' : 'rgba(79,138,107,0.28)'}"/>
           <text x="${cx.toFixed(1)}" y="${(H - 22 - h).toFixed(1)}" text-anchor="middle" font-size="8.5"
             font-weight="700" fill="${cur ? '#4f8a6b' : '#7f7264'}">${x.v ? won(Math.round(x.v / 1000)) + 'k' : '·'}</text>
@@ -317,7 +481,13 @@ async function loginWithCode() {
   btn.disabled = true; btn.textContent = '확인 중…';
   const r = await api('/api/inbox?code=' + encodeURIComponent(v)).catch(() => null);
   btn.disabled = false; btn.textContent = '시작하기';
-  if (!r || !r.ok) {
+  // 서버에 닿지도 못했는데 '코드가 틀렸다'고 하면, 맞는 코드를 몇 번이고 다시 치게 된다
+  if (!r) {
+    errEl.textContent = '서버에 연결하지 못했어요. 인터넷을 확인한 뒤 다시 눌러주세요.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!r.ok) {
     // 상담사 코드가 아니면 상담소(소장) 코드일 수 있다 — 의사 앱으로 넘긴다
     //  (소장 관리 코드 HA-XXXX-XXXX-XXXX-XXXX 도 소장 앱의 것이다)
     if (/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(v) || /^HA(-?[A-Z0-9]{4}){4}$/i.test(v)) {
@@ -333,7 +503,7 @@ async function loginWithCode() {
   CODE = v; SESSION = '';
   localStorage.setItem('inbox_code', v);
   enterApp();
-  askNotify();
+  askNotify(true);
   loadAll().then(() => connectHub()); // 로그인 직후에도 실시간 소켓을 붙인다
 }
 
@@ -404,20 +574,40 @@ async function unsubscribeThisDevice() {
 }
 
 async function logout() {
-  if (!confirm('앱을 잠글까요? 다시 열려면 코드를 입력해야 합니다.')) return;
+  closeSheet();
+  if (!await uiConfirm({
+    title: '앱을 잠글까요?', tone: 'warn', ok: '잠그기',
+    body: '다시 열려면 코드를 입력해야 해요.\n이 기기로 오던 전화·메시지 알림도 함께 꺼집니다.'
+  })) return;
   // 순서가 중요하다. 세션을 지운 뒤에 해제하면 '이 기기가 누구였는지'는
   //  남지만(토큰은 그대로다) 실패했을 때 다시 시도할 화면이 없다.
   //  그리고 무엇보다 — 지우기 전에 끊어야 로그아웃 직후 오는 전화가 안 울린다.
   await unsubscribeThisDevice();
   setNativeSignedIn(false);
   if (SESSION) await postJson('/api/auth/logout', { session: SESSION });
+  localStorage.removeItem('pro_sn_draft');   // 쓰다 만 회기 기록 — 잠근 기기에 남겨 두지 않는다
   localStorage.removeItem('counselor_session');
   localStorage.removeItem('inbox_code');
   sessionStorage.removeItem('inbox_code');
   SESSION = ''; CODE = ''; ME = null;
+  resetSession();
   $('app').hidden = true;
   $('screen-login').hidden = false;
   $('code').value = '';
+}
+
+// 다음 사람이 같은 기기로 들어왔을 때 앞사람의 예약·대화가 잠깐이라도 보이면 안 된다.
+//  (전에는 D 가 그대로 남아, 새로 받아오기 전까지 앞사람 화면이 떠 있었다)
+function resetSession() {
+  ['inbox', 'bookings', 'chats', 'reviews', 'homework', 'calls', 'notes', 'pending', 'dfb'].forEach(k => { D[k] = []; });
+  D.presence = null; D.scope = '';
+  LOAD.first = false; LOAD.fail = false;
+  DIRTY.profile = false; DIRTY.slots = false;
+  DEVICES = null; lastClientMsgs = null;
+  PUSH.sub = null; PUSH.err = ''; FCM_SENT_FOR = '';
+  if (ROOM) closeRoom();
+  try { if (navigator.clearAppBadge) navigator.clearAppBadge(); } catch (e) {}
+  document.title = BASE_TITLE;
 }
 
 function enterApp() {
@@ -426,6 +616,7 @@ function enterApp() {
   // 로그인 상태 도장을 다시 찍는다. 로그아웃 때 false 로 박아둔 폰이
   //  다시 로그인했는데 벨이 안 울리면, 그건 더 나쁜 고장이다.
   setNativeSignedIn(true);
+  renderAll();   // 받아오는 동안 빈 화면 대신 뼈대를 먼저 깐다
   // 로그인한 그 순간이 '이 앱을 전화기로 쓰기 시작하는' 순간이다 —
   //  절전 예외는 여기서 딱 한 번 묻는다 (자세한 이유는 askBatteryExemption).
   setTimeout(askBatteryExemption, 2000);
@@ -490,30 +681,49 @@ async function askBatteryExemption() {
     const st = await P.isBatteryExempt().catch(() => null);
     if (st && st.exempt) { localStorage.setItem('pro_batt_asked', '1'); return; }
     localStorage.setItem('pro_batt_asked', '1');   // 물어본 순간 기록한다(답과 무관하게)
-    const ok = confirm('전화를 놓치지 않으려면 한 가지만 더 설정해주세요.\n\n'
-      + '폰이 절전 상태로 깊이 잠들면 내담자의 전화가 몇 분씩 늦게 도착합니다.\n'
-      + '다음 화면에서 "허용"을 눌러주시면 벨이 제때 울립니다.');
+    const ok = await uiConfirm({
+      title: '전화를 놓치지 않게 한 가지만 더', ok: '설정하기', cancel: '나중에',
+      body: '폰이 절전 상태로 깊이 잠들면 내담자의 전화가 몇 분씩 늦게 도착해요.\n다음 화면에서 "허용"을 눌러주시면 벨이 제때 울립니다.'
+    });
     if (ok) await P.requestBatteryExemption().catch(() => {});
   } catch (e) {}
 }
 
-async function askNotify() {
+// auto = 로그인 직후 앱이 스스로 묻는 경우. 그때는 시스템 팝업만 띄우고,
+//  막혀 있다고 안내 시트까지 밀어 넣지는 않는다(들어오자마자 설교를 듣는 꼴이 된다).
+//  사람이 [알림 켜기]를 직접 눌렀을 때는 반드시 무슨 일이든 일어나야 한다 —
+//  전에는 브라우저가 이미 막아 둔 상태에서 버튼을 눌러도 아무 반응이 없었다.
+async function askNotify(auto) {
   // 스토어 앱: 시스템 팝업 한 번이 전부다. 사용자가 '허용'을 누르면
   //  기기 등록(FCM 토큰)까지 여기서 자동으로 이어진다 — 따로 누를 버튼이 없다.
   //  안드로이드 13+ 는 앱이 대신 켜줄 수 없다(OS 정책). 팝업이 유일한 길이다.
   if (isNativeApp()) {
     await enableFcmPush();
-    try { renderHome(); } catch (e) {}
+    notiChanged();
     // 이미 거부한 경우에만 — 설정 화면까지 데려다준다
-    if (NOTI_NATIVE === 'denied') await guideToNotifSettings();
+    if (NOTI_NATIVE === 'denied') { if (!auto) await guideToNotifSettings(); }
+    else if (!auto && NOTI_NATIVE === 'granted') toast('알림이 켜져 있어요');
     return;
   }
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    try { await Notification.requestPermission(); } catch (e) {}
+  // 알림을 아예 못 쓰는 브라우저(홈 화면에 추가하지 않은 아이폰 등) · 이미 막힌 상태
+  //  — 팝업을 다시 띄울 방법이 없으니 푸는 길을 보여준다
+  if (!('Notification' in window) || Notification.permission === 'denied') {
+    if (!auto) openNotiSheet();
+    return;
   }
-  enablePush();
-  renderHome();
+  if (Notification.permission === 'default') {
+    try {
+      // 옛 사파리는 Promise 가 아니라 콜백으로 답한다
+      await new Promise(res => { const r = Notification.requestPermission(res); if (r && r.then) r.then(res, res); });
+    } catch (e) {}
+  }
+  await enablePush();
+  notiChanged();
+  if (auto) return;
+  if (Notification.permission === 'granted') {
+    if (PUSH.sub) toast('알림을 켰어요. 화면을 꺼둬도 전화와 메시지를 받아요');
+    else openNotiSheet();          // 허용은 됐는데 기기 등록이 안 됐다 — 이유를 보여준다
+  } else if (Notification.permission === 'denied') openNotiSheet();
 }
 
 // 한 번 '거부'를 누르면 안드로이드는 그 팝업을 다시 띄우지 않는다.
@@ -525,7 +735,10 @@ async function guideToNotifSettings() {
     const S = C && C.Plugins && C.Plugins.AppSettings;
     if (S && S.openNotifications) { await S.openNotifications(); return true; }
   } catch (e) {}
-  alert('알림이 꺼져 있어요.\n\n폰 설정 → 앱 → 마인드 인사이드 프로 → 알림 을 켜주세요.\n켜두지 않으면 걸려오는 전화를 놓칩니다.');
+  await uiAlert({
+    title: '알림이 꺼져 있어요', tone: 'warn',
+    html: '아래 순서로 켜주세요.<ol class="steps"><li>폰 <b>설정</b> 열기</li><li><b>앱</b> → <b>마인드 인사이드 프로</b></li><li><b>알림</b> 켜기</li></ol>켜두지 않으면 걸려오는 전화를 놓쳐요.'
+  });
   return false;
 }
 
@@ -534,9 +747,23 @@ async function guideToNotifSettings() {
 // ============================================================================
 let lastClientMsgs = null;   // 새 메시지 감지용
 
+// 돌려주는 값: 받아왔으면 true. 예약·채팅을 둘 다 못 받았으면 '연결 문제'로 본다
+//  (하나만 실패한 건 그 화면만 옛 내용으로 남는다 — 전체를 경고로 덮을 일은 아니다).
 async function loadAll() {
-  await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework(), loadCalls(), loadNotes()]);
+  LOAD.busy = true;
+  const rb = $('refresh-btn');
+  if (rb) rb.classList.add('spin');
+  let res = [];
+  try {
+    res = await Promise.all([loadMe(), loadInbox(), loadBookings(), loadChats(), loadPresence(), loadReviews(), loadHomework(), loadCalls(), loadNotes()]);
+  } catch (e) {}
+  LOAD.busy = false;
+  if (rb) rb.classList.remove('spin');
+  LOAD.fail = !res[2] && !res[3];
+  if (!LOAD.fail) LOAD.first = true;
+  else if (!LOAD.first) LOAD.first = 'failed';   // 뼈대를 걷고 '다시 시도'를 보여준다
   renderAll();
+  return !LOAD.fail;
 }
 
 // 회기 기록·기록 안 남긴 상담·담당의 피드백 — 셋을 한 번에
@@ -561,7 +788,11 @@ async function loadCalls() {
 async function loadMe() {
   const d = await getJson('/api/me?' + authQS());
   if (d && d.ok) {
+    const prev = ME;
     ME = d.me;
+    // 저장 전인 변경은 지킨다 — 화면을 껐다 켰다고 방금 고른 시간표가 사라지면 안 된다
+    if (prev && DIRTY.slots) { ME.slots = prev.slots; ME.offdays = prev.offdays; }
+    if (prev && DIRTY.profile) PROFILE_KEYS.forEach(k => { ME[k] = prev[k]; });
     if (HOSPS === null) loadHospList();
     $('me-name').textContent = ME.name || '상담사';
     $('me-sub').textContent = [ME.hospital || '소속 미입력', ME.license || ''].filter(Boolean).join(' · ');
@@ -579,7 +810,9 @@ async function loadMe() {
     }
     tellSwWhoIAm(); enablePush();
   } else {
-    // 운영자 마스터 코드는 /api/me 가 없다 — 그래도 앱은 돌아가야 한다
+    // 운영자 마스터 코드는 /api/me 가 없다 — 그래도 앱은 돌아가야 한다.
+    //  이미 이름을 알고 있다면(이번 한 번만 못 받아온 것) 머리글을 지우지 않는다.
+    if (ME) return;
     $('me-name').textContent = D.scope === 'admin' ? '운영자' : '마인드 인사이드 프로';
     $('me-sub').textContent = D.scope === 'admin' ? '전체 열람 모드' : '';
   }
@@ -612,11 +845,12 @@ function forceRelogin() {
 async function loadBookings() {
   const d = await getJson('/api/bookings?' + authQS());
   if (d) D.bookings = (d.items || []).sort((a, b) => a.whenTs - b.whenTs);
+  return !!d;
 }
 
 async function loadChats() {
   const d = await getJson('/api/chat-msg?' + authQS());
-  if (!d) return;
+  if (!d) return false;
   D.chats = (d.items || []).sort((a, b) => a.ts - b.ts);
   // 내담자가 보낸 메시지가 늘었으면 소리로 알린다. 이게 '채팅이 안 온다'의 정체였다 —
   //  서버에는 와 있는데 화면이 조용해서 아무도 몰랐다.
@@ -626,19 +860,16 @@ async function loadChats() {
     const last = [...D.chats].reverse().find(m => m.from === 'client');
     // 통화 화면이 떠 있으면 소리를 내지 않는다 — 알림음이 통화 목소리를 덮는다.
     //  대신 통화 화면 아래에 한 줄 미리보기를 띄우고, 누르면 그 대화방으로 간다.
-    if (callFullScreen()) { callPeek(last); lastClientMsgs = n; return; }
+    if (callFullScreen()) { callPeek(last); lastClientMsgs = n; return true; }
     chime();
     const who = last ? last.clientName : '내담자';
     if (!(ROOM && last && threadKey(last) === ROOM)) {
       toast(who + ' 님이 메시지를 보냈어요');
-      try {
-        if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
-          new Notification('마인드 인사이드 프로', { body: who + ' 님의 새 메시지', icon: './icon-192.png', tag: 'chat' });
-        }
-      } catch (e) {}
+      if (document.hidden) localNotify('마인드 인사이드 프로', who + ' 님의 새 메시지', 'chat');
     }
   }
   lastClientMsgs = n;
+  return true;
 }
 
 async function loadPresence() {
@@ -668,8 +899,10 @@ function setTab(name) {
 }
 
 function renderAll() {
-  renderHome(); renderChatList(); renderBookings(); renderMoney(); renderDots();
+  renderHome(); renderChatList(); renderClients(); renderBookings(); renderMoney(); renderDots();
   if (ROOM) renderRoom();
+  // 열려 있는 시트 중 '상태를 보여주는' 것은 새 데이터로 다시 그린다
+  if (SHEET_KIND === 'noti') renderNotiSheet();
 }
 
 function renderDots() {
@@ -678,11 +911,30 @@ function renderDots() {
     el.hidden = !n;
     el.textContent = n > 99 ? '99+' : n;
   };
-  set('dot-chat', threads().reduce((s, t) => s + t.unread, 0));
+  const unread = threads().reduce((s, t) => s + t.unread, 0);
+  set('dot-chat', unread);
+  // 설치한 앱이면 홈 화면 아이콘에도 숫자를 단다. 탭 제목에도 — PC 에서는 탭이 뒤에 가 있다.
+  try {
+    if (navigator.setAppBadge) { if (unread) navigator.setAppBadge(unread); else navigator.clearAppBadge(); }
+  } catch (e) {}
+  document.title = (unread ? `(${unread > 99 ? '99+' : unread}) ` : '') + BASE_TITLE;
+  renderBell();
   set('dot-home', D.inbox.filter(x => !x.read).length + D.pending.length + D.dfb.filter(f => !f.readC).length);
   // 완료 처리를 안 하면 정산이 시작되지 않는다 — 그게 밀려 있으면 숫자로 보여준다
   set('dot-book', D.bookings.filter(b => b.status === 'confirmed' && b.whenTs <= Date.now()).length);
   set('dot-money', 0);
+  set('dot-client', 0);
+}
+const BASE_TITLE = document.title;
+
+// 종 아이콘의 주황 점 — 알림이 '완전히' 켜져 있지 않으면 붙는다
+function renderBell() {
+  const dot = $('bell-dot');
+  if (!dot) return;
+  const st = notiSnap().state;
+  dot.hidden = st === 'ok' || st === 'checking';
+  const b = $('bell-btn');
+  if (b) b.setAttribute('aria-label', dot.hidden ? '알림 설정' : '알림 설정 — 알림이 꺼져 있어요');
 }
 
 // ============================================================================
@@ -693,8 +945,8 @@ function fold(key, title, summary, bodyHtml) {
   const caret = open
     ? '<svg width="12" height="12" viewBox="0 0 10 10"><path d="M2 6.5 L5 3.5 L8 6.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     : '<svg width="12" height="12" viewBox="0 0 10 10"><path d="M2 3.5 L5 6.5 L8 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return `<div class="card pad0 fold">
-      <button class="head" data-act="fold" data-key="${esc(key)}">
+  return `<div class="card pad0 fold" data-fold="${esc(key)}">
+      <button class="head" data-act="fold" data-key="${esc(key)}" aria-expanded="${open}">
         <strong style="font-size:0.92rem;">${title}</strong>
         <span class="muted grow" style="text-align:right;">${summary}</span>
         <span style="color:var(--sub); line-height:0;">${caret}</span>
@@ -743,9 +995,128 @@ function weekChartCard() {
     </div>`;
 }
 
+// ── 다음 상담까지 남은 시간 ───────────────────────────────────────────
+//  '14:00' 만 적어 두면 지금이 몇 시인지와 머릿속으로 빼야 한다. 뺀 값을 적어 준다.
+function untilText(ts) {
+  const m = Math.round((ts - Date.now()) / 60000);
+  if (m <= -30) return '상담 시간이 지났어요';
+  if (m <= 0) return '지금 상담 시간이에요';
+  if (m < 60) return `${m}분 뒤 시작`;
+  if (m < 1440) return `${Math.floor(m / 60)}시간${m % 60 ? ' ' + (m % 60) + '분' : ''} 뒤 시작`;
+  const day0 = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const days = Math.round((day0(ts) - day0(Date.now())) / 86400000);
+  return days === 1 ? '내일 시작' : `${days}일 뒤 시작`;
+}
+// 화면을 통째로 다시 그리지 않고 숫자만 갈아 끼운다 — 20초마다 홈이 깜빡이면 글을 못 읽는다
+setInterval(() => {
+  document.querySelectorAll('[data-until]').forEach(el => { el.textContent = untilText(+el.dataset.until); });
+}, 20000);
+
+// 다음 상담 = 확정된 예약 중 가장 가까운 것. 시작한 지 30분이 안 지났으면 '지금 하는 중'이다.
+function nextBooking() {
+  const from = Date.now() - 30 * 60000;
+  return D.bookings.filter(b => b.status === 'confirmed' && b.whenTs > from).sort((a, b) => a.whenTs - b.whenTs)[0] || null;
+}
+const clientKeyOf = x => x.clientId || ('n:' + x.clientName);
+const CHEV = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+
+function nextCardHtml() {
+  const b = nextBooking();
+  if (!b) return '';
+  const live = b.whenTs <= Date.now();
+  const wd = new Date(b.whenTs);
+  const memo = noteOf(b);
+  const day = isToday(b.whenTs) ? '오늘' : `${wd.getMonth() + 1}월 ${wd.getDate()}일 (${DAYNM[wd.getDay()]})`;
+  return `<div class="card nextcard ${live ? 'now' : ''}">
+      <div class="row"><span class="chip ${live ? 'new' : 'ok'}">${live ? '지금 상담 시간' : '다음 상담'}</span>
+        <span class="muted grow" style="text-align:right;">${day} ${hhmm(b.whenTs)} · 30분</span></div>
+      <button class="rowbtn" style="border:none; padding:0.7rem 0 0;" data-act="client-open" data-key="${esc(clientKeyOf(b))}" aria-label="${esc(b.clientName)} 님 기록 보기">
+        ${avatar(b.clientName)}
+        <span class="grow"><strong style="font-size:0.98rem;">${esc(b.clientName)} 님</strong>
+          <span class="until" style="display:block;" data-until="${b.whenTs}">${untilText(b.whenTs)}</span></span>
+        <span style="color:var(--sub); line-height:0;">${CHEV}</span>
+      </button>
+      ${memo ? `<p class="muted ell" style="margin-top:0.5rem; padding:0.4rem 0.6rem; background:rgba(255,255,255,0.7); border-radius:9px;">내 메모 · ${esc(memo.slice(0, 70))}</p>` : ''}
+      <div class="btnrow">
+        <button class="btn soft" data-act="cl-chat" data-cid="${esc(b.clientId || '')}" data-nm="${esc(b.clientName)}">채팅</button>
+        <button class="btn" data-act="cl-call" data-cid="${esc(b.clientId || '')}" data-nm="${esc(b.clientName)}" ${b.clientId ? '' : 'disabled'}>전화 걸기</button>
+      </div>
+    </div>`;
+}
+
+// ── 지금 할 일 ────────────────────────────────────────────────────────
+//  밀린 일은 접힌 섹션 속에 있으면 안 보인다. 숫자와 함께 맨 위로 꺼내고,
+//  누르면 그 일을 하는 화면이 바로 열린다(목록이 아니라 '그 양식'까지).
+function todoCardHtml() {
+  const now = Date.now();
+  const row = (n, title, sub, attrs, green) => `<button class="todorow" ${attrs}>
+      <span class="n ${green ? 'g' : ''}">${n > 99 ? '99+' : n}</span>
+      <span class="grow"><b style="font-size:0.9rem;">${title}</b><span class="muted ell" style="display:block;">${sub}</span></span>
+      <span class="go">${CHEV}</span></button>`;
+  const rows = [];
+  const needDone = D.bookings.filter(b => b.status === 'confirmed' && b.whenTs <= now);
+  if (needDone.length) rows.push(row(needDone.length, '상담 완료 처리하기', '완료를 눌러야 정산이 시작돼요', 'data-act="book-filter" data-arg="todo"'));
+  if (D.pending.length) {
+    const p = D.pending[0];
+    rows.push(row(D.pending.length, '회기 기록 남기기',
+      `${esc(p.clientName || '내담자')} 님 · ${fmtDT(p.ts)}${D.pending.length > 1 ? ` 외 ${D.pending.length - 1}건` : ''}`,
+      `data-act="sn-open" data-client-id="${esc(p.clientId)}" data-client-name="${esc(p.clientName || '')}" data-booking-id="${esc(p.bookingId || '')}" data-call-id="${esc(p.callId || '')}" data-kind="${esc(p.kind)}" data-ts="${p.ts}"`));
+  }
+  const un = threads().filter(t => t.unread);
+  const unN = un.reduce((s, t) => s + t.unread, 0);
+  if (unN) rows.push(row(unN, '안 읽은 메시지', un.length === 1 ? `${esc(un[0].clientName)} 님이 기다리고 있어요` : `${un.length}명이 기다리고 있어요`,
+    un.length === 1 ? `data-act="room-open" data-key="${esc(un[0].key)}"` : 'data-act="tab" data-tab="chat"'));
+  const fb = D.dfb.filter(f => !f.readC).length;
+  if (fb) rows.push(row(fb, '담당의 새 피드백', '상담소에서 의견을 남겼어요', 'data-act="go-fold" data-tab="home" data-key="dfb"', true));
+  const ib = D.inbox.filter(x => !x.read).length;
+  if (ib) rows.push(row(ib, '새 상담 자료', '내담자가 보낸 자료가 도착했어요', 'data-act="go-fold" data-tab="home" data-key="inbox"', true));
+  if (!rows.length) return '';
+  return `<div class="sec-title" style="margin-top:0.9rem;">지금 할 일</div><div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">${rows.join('')}</div>`;
+}
+
+// ── 시작 준비 ─────────────────────────────────────────────────────────
+//  갓 입점한 상담사는 '왜 예약이 안 들어오지?'의 답을 모른다. 대개 이 넷 중 하나가 비어 있다.
+function onboardSteps() {
+  if (!ME) return [];
+  const hours = Object.values(ME.slots || {}).reduce((s, a) => s + (a || []).length, 0);
+  const viaHosp = !!(ME.hospitalId && ME.hospitalOk);
+  return [
+    { done: !!(ME.intro && ME.license), t: '프로필 채우기', s: '소개와 자격이 있어야 내담자가 고를 수 있어요', attrs: 'data-act="go-fold" data-tab="home" data-key="profile"' },
+    { done: hours > 0, t: '예약 가능 시간 열기', s: '열어 둔 시간에만 예약이 들어와요', attrs: 'data-act="go-fold" data-tab="home" data-key="slots"' },
+    { done: notiSnap().state === 'ok', t: '알림 켜기', s: '전화와 메시지를 놓치지 않게', attrs: 'data-act="noti-open"' },
+    { done: viaHosp || !!(ME.payout && ME.payout.set), t: '정산 계좌 등록', s: viaHosp ? '소속 상담소가 지급해요' : '등록해야 정산을 받을 수 있어요', attrs: 'data-act="go-fold" data-tab="money" data-key="payout"' }
+  ];
+}
+function onboardCardHtml() {
+  const steps = onboardSteps();
+  const done = steps.filter(x => x.done).length;
+  if (!steps.length || done === steps.length || lsGet('pro_onb_hide', false)) return '';
+  const tick = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  return `<div class="card">
+      <div class="row"><strong class="grow" style="font-size:0.94rem;">시작 준비</strong>
+        <span class="muted"><b style="color:var(--accent);">${done}</b> / ${steps.length}</span></div>
+      <div class="prog"><i style="width:${Math.round(done / steps.length * 100)}%;"></i></div>
+      ${steps.map(x => `<button class="todorow" ${x.attrs} ${x.done ? 'style="opacity:0.6;"' : ''}>
+          <span class="ck ${x.done ? 'on' : ''}">${tick}</span>
+          <span class="grow"><b style="font-size:0.88rem; ${x.done ? 'text-decoration:line-through;' : ''}">${x.t}</b>
+            <span class="muted" style="display:block;">${x.done ? '끝났어요' : x.s}</span></span>
+          ${x.done ? '' : `<span class="go">${CHEV}</span>`}</button>`).join('')}
+      <button class="btn ghost sm" style="margin-top:0.5rem;" data-act="onb-hide">나중에 할게요</button>
+    </div>`;
+}
+
+function homeSkeleton() {
+  return `<div class="hero"><div class="date">${todayFull()}</div>
+      <div class="skel" style="height:22px; width:62%; margin-top:0.6rem;"></div>
+      <div class="skel" style="height:12px; width:44%; margin-top:0.6rem;"></div></div>${skelView(3)}`;
+}
+
 function renderHome() {
   const el = $('view-home');
   if (busy(el)) return;
+  if (notReady(el, homeSkeleton())) return;
+  // 다시 그리기 전에 쓰던 칸을 ME 로 옮긴다 — 안 그러면 다시 그리는 순간 고친 글이 사라진다
+  if (DIRTY.profile) syncProfileForm();
   const now = Date.now();
   const unreadMsgs = threads().reduce((s, t) => s + t.unread, 0);
   const todays = D.bookings.filter(b => isToday(b.whenTs) && !DEAD.includes(b.status));
@@ -767,37 +1138,37 @@ function renderHome() {
             : '지금은 부재중이에요. 예약 상담은 꺼져 있어도 연결됩니다.'}</p>
         </div>
         <button class="sw ${p.available ? 'on' : ''}" data-act="presence" data-on="${p.available ? '0' : '1'}"
-          aria-label="바로상담 수신 토글"><i></i></button>
+          role="switch" aria-checked="${p.available ? 'true' : 'false'}" aria-label="바로상담 받기"><i></i></button>
       </div>
       ${p.busy ? `<button class="btn ghost sm" style="margin-top:0.7rem;" data-act="force-end" data-id="${esc(p.id)}">회선 수동 해제</button>` : ''}
     </div>` : '';
 
-  // 앱에서는 안드로이드의 진짜 권한(NOTI_NATIVE)이 답이다.
-  //  웹뷰의 Notification.permission 은 그것과 따로 놀아서, 알림이 켜져 있는데도
-  //  '꺼져 있어요' 카드가 계속 뜨는 일이 생긴다.
-  const notiOk = isNativeApp()
-    ? NOTI_NATIVE === 'granted'
-    : (('Notification' in window) && Notification.permission === 'granted');
-  const notiCard = notiOk ? '' : `
+  // 알림 상태는 notiSnap() 한 곳에서 판단한다 (앱이면 안드로이드의 진짜 권한, 웹이면 브라우저 권한 + 기기 등록).
+  //  전에는 '권한'만 봐서, 허용은 됐는데 기기 등록이 실패한 경우에도 멀쩡한 것처럼 보였다.
+  const ns = notiSnap();
+  const notiCard = (ns.state === 'ok' || ns.state === 'checking') ? '' : `
     <div class="card" style="border:1.5px solid var(--warn);">
-      <div class="row"><strong class="grow" style="font-size:0.92rem;">알림이 꺼져 있어요</strong><span class="chip new">중요</span></div>
-      <p class="muted" style="margin:0.3rem 0 0.6rem;">화면을 꺼두면 걸려오는 전화와 새 메시지를 놓칩니다. 알림을 켜주세요.</p>
-      <button class="btn sm" data-act="ask-noti">알림 켜기</button>
+      <div class="row"><strong class="grow" style="font-size:0.92rem;">${ns.title}</strong><span class="chip new">중요</span></div>
+      <p class="muted" style="margin:0.3rem 0 0.6rem;">${ns.short}</p>
+      ${ns.state === 'default'
+        ? '<button class="btn sm" data-act="ask-noti">알림 켜기</button>'
+        : '<button class="btn sm" data-act="noti-open">해결 방법 보기</button>'}
     </div>`;
 
   const todayList = todays.length ? todays.map(b => {
     const soon = b.status === 'confirmed' && Math.abs(b.whenTs - now) < 3600000;
     const past = b.whenTs <= now;
-    return `<div class="listrow">
-        <div class="bktime ${soon ? 'hot' : ''}"><b>${hhmm(b.whenTs)}</b><span>30분</span></div>
-        <div class="grow">
-          <div class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(b.clientName)} 님</strong>
+    return `<button class="rowbtn" data-act="client-open" data-key="${esc(clientKeyOf(b))}">
+        <span class="bktime ${soon ? 'hot' : ''}"><b>${hhmm(b.whenTs)}</b><span>30분</span></span>
+        <span class="grow">
+          <span class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(b.clientName)} 님</strong>
             ${soon ? '<span class="chip new">곧 시작</span>'
               : b.status === 'done' ? '<span class="chip ok">완료</span>'
-              : past ? '<span class="chip gold">완료 처리 필요</span>' : '<span class="chip ok">확정</span>'}</div>
-          <div class="muted">${won(b.price)}캐시 · 내 몫 ${won(b.payout ? b.payout.counselor : 0)}캐시</div>
-        </div>
-      </div>`;
+              : past ? '<span class="chip gold">완료 처리 필요</span>' : '<span class="chip ok">확정</span>'}</span>
+          <span class="muted" style="display:block;">${won(b.price)}캐시 · 내 몫 ${won(b.payout ? b.payout.counselor : 0)}캐시</span>
+        </span>
+        <span style="color:var(--sub); line-height:0;">${CHEV}</span>
+      </button>`;
   }).join('') : empty('cal', '오늘 예약은 없어요', '편히 쉬셔도 됩니다.<br>비어 있는 하루도 상담사에게는 일입니다.');
 
   const hwDone = D.homework.filter(h => h.doneAt).length;
@@ -814,56 +1185,75 @@ function renderHome() {
     won: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l3.5 10L12 9l4.5 8L20 7"/><path d="M3 12h18"/></svg>'
   };
 
+  // 여섯 토막. 폰에서는 order 순서대로 한 줄로 서고, 넓은 화면에서는 왼쪽 단(①②⑤)·오른쪽 단(③④⑥)으로 갈린다.
+  //  ① 인사·알림 경고  ② 다음 상담·할 일  ③ 바로상담 스위치  ④ 시작 준비  ⑤ 숫자·오늘 일정·그래프  ⑥ 관리
   el.innerHTML = `
-    <div class="hero">
-      <div class="date">${todayFull()}</div>
-      <div class="hi">${g.t},<br>${esc(myName)} ${g.ic}</div>
-      <div class="sub">${heroSub}</div>
-    </div>
-    ${notiCard}
-    ${subBanner()}
-    <div class="stats">
-      <div class="stat c-warn" data-act="tab" data-tab="chat">
-        <div class="ic">${ico.chat}</div>
-        <b style="color:${unreadMsgs ? 'var(--warn)' : 'var(--text)'}">${unreadMsgs}</b><span>안 읽은 메시지</span>
+    ${netBanner()}
+    <div class="cols">
+      <div class="col">
+        <div style="order:1;">
+          <div class="hero">
+            <div class="date">${todayFull()}</div>
+            <div class="hi">${g.t},<br>${esc(myName)} ${g.ic}</div>
+            <div class="sub">${heroSub}</div>
+          </div>
+          ${notiCard}
+        </div>
+        <div style="order:2;">
+          ${nextCardHtml()}
+          ${todoCardHtml()}
+        </div>
+        <div style="order:5;">
+          <div class="stats" style="margin-top:0.7rem;">
+            <button class="stat c-warn" data-act="tab" data-tab="chat">
+              <div class="ic">${ico.chat}</div>
+              <b style="color:${unreadMsgs ? 'var(--warn)' : 'var(--text)'}">${unreadMsgs}</b><span>안 읽은 메시지</span>
+            </button>
+            <button class="stat c-blue" data-act="tab" data-tab="book">
+              <div class="ic">${ico.cal}</div>
+              <b>${todays.length}</b><span>오늘 예약</span>
+            </button>
+            <button class="stat c-green" data-act="tab" data-tab="money">
+              <div class="ic">${ico.won}</div>
+              <b style="color:var(--accent)">${won(weekSum)}<span class="u">캐시</span></b><span>이번 주 수입</span>
+            </button>
+          </div>
+          <div class="sec-title" style="margin-top:1.1rem;">오늘 일정<span class="right muted">${todays.length ? todays.length + '건' : ''}</span></div>
+          <div class="card" ${todays.length ? 'style="padding-top:0.2rem; padding-bottom:0.2rem;"' : ''}>${todayList}</div>
+          <div class="sec-title">한눈에 보기</div>
+          ${weekChartCard()}
+        </div>
       </div>
-      <div class="stat c-blue" data-act="tab" data-tab="book">
-        <div class="ic">${ico.cal}</div>
-        <b>${todays.length}</b><span>오늘 예약</span>
+      <div class="col">
+        <div style="order:3;">${presenceCard}</div>
+        <div style="order:4;">${onboardCardHtml()}${subBanner()}</div>
+        <div style="order:6;">
+          <div class="sec-title" style="margin-top:1.1rem;">관리</div>
+          ${foldProfile()}
+          ${foldSlots()}
+          ${foldPrefs()}
+          ${fold('sn', '회기 기록', D.pending.length
+            ? `<b style="color:var(--warn);">기록 안 남긴 상담 ${D.pending.length}건</b>`
+            : (D.notes.length ? `${D.notes.length}건 · 모두 기록됨` : '아직 없음'), snHomeHtml())}
+          ${D.dfb.length ? fold('dfb', '담당의 피드백', `${D.dfb.length}건${D.dfb.filter(f => !f.readC).length ? ` · <b style="color:var(--accent);">새 ${D.dfb.filter(f => !f.readC).length}</b>` : ''}`, dfbListHtml()) : ''}
+          ${fold('hw', '내가 낸 숙제', D.homework.length ? `${D.homework.length}개 · 완료 ${hwDone}` : '아직 없음', hwListHtml(D.homework, true))}
+          ${fold('inbox', '받은 상담 자료', D.inbox.length ? `${D.inbox.length}건 · 안 읽음 ${inboxUnread}` : '아직 없음', inboxHtml())}
+          ${fold('rv', '내 리뷰', D.reviews.length ? `${D.reviews.length}개` : '아직 없음', reviewsHtml())}
+          ${isStandalone() ? '' : `
+          <div class="card" style="display:flex; align-items:center; gap:0.7rem;">
+            <span style="flex-shrink:0; width:38px; height:38px; border-radius:11px; background:rgba(79,138,107,0.13); display:inline-flex; align-items:center; justify-content:center;">
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/></svg></span>
+            <div style="flex:1; min-width:0;">
+              <b style="font-size:0.88rem;">앱으로 설치하기</b>
+              <p class="muted" style="margin:0.1rem 0 0;">폰·PC 어디서든 홈 화면에서 바로 열려요. 전화도 놓치지 않아요.</p>
+            </div>
+            <button class="btn sm" style="width:auto; margin:0; flex-shrink:0;" data-act="install">설치</button>
+          </div>`}
+          <p class="muted" style="text-align:center; margin-top:1.2rem;">
+            코드를 잃어버렸거나 코드가 샌 것 같으면 <b>help@neurumind.com</b> 으로 알려주세요.</p>
+        </div>
       </div>
-      <div class="stat c-green" data-act="tab" data-tab="money">
-        <div class="ic">${ico.won}</div>
-        <b style="color:var(--accent)">${won(weekSum)}<span class="u">캐시</span></b><span>이번 주 수입</span>
-      </div>
-    </div>
-    ${presenceCard}
-    <div class="sec-title">오늘 일정<span class="right muted">${todays.length ? todays.length + '건' : ''}</span></div>
-    <div class="card">${todayList}</div>
-    <div class="sec-title">한눈에 보기</div>
-    ${weekChartCard()}
-    <div class="sec-title">관리</div>
-    ${foldProfile()}
-    ${foldSlots()}
-    ${foldPrefs()}
-    ${fold('sn', '회기 기록', D.pending.length
-      ? `<b style="color:var(--warn);">기록 안 남긴 상담 ${D.pending.length}건</b>`
-      : (D.notes.length ? `${D.notes.length}건 · 모두 기록됨` : '아직 없음'), snHomeHtml())}
-    ${D.dfb.length ? fold('dfb', '담당의 피드백', `${D.dfb.length}건${D.dfb.filter(f => !f.readC).length ? ` · <b style="color:var(--accent);">새 ${D.dfb.filter(f => !f.readC).length}</b>` : ''}`, dfbListHtml()) : ''}
-    ${fold('hw', '내가 낸 숙제', D.homework.length ? `${D.homework.length}개 · 완료 ${hwDone}` : '아직 없음', hwListHtml(D.homework, true))}
-    ${fold('inbox', '받은 상담 자료', D.inbox.length ? `${D.inbox.length}건 · 안 읽음 ${inboxUnread}` : '아직 없음', inboxHtml())}
-    ${fold('rv', '내 리뷰', D.reviews.length ? `${D.reviews.length}개` : '아직 없음', reviewsHtml())}
-    ${isStandalone() ? '' : `
-    <div class="card" style="display:flex; align-items:center; gap:0.7rem;">
-      <span style="flex-shrink:0; width:38px; height:38px; border-radius:11px; background:rgba(79,138,107,0.13); display:inline-flex; align-items:center; justify-content:center;">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/></svg></span>
-      <div style="flex:1; min-width:0;">
-        <b style="font-size:0.88rem;">앱으로 설치하기</b>
-        <p class="muted" style="margin:0.1rem 0 0;">폰·PC 어디서든 홈 화면에서 바로 열려요. 전화도 놓치지 않아요.</p>
-      </div>
-      <button class="btn sm" style="width:auto; margin:0; flex-shrink:0;" data-act="install">설치</button>
-    </div>`}
-    <p class="muted" style="text-align:center; margin-top:1.2rem;">
-      코드를 잃어버렸거나 코드가 샌 것 같으면 <b>help@neurumind.com</b> 으로 알려주세요.</p>`;
+    </div>`;
 }
 
 function inboxHtml() {
@@ -938,14 +1328,15 @@ function chatListHtml(list, q) {
       // 조사('와/과')는 검색어 끝소리에 따라 달라진다 — 검색어가 뭐가 될지 모르니 아예 쓰지 않는다
       ? `<div class="card">${empty('search', `'${esc(q)}' 검색 결과가 없어요`, '이름이나 대화 내용의 일부로 찾을 수 있어요.')}</div>`
       : `<div class="card">${empty('chat', '아직 대화가 없어요',
-          '내담자가 앱에서 채팅을 보내면<br>여기에 바로 뜨고 소리로 알려드려요.')}</div>`;
+          '내담자가 앱에서 채팅을 보내면<br>여기에 바로 뜨고 소리로 알려드려요.')}
+          ${D.bookings.length ? '<button class="btn soft" style="margin-bottom:0.4rem;" data-act="tab" data-tab="client">내담자에게 먼저 말 걸기</button>' : ''}</div>`;
   }
   return `<div class="card pad0">
       ${list.map(t => {
         // 검색 중이라면 마지막 메시지 대신 '검색어가 걸린 메시지'를 보여줘야 쓸모가 있다
         const hit = q ? [...t.msgs].reverse().find(m => (m.text || '').toLowerCase().includes(q)) : null;
         const show = hit || t.last;
-        return `<div class="thread ${t.unread ? 'unread' : ''}" data-act="room-open" data-key="${esc(t.key)}">
+        return `<div class="thread ${t.unread ? 'unread' : ''}" data-act="room-open" data-key="${esc(t.key)}" role="button" tabindex="0">
           ${avatar(t.clientName)}
           <div class="grow">
             <div class="row"><span class="nm grow ell">${hlight(t.clientName, q)} 님</span></div>
@@ -959,6 +1350,7 @@ function chatListHtml(list, q) {
 
 function renderChatList() {
   const el = $('view-chat');
+  if (notReady(el, skelView(4))) return;
   const all = threads();
   const q = CHATQ.trim().toLowerCase();
   const list = q
@@ -975,9 +1367,10 @@ function renderChatList() {
   }
 
   el.innerHTML = `
+    ${netBanner()}
     <div class="searchbar">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
-      <input id="chat-search" class="grow" type="text" value="${esc(CHATQ)}" placeholder="이름·대화 내용 검색" autocomplete="off">
+      <input id="chat-search" class="grow" type="text" value="${esc(CHATQ)}" placeholder="이름·대화 내용 검색" autocomplete="off" aria-label="대화 검색">
       <button class="x" id="chat-x" data-act="chat-clear" aria-label="검색어 지우기" ${CHATQ ? '' : 'hidden'}>×</button>
     </div>
     <div class="row" style="margin:0.1rem 0.2rem 0.6rem;">
@@ -995,16 +1388,42 @@ function openRoom(key) {
   ROOM = key;
   $('chatroom').hidden = false;
   document.body.style.overflow = 'hidden';
+  document.body.classList.add('room-open');
   renderQuickBar();
   renderRoom(true);
 }
 function closeRoom() {
-  ROOM = null;
+  ROOM = null; VROOM = null;
   $('chatroom').hidden = true;
   document.body.style.overflow = '';
+  document.body.classList.remove('room-open');
   renderChatList(); renderDots();
 }
-function curThread() { return threads().find(t => t.key === ROOM); }
+// 아직 한 번도 문자를 나누지 않은 내담자의 '빈 방'.
+//  예약만 잡은 내담자에게 상담 전에 먼저 인사를 건넬 길이 없었다 — 방은 메시지가 있어야만 생겼다.
+//  서버는 예약·통화로 이어진 내담자에게만 보내게 해 준다(모르는 사람에게는 403).
+let VROOM = null;
+function curThread() {
+  return threads().find(t => t.key === ROOM) || (VROOM && VROOM.key === ROOM ? VROOM : null);
+}
+function openRoomFor(clientId, clientName) {
+  const t = threads().find(x => clientId ? x.clientId === clientId : x.clientName === clientName);
+  if (t) { openRoom(t.key); return; }
+  if (!clientId || !ME) { toast('이 내담자와는 아직 대화를 시작할 수 없어요'); return; }
+  VROOM = { key: clientId, clientId, clientName: clientName || nameOfClient(clientId),
+    counselorId: ME.id, counselorName: ME.name, msgs: [], unread: 0, last: null };
+  openRoom(clientId);
+}
+// 시트에서 고른 사람이 있으면 그 사람, 아니면 열려 있는 대화방의 사람.
+//  숙제·메모·회기 기록은 대화방에서도, 내담자 시트에서도 같은 화면을 쓴다.
+const actTarget = () => SHEET_T || curThread();
+const sheetBack = () => (SHEET_T ? 'client-back' : (ROOM ? 'room-menu' : ''));
+// 일을 마친 뒤 — 내담자 시트에서 왔으면 그리로 돌아가고, 아니면 닫는다
+function sheetDone() {
+  const k = SHEET_T && SHEET_T.key;
+  if (k && clients().some(c => c.key === k)) openClientSheet(k);
+  else closeSheet();
+}
 
 function renderRoom(scroll) {
   const t = curThread();
@@ -1019,6 +1438,10 @@ function renderRoom(scroll) {
   const box = $('room-msgs');
   const stick = scroll || (box.scrollHeight - box.scrollTop - box.clientHeight < 120);
   let last = '';
+  if (!t.msgs.length) {
+    box.innerHTML = empty('chat', '아직 나눈 대화가 없어요', '먼저 인사를 건네보세요.<br>아래 빠른 답장을 눌러도 됩니다.');
+    return;
+  }
   box.innerHTML = t.msgs.map(m => {
     let sep = '';
     if (dayKey(m.ts) !== last) { last = dayKey(m.ts); sep = `<div class="daysep"><span>${dayLabel(m.ts)}</span></div>`; }
@@ -1097,14 +1520,13 @@ function useQuickReply(i) {
 
 function openQuickSheet() {
   sheet(`
-    <h3 class="serif">빠른 답장 관리</h3>
     <p class="muted" style="margin-bottom:0.9rem;">자주 쓰는 문장을 저장해 두면 대화방 입력창 위에 칩으로 뜹니다.
       <b>이 기기에만 저장</b>되고 서버로 보내지 않아요.</p>
     <div class="card pad0" style="margin-bottom:0.8rem;">
       ${QR.length ? QR.map((t, i) => `
-        <div class="listrow" style="padding:0.7rem 0.9rem;">
+        <div class="listrow" style="padding:0.4rem 0.4rem 0.4rem 0.9rem;">
           <span class="grow" style="font-size:0.86rem;">${esc(t)}</span>
-          <button class="iconbtn" data-act="qr-del" data-arg="${i}" aria-label="삭제" style="width:32px;height:32px;color:var(--danger);">
+          <button class="iconbtn" data-act="qr-del" data-arg="${i}" aria-label="이 문장 지우기" style="color:var(--danger);">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M7 7l1 13h8l1-13"/></svg>
           </button>
         </div>`).join('')
@@ -1112,8 +1534,9 @@ function openQuickSheet() {
     </div>
     <label><span>새 문장 (100자까지)</span>
       <textarea id="qr-new" rows="2" maxlength="100" placeholder="예: 오늘 상담 어떠셨는지 한 줄만 남겨주세요"></textarea></label>
-    <button class="btn" data-act="qr-add">추가하기</button>
-    <button class="btn ghost" style="margin-top:0.5rem;" data-act="qr-reset">기본 문구로 되돌리기</button>`);
+    <button class="btn ghost sm" data-act="qr-reset">기본 문구로 되돌리기</button>`,
+  { title: '빠른 답장 관리', sub: `${QR.length}개 저장됨 · 12개까지`, back: ROOM ? '' : 'settings',
+    foot: '<button class="btn" data-act="qr-add">추가하기</button>' });
 }
 
 // ── 내담자 메모 (이 기기에만) ─────────────────────────────────────────
@@ -1122,11 +1545,10 @@ const noteKey = t => 'k:' + (t.clientId || ('n:' + t.clientName));
 const noteOf = t => (NOTES[noteKey(t)] || {}).text || '';
 
 function openNoteSheet() {
-  const t = curThread();
+  const t = actTarget();
   if (!t) return;
   const cur = NOTES[noteKey(t)] || {};
   sheet(`
-    <h3 class="serif">${esc(t.clientName)} 님 메모</h3>
     <p class="muted" style="margin-bottom:0.8rem;">회기 사이에 기억해 둘 것들을 적어두세요.
       호소 문제, 지난 회기 요약, 다음에 물어볼 것.</p>
     <label><span>메모 (2000자까지)</span>
@@ -1134,26 +1556,24 @@ function openNoteSheet() {
     <p class="muted" style="margin-bottom:0.8rem; padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
       🔒 이 메모는 <b>내 기기에만 저장됩니다</b>. 서버로 전송되지 않고 내담자에게도 보이지 않아요.
       다만 기기를 바꾸거나 브라우저 데이터를 지우면 함께 사라집니다.</p>
-    ${cur.ts ? `<p class="muted" style="margin-bottom:0.6rem;">마지막 수정 ${new Date(cur.ts).toLocaleString('ko-KR')}</p>` : ''}
-    <button class="btn" data-act="note-save">메모 저장</button>
-    ${cur.text ? '<button class="btn ghost" style="margin-top:0.5rem;" data-act="note-del">메모 지우기</button>' : ''}`);
+    ${cur.ts ? `<p class="muted">마지막 수정 ${new Date(cur.ts).toLocaleString('ko-KR')}</p>` : ''}`,
+  { title: `${esc(t.clientName)} 님 메모`, back: sheetBack(),
+    foot: (cur.text ? '<button class="btn ghost" data-act="note-del">지우기</button>' : '') + '<button class="btn" data-act="note-save">메모 저장</button>' });
 }
 
 // ── 대화방 메뉴 ───────────────────────────────────────────────────────
 function openRoomMenu() {
+  SHEET_T = null;          // 여기서부터는 '대화방의 사람'이 대상이다
   const t = curThread();
   if (!t) return;
   const note = noteOf(t);
   const hw = D.homework.filter(h => h.clientId && h.clientId === t.clientId);
   const mi = svg => `<span class="mi">${svg}</span>`;
   sheet(`
-    <div class="row" style="gap:0.7rem; margin-bottom:0.9rem;">
-      ${avatar(t.clientName)}
-      <div class="grow">
-        <h3 style="font-size:1rem;">${esc(t.clientName)} 님</h3>
-        <p class="muted">메시지 ${t.msgs.length}개 · 숙제 ${hw.length}개</p>
-      </div>
-    </div>
+    <button class="menurow" data-act="client-open" data-key="${esc(t.key)}">
+      ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>')}
+      <span class="grow">내담자 기록 보기<br><span class="ms">예약·회기 기록·숙제를 날짜순으로</span></span>
+    </button>
     <button class="menurow" data-act="note-open">
       ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H15l5 5v9.5A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M14 4v6h6"/></svg>')}
       <span class="grow">메모<br><span class="ms">${note ? esc(note.slice(0, 26)) + (note.length > 26 ? '…' : '') : '이 기기에만 저장되는 내 기록'}</span></span>
@@ -1175,7 +1595,8 @@ function openRoomMenu() {
     <button class="menurow" data-act="room-refresh">
       ${mi('<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>')}
       <span class="grow">대화 새로고침<br><span class="ms">지금 바로 서버에서 다시 받아오기</span></span>
-    </button>`);
+    </button>`,
+  { title: `${esc(t.clientName)} 님`, sub: `메시지 ${t.msgs.length}개 · 숙제 ${hw.length}개` });
 }
 
 // ── 숙제 ──────────────────────────────────────────────────────────────
@@ -1183,12 +1604,11 @@ function openRoomMenu() {
 //  예약 행이 없어서 영영 숙제를 못 받았다. 채팅 스레드에는 clientId 가 있으므로
 //  여기서 내면 그 사람에게 바로 꽂힌다 (내담자 앱은 clientId 로 폴링한다).
 function openHomeworkSheet() {
-  const t = curThread();
+  const t = actTarget();
   if (!t) return;
   if (!t.clientId) { toast('이 대화에는 내담자 식별자가 없어 숙제를 보낼 수 없어요.'); return; }
   const mine = D.homework.filter(h => h.clientId === t.clientId);
   sheet(`
-    <h3 class="serif">${esc(t.clientName)} 님에게 숙제 내기</h3>
     <p class="muted" style="margin-bottom:0.9rem;">오늘 안에 30분 이내로 할 수 있는 <b>행동</b> 하나로 적어주세요.
       내담자 앱의 '나를 위한 미션'에 그대로 꽂힙니다.</p>
     <label><span>과제 내용 (필수)</span>
@@ -1197,10 +1617,10 @@ function openHomeworkSheet() {
       <input id="hw-why" maxlength="200" placeholder="예: 스스로를 깎아내리는 습관을 뒤집기 위해"></label>
     <label><span>마감일 (선택)</span>
       <input id="hw-due" type="date"></label>
-    <button class="btn" data-act="hw-send">숙제 보내기</button>
-    <div class="sec-title">${esc(t.clientName)} 님에게 낸 숙제 ${mine.length ? `· 완료 ${mine.filter(h => h.doneAt).length}/${mine.length}` : ''}</div>
-    <div class="card">${mine.length ? hwListHtml(mine) : '<p class="muted">아직 낸 숙제가 없어요.</p>'}</div>
-  `);
+    <div class="sec-title">지금까지 낸 숙제 ${mine.length ? `· 완료 ${mine.filter(h => h.doneAt).length}/${mine.length}` : ''}</div>
+    <div class="card">${mine.length ? hwListHtml(mine) : '<p class="muted">아직 낸 숙제가 없어요.</p>'}</div>`,
+  { title: `${esc(t.clientName)} 님에게 숙제 내기`, back: sheetBack(),
+    foot: '<button class="btn" data-act="hw-send">숙제 보내기</button>' });
 }
 
 function hwListHtml(items, withClient) {
@@ -1220,8 +1640,8 @@ function hwListHtml(items, withClient) {
     </div>`).join('');
 }
 
-async function sendHomework() {
-  const t = curThread();
+async function sendHomework(btn) {
+  const t = actTarget();
   if (!t) return;
   const text = ($('hw-text').value || '').trim();
   if (!text) { toast('과제 내용을 적어주세요'); $('hw-text').focus(); return; }
@@ -1229,28 +1649,207 @@ async function sendHomework() {
   const dueStr = ($('hw-due').value || '').trim();
   // 마감은 그날 하루가 끝날 때까지로 잡는다 — 0시로 잡으면 하루를 통째로 잃는다
   const dueAt = dueStr ? new Date(dueStr + 'T23:59:00').getTime() : 0;
+  if (btn && btn.tagName === 'BUTTON') { btn.disabled = true; btn.textContent = '보내는 중…'; }
   const r = await postJson('/api/homework', authBody({
     clientId: t.clientId, clientName: t.clientName, text, why, dueAt
   }));
-  if (!r || !r.ok) { toast((r && r.error) || '보내지 못했어요'); return; }
-  closeSheet();
+  if (!r || !r.ok) {
+    if (btn && btn.isConnected) { btn.disabled = false; btn.textContent = '숙제 보내기'; }
+    toast((r && r.error) || '보내지 못했어요. 잠시 후 다시 시도해주세요');
+    return;
+  }
   toast(t.clientName + ' 님에게 숙제를 보냈어요');
   await loadHomework();
-  renderRoom(); renderHome();
+  sheetDone();
+  if (ROOM) renderRoom();
+  renderHome(); renderClients();
 }
 
 // ============================================================================
-//  ③ 예약
+//  ③ 내담자 — 한 사람에 대한 모든 것을 한 곳에
+//   예약은 예약 탭, 대화는 채팅 탭, 회기 기록과 숙제는 홈의 접힌 섹션에 흩어져 있었다.
+//   상담 직전 3분에 '이 분과 지난번에 뭘 했더라'를 보려면 네 군데를 돌아야 했다.
+//   서버에 '내담자 목록' API 는 없다 — 이미 받아 둔 예약·대화·기록·숙제·통화를 사람별로 묶는다.
 // ============================================================================
-function bookingCard(b) {
+function clients() {
+  const now = Date.now();
+  const map = new Map();
+  const get = (id, name) => {
+    const key = id || ('n:' + (name || ''));
+    if (!map.has(key)) map.set(key, { key, clientId: id || '', clientName: name || '내담자',
+      bookings: [], notes: [], hw: [], calls: [], inbox: [], thread: null });
+    const c = map.get(key);
+    if (name && c.clientName === '내담자') c.clientName = name;
+    return c;
+  };
+  threads().forEach(t => { const c = get(t.clientId, t.clientName); c.thread = t; });
+  D.bookings.forEach(b => get(b.clientId, b.clientName).bookings.push(b));
+  D.notes.forEach(n => { if (n.clientId) get(n.clientId, n.clientName).notes.push(n); });
+  D.homework.forEach(h => { if (h.clientId) get(h.clientId, h.clientName || '').hw.push(h); });
+  D.calls.forEach(k => { if (k.clientId) get(k.clientId, '').calls.push(k); });
+  // 운영자 공지도 '받은 자료'로 들어온다(clientId 가 admin) — 사람이 아니므로 뺀다
+  D.inbox.forEach(it => { if (it.clientId && it.clientId !== 'admin') get(it.clientId, it.clientName).inbox.push(it); });
+  const arr = [...map.values()];
+  arr.forEach(c => {
+    if (c.clientName === '내담자' && c.clientId) c.clientName = nameOfClient(c.clientId);
+    c.counselorId = (c.thread && c.thread.counselorId) || (ME ? ME.id : '');
+    c.counselorName = (c.thread && c.thread.counselorName) || (ME ? ME.name : '');
+    const live = c.bookings.filter(b => !DEAD.includes(b.status));
+    c.next = live.filter(b => b.status === 'confirmed' && b.whenTs > now).sort((a, b) => a.whenTs - b.whenTs)[0] || null;
+    c.sessions = c.bookings.filter(b => b.status === 'done').length + c.calls.length;
+    c.pending = D.pending.filter(p => p.clientId && p.clientId === c.clientId);
+    c.needDone = live.filter(b => b.status === 'confirmed' && b.whenTs <= now).length;
+    c.unread = c.thread ? c.thread.unread : 0;
+    c.todo = c.pending.length + c.needDone + c.unread;
+    c.last = Math.max(0,
+      c.thread && c.thread.last ? c.thread.last.ts : 0,
+      ...live.filter(b => b.whenTs <= now).map(b => b.whenTs),
+      ...c.calls.map(k => k.at || 0), ...c.notes.map(n => n.ts || 0));
+  });
+  // 최근에 연락한 사람이 위로. 아직 만난 적 없이 예약만 잡힌 사람은 '곧 만날 사람'이라 맨 위에 둔다.
+  arr.sort((a, b) => (b.last || (b.next ? now : 0)) - (a.last || (a.next ? now : 0)));
+  return arr;
+}
+
+function relDay(ts) {
+  if (!ts) return '';
+  const day0 = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const n = Math.round((day0(Date.now()) - day0(ts)) / 86400000);
+  if (n <= 0) return '오늘';
+  if (n === 1) return '어제';
+  if (n < 30) return n + '일 전';
+  return new Date(ts).toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' });
+}
+
+function clientListHtml(list, q, total) {
+  if (!list.length) {
+    if (q) return `<div class="card">${empty('search', `'${esc(q)}' 검색 결과가 없어요`, '이름이나 내 메모의 일부로 찾을 수 있어요.')}</div>`;
+    if (total) return `<div class="card">${empty('inbox', '여기에 해당하는 내담자가 없어요', '위의 [전체]를 누르면 모두 볼 수 있어요.')}</div>`;
+    return `<div class="card">${empty('chat', '아직 내담자가 없어요', '예약이나 채팅이 들어오면<br>여기에 자동으로 모입니다.')}
+      <button class="btn soft" style="margin-bottom:0.4rem;" data-act="go-fold" data-tab="home" data-key="slots">예약 가능 시간 열어두기</button></div>`;
+  }
+  return `<div class="card pad0">${list.map(c => {
+    const bits = [];
+    if (c.last) bits.push('마지막 연락 ' + relDay(c.last));
+    if (c.sessions) bits.push(`상담 ${c.sessions}회`);
+    if (!bits.length) bits.push('아직 만나기 전이에요');
+    const nd = c.next ? new Date(c.next.whenTs) : null;
+    return `<div class="thread ${c.unread ? 'unread' : ''}" data-act="client-open" data-key="${esc(c.key)}" role="button" tabindex="0">
+        ${avatar(c.clientName)}
+        <div class="grow">
+          <div class="nm ell">${hlight(c.clientName, q)} 님</div>
+          <div class="pv ell">${bits.join(' · ')}</div>
+          ${(nd || c.todo) ? `<div class="row" style="gap:0.3rem; margin-top:0.3rem; flex-wrap:wrap;">
+            ${nd ? `<span class="chip ok">다음 예약 ${nd.getMonth() + 1}/${nd.getDate()} ${hhmm(c.next.whenTs)}</span>` : ''}
+            ${c.pending.length ? '<span class="chip new">기록 필요</span>' : ''}
+            ${c.needDone ? '<span class="chip gold">완료 처리 필요</span>' : ''}
+            ${c.unread ? `<span class="chip new">새 메시지 ${c.unread}</span>` : ''}</div>` : ''}
+        </div>
+        <span style="color:var(--sub); line-height:0; flex-shrink:0;">${CHEV}</span>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+function renderClients() {
+  const el = $('view-client');
+  if (!el) return;
+  if (notReady(el, skelView(4))) return;
+  const all = clients();
+  const q = CLIENTQ.trim().toLowerCase();
+  const cnt = { all: all.length, next: all.filter(c => c.next).length, todo: all.filter(c => c.todo).length };
+  let list = q ? all.filter(c => (c.clientName || '').toLowerCase().includes(q) || noteOf(c).toLowerCase().includes(q)) : all;
+  if (CLIENTF === 'next') list = list.filter(c => c.next);
+  if (CLIENTF === 'todo') list = list.filter(c => c.todo);
+  // 검색어를 치는 동안에는 목록만 갈아 끼운다 (입력창을 다시 그리면 커서가 튄다)
+  if ($('client-list') && busy(el)) { $('client-list').innerHTML = clientListHtml(list, q, all.length); return; }
+  const chip = (k, label) => `<button class="${CLIENTF === k ? 'on' : ''}" data-act="client-filter" data-arg="${k}" aria-pressed="${CLIENTF === k}">${label}<b>${cnt[k]}</b></button>`;
+  el.innerHTML = `
+    ${netBanner()}
+    <div class="searchbar">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21"/></svg>
+      <input id="client-search" class="grow" type="text" value="${esc(CLIENTQ)}" placeholder="이름·내 메모 검색" autocomplete="off" aria-label="내담자 검색">
+      <button class="x" id="client-x" data-act="client-clear" aria-label="검색어 지우기" ${CLIENTQ ? '' : 'hidden'}>×</button>
+    </div>
+    <div class="fchips">${chip('all', '전체')}${chip('next', '예약 예정')}${chip('todo', '할 일 있음')}</div>
+    <div id="client-list">${clientListHtml(list, q, all.length)}</div>
+    ${all.length ? '<p class="muted" style="text-align:center; margin-top:0.8rem;">예약·채팅·통화로 이어진 내담자가 자동으로 모여요.</p>' : ''}`;
+}
+
+// 내담자 한 사람 — 바로 할 수 있는 일 네 가지 + 날짜순 기록
+function openClientSheet(key, keepScroll) {
+  const c = clients().find(x => x.key === key);
+  if (!c) { toast('이 내담자의 기록을 찾지 못했어요'); return; }
+  SHEET_T = { key: c.key, clientId: c.clientId, clientName: c.clientName, counselorId: c.counselorId, counselorName: c.counselorName };
+  const now = Date.now();
+  const memo = noteOf(c);
+  const hasId = !!c.clientId;
+  const cut = (s, n) => { s = String(s || ''); return esc(s.slice(0, n)) + (s.length > n ? '…' : ''); };
+
+  const ev = [];
+  c.bookings.forEach(b => {
+    const noNote = b.status === 'done' && !b.settledAt && !D.notes.some(n => n.bookingId === b.id);
+    ev.push({ ts: b.whenTs, cls: DEAD.includes(b.status) ? 'dim' : ((b.status === 'confirmed' && b.whenTs <= now) || noNote ? 'warn' : ''),
+      what: `예약 상담 ${bookingBadge(b)}`,
+      sub: `${won(b.price)}캐시${b.cnote ? ' · 메모: ' + cut(b.cnote, 60) : ''}`,
+      btn: noNote ? `<button class="btn sm" style="margin-top:0.4rem;" data-act="sn-open" data-client-id="${esc(b.clientId || '')}" data-client-name="${esc(b.clientName)}" data-booking-id="${esc(b.id)}" data-kind="booking" data-ts="${b.whenTs}">회기 기록 남기기</button>` : '' });
+  });
+  c.notes.forEach(n => ev.push({ ts: n.ts, what: `회기 기록 ${RISK_CHIP[n.risk] || ''}${n.shared ? '' : '<span class="chip off">비공유</span>'}`,
+    sub: cut(n.summary, 110) + (n.plan ? `<br><b>계획</b> ${cut(n.plan, 80)}` : ''),
+    btn: `<button class="btn ghost sm" style="margin-top:0.4rem;" data-act="sn-edit" data-id="${esc(n.id)}">고치기</button>` }));
+  c.hw.forEach(h => ev.push({ ts: h.assignedAt, cls: h.doneAt ? '' : 'dim',
+    what: `숙제 ${h.doneAt ? '<span class="chip ok">했어요</span>' : '<span class="chip new">진행 중</span>'}`,
+    sub: cut(h.text, 100) + (h.note ? `<br><span style="color:var(--accent);">소감 · "${cut(h.note, 80)}"</span>` : '') }));
+  c.calls.forEach(k => ev.push({ ts: k.at, what: '음성 상담', sub: `${mmss(k.consultSeconds || 0)} · ${won(k.charge)}캐시` }));
+  c.inbox.forEach(it => ev.push({ ts: it.ts, cls: 'dim', what: '상담 자료 도착', sub: cut(it.text, 70) }));
+  if (c.thread && c.thread.last) ev.push({ ts: c.thread.last.ts, cls: 'dim', what: '마지막 메시지',
+    sub: (c.thread.last.from === 'counselor' ? '나: ' : '') + cut(c.thread.last.text, 70) });
+  ev.sort((a, b) => b.ts - a.ts);
+
+  const q = (act, label, svg, off) => `<button data-act="${act}" data-cid="${esc(c.clientId)}" data-nm="${esc(c.clientName)}" ${off ? 'disabled style="opacity:0.4;"' : ''}>${svg}${label}</button>`;
+  const S = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  const bits = [];
+  if (c.last) bits.push('마지막 연락 ' + relDay(c.last));
+  bits.push(`상담 ${c.sessions}회`);
+
+  sheet(`
+    <div class="quad">
+      ${q('cl-chat', '채팅', S('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/>'), !hasId && !c.thread)}
+      ${q('cl-call', '전화', S('<path d="M5 4h3.5l1.6 4.2-2.2 1.5a12 12 0 0 0 6.4 6.4l1.5-2.2L20 15.5V19a2 2 0 0 1-2.2 2A15.8 15.8 0 0 1 3 6.2 2 2 0 0 1 5 4Z"/>'), !hasId)}
+      ${q('hw-open', '숙제', S('<path d="M9 11l2.5 2.5L16 8"/><rect x="4" y="4" width="16" height="16" rx="4"/>'), !hasId)}
+      ${q('sn-open-room', '회기 기록', S('<path d="M5 4h11l3 3v13H5z"/><path d="M8 12h8M8 16h5"/>'), !hasId)}
+    </div>
+    ${c.next ? `<div class="card" style="border-color:rgba(79,138,107,0.4);">
+        <div class="row"><span class="chip ok">다음 예약</span>
+          <strong class="grow" style="font-size:0.9rem;">${dayLabel(c.next.whenTs).replace(/^\d+년 /, '')} ${hhmm(c.next.whenTs)}</strong></div>
+        <p class="muted" style="margin-top:0.2rem;" data-until="${c.next.whenTs}">${untilText(c.next.whenTs)}</p></div>` : ''}
+    <button class="menurow" data-act="note-open">
+      <span class="mi">${S('<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H15l5 5v9.5A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5z"/><path d="M14 4v6h6"/>').replace('<svg', '<svg width="17" height="17"')}</span>
+      <span class="grow">내 메모<br><span class="ms">${memo ? cut(memo, 60) : '이 기기에만 저장돼요. 눌러서 적어두세요.'}</span></span>
+      <span style="color:var(--sub); line-height:0;">${CHEV}</span>
+    </button>
+    <div class="sec-title">지나온 기록<span class="right muted">${ev.length ? ev.length + '건' : ''}</span></div>
+    ${ev.length ? `<div class="card"><div class="tl">${ev.slice(0, 40).map(x => `
+        <div class="ev ${x.cls || ''}">
+          <div class="when">${x.ts > now ? '예정 · ' : ''}${fmtDT(x.ts)}</div>
+          <div class="what">${x.what}</div>
+          ${x.sub ? `<div class="muted">${x.sub}</div>` : ''}${x.btn || ''}
+        </div>`).join('')}</div>
+        ${ev.length > 40 ? '<p class="muted">최근 40건만 보여드려요.</p>' : ''}</div>`
+      : `<div class="card">${empty('inbox', '아직 기록이 없어요', '상담을 하고 회기 기록을 남기면<br>여기에 날짜순으로 쌓여요.')}</div>`}`,
+  { title: `${esc(c.clientName)} 님`, sub: bits.join(' · '), kind: 'client', back: ROOM ? 'room-menu' : '', keepScroll: !!keepScroll });
+}
+
+// ============================================================================
+//  ④ 예약
+// ============================================================================
+// 예약 한 건의 상태를 칩 하나로. 예약 카드와 내담자 기록(타임라인)이 같은 말을 써야 한다.
+function bookingBadge(b) {
   const now = Date.now();
   const dead = DEAD.includes(b.status);
   const past = b.whenTs <= now;
   const soon = !dead && b.status === 'confirmed' && Math.abs(b.whenTs - now) < 3600000;
   const done = b.status === 'done', disputed = b.status === 'disputed', paid = b.settledAt > 0;
-
-  const badge =
-      b.status === 'cancelled' ? '<span class="chip off">내담자 취소</span>'
+  return b.status === 'cancelled' ? '<span class="chip off">내담자 취소</span>'
     : b.status === 'late_cancel' ? `<span class="chip gold">늦은 취소 · 50% 정산${paid ? ' 완료' : ''}</span>`
     : b.status === 'declined' ? '<span class="chip bad">거절함 · 전액 환불</span>'
     : b.status === 'noshow' ? '<span class="chip bad">미진행</span>'
@@ -1263,9 +1862,21 @@ function bookingCard(b) {
     : soon ? '<span class="chip new">곧 시작</span>'
     : past ? '<span class="chip new">완료 처리 필요</span>'
     : '<span class="chip ok">확정</span>';
+}
+
+function bookingCard(b) {
+  const now = Date.now();
+  const dead = DEAD.includes(b.status);
+  const past = b.whenTs <= now;
+  const soon = !dead && b.status === 'confirmed' && Math.abs(b.whenTs - now) < 3600000;
+  const done = b.status === 'done', disputed = b.status === 'disputed', paid = b.settledAt > 0;
+  const badge = bookingBadge(b);
+  // 완료했는데 회기 기록이 없다 — 정산이 여기서 멈춰 있다는 걸 그 카드에서 바로 말해 준다
+  const noNote = done && !paid && !D.notes.some(n => n.bookingId === b.id);
 
   const hint = (!dead && !done && !disputed && past)
-    ? '<p class="muted" style="margin-top:0.35rem; color:var(--warn);">상담을 마치셨다면 [상담 완료]를 눌러주세요. 눌러야 정산이 시작됩니다.</p>' : '';
+    ? '<p class="muted" style="margin-top:0.35rem; color:var(--warn);">상담을 마치셨다면 [상담 완료]를 눌러주세요. 눌러야 정산이 시작됩니다.</p>'
+    : noNote ? '<p class="muted" style="margin-top:0.35rem; color:var(--warn);">회기 기록을 남겨야 정산에 올라가요.</p>' : '';
   const autoNote = (done && !b.confirmAt && b.autoAt)
     ? `<p class="muted" style="margin-top:0.35rem;">내담자가 확인하지 않아도 ${new Date(b.autoAt).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}에 자동 확정돼요.</p>` : '';
   const disputeNote = disputed
@@ -1277,6 +1888,8 @@ function bookingCard(b) {
     `<button class="btn ${cls || 'ghost'} sm" style="margin:0.4rem 0.3rem 0 0;" data-act="${act}" data-id="${esc(b.id)}" data-nm="${esc(b.clientName)}" data-cid="${esc(b.clientId || '')}">${label}</button>`;
 
   let actions = '';
+  if (noNote) actions += `<button class="btn sm" style="margin:0.4rem 0.3rem 0 0;" data-act="sn-open" data-client-id="${esc(b.clientId || '')}" data-client-name="${esc(b.clientName)}" data-booking-id="${esc(b.id)}" data-kind="booking" data-ts="${b.whenTs}">회기 기록 남기기</button>`;
+  if (!dead && b.clientId) actions += `<button class="btn soft sm" style="margin:0.4rem 0.3rem 0 0;" data-act="cl-chat" data-cid="${esc(b.clientId)}" data-nm="${esc(b.clientName)}">채팅</button>`;
   if (!dead && !paid) {
     if (b.status === 'confirmed' && !past) actions += mini('예약 거절 (전액 환불)', 'bk-decline');
     if (b.status === 'confirmed' && past) {
@@ -1288,14 +1901,15 @@ function bookingCard(b) {
   }
 
   const wd = new Date(b.whenTs);
-  return `<div class="card" style="${dead ? 'opacity:0.55;' : ''}${soon || (past && b.status === 'confirmed') ? 'border-color:var(--accent);' : ''}">
+  return `<div class="card" style="${dead ? 'opacity:0.6;' : ''}${soon || (past && b.status === 'confirmed') ? 'border-color:var(--accent);' : ''}">
       <div class="bkitem">
         <div class="bktime ${soon ? 'hot' : ''}">
           <b>${hhmm(b.whenTs)}</b><span>${wd.getMonth() + 1}/${wd.getDate()} (${DAYNM[wd.getDay()]})</span>
         </div>
         <div class="grow">
           <div class="row" style="gap:0.4rem;">
-            <strong class="grow" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}">${esc(b.clientName)} 님${dead ? '' : ' · 30분'}</strong>
+            <button class="linkname grow" data-act="client-open" data-key="${esc(clientKeyOf(b))}" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}"
+              aria-label="${esc(b.clientName)} 님 기록 보기">${esc(b.clientName)} 님${dead ? '' : ' · 30분'}</button>
             ${badge}
           </div>
           <p class="muted" style="margin-top:0.3rem;">${esc(b.time)}<br>${won(b.price)}캐시${dead ? '' : ` · 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>`}${b.status === 'late_cancel' ? ` · 취소 수수료 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>` : ''}</p>
@@ -1333,7 +1947,7 @@ function calHtml() {
     const needsDone = list.some(b => b.status === 'confirmed' && b.whenTs <= Date.now());
     const dots = list.slice(0, 3).map(() => `<i class="${needsDone ? 'warn' : ''}"></i>`).join('');
     grid += `<button class="cell ${inMonth ? '' : 'off'} ${key === todayKey ? 'today' : ''} ${key === CAL.sel ? 'sel' : ''}"
-        ${inMonth ? `data-act="cal-day" data-arg="${key}"` : 'disabled'}>
+        ${inMonth ? `data-act="cal-day" data-arg="${key}" aria-label="${m + 1}월 ${dnum}일${list.length ? ', 예약 ' + list.length + '건' : ''}" aria-pressed="${key === CAL.sel}"` : 'disabled aria-hidden="true"'}>
         <span>${dnum >= 1 && dnum <= days ? dnum : ''}</span>
         <span class="row" style="gap:2px; height:5px;">${dots}</span>
       </button>`;
@@ -1355,7 +1969,8 @@ function calHtml() {
         </button>
         <div class="grow" style="text-align:center;">
           <strong class="serif" style="font-size:1.05rem;">${y}년 ${m + 1}월</strong>
-          <div class="muted">예약 ${monthCount}건</div>
+          <div class="muted">예약 ${monthCount}건${(y === new Date().getFullYear() && m === new Date().getMonth()) ? ''
+            : ' · <button data-act="cal-today" style="all:unset; cursor:pointer; color:var(--accent); font-weight:700; padding:0.3rem 0;">오늘로</button>'}</div>
         </div>
         <button class="iconbtn" data-act="cal-move" data-arg="1" aria-label="다음 달">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
@@ -1366,7 +1981,7 @@ function calHtml() {
         <span style="color:var(--warn); font-weight:700;">주황 점</span>은 완료 처리가 밀린 날이에요</p>
     </div>
     ${CAL.sel ? `<div class="sec-title">${selDate[1]}월 ${selDate[2]}일<span class="right muted">${selList.length}건</span></div>` +
-        (selList.length ? selList.map(bookingCard).join('')
+        (selList.length ? `<div class="cardgrid">${selList.map(bookingCard).join('')}</div>`
           : `<div class="card">${empty('cal', '이 날은 예약이 없어요', '비어 있는 시간도 회복에 필요합니다.')}</div>`)
       : '<p class="muted" style="text-align:center; margin-top:0.9rem;">날짜를 누르면 그 날의 예약을 볼 수 있어요.</p>'}`;
 }
@@ -1374,17 +1989,21 @@ function calHtml() {
 function renderBookings() {
   const el = $('view-book');
   if (busy(el)) return;
+  if (notReady(el, skelView(3))) return;
   const now = Date.now();
   const up = D.bookings.filter(b => b.whenTs > now && !DEAD.includes(b.status)).sort((a, b) => a.whenTs - b.whenTs);
   const pastAll = D.bookings.filter(b => !(b.whenTs > now && !DEAD.includes(b.status))).sort((a, b) => b.whenTs - a.whenTs);
   const todo = pastAll.filter(b => b.status === 'confirmed');
   const rest = pastAll.filter(b => b.status !== 'confirmed');
+  const past = rest.filter(b => !DEAD.includes(b.status));
+  const off = rest.filter(b => DEAD.includes(b.status));
 
   const toggle = `
+    ${netBanner()}
     <div class="row" style="margin:0.1rem 0.1rem 0.7rem;">
-      <div class="seg grow" style="flex:0 0 auto;">
-        <button class="${BOOKVIEW === 'list' ? 'on' : ''}" data-act="bookview" data-arg="list">목록</button>
-        <button class="${BOOKVIEW === 'cal' ? 'on' : ''}" data-act="bookview" data-arg="cal">달력</button>
+      <div class="seg grow" style="flex:0 0 auto;" role="group" aria-label="보기 방식">
+        <button class="${BOOKVIEW === 'list' ? 'on' : ''}" data-act="bookview" data-arg="list" aria-pressed="${BOOKVIEW === 'list'}">목록</button>
+        <button class="${BOOKVIEW === 'cal' ? 'on' : ''}" data-act="bookview" data-arg="cal" aria-pressed="${BOOKVIEW === 'cal'}">달력</button>
       </div>
       <span class="grow"></span>
       <button class="btn ghost sm" data-act="refresh">새로고침</button>
@@ -1392,16 +2011,42 @@ function renderBookings() {
 
   if (!D.bookings.length) {
     el.innerHTML = toggle + `<div class="card">${empty('cal', '아직 예약이 없어요',
-      '내담자가 앱에서 예약하면 여기에 실시간으로 떠요.<br>[내 정보 → 예약 가능 시간]을 열어두면 더 빨리 찹니다.')}</div>`;
+      '내담자가 앱에서 예약하면 여기에 바로 떠요.<br>예약 가능 시간을 열어두면 더 빨리 찹니다.')}
+      <button class="btn soft" style="margin-bottom:0.4rem;" data-act="go-fold" data-tab="home" data-key="slots">예약 가능 시간 열기</button></div>`;
     return;
   }
   if (BOOKVIEW === 'cal') { el.innerHTML = toggle + calHtml(); return; }
 
-  el.innerHTML = toggle +
-    (todo.length ? `<div class="sec-title" style="color:var(--warn);">완료 처리가 필요해요<span class="right">${todo.length}건</span></div>${todo.map(bookingCard).join('')}` : '') +
-    `<div class="sec-title">다가오는 예약<span class="right muted">${up.length}건</span></div>` +
-    (up.length ? up.map(bookingCard).join('') : `<div class="card">${empty('cal', '앞으로 잡힌 예약이 없어요', '예약 가능 시간을 넓혀두면 매칭이 늘어요.')}</div>`) +
-    (rest.length ? `<div class="sec-title">지난 예약<span class="right muted">${rest.length}건</span></div>${rest.slice(0, 40).map(bookingCard).join('')}` : '');
+  // 걸러 보기 — 예약이 쌓이면 '할 일만', '취소된 것만' 따로 보고 싶어진다
+  const chip = (k, label, n) => `<button class="${BOOKF === k ? 'on' : ''}" data-act="book-filter" data-arg="${k}" aria-pressed="${BOOKF === k}">${label}<b>${n}</b></button>`;
+  const chips = `<div class="fchips">${chip('all', '전체', D.bookings.length)}${chip('todo', '할 일', todo.length)}${chip('up', '다가오는', up.length)}${chip('past', '지난 상담', past.length)}${chip('off', '취소·환불', off.length)}</div>`;
+  const grid = list => `<div class="cardgrid">${list.map(bookingCard).join('')}</div>`;
+  const none = (title, body) => `<div class="card">${empty('cal', title, body)}</div>`;
+  // 한 번에 40건까지만 그린다 — 몇백 건을 다 그리면 폰이 버벅인다. 더 보고 싶으면 펼친다.
+  const capped = list => grid(BOOKMORE ? list : list.slice(0, 40)) +
+    (list.length > 40 && !BOOKMORE ? `<button class="btn ghost" data-act="book-more">나머지 ${list.length - 40}건 더 보기</button>` : '');
+
+  let body;
+  if (BOOKF === 'todo') {
+    body = todo.length
+      ? `<p class="muted" style="margin:0 0.2rem 0.6rem;">상담 시간이 지난 예약이에요. [상담 완료]를 눌러야 정산이 시작돼요.</p>${grid(todo)}`
+      : none('밀린 일이 없어요', '완료 처리할 예약이 생기면 여기에 모여요.');
+  } else if (BOOKF === 'up') {
+    body = up.length ? grid(up) : none('앞으로 잡힌 예약이 없어요', '예약 가능 시간을 넓혀두면 매칭이 늘어요.');
+  } else if (BOOKF === 'past') {
+    body = past.length ? capped(past) : none('지난 상담이 아직 없어요', '상담을 마치면 여기에 쌓여요.');
+  } else if (BOOKF === 'off') {
+    body = off.length
+      ? `<p class="muted" style="margin:0 0.2rem 0.6rem;">취소·거절·환불된 예약이에요. 상담 24시간 이내에 내담자가 취소한 건(늦은 취소)은 상담료의 50%가 정산돼요.</p>${capped(off)}`
+      : none('취소되거나 환불된 예약이 없어요', '');
+  } else {
+    body =
+      (todo.length ? `<div class="sec-title" style="color:var(--warn);">완료 처리가 필요해요<span class="right">${todo.length}건</span></div>${grid(todo)}` : '') +
+      `<div class="sec-title">다가오는 예약<span class="right muted">${up.length}건</span></div>` +
+      (up.length ? grid(up) : none('앞으로 잡힌 예약이 없어요', '예약 가능 시간을 넓혀두면 매칭이 늘어요.')) +
+      (rest.length ? `<div class="sec-title">지난 예약<span class="right muted">${rest.length}건</span></div>${capped(rest)}` : '');
+  }
+  el.innerHTML = toggle + chips + body;
 }
 
 // ============================================================================
@@ -1491,18 +2136,16 @@ const subBanner = () => {
 //  그전까지는 운영팀이 ops 콘솔에서 수동으로 연장한다.
 function openSubPay() {
   const s = subInfo();
-  alert(
-    '구독 안내\n\n' +
-    '월 ' + won(PRO_SUB_PRICE) + '원 (등록 승인 후 첫 1개월 무료)\n' +
-    (s ? (s.active ? '지금 구독은 ' + subDay(s.until) + '까지예요.\n' : '지금은 만료 상태예요.\n') : '') +
-    '\n앱 내 결제는 준비 중이에요.\n' +
-    '운영팀에 연락 주시면 바로 연장해드립니다.\n' +
-    '(마인드 인사이드 운영팀 help@neurumind.com)'
-  );
+  uiAlert({
+    title: '구독 안내',
+    html: `월 <b>${won(PRO_SUB_PRICE)}원</b> (등록 승인 후 첫 1개월 무료)<br>` +
+      (s ? (s.active ? `지금 구독은 ${subDay(s.until)}까지예요.<br>` : '지금은 만료 상태예요.<br>') : '') +
+      '<br>앱 안에서 결제하는 기능은 준비 중이에요.<br>운영팀에 연락 주시면 바로 연장해드립니다.<br><b>help@neurumind.com</b>'
+  });
 }
 
 // ============================================================================
-//  ④ 정산
+//  ⑤ 정산
 // ============================================================================
 // 사업소득 원천징수 3.3% 뒤 금액 — market.js withholdingOf 와 같은 계산(소득세 1,000원 미만은 안 뗌)
 function withhold33(amount) {
@@ -1515,6 +2158,7 @@ function withhold33(amount) {
 function renderMoney() {
   const el = $('view-money');
   if (busy(el)) return;
+  if (notReady(el, skelView(3))) return;
   // 상담소를 통해 등록한 내담자의 상담은 '상담소가' 상담사에게 지급한다(앱은 상담소에만 보낸다).
   //  두 돈을 한 줄에 합치면 상담사가 '앱에서 들어올 돈'을 잘못 읽는다 — 묶음을 갈라 둔다.
   const isHosp = x => x && x.channel === 'hospital';
@@ -1522,9 +2166,6 @@ function renderMoney() {
   const earned = earnedAll.filter(b => !isHosp(b));
   const hospBookings = earnedAll.filter(isHosp);
   const total = earned.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
-  const ms = monthStart();
-  const month = earned.filter(b => b.whenTs >= ms);
-  const monthSum = month.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0);
   const paid = earned.filter(b => b.settledAt > 0).reduce((s, b) => s + b.payout.counselor, 0);
 
   // 바로상담(음성 상담)도 정산 대상이다 — 예약과 같은 비율(상담사 70%, 6만 원 넘는 부분 55%).
@@ -1540,7 +2181,6 @@ function renderMoney() {
   //  상담소 채널은 상담소가 90 을 받고 그중에서 상담사에게 지급한다 — 앱은 금액을 단정하지 않는다
   const hospGross = hospBookings.reduce((s, b) => s + (b.price || 0), 0) + hospCalls.reduce((s, c) => s + (c.charge || 0), 0);
   const callTotal = calls.reduce((s, c) => s + share(c.charge), 0);
-  const callMonth = calls.filter(c => c.at >= ms).reduce((s, c) => s + share(c.charge), 0);
   const callPaid = calls.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
   const waiting = (total + callTotal) - (paid + callPaid);
   // 회기 기록이 없는 상담은 정산에 올라가지 않는다 (사장님 지시 — 기록이 정산 조건).
@@ -1552,27 +2192,36 @@ function renderMoney() {
   const holdSum = holdB.reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0) + holdC.reduce((s, c) => s + share(c.charge), 0);
   const holdN = holdB.length + holdC.length;
 
+  // ── 보고 있는 달 ──
+  //  '이번 달 얼마'만 보여주면 지난달 정산이 끝났는지 확인할 길이 없다. 달을 넘겨 볼 수 있게 한다.
+  const amtB = b => (b.payout ? b.payout.counselor : 0);
+  const nowD = new Date();
+  const isCurM = MONEYM.y === nowD.getFullYear() && MONEYM.m === nowD.getMonth();
+  const mFrom = new Date(MONEYM.y, MONEYM.m, 1).getTime(), mTo = new Date(MONEYM.y, MONEYM.m + 1, 1).getTime();
+  const mB = earned.filter(b => b.whenTs >= mFrom && b.whenTs < mTo);
+  const mC = calls.filter(c => c.at >= mFrom && c.at < mTo);
+  const mSum = mB.reduce((s, b) => s + amtB(b), 0) + mC.reduce((s, c) => s + share(c.charge), 0);
+  const mPaid = mB.filter(b => b.settledAt > 0).reduce((s, b) => s + amtB(b), 0) + mC.filter(c => c.settledAt > 0).reduce((s, c) => s + share(c.charge), 0);
+  const mHold = mB.filter(b => holdB.includes(b)).reduce((s, b) => s + amtB(b), 0) + mC.filter(c => holdC.includes(c)).reduce((s, c) => s + share(c.charge), 0);
+  const mWait = Math.max(0, mSum - mPaid - mHold);
+  const pct = v => (mSum ? Math.round(v / mSum * 100) : 0);
+
   // 최근 6개월 — '이번 달이 지난달보다 나은가'는 숫자 하나로는 절대 안 보인다
   const months = [];
-  const mref = new Date();
+  const sumOf = (from, to) => earned.filter(b => b.whenTs >= from && b.whenTs < to).reduce((s, b) => s + amtB(b), 0)
+    + calls.filter(c => c.at >= from && c.at < to).reduce((s, c) => s + share(c.charge), 0);   // 음성 상담도 같이 센다
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(mref.getFullYear(), mref.getMonth() - i, 1);
-    const from = d.getTime(), to = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
-    const mCalls = calls.filter(c => c.at >= from && c.at < to);
-    const v = earned.filter(b => b.whenTs >= from && b.whenTs < to)
-      .reduce((s, b) => s + (b.payout ? b.payout.counselor : 0), 0)
-      + mCalls.reduce((s, c) => s + share(c.charge), 0);   // 음성 상담도 같이 센다
-    months.push({
-      label: (d.getMonth() + 1) + '월', v,
-      n: earned.filter(b => b.whenTs >= from && b.whenTs < to).length + mCalls.length
-    });
+    const d = new Date(nowD.getFullYear(), nowD.getMonth() - i, 1);
+    months.push({ label: (d.getMonth() + 1) + '월', key: d.getFullYear() + '-' + d.getMonth(),
+      v: sumOf(d.getTime(), new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()) });
   }
-  const prev = months[4] ? months[4].v : 0;
-  const diff = (monthSum + callMonth) - prev;
-  const trend = !prev && !(monthSum + callMonth) ? '아직 기록이 쌓이는 중이에요'
-    : diff > 0 ? `지난달보다 <b style="color:var(--accent)">+${won(diff)}캐시</b>`
-    : diff < 0 ? `지난달보다 <b style="color:var(--warn)">${won(diff)}캐시</b>`
-    : '지난달과 같아요';
+  const selIdx = months.findIndex(x => x.key === MONEYM.y + '-' + MONEYM.m);
+  const prev = sumOf(new Date(MONEYM.y, MONEYM.m - 1, 1).getTime(), mFrom);
+  const diff = mSum - prev;
+  const trend = !prev && !mSum ? '아직 기록이 쌓이는 중이에요'
+    : diff > 0 ? `전달보다 <b style="color:var(--accent)">+${won(diff)}캐시</b>`
+    : diff < 0 ? `전달보다 <b style="color:var(--warn)">${won(diff)}캐시</b>`
+    : '전달과 같아요';
 
   const subBox = subCard();
 
@@ -1581,13 +2230,13 @@ function renderMoney() {
         <strong class="grow" style="font-size:0.9rem;">최근 6개월 수입</strong>
         <span class="muted">${trend}</span>
       </div>
-      <div class="chartwrap">${barchart(months)}</div>
-      <p class="muted" style="margin-top:0.3rem;">막대 위 숫자는 천 캐시 단위예요 (예: 120k = 120,000캐시)</p>
+      <div class="chartwrap">${barchart(months, selIdx)}</div>
+      <p class="muted" style="margin-top:0.3rem;">막대를 누르면 그 달을 볼 수 있어요. 숫자는 천 캐시 단위예요 (120k = 120,000캐시)</p>
     </div>`;
 
   // 음성 상담(바로상담) 줄 — 예약과 섞어 놓으면 무엇으로 번 돈인지 알 수 없다.
   //  '음성 상담' 칩과 상담 시간을 함께 적어 예약 상담과 한눈에 구분되게 한다.
-  const callRows = calls.slice(0, 60).map(c => {
+  const callRows = mC.slice(0, 60).map(c => {
     const who = nameOfClient(c.clientId);
     return `
     <div class="listrow">
@@ -1600,12 +2249,13 @@ function renderMoney() {
       </div>
       <div style="text-align:right;">
         <strong style="font-size:0.88rem; color:var(--accent);">+${won(share(c.charge))}</strong>
-        <div>${c.settledAt ? '<span class="chip ok">지급 완료</span>' : '<span class="chip gold">정산 대기</span>'}</div>
+        <div>${c.settledAt ? '<span class="chip ok">지급 완료</span>'
+              : holdC.includes(c) ? '<span class="chip new">기록 필요</span>' : '<span class="chip gold">정산 대기</span>'}</div>
       </div>
     </div>`;
   }).join('');
 
-  const rows = earned.slice().sort((a, b) => b.whenTs - a.whenTs).slice(0, 60).map(b => `
+  const rows = mB.slice().sort((a, b) => b.whenTs - a.whenTs).slice(0, 60).map(b => `
     <div class="listrow">
       ${avatar(b.clientName, 'sm')}
       <div class="grow">
@@ -1613,22 +2263,46 @@ function renderMoney() {
         <div class="muted">${esc(b.time)}</div>
       </div>
       <div style="text-align:right;">
-        <strong style="font-size:0.88rem; color:var(--accent);">+${won(b.payout ? b.payout.counselor : 0)}</strong>
+        <strong style="font-size:0.88rem; color:var(--accent);">+${won(amtB(b))}</strong>
         <div>${b.settledAt ? '<span class="chip ok">지급 완료</span>'
               : b.status === 'late_cancel' ? '<span class="chip gold">늦은 취소 50%</span>'
+              : holdB.includes(b) ? '<span class="chip new">기록 필요</span>'
+              : b.status === 'done' && !b.confirmAt ? '<span class="chip off">내담자 확인 대기</span>'
               : b.status === 'done' ? '<span class="chip gold">정산 대기</span>'
               : '<span class="chip off">완료 처리 전</span>'}</div>
       </div>
     </div>`).join('');
 
+  const navBtn = (dir, label, off) => `<button class="iconbtn" data-act="money-month" data-arg="${dir}" aria-label="${label}" ${off ? 'disabled style="opacity:0.3;"' : ''}>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="${dir < 0 ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}"/></svg></button>`;
+
   el.innerHTML = `
+    ${netBanner()}
+    <div class="cols">
+    <div class="col">
+    <div style="order:1;">
     <div class="card" style="background:linear-gradient(135deg, var(--accent-soft), #fff);">
-      <div class="muted">이번 달 내 수입</div>
-      <div class="serif" style="font-size:2rem; color:var(--accent); line-height:1.3;">${won(monthSum + callMonth)}<span style="font-size:0.9rem;">캐시</span></div>
-      <div class="row" style="margin-top:0.6rem; gap:1.4rem;">
-        <div><div class="muted">이번 달 상담</div><strong>${month.length + calls.filter(c => c.at >= ms).length}건</strong></div>
+      <div class="row" style="margin:-0.3rem -0.5rem 0;">
+        ${navBtn(-1, '이전 달')}
+        <div class="grow" style="text-align:center;"><strong style="font-size:0.92rem;">${MONEYM.y}년 ${MONEYM.m + 1}월${isCurM ? ' <span class="chip ok">이번 달</span>' : ''}</strong></div>
+        ${navBtn(1, '다음 달', isCurM)}
+      </div>
+      <div class="muted" style="margin-top:0.4rem;">내 수입</div>
+      <div class="serif" style="font-size:2rem; color:var(--accent); line-height:1.3;">${won(mSum)}<span style="font-size:0.9rem;">캐시</span></div>
+      <div class="muted">상담 ${mB.length + mC.length}건 · ${trend}</div>
+      ${mSum ? `<div class="stack" role="img" aria-label="지급 완료 ${pct(mPaid)}%, 정산 대기 ${pct(mWait)}%, 보류 ${pct(mHold)}%">
+        <i style="width:${pct(mPaid)}%; background:var(--accent);"></i><i style="width:${pct(mWait)}%; background:#e5b94a;"></i><i style="width:${pct(mHold)}%; background:var(--warn);"></i></div>
+      <div class="legend">
+        <div><i style="background:var(--accent);"></i>지급 완료<b>${won(mPaid)}</b></div>
+        <div><i style="background:#e5b94a;"></i>정산 대기<b>${won(mWait)}</b></div>
+        <div><i style="background:var(--warn);"></i>기록 없어 보류<b>${won(mHold)}</b></div>
+      </div>` : `<p class="muted" style="margin-top:0.5rem;">이 달에는 정산할 상담이 없어요.</p>`}
+      <button class="btn ghost sm" style="margin-top:0.8rem;" data-act="money-help">정산은 어떻게 진행되나요?</button>
+    </div>
+    <div class="card">
+      <div class="row" style="gap:1.4rem;">
         <div><div class="muted">누적 수입</div><strong>${won(total + callTotal)}캐시</strong></div>
-        <div><div class="muted">지급 대기</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
+        <div><div class="muted">아직 못 받은 금액</div><strong style="color:var(--warn);">${won(waiting)}캐시</strong></div>
       </div>
       <p class="muted" style="margin-top:0.6rem;">정산 조건은 입점 때 이메일로 안내드린 내용을 따라요. 건별 지급액은 아래 목록에서 확인하세요.</p>
       ${waiting > 0 ? `<p class="muted" style="margin-top:0.3rem;">개인 상담사는 지급할 때 사업소득 3.3%를 원천징수해요. 지금 대기 금액이면 <b>약 ${won(withhold33(waiting))}원 입금</b> 예정이에요. 사업자 상담사는 세금계산서로 대체돼요.</p>` : ''}
@@ -1644,21 +2318,64 @@ function renderMoney() {
       <button class="btn" style="margin-top:0.7rem;" ${waiting ? '' : 'disabled'} data-act="withdraw">출금 신청</button>
     </div>
     ${subBox || ''}
-    <div class="sec-title">수입 흐름</div>
+    </div>
+    <div style="order:3;">
+    <div class="sec-title" style="margin-top:1.1rem;">수입 흐름</div>
     ${chartCard}
     <div class="sec-title">계좌</div>
     ${foldPayout()}
-    ${callRows ? `<div class="sec-title">음성 상담<span class="right muted">${calls.length}건</span></div>
+    </div>
+    </div>
+    <div class="col">
+    <div style="order:2;">
+    ${callRows ? `<div class="sec-title" style="margin-top:1.1rem;">${MONEYM.m + 1}월 음성 상담<span class="right muted">${mC.length}건</span></div>
     <div class="card pad0" style="padding:0 1.1rem;">${callRows}</div>
     <p class="muted" style="margin:0.4rem 0.2rem 0;">통화는 무료예요. [상담 시작]을 눌러 내담자가 동의한 구간만 정산됩니다.</p>` : ''}
-    <div class="sec-title">정산 내역<span class="right muted">${earned.length ? earned.length + '건' : ''}</span></div>
+    <div class="sec-title" style="margin-top:1.1rem;">${MONEYM.m + 1}월 정산 내역<span class="right muted">${mB.length ? mB.length + '건' : ''}</span></div>
     <div class="card ${rows ? 'pad0' : ''}" ${rows ? 'style="padding:0 1.1rem;"' : ''}>${rows ||
-      empty('money', '완료된 상담이 아직 없어요', '상담을 마치고 [상담 완료]를 누르면<br>여기에 정산이 쌓이기 시작해요.')}</div>`;
+      (earned.length
+        ? empty('money', '이 달에는 정산 내역이 없어요', '위의 화살표로 다른 달을 볼 수 있어요.')
+        : empty('money', '완료된 상담이 아직 없어요', '상담을 마치고 [상담 완료]를 누르면<br>여기에 정산이 쌓이기 시작해요.'))}</div>
+    </div>
+    </div>
+    </div>`;
+}
+
+// 정산이 어디까지 왔는지 — '정산 대기'·'보류' 같은 말이 무슨 뜻인지 풀어 쓴다.
+//  상담사가 가장 자주 묻는 질문이 "왜 아직 안 들어왔나요"다.
+function openMoneyHelp() {
+  const st = (chip, text) => `<div class="kv"><span style="flex-shrink:0;">${chip}</span><span class="k" style="color:var(--text);">${text}</span></div>`;
+  sheet(`
+    <div class="card">
+      <strong style="font-size:0.92rem;">돈이 들어오기까지</strong>
+      <ol class="steps">
+        <li><b>상담 완료 누르기</b><br><span class="muted">예약 시간이 지나면 예약 탭에서 [상담 완료]를 눌러요.</span></li>
+        <li><b>회기 기록 남기기</b><br><span class="muted">요약·계획·위험도를 적어요. 기록이 없으면 정산에 올라가지 않아요.</span></li>
+        <li><b>내담자 확인</b><br><span class="muted">내담자가 확인하면 바로, 확인하지 않아도 정해진 날에 자동으로 확정돼요.</span></li>
+        <li><b>지급</b><br><span class="muted">등록한 계좌로 들어와요. 개인 상담사는 3.3%를 떼고 입금돼요.</span></li>
+      </ol>
+    </div>
+    <div class="sec-title">이렇게 보이면</div>
+    <div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">
+      ${st('<span class="chip new">완료 처리 필요</span>', '상담 시간이 지났어요. [상담 완료]를 눌러주세요.')}
+      ${st('<span class="chip new">기록 필요</span>', '회기 기록이 없어 정산이 멈춰 있어요.')}
+      ${st('<span class="chip off">내담자 확인 대기</span>', '내담자의 확인을 기다려요. 기한이 지나면 자동 확정돼요.')}
+      ${st('<span class="chip gold">정산 대기</span>', '확정됐어요. 지급 차례를 기다리는 중이에요.')}
+      ${st('<span class="chip ok">지급 완료</span>', '계좌로 보냈어요.')}
+      ${st('<span class="chip gold">늦은 취소 50%</span>', '상담 24시간 이내에 내담자가 취소했어요. 상담료의 절반이 정산돼요.')}
+      ${st('<span class="chip off">내담자 취소</span>', '24시간보다 전에 취소했어요. 전액 환불되고 정산은 없어요.')}
+      ${st('<span class="chip bad">거절함 · 환불함</span>', '내담자에게 전액 돌려줬어요. 정산에서 빠져요.')}
+      ${st('<span class="chip bad">미진행</span>', '상담이 열리지 않았어요. 정산은 없어요.')}
+      ${st('<span class="chip bad">이의 접수</span>', '내담자가 이의를 냈어요. 운영자가 확인할 때까지 정산이 멈춰요.')}
+    </div>
+    <p class="muted">상담소를 통해 온 내담자의 상담은 상담소가 직접 지급해요. 궁금한 점은 <b>help@neurumind.com</b> 으로 물어보세요.</p>`,
+  { title: '정산은 이렇게 진행돼요' });
 }
 
 // ── 내 정보 · 시간표 · 계좌 (기존 기능 전부 유지) ──────────────────────
 // 화면을 다시 그리기 전에 지금 칸에 적혀 있는 값을 ME 로 옮긴다.
 //  (태그 칩 하나 지웠다고 방금 고쳐 쓴 소개글이 날아가면 아무도 안 고친다)
+const PROFILE_KEYS = ['hospital', 'hospitalId', 'addr', 'addrDetail', 'tel', 'license', 'intro', 'price', 'callRate', 'tags', 'photo'];
 function syncProfileForm() {
   if (!ME || !$('pf-hospital')) return;
   const g = id => ($(id) || {}).value || '';
@@ -1735,6 +2452,7 @@ async function openAddrFinder(btn) {
     oncomplete: (d) => {
       // 도로명이 원칙이다. 도로명이 아직 없는 건물(신축 등)만 지번으로 받는다.
       ME.addr = d.roadAddress || d.autoRoadAddress || d.jibunAddress || d.autoJibunAddress || '';
+      DIRTY.profile = true;
       closeAddrFinder();
       renderHome();
       // 커서를 상세주소로 옮긴다 — 다음에 적을 것이 층·호라는 걸 손이 먼저 안다
@@ -1824,6 +2542,7 @@ function pickPhoto() {
       return;
     }
     ME.photo = data;
+    DIRTY.profile = true;
     renderHome();
     toast('사진을 넣었어요 — [내 정보 저장]을 눌러야 반영돼요');
   });
@@ -1923,6 +2642,7 @@ function foldProfile() {
     </label>
     <label><span>소개 (600자까지 · 내담자에게 보입니다)</span>
       <textarea id="pf-intro" rows="4" maxlength="600" placeholder="내담자에게 보일 짧은 소개">${esc(ME.intro)}</textarea></label>
+    ${DIRTY.profile ? '<p class="muted" style="color:var(--warn); margin-bottom:0.5rem;">아직 저장하지 않은 변경이 있어요.</p>' : ''}
     <button class="btn" id="pf-save" data-act="save-profile">내 정보 저장</button>`);
 }
 
@@ -1941,77 +2661,64 @@ function _setDay(d, list) { ME.slots = ME.slots || {}; delete ME.slots[String(d)
 function foldSlots() {
   if (!ME) return '';
   const sel = ME.slots || {};
-  const chip = (label, act, d, arg) =>
-    `<button class="btn ghost sm" style="padding:0.22rem 0.5rem; min-height:0; font-size:0.68rem; border-radius:999px;"
-       data-act="${act}" data-d="${d}" data-arg="${arg || ''}">${label}</button>`;
+  const d = SLOTDAY;
+  const on = _getDay(d);
+  const cnt = i => (sel[i] || sel[String(i)] || []).length;
+  const chip = (label, act, arg) =>
+    `<button class="btn ghost sm" style="border-radius:999px;" data-act="${act}" data-d="${d}" data-arg="${arg || ''}">${label}</button>`;
 
-  const grid = DAYNM.map((dn, d) => {
-    const on = sel[d] || sel[String(d)] || [];
-    const bandRows = BANDS.map(b => {
-      const allOn = b.hrs.every(h => on.includes(h));
-      return `<div class="row" style="gap:0.3rem; margin-bottom:0.22rem;">
-          <button data-act="band" data-d="${d}" data-arg="${b.key}" title="${b.label} 전체"
-            style="all:unset; cursor:pointer; flex-shrink:0; width:4.6rem; font-size:0.66rem; font-weight:700; color:${allOn ? 'var(--accent)' : 'var(--sub)'};">${b.label}</button>
-          <div style="display:flex; flex-wrap:wrap; gap:0.2rem;">
-            ${b.hrs.map(h => `<button data-act="slot" data-d="${d}" data-arg="${h}"
-              style="all:unset; cursor:pointer; font-size:0.67rem; padding:0.2rem 0.34rem; border-radius:6px;
-                     border:1px solid ${on.includes(h) ? 'var(--accent)' : 'var(--line)'};
-                     background:${on.includes(h) ? 'var(--accent)' : 'transparent'};
-                     color:${on.includes(h) ? '#fff' : 'var(--sub)'};">${h.slice(0, 2)}</button>`).join('')}
-          </div>
-        </div>`;
-    }).join('');
-    return `<div style="padding:0.5rem 0; border-top:1px solid var(--line);">
-        <div class="row" style="gap:0.35rem; margin-bottom:0.35rem; flex-wrap:wrap;">
-          <strong style="font-size:0.84rem; width:1.2rem;">${dn}</strong>
-          <span class="muted grow">${on.length ? on.length + '시간 열림' : '예약 안 받음'}</span>
-          ${chip('전체', 'fillday', d, 'all')}${chip('업무시간', 'fillday', d, 'work')}
-          ${chip('비우기', 'fillday', d, 'none')}${chip('전 요일 복사', 'copyday', d)}
-        </div>${bandRows}
-      </div>`;
+  // 요일 일곱 칸 — 한 번에 한 요일만 펼친다. 아래 숫자는 그 요일에 열어 둔 시간 수.
+  const tabs = DAYNM.map((dn, i) => `<button class="${i === d ? 'on' : ''} ${cnt(i) ? 'has' : ''}" data-act="slotday" data-arg="${i}"
+      aria-pressed="${i === d}" aria-label="${dn}요일, ${cnt(i) ? cnt(i) + '시간 열림' : '예약 안 받음'}">${dn}<small>${cnt(i) ? cnt(i) + '시간' : '쉼'}</small></button>`).join('');
+
+  const bands = BANDS.map(b => {
+    const allOn = b.hrs.every(h => on.includes(h));
+    return `<button class="bandhd" data-act="band" data-d="${d}" data-arg="${b.key}">${b.label}시<span>${allOn ? '모두 끄기' : '모두 켜기'}</span></button>
+      <div class="hours">${b.hrs.map(h => `<button class="${on.includes(h) ? 'on' : ''}" data-act="slot" data-d="${d}" data-arg="${h}"
+          aria-pressed="${on.includes(h)}" aria-label="${DAYNM[d]}요일 ${h.slice(0, 2)}시">${h.slice(0, 2)}시</button>`).join('')}</div>`;
   }).join('');
 
+  const offdays = (ME.offdays || []).slice().sort();
   const total = Object.values(sel).reduce((s, a) => s + (a || []).length, 0);
   const openDays = Object.keys(sel).filter(k => (sel[k] || []).length).length;
-  return fold('slots', '예약 가능 시간', total ? `${openDays}일 · 주 ${total}시간` : '아직 안 정함', `
-    <p class="muted" style="margin:0.8rem 0 0.5rem;">켜 둔 시간에만 내담자가 예약할 수 있어요. 비워 두면 그 요일은 예약을 받지 않습니다.</p>
-    ${grid}
-    <label style="margin-top:0.6rem;"><span>쉬는 날 (쉼표로 구분, 예: 2026-08-15)</span>
-      <input id="sl-off" value="${esc((ME.offdays || []).join(', '))}" placeholder="2026-08-15, 2026-09-01"></label>
-    <button class="btn" id="sl-save" data-act="save-slots">시간표 저장</button>`);
+  return fold('slots', '예약 가능 시간', total ? `${openDays}일 · 주 ${total}시간` : '<b style="color:var(--warn);">아직 안 정함</b>', `
+    <p class="muted" style="margin:0.8rem 0 0;">켜 둔 시간에만 내담자가 예약할 수 있어요. 요일을 고르고 시간을 눌러 켜세요.</p>
+    <div class="daytabs" role="group" aria-label="요일">${tabs}</div>
+    <div class="row" style="gap:0.35rem; flex-wrap:wrap; margin-bottom:0.5rem;">
+      <strong class="grow" style="font-size:0.9rem;">${DAYNM[d]}요일 <span class="muted" style="font-weight:500;">${on.length ? on.length + '시간 열림' : '예약 안 받음'}</span></strong>
+    </div>
+    <div class="row" style="gap:0.35rem; flex-wrap:wrap; margin-bottom:0.6rem;">
+      ${chip('업무시간만', 'fillday', 'work')}${chip('하루 종일', 'fillday', 'all')}${chip('비우기', 'fillday', 'none')}${chip('모든 요일에 복사', 'copyday')}
+    </div>
+    ${bands}
+    <div style="border-top:1px solid var(--line); margin-top:0.4rem; padding-top:0.8rem;">
+      <strong style="font-size:0.88rem;">쉬는 날</strong>
+      <p class="muted" style="margin:0.15rem 0 0.5rem;">휴가·공휴일처럼 그날 하루만 예약을 막아요.</p>
+      <div class="row" style="flex-wrap:wrap; gap:0.3rem; margin-bottom:0.5rem;">
+        ${offdays.length ? offdays.map(x => `<span class="chip off" style="gap:0.35rem; font-size:0.74rem; padding:0.3rem 0.65rem;">${esc(x)}
+            <button data-act="offday-del" data-arg="${esc(x)}" aria-label="${esc(x)} 쉬는 날 빼기" style="all:unset; cursor:pointer; font-weight:900; padding:0 0.15rem;">×</button></span>`).join('')
+          : '<span class="muted">정해 둔 쉬는 날이 없어요.</span>'}
+      </div>
+      <div class="row">
+        <input id="sl-offday" class="grow" type="date" aria-label="쉬는 날 고르기">
+        <button class="btn ghost sm" data-act="offday-add" style="flex-shrink:0;">쉬는 날 추가</button>
+      </div>
+    </div>
+    ${DIRTY.slots ? '<p class="muted" style="color:var(--warn); margin:0.8rem 0 -0.3rem;">아직 저장하지 않았어요. 아래 버튼을 눌러야 내담자에게 반영돼요.</p>' : ''}
+    <button class="btn" id="sl-save" data-act="save-slots" style="margin-top:0.8rem;">시간표 저장</button>`);
 }
 
-// 알림·소리 — 진료실에서 앱을 여는 상담사가 제일 먼저 찾는 스위치다.
-//  '내 정보' 옆에 두되, 전화 벨은 여기서 끌 수 없다는 걸 분명히 적어 둔다.
+// 알림·소리 — 한 줄로 상태만 보여주고, 누르면 알림 설정 시트가 열린다.
+//  (전에는 여기 접힌 섹션 안에 스위치가 있었는데, '차단됨'일 때 할 수 있는 일이 아무것도 없었다)
 function foldPrefs() {
-  const native = isNativeApp();
-  const notiOk = native ? NOTI_NATIVE === 'granted'
-                        : (('Notification' in window) && Notification.permission === 'granted');
-  const notiDenied = native ? NOTI_NATIVE === 'denied'
-                            : (('Notification' in window) && Notification.permission === 'denied');
-  return fold('pref', '알림 · 소리', SOUND ? '알림음 켜짐' : '알림음 꺼짐', `
-    <div class="row" style="margin-top:0.9rem;">
-      <div class="grow">
-        <strong style="font-size:0.9rem;">새 메시지 알림음</strong>
-        <p class="muted" style="margin-top:0.2rem;">내담자 메시지가 도착하면 짧은 소리로 알려드려요.
-          회기 중에는 꺼두셔도 됩니다.</p>
-      </div>
-      <button class="sw ${SOUND ? 'on' : ''}" data-act="sound" aria-label="알림음 토글"><i></i></button>
-    </div>
-    <p class="muted" style="margin-top:0.6rem; padding:0.5rem 0.65rem; background:var(--bg); border-radius:10px;">
-      걸려오는 <b>전화 벨은 이 설정과 상관없이 울립니다</b>. 놓치면 되돌릴 수 없는 건 통화뿐이라 일부러 남겨뒀어요.</p>
-    <div class="row" style="margin-top:0.8rem;">
-      <div class="grow"><strong style="font-size:0.9rem;">기기 알림</strong>
-        <p class="muted" style="margin-top:0.2rem;">${notiOk ? '켜져 있어요. 화면을 꺼둬도 전화와 메시지를 받습니다.'
-          : notiDenied ? (native ? '차단돼 있어요. 아래 버튼으로 설정을 열어 알림을 켜주세요.'
-                                 : '브라우저에서 차단돼 있어요. 주소창 자물쇠 → 알림 허용으로 바꿔주세요.')
-          : '아직 허용하지 않았어요.'}</p></div>
-      ${notiOk ? '<span class="chip ok">허용됨</span>'
-        : notiDenied ? (native ? '<button class="btn sm" data-act="noti-settings">설정 열기</button>'
-                               : '<span class="chip bad">차단됨</span>')
-        : '<button class="btn sm" data-act="ask-noti">켜기</button>'}
-    </div>
-    ${devicesRow()}`);
+  const st = notiSnap().state;
+  const chip = st === 'ok' ? '<span class="chip ok">알림 켜짐</span>'
+    : st === 'checking' ? '<span class="chip off">확인 중</span>' : '<span class="chip new">알림 꺼짐</span>';
+  return `<button class="card menurow" data-fold="pref" data-act="noti-open" style="padding:0.85rem 1.1rem; border-radius:16px; margin-bottom:0.7rem; gap:0.5rem;">
+      <strong style="font-size:0.92rem;">알림 · 소리</strong>
+      <span class="muted grow" style="text-align:right; font-weight:500;">${SOUND ? '알림음 켜짐' : '알림음 꺼짐'}</span>
+      ${chip}<span style="color:var(--sub); line-height:0;">${CHEV}</span>
+    </button>`;
 }
 
 // ── 알림 받는 기기 ───────────────────────────────────────────────────
@@ -2047,7 +2754,7 @@ async function loadDevices(force) {
   // 못 물어봤으면 0대로 적지 않는다 — 없는 기기를 '정리했다'고 착각하게 만든다
   if (!r || !r.ok) return;
   DEVICES = r;
-  try { renderHome(); } catch (e) {}
+  notiChanged();
 }
 
 function foldPayout() {
@@ -2498,6 +3205,13 @@ function b64ToU8(b64) {
   return out;
 }
 
+// 알림 등록 상태 — 화면이 '진짜 상태'를 보여주려면 권한만이 아니라 등록 결과도 알아야 한다.
+//  sub: null(아직 모름) · true(서버에 등록됨) · false(안 됨)   err: 안 된 이유
+//  testAt: 서버 테스트를 보낸 시각(도착을 기다리는 중) · testOk: 도착을 확인한 시각 · batt: 절전 예외 여부(앱)
+const PUSH = { sub: null, err: '', testAt: 0, testOk: 0, batt: null };
+let SW_READY = null;         // initSW 가 끝나는 약속 — 구독은 이걸 기다린 뒤에 한다
+let FCM_SENT_FOR = '';       // 이 로그인으로 FCM 토큰을 서버에 이미 보냈는가
+
 async function initSW() {
   if (!('serviceWorker' in navigator)) return;
   // updateViaCache:'none' — sw.js 가 HTTP 캐시를 거치면 새 버전을 못 본다
@@ -2505,10 +3219,41 @@ async function initSW() {
   try { SWREG.update(); } catch (e) {}
   navigator.serviceWorker.addEventListener('message', ev => {
     const d = ev.data || {};
+    if (d.type === 'push') pushArrived();
     if (d.type === 'push' && d.call) showIncoming(d.call);
     if (d.type === 'push' && !d.call) loadChats().then(() => { renderChatList(); renderDots(); });
     if (d.type === 'open-call') pollIncoming();
   });
+  // 구독(pushManager.subscribe)은 '활성화된' 워커가 있어야 된다. 처음 방문에서는 register 가
+  //  끝난 직후에도 워커가 아직 설치 중이라, 그때 구독하면 조용히 실패하고 다음 방문까지 알림이 안 왔다.
+  //  ready 는 영영 안 끝날 수도 있어(등록 실패) 5초만 기다린다.
+  try {
+    const r = await Promise.race([navigator.serviceWorker.ready, new Promise(res => setTimeout(() => res(null), 5000))]);
+    if (r) SWREG = r;
+  } catch (e) {}
+}
+
+// 서버가 보낸 깨우기가 이 기기에 닿았다 — [서버에서 보내보기]를 기다리는 중이었다면 성공이다
+function pushArrived() {
+  if (!PUSH.testAt || Date.now() - PUSH.testAt > 60000) return;
+  PUSH.testAt = 0; PUSH.testOk = Date.now();
+  toast('서버에서 보낸 알림이 이 기기에 잘 도착했어요');
+  renderNotiSheet();
+}
+
+// 앱이 스스로 띄우는 알림(새 메시지·테스트).
+//  new Notification() 은 안드로이드 크롬에서 예외를 던진다("Illegal constructor") —
+//  그래서 화면이 뒤에 있을 때 오던 메시지 알림이 폰에서는 한 번도 뜬 적이 없었다.
+//  서비스워커의 showNotification 은 폰·PC 어디서나 된다.
+async function localNotify(title, body, tag) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+    const opt = { body, icon: './icon-192.png', badge: './icon-96.png', tag: tag || 'pro', renotify: true, data: { url: './index.html' } };
+    if (SW_READY) await SW_READY;
+    if (SWREG && SWREG.showNotification) { await SWREG.showNotification(title, opt); return true; }
+    new Notification(title, opt);          // 서비스워커가 없는 PC 브라우저
+    return true;
+  } catch (e) { return false; }
 }
 
 function tellSwWhoIAm() {
@@ -2552,7 +3297,9 @@ async function enableFcmPush() {
   const P = pushPlugin();
   if (!P) { pushDiag('fcm-plugin', 'missing'); return false; }
   pushDiag('fcm-plugin', 'ok');
-  if (FCM_BOUND) return true;
+  // 이미 붙어 있다 — 다만 로그아웃했다 다시 들어온 경우엔 서버가 이 기기를 잊었으므로 토큰을 다시 보낸다.
+  //  (전에는 여기서 그냥 돌아가서, 잠갔다 연 폰은 앱을 완전히 껐다 켜기 전까지 전화가 울리지 않았다)
+  if (FCM_BOUND) { sendFcmToken(); return true; }
   FCM_BOUND = true;
   try {
     // 로그인 직후 바로 묻는다. 상담사는 이 앱을 '전화기'로 쓴다 —
@@ -2561,6 +3308,7 @@ async function enableFcmPush() {
     if (!perm || perm.receive !== 'granted') perm = await P.requestPermissions().catch(() => null);
     if (!perm || perm.receive !== 'granted') {
       NOTI_NATIVE = 'denied';
+      PUSH.sub = false;
       FCM_BOUND = false;   // 나중에 설정에서 켜고 돌아오면 다시 시도할 수 있어야 한다
       pushDiag('fcm-perm', (perm && perm.receive) || 'denied');
       return true;
@@ -2574,9 +3322,8 @@ async function enableFcmPush() {
       // 로그아웃할 때 이 기기만 골라 해제하려면 토큰을 기억해야 한다
       FCM_TOKEN = token;
       try { localStorage.setItem('pro_fcm_token', token); } catch (e) {}
-      postJson('/api/push/fcm-subscribe', authBody({ token }))
-        .then(r => pushDiag('fcm-sub', (r && r.ok) ? 'ok' : ((r && r.error) || 'fail')))
-        .catch(() => pushDiag('fcm-sub', 'net'));
+      FCM_SENT_FOR = '';
+      sendFcmToken();
     });
     P.addListener('registrationError', (e) => {
       // 대개 google-services.json 이 없거나 Firebase 에 이 패키지가 안 붙은 경우
@@ -2585,6 +3332,7 @@ async function enableFcmPush() {
 
     // 앱이 떠 있는 동안 도착 — 전화가 걸려온 것일 수 있다. 바로 확인한다
     P.addListener('pushNotificationReceived', () => {
+      pushArrived();
       pollIncoming();
       loadChats().then(() => { renderChatList(); renderDots(); }).catch(() => {});
     });
@@ -2596,6 +3344,8 @@ async function enableFcmPush() {
     });
 
     await P.register();
+    // 토큰이 끝내 안 오면 '확인 중'에 영원히 머문다 — 8초 뒤에는 실패로 적는다
+    setTimeout(() => { if (PUSH.sub === null) { PUSH.sub = false; PUSH.err = 'no-token'; notiChanged(); } }, 8000);
     return true;
   } catch (e) {
     pushDiag('fcm-init', String((e && e.message) || e).slice(0, 60));
@@ -2603,31 +3353,393 @@ async function enableFcmPush() {
   }
 }
 
+// FCM 토큰을 서버에 등록한다. 로그인 하나에 한 번이면 된다(실패하면 다음에 다시).
+function sendFcmToken() {
+  if (!FCM_TOKEN || !(SESSION || CODE)) return;
+  const who = authQS();
+  if (FCM_SENT_FOR === who) return;
+  FCM_SENT_FOR = who;
+  postJson('/api/push/fcm-subscribe', authBody({ token: FCM_TOKEN })).then(r => {
+    PUSH.sub = !!(r && r.ok);
+    PUSH.err = PUSH.sub ? '' : ((r && r.error) || 'net');
+    if (!PUSH.sub) FCM_SENT_FOR = '';
+    pushDiag('fcm-sub', PUSH.sub ? 'ok' : PUSH.err);
+    notiChanged();
+  });
+}
+
 async function enablePush() {
   if (!ME) return;
   // 스토어 앱이면 FCM 이 먼저다 — 웹푸시는 받을 곳(서비스워커)이 없다
-  try { if (await enableFcmPush()) return; } catch (e) {}
-  if (!SWREG || !('PushManager' in window)) return;
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try { if (await enableFcmPush()) { notiChanged(); return; } } catch (e) {}
+  // 서비스워커 등록이 끝나기 전에 여기 오면 그냥 돌아가 버려서, 다음 새로고침까지 구독이 안 됐다
+  if (SW_READY) await SW_READY;
+  if (!SWREG || !SWREG.pushManager || !('PushManager' in window)) { PUSH.sub = false; PUSH.err = 'unsupported'; notiChanged(); return; }
+  if (!('Notification' in window) || Notification.permission !== 'granted') { PUSH.sub = false; PUSH.err = ''; notiChanged(); return; }
   try {
     let sub = await SWREG.pushManager.getSubscription();
     if (!sub) sub = await SWREG.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUB) });
     tellSwWhoIAm();
-    await postJson('/api/push/subscribe', authBody({ sub: sub.toJSON() }));
-  } catch (e) { /* 푸시가 안 되어도 앱은 그대로 돌아간다 */ }
+    const r = await postJson('/api/push/subscribe', authBody({ sub: sub.toJSON() }));
+    PUSH.sub = !!(r && r.ok);
+    PUSH.err = PUSH.sub ? '' : (r ? (r.error || 'server') : 'net');
+  } catch (e) {
+    /* 푸시가 안 되어도 앱은 그대로 돌아간다 — 다만 '안 됐다'는 사실은 화면에 보여준다 */
+    PUSH.sub = false; PUSH.err = 'subscribe';
+  }
+  notiChanged();
+}
+
+// ============================================================================
+//  알림 설정
+//   "전화가 안 울려요"의 원인은 넷 중 하나다: 권한을 안 줬다 · 브라우저가 막았다 ·
+//   기기가 서버에 등록되지 않았다 · 폰이 절전으로 재웠다. 어느 것인지 화면이 말해 주고,
+//   상태마다 '지금 누를 것 하나'를 준다.
+// ============================================================================
+function browserKind() {
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  const android = /Android/i.test(ua);
+  if (/SamsungBrowser/i.test(ua)) return 'samsung';
+  if (/Edg\//.test(ua)) return android ? 'chrome-android' : 'edge';
+  if (/Firefox\//.test(ua)) return 'firefox';
+  if (/Chrome\//.test(ua)) return android ? 'chrome-android' : 'chrome';
+  if (/Safari\//.test(ua)) return 'safari';
+  return 'other';
+}
+const BROWSER_NAME = { ios: '아이폰·아이패드', samsung: '삼성 인터넷', edge: '엣지', firefox: '파이어폭스',
+  'chrome-android': '크롬', chrome: '크롬', safari: '사파리', other: '브라우저' };
+
+// 지금 알림이 어떤 상태인가 — 홈 카드 · 종 아이콘 · 알림 설정 시트가 전부 이 한 곳을 본다.
+//  state: ok | default(아직 안 물어봄) | denied(막힘) | nosub(허용됐지만 등록 안 됨) | unsupported | checking
+function notiSnap() {
+  const native = isNativeApp() && !!pushPlugin();
+  const hasApi = 'Notification' in window;
+  const perm = native ? (NOTI_NATIVE || 'checking') : (hasApi ? Notification.permission : 'unsupported');
+  let state;
+  if (perm === 'unsupported') state = 'unsupported';
+  else if (perm === 'denied') state = 'denied';
+  else if (perm === 'default') state = 'default';
+  else if (perm === 'checking') state = (SESSION || CODE) && ME ? 'checking' : 'ok';
+  else if (!ME) state = 'ok';                 // 운영자 코드 등 — 등록할 상담사 계정이 없다
+  else state = PUSH.sub === true ? 'ok' : PUSH.sub === null ? 'checking' : 'nosub';
+  const T = {
+    ok: ['알림이 켜져 있어요', '화면을 꺼둬도 전화와 메시지를 받아요.'],
+    default: ['알림이 꺼져 있어요', '화면을 꺼두면 걸려오는 전화와 새 메시지를 놓쳐요. 지금 켜주세요.'],
+    denied: native ? ['폰 설정에서 알림이 꺼져 있어요', '이대로면 걸려오는 전화가 울리지 않아요. 설정에서 켜주세요.']
+                   : ['브라우저가 알림을 막고 있어요', '한 번 막으면 다시 묻는 창이 뜨지 않아요. 푸는 방법을 알려드릴게요.'],
+    nosub: ['알림 등록이 끝나지 않았어요', '허용은 됐지만 이 기기가 아직 등록되지 않았어요. 다시 등록해주세요.'],
+    unsupported: (browserKind() === 'ios' && !isStandalone())
+      ? ['홈 화면에 추가해야 알림을 받아요', '아이폰은 홈 화면에 추가한 앱에서만 알림을 보낼 수 있어요.']
+      : ['이 브라우저는 알림을 받을 수 없어요', '크롬·엣지·삼성 인터넷으로 열면 화면을 꺼둬도 알림을 받아요.'],
+    checking: ['알림 상태를 확인하고 있어요', '잠시만 기다려주세요.']
+  }[state];
+  return { native, perm, state, title: T[0], short: T[1] };
+}
+
+// 알림 상태가 바뀌었을 때만 화면을 다시 그린다 (새로고침마다 홈을 통째로 다시 그리지 않게)
+let NOTI_LAST = '';
+function notiChanged(force) {
+  const sig = notiSnap().state + '|' + PUSH.err + '|' + PUSH.batt + '|' + (DEVICES ? DEVICES.count : '') + '|' + SOUND;
+  if (!force && sig === NOTI_LAST) return;
+  NOTI_LAST = sig;
+  try { renderHome(); renderBell(); renderNotiSheet(); } catch (e) {}
+}
+
+// 설정 앱에서 알림을 켜고 돌아왔을 때 — 화면이 여전히 '꺼져 있어요'면 켠 보람이 없다.
+//  권한을 다시 읽고, 켜졌으면 기기 등록까지 이어서 한다.
+async function refreshNotiState() {
+  if (!(SESSION || CODE)) return;
+  try {
+    const P = pushPlugin();
+    if (isNativeApp() && P) {
+      const perm = await P.checkPermissions().catch(() => null);
+      if (perm && perm.receive === 'granted') {
+        NOTI_NATIVE = 'granted';
+        if (ME) { if (FCM_BOUND) sendFcmToken(); else await enableFcmPush(); }
+      } else if (perm && (perm.receive === 'denied' || NOTI_NATIVE === 'granted')) {
+        NOTI_NATIVE = 'denied'; PUSH.sub = false;
+      }
+      const C = callPlugin();
+      if (C && C.isBatteryExempt) {
+        const st = await C.isBatteryExempt().catch(() => null);
+        PUSH.batt = st ? !!st.exempt : null;
+      }
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      if (ME && PUSH.sub !== true) await enablePush();
+    }
+  } catch (e) {}
+  notiChanged();
+}
+
+function unblockSteps() {
+  const k = browserKind();
+  if (k === 'ios') return ['아이폰 <b>설정</b> 앱 열기', '<b>알림</b> → <b>마인드 인사이드 프로</b>', '<b>알림 허용</b> 켜기'];
+  // 설치한 웹앱은 주소창이 없다 — 폰 설정에서 켠다
+  if ((k === 'chrome-android' || k === 'samsung') && isStandalone())
+    return ['폰 <b>설정</b> → <b>앱</b>', '<b>마인드 인사이드 프로</b> → <b>알림</b>', '<b>알림 허용</b> 켜기'];
+  if (k === 'chrome-android') return ['주소창 왼쪽의 <b>자물쇠(또는 ⓘ)</b> 누르기', '<b>권한</b> → <b>알림</b>', '<b>허용</b>으로 바꾸기'];
+  if (k === 'samsung') return ['주소창 왼쪽의 <b>자물쇠</b> 누르기', '<b>권한</b> → <b>알림</b>', '<b>허용</b>으로 바꾸기'];
+  if (k === 'firefox') return ['주소창 왼쪽의 <b>자물쇠</b> 누르기', '알림 옆의 <b>차단됨 ×</b> 를 눌러 지우기', '아래 <b>[다시 확인]</b>을 누르고 알림 켜기'];
+  if (k === 'safari') return ['위 메뉴에서 <b>Safari → 설정</b>', '<b>웹사이트</b> → <b>알림</b>', '이 사이트를 <b>허용</b>으로 바꾸기'];
+  return ['주소창 왼쪽의 <b>자물쇠(사이트 정보)</b> 누르기', '<b>알림</b>을 <b>허용</b>으로 바꾸기', '페이지를 <b>새로고침</b>하기'];
+}
+
+function notiSheetHtml() {
+  const ns = notiSnap();
+  const k = browserKind();
+  const android = /Android/i.test(navigator.userAgent || '');
+  const ol = arr => `<ol class="steps">${arr.map(x => `<li>${x}</li>`).join('')}</ol>`;
+  const granted = ns.perm === 'granted';
+
+  // ── 맨 위: 지금 상태 + 누를 것 하나 ──
+  let top;
+  if (ns.state === 'ok') {
+    top = `<div class="nstate ok"><h4>${ns.title}</h4><p class="muted">${ns.short}</p>
+      ${ns.native ? '' : '<button class="btn" style="margin-top:0.7rem;" data-act="noti-test">테스트 알림 보내기</button>'}</div>`;
+  } else if (ns.state === 'default') {
+    top = `<div class="nstate off"><h4>${ns.title}</h4><p class="muted">${ns.short}</p>
+      <button class="btn" style="margin-top:0.7rem;" data-act="ask-noti">알림 켜기</button>
+      <p class="muted" style="margin-top:0.5rem;">누르면 허용할지 묻는 창이 떠요. <b>허용</b>을 눌러주세요.</p></div>`;
+  } else if (ns.state === 'denied' && ns.native) {
+    top = `<div class="nstate bad"><h4>${ns.title}</h4><p class="muted">${ns.short}</p>
+      <button class="btn" style="margin-top:0.7rem;" data-act="noti-settings">설정 열기</button>
+      <p class="muted" style="margin-top:0.6rem;">버튼이 안 열리면 직접 켜주세요.</p>
+      ${ol(['폰 <b>설정</b> → <b>앱</b>', '<b>마인드 인사이드 프로</b> → <b>알림</b>', '<b>알림 허용</b> 켜기'])}
+      <button class="btn ghost" data-act="noti-recheck">켰어요 · 다시 확인</button></div>`;
+  } else if (ns.state === 'denied') {
+    top = `<div class="nstate bad"><h4>${ns.title}</h4>
+      <p class="muted">전에 '차단'을 눌러서 다시 묻는 창이 뜨지 않아요. ${BROWSER_NAME[k]}에서 이렇게 풀어주세요.</p>
+      ${ol(unblockSteps())}
+      ${android ? `<p class="muted" style="margin-bottom:0.6rem;">그래도 안 되면 폰 <b>설정 → 앱 → ${BROWSER_NAME[k]} → 알림</b>이 켜져 있는지도 봐주세요.</p>` : ''}
+      <button class="btn" data-act="noti-recheck">바꿨어요 · 다시 확인</button></div>`;
+  } else if (ns.state === 'nosub') {
+    const why = { net: '서버에 연결하지 못했어요.', unsupported: '이 브라우저에서는 화면을 꺼둔 동안의 알림(푸시)을 쓸 수 없어요.',
+      'no-token': '이 기기의 알림 주소를 받지 못했어요.', subscribe: '브라우저가 알림 등록을 받아주지 않았어요.' }[PUSH.err] || '';
+    top = `<div class="nstate off"><h4>${ns.title}</h4>
+      <p class="muted">알림은 허용됐지만 이 기기가 서버에 등록되지 않았어요. ${why}<br>이대로면 <b>화면을 꺼뒀을 때 전화가 울리지 않아요.</b></p>
+      <button class="btn" style="margin-top:0.7rem;" data-act="noti-resub">이 기기 다시 등록하기</button></div>`;
+  } else if (ns.state === 'unsupported') {
+    top = `<div class="nstate off"><h4>${ns.title}</h4><p class="muted">${ns.short}</p>
+      ${k === 'ios' && !isStandalone() ? ol(['사파리 아래쪽 <b>공유 버튼</b> 누르기', '<b>홈 화면에 추가</b> 누르기', '홈 화면의 <b>마인드 인사이드 프로</b>로 열고 알림 켜기'])
+        : '<p class="muted" style="margin-top:0.4rem;">앱을 열어 둔 동안에는 지금도 소리로 알려드려요.</p>'}</div>`;
+  } else {
+    top = `<div class="nstate"><h4>${ns.title}</h4><div class="skel" style="height:11px; width:60%; margin-top:0.6rem;"></div></div>`;
+  }
+
+  // ── 자세한 상태 ──
+  const chip = (cls, t) => `<span class="chip ${cls}">${t}</span>`;
+  const where = ns.native ? '스토어 앱 (안드로이드)' : isStandalone() ? '설치한 웹앱' : `${BROWSER_NAME[k]} 브라우저`;
+  const permChip = ns.perm === 'granted' ? chip('ok', '허용됨') : ns.perm === 'denied' ? chip('bad', '차단됨')
+    : ns.perm === 'default' ? chip('new', '아직 안 물어봄') : ns.perm === 'checking' ? chip('off', '확인 중') : chip('off', '지원 안 함');
+  const subChip = !ME ? chip('off', '해당 없음') : !granted ? chip('off', '안 됨')
+    : PUSH.sub === true ? chip('ok', '등록됨') : PUSH.sub === null ? chip('off', '확인 중') : chip('new', '안 됨');
+  const detail = `<div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">
+      <div class="kv"><span class="k">쓰는 곳</span><b>${where}</b></div>
+      <div class="kv"><span class="k">알림 권한</span>${permChip}</div>
+      <div class="kv"><span class="k">이 기기 등록<br><span style="font-size:0.72rem;">화면을 꺼둬도 받으려면 필요해요</span></span>${subChip}</div>
+      ${ns.native && PUSH.batt !== null ? `<div class="kv"><span class="k">절전 예외<br><span style="font-size:0.72rem;">폰이 잠들어도 벨이 제때 울려요</span></span>
+        ${PUSH.batt ? chip('ok', '설정됨') : '<button class="btn sm" data-act="batt-ask">설정하기</button>'}</div>` : ''}
+    </div>`;
+
+  // ── 확인해 보기 ──
+  const waiting = PUSH.testAt && Date.now() - PUSH.testAt < 60000;
+  const arrived = PUSH.testOk && Date.now() - PUSH.testOk < 300000;
+  const tests = (granted && ME) ? `<div class="sec-title">진짜로 오는지 확인하기</div>
+    <div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">
+      <div class="kv"><span class="k" style="color:var(--text);"><b>서버에서 보내보기</b><br><span class="muted">실제 전화·메시지와 같은 길로 보내요. 10초쯤 걸려요.</span></span>
+        ${arrived ? chip('ok', '도착했어요') : `<button class="btn sm" data-act="noti-server-test" ${waiting ? 'disabled' : ''}>${waiting ? '기다리는 중…' : '보내기'}</button>`}</div>
+    </div>` : '';
+
+  // ── 소리 ──
+  const sound = `<div class="sec-title">소리</div>
+    <div class="card">
+      <div class="row">
+        <div class="grow"><strong style="font-size:0.9rem;">새 메시지 알림음</strong>
+          <p class="muted" style="margin-top:0.15rem;">앱을 열어 둔 동안 메시지가 오면 짧은 소리로 알려요. 회기 중에는 꺼두셔도 됩니다.</p></div>
+        <button class="sw ${SOUND ? 'on' : ''}" data-act="sound" role="switch" aria-checked="${SOUND}" aria-label="새 메시지 알림음"><i></i></button>
+      </div>
+      <button class="btn ghost sm" style="margin-top:0.6rem;" data-act="sound-test">알림음 들어보기</button>
+      <div class="row" style="margin-top:0.9rem; padding-top:0.9rem; border-top:1px solid var(--line);">
+        <div class="grow"><strong style="font-size:0.9rem;">전화 벨</strong>
+          <p class="muted" style="margin-top:0.15rem;">위 설정과 상관없이 <b>항상 울려요</b>. 놓치면 되돌릴 수 없는 건 전화뿐이라 끌 수 없게 했어요.</p></div>
+        <span class="chip ok">항상 켜짐</span>
+      </div>
+      <button class="btn ghost sm" style="margin-top:0.6rem;" data-act="ring-test">벨 소리 들어보기</button>
+    </div>`;
+
+  // ── 어떤 알림이 오나 ──
+  const kind = (ic, t, s) => `<div class="kv"><span class="mi" style="width:34px; height:34px; border-radius:11px; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ic}</svg></span>
+      <span class="k" style="color:var(--text);"><b>${t}</b><br><span class="muted">${s}</span></span></div>`;
+  const kinds = `<div class="sec-title">이런 알림이 와요</div>
+    <div class="card" style="padding-top:0.3rem; padding-bottom:0.3rem;">
+      ${kind('<path d="M5 4h3.5l1.6 4.2-2.2 1.5a12 12 0 0 0 6.4 6.4l1.5-2.2L20 15.5V19a2 2 0 0 1-2.2 2A15.8 15.8 0 0 1 3 6.2 2 2 0 0 1 5 4Z"/>', '전화', '내담자가 전화를 걸면 벨과 진동이 받을 때까지 울려요.')}
+      ${kind('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.3-.6L3 21l1.8-4.6A8.3 8.3 0 0 1 3.6 11.5C3.6 6.9 7.6 3.5 12.3 3.5S21 6.9 21 11.5Z"/>', '채팅', '새 메시지가 오면 알려요. 연달아 올 때는 2분에 한 번만 울려요.')}
+      ${kind('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/>', '예약 · 취소', '새 예약이 잡히거나 내담자가 취소하면 알려요.')}
+      ${kind('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>', '상담 30분 전', '예약한 상담이 시작되기 30분 전에 한 번 알려요.')}
+    </div>
+    ${ns.native ? '' : '<p class="muted" style="margin:-0.2rem 0.2rem 0.6rem;">브라우저 알림에는 전화가 아니면 "새 소식이 있어요"라고만 떠요. 누르면 앱이 열리고 내용이 보여요.</p>'}`;
+
+  return top + detail + tests + sound + kinds +
+    (ME ? `<div class="sec-title">기기</div><div class="card" style="padding-top:0.3rem;">${devicesRow()}</div>` : '');
+}
+
+function openNotiSheet() {
+  sheet(notiSheetHtml(), { title: '알림 설정', sub: '전화와 메시지를 놓치지 않게', kind: 'noti' });
+  refreshNotiState();     // 열 때마다 진짜 상태를 다시 읽는다
+  loadDevices();
+}
+function renderNotiSheet() {
+  if (SHEET_KIND !== 'noti' || $('sheet').hidden) return;
+  sheet(notiSheetHtml(), { title: '알림 설정', sub: '전화와 메시지를 놓치지 않게', kind: 'noti', keepScroll: true });
+}
+
+// 이 기기에 바로 띄워 보는 테스트 — 서버를 거치지 않는다
+async function testNotify() {
+  if (!('Notification' in window) || Notification.permission !== 'granted') { toast('먼저 알림을 켜주세요'); return; }
+  const ok = await localNotify('마인드 인사이드 프로', '테스트 알림이에요. 이렇게 보이면 잘 켜진 거예요.', 'pro-test');
+  if (ok) { toast('테스트 알림을 보냈어요. 화면 위쪽이나 알림창을 확인해보세요'); return; }
+  uiAlert({ title: '테스트 알림을 띄우지 못했어요', tone: 'warn',
+    body: '브라우저가 알림을 받아주지 않았어요.\n페이지를 새로고침한 뒤 다시 눌러보세요.' });
+}
+
+// 서버가 진짜로 보내는 테스트 — 전화·메시지가 오는 길 그대로다
+async function serverPushTest() {
+  if (!ME) { toast('상담사 계정으로 로그인해야 보낼 수 있어요'); return; }
+  PUSH.testAt = Date.now(); PUSH.testOk = 0;
+  renderNotiSheet();
+  const r = await postJson('/api/push/test', authBody());
+  if (!r || !r.ok) {
+    PUSH.testAt = 0; renderNotiSheet();
+    uiAlert({ title: '보내지 못했어요', tone: 'warn', body: '서버에 연결하지 못했어요.\n인터넷을 확인한 뒤 다시 눌러주세요.' });
+    return;
+  }
+  if (!r.total) {
+    PUSH.testAt = 0; PUSH.sub = false; PUSH.err = PUSH.err || 'server';
+    notiChanged(true);
+    uiAlert({ title: '서버에 등록된 기기가 없어요', tone: 'warn', body: '위의 [이 기기 다시 등록하기]를 누른 뒤 한 번 더 보내보세요.' });
+    return;
+  }
+  toast(`기기 ${r.total}대로 보냈어요. 곧 도착해요`);
+  setTimeout(() => {
+    if (!PUSH.testAt) return;              // 이미 도착을 확인했다
+    PUSH.testAt = 0; renderNotiSheet();
+    uiAlert({ title: '도착을 확인하지 못했어요', tone: 'warn',
+      html: '알림창에 <b>새 알림</b>이 떠 있다면 정상이에요.<br>아무것도 오지 않았다면 이렇게 해보세요.' +
+        '<ol class="steps"><li><b>[이 기기 다시 등록하기]</b> 누르기</li><li>폰의 <b>방해 금지·절전 모드</b> 끄기</li><li>그래도 안 되면 <b>help@neurumind.com</b></li></ol>' });
+  }, 15000);
+}
+
+// 기기 등록을 처음부터 다시 — 낡은 구독을 버리고 새로 받는다
+async function resubscribePush() {
+  PUSH.sub = null; PUSH.err = ''; FCM_SENT_FOR = '';
+  notiChanged(true);
+  try {
+    if (!isNativeApp() && SWREG && SWREG.pushManager) {
+      const old = await SWREG.pushManager.getSubscription();
+      if (old) await old.unsubscribe().catch(() => {});
+    }
+  } catch (e) {}
+  const P = pushPlugin();
+  if (isNativeApp() && P) {
+    if (!FCM_BOUND) await enableFcmPush();
+    else if (FCM_TOKEN) sendFcmToken();
+    else { try { await P.register(); } catch (e) {} }     // 토큰을 한 번도 못 받았다 — 다시 달라고 한다
+  } else await enablePush();
+  if (PUSH.sub === null) await new Promise(r => setTimeout(r, 3000));   // FCM 등록 응답을 잠깐 기다린다
+  if (PUSH.sub === null) { PUSH.sub = false; PUSH.err = PUSH.err || 'no-token'; }
+  notiChanged(true);
+  toast(PUSH.sub ? '이 기기를 다시 등록했어요' : '등록하지 못했어요. 잠시 뒤 다시 시도해주세요');
+  loadDevices(true);
+}
+
+// ── 설정 메뉴 ─────────────────────────────────────────────────────────
+//  내 정보·시간표·알림·계좌가 홈 아래쪽 접힌 섹션에 흩어져 있어, 톱니를 눌러도 '내 정보'만 열렸다.
+//  설정이라 부를 만한 것을 한 메뉴에 모으고, 누르면 그 자리로 데려간다.
+function openSettings() {
+  const S = d => `<span class="mi"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg></span>`;
+  const row = (attrs, icon, t, s, right) => `<button class="menurow" ${attrs}>${S(icon)}
+      <span class="grow">${t}<br><span class="ms">${s}</span></span>${right || ''}<span style="color:var(--sub); line-height:0;">${CHEV}</span></button>`;
+  const ns = notiSnap();
+  const hours = ME ? Object.values(ME.slots || {}).reduce((a, x) => a + (x || []).length, 0) : 0;
+  const viaHosp = !!(ME && ME.hospitalId && ME.hospitalOk);
+  const payOk = !!(ME && ME.payout && ME.payout.set);
+  sheet(`
+    ${ME ? row('data-act="go-fold" data-tab="home" data-key="profile"', '<circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+        '내 정보', '사진 · 소개 · 상담료 · 전문 분야') : ''}
+    ${ME ? row('data-act="go-fold" data-tab="home" data-key="slots"', '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+        '예약 가능 시간', hours ? `주 ${hours}시간 열어 둠` : '아직 열어 둔 시간이 없어요', hours ? '' : '<span class="chip new">필요</span>') : ''}
+    ${row('data-act="noti-open"', '<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9Z"/><path d="M10 19a2.2 2.2 0 0 0 4 0"/>',
+        '알림 · 소리', ns.title, ns.state === 'ok' ? '<span class="chip ok">켜짐</span>' : ns.state === 'checking' ? '' : '<span class="chip new">확인</span>')}
+    ${ME ? row('data-act="go-fold" data-tab="money" data-key="payout"', '<path d="M3 7h18v12H3z"/><path d="M3 11h18"/>',
+        viaHosp ? '정산' : '정산 계좌', viaHosp ? '소속 상담소가 지급해요' : payOk ? `${esc(ME.payout.bank)} ${esc(ME.payout.masked)}` : '등록해야 정산을 받을 수 있어요',
+        viaHosp || payOk ? '' : '<span class="chip new">필요</span>') : ''}
+    ${row('data-act="qr-edit"', '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/>', '빠른 답장', `저장된 문장 ${QR.length}개`)}
+    ${isStandalone() ? '' : row('data-act="install"', '<path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/>', '앱으로 설치하기', '홈 화면에서 바로 열 수 있어요')}
+    <button class="menurow" data-act="logout" style="margin-top:0.6rem; color:var(--danger);">
+      <span class="mi" style="background:rgba(207,107,96,0.12); color:var(--danger);"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+      <span class="grow">앱 잠그기<br><span class="ms">다시 열려면 코드를 입력해야 해요</span></span></button>
+    <p class="muted" style="text-align:center; margin-top:0.8rem;">도움이 필요하면 <b>help@neurumind.com</b></p>`,
+  { title: '설정', sub: ME ? `${esc(ME.name || '')} · ${esc(ME.email || '이메일 미등록')}` : (D.scope === 'admin' ? '운영자 · 전체 열람 모드' : '') });
+}
+
+// 접힌 섹션을 펴서 그 자리로 데려간다 (홈·정산 탭의 fold)
+function goFold(tab, key) {
+  closeSheet();
+  OPEN[key] = true;
+  setTab(tab);
+  const c = document.querySelector(`#view-${tab} [data-fold="${key}"]`);
+  // 부드럽게 굴리지 않는다 — 굴러가는 도중에 화면이 다시 그려지면(폴링) 엉뚱한 데서 멈춘다
+  if (c) setTimeout(() => { const x = document.querySelector(`#view-${tab} [data-fold="${key}"]`); if (x) x.scrollIntoView({ block: 'start' }); }, 60);
+  if (key === 'dfb') markDfbRead();
 }
 
 // ============================================================================
 //  바텀시트
+//  모든 시트가 같은 틀을 쓴다: 머리(뒤로 · 제목 · 닫기) / 스크롤되는 본문 / 바닥에 붙은 버튼 줄.
+//  o = { title, sub, foot(버튼 HTML), back(뒤로 버튼이 부를 data-act), kind(다시 그릴 때 구분), keepScroll }
 // ============================================================================
-function sheet(html) {
-  $('sheet-body').innerHTML = '<div class="grab"></div>' + html;
+let SHEET_KIND = '';      // 지금 열린 시트의 종류 — 상태가 바뀌면 다시 그려야 하는 것만 이름이 있다('noti')
+let SHEET_T = null;       // 내담자 시트에서 고른 사람 (숙제·메모·기록 시트가 이 사람을 대상으로 연다)
+let SHEET_FOCUS = null;   // 시트를 열기 전에 포커스가 있던 곳 — 닫으면 돌려놓는다
+
+function sheet(html, o) {
+  o = o || {};
+  const box = $('sheet-body');
+  const wasOpen = !$('sheet').hidden;
+  const sc = $('sheet-scroll');
+  const keep = (o.keepScroll && sc) ? sc.scrollTop : 0;
+  if (!wasOpen) SHEET_FOCUS = document.activeElement;
+  SHEET_KIND = o.kind || '';
+  box.innerHTML = `
+    <div class="sh-head"><div class="grab"></div>
+      <div class="row" style="gap:0.3rem;">
+        ${o.back ? `<button class="iconbtn back" data-act="${esc(o.back)}" aria-label="뒤로">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>` : ''}
+        <div class="grow"><h3 class="sh-title serif ell" id="sheet-title">${o.title || ''}</h3>
+          ${o.sub ? `<p class="muted ell">${o.sub}</p>` : ''}</div>
+        <button class="iconbtn" data-act="sheet-close" aria-label="닫기">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </div>
+    <div class="sh-scroll ${o.foot ? 'hasfoot' : ''}" id="sheet-scroll" tabindex="-1">${html}</div>
+    ${o.foot ? `<div class="sh-foot">${o.foot}</div>` : ''}`;
   $('sheet').hidden = false;
   document.body.style.overflow = 'hidden';
+  const ns = $('sheet-scroll');
+  if (keep) ns.scrollTop = keep;
+  // 새로 열었을 때만 포커스를 시트 안으로 — 키보드·스크린리더가 뒤의 화면을 헤매지 않게.
+  //  (본문에 두는 이유: 입력칸에 두면 폰 키보드가 불쑥 올라온다)
+  if (!o.keepScroll) { try { ns.focus({ preventScroll: true }); } catch (e) {} }
 }
 function closeSheet() {
+  if ($('sheet').hidden) return;
   $('sheet').hidden = true;
+  SHEET_KIND = ''; SHEET_T = null;
   if (!ROOM) document.body.style.overflow = '';
+  try { if (SHEET_FOCUS && SHEET_FOCUS.isConnected && SHEET_FOCUS.focus) SHEET_FOCUS.focus({ preventScroll: true }); } catch (e) {}
+  SHEET_FOCUS = null;
 }
 
 // ============================================================================
@@ -2663,7 +3775,7 @@ function snHomeHtml() {
   return `
     ${pend ? `<p class="muted" style="margin-bottom:0.4rem;">상담이 끝났는데 기록이 없는 건들이에요. 담당 상담소가 연결된 내담자는 이 기록으로 소장이 상담 경과를 봅니다.</p>${pend}` : ''}
     ${recent ? `<p class="muted" style="margin:${pend ? '0.8rem' : '0'} 0 0.4rem;">최근 기록</p>${recent}` : ''}
-    ${!pend && !recent ? '<p class="muted">대화방 메뉴의 [회기 기록 남기기] 로 첫 기록을 남겨보세요.</p>' : ''}`;
+    ${!pend && !recent ? empty('hw', '아직 회기 기록이 없어요', '상담을 마치면 여기에 "기록 남기기"가 떠요.<br>내담자 탭에서 사람을 골라 바로 남길 수도 있어요.') : ''}`;
 }
 
 function dfbListHtml() {
@@ -2685,14 +3797,45 @@ async function markDfbRead() {
   await postJson('/api/doctor-feedback/read', authBody({ ids }));
 }
 
+// 회기 기록 틀 — 빈 칸 앞에서 '뭘 적지'로 멈추는 시간이 제일 길다. 뼈대를 깔아 준다.
+const SN_TPL = [
+  { label: '기본 틀', text: '호소 문제: \n이번 회기에서 다룬 것: \n내담자 상태: ' },
+  { label: '첫 상담', text: '찾아온 이유: \n지금 가장 힘든 점: \n바라는 변화: \n첫인상·상태: ' },
+  { label: '위기 상황', text: '위험 신호: \n보호 요인(곁에 있는 사람·이유): \n함께 세운 안전 계획: \n연락한 곳: ' }
+];
+// 쓰다 만 기록 — 시트를 닫거나 전화가 와도 사라지지 않게 이 기기에 잠깐 맡겨 둔다.
+//  저장에 성공하면 지운다. 잠그기(로그아웃) 때도 지운다.
+let SN_KEY = '';
+const snDraftKey = ctx => ctx.id ? '' : (ctx.bookingId || ctx.callId || (ctx.clientId ? 'c:' + ctx.clientId : ''));
+function snDraftSave() {
+  if (!SN_KEY || !$('sn-summary')) return;
+  const all = lsGet('pro_sn_draft', {}) || {};
+  const v = { summary: $('sn-summary').value, plan: $('sn-plan').value, homework: $('sn-hw').value, risk: $('sn-risk').value, ts: Date.now() };
+  if (!(v.summary + v.plan + v.homework).trim()) delete all[SN_KEY];
+  else all[SN_KEY] = v;
+  // 오래된 것부터 버려 10건만 둔다 — 쌓이게 두면 저장 공간이 찬다
+  Object.keys(all).sort((a, b) => (all[b].ts || 0) - (all[a].ts || 0)).slice(10).forEach(k => delete all[k]);
+  lsSet('pro_sn_draft', all);
+}
+function snDraftDrop(key) {
+  const all = lsGet('pro_sn_draft', {}) || {};
+  if (key && all[key]) { delete all[key]; lsSet('pro_sn_draft', all); }
+}
+
 function openSessionNote(ctx) {
-  ctx = ctx || {};
+  ctx = Object.assign({}, ctx || {});
   const isEdit = !!ctx.id;
+  SN_KEY = snDraftKey(ctx);
+  const draft = (!isEdit && SN_KEY && !ctx.summary) ? (lsGet('pro_sn_draft', {}) || {})[SN_KEY] : null;
+  if (draft) { ctx.summary = draft.summary; ctx.plan = draft.plan; ctx.homework = draft.homework; ctx.risk = draft.risk; }
   sheet(`
-    <h3 class="serif">${esc(ctx.clientName || '내담자')} 님 회기 기록${isEdit ? ' 고치기' : ''}</h3>
-    <p class="muted" style="margin-bottom:0.7rem;">${KIND_LABEL[ctx.kind] || '상담'} · ${fmtDT(ctx.ts || Date.now())}</p>
+    ${draft ? `<p class="muted" style="margin-bottom:0.7rem; padding:0.5rem 0.7rem; background:rgba(245,199,78,0.18); border-radius:10px;">
+      쓰던 내용을 불러왔어요. <button data-act="sn-draft-clear" style="all:unset; cursor:pointer; color:var(--accent); font-weight:700; padding:0.3rem 0;">지우고 새로 쓰기</button></p>` : ''}
+    <div class="fchips" role="group" aria-label="기록 틀" style="margin-bottom:0.5rem;">
+      ${SN_TPL.map((t, i) => `<button data-act="sn-tpl" data-arg="${i}">＋ ${t.label}</button>`).join('')}
+    </div>
     <label><span>상담 요약 (필수)</span>
-      <textarea id="sn-summary" rows="5" maxlength="2000" placeholder="호소 문제, 이번 회기에서 다룬 것, 내담자 상태. 담당의가 읽는다고 생각하고 사실 위주로.">${esc(ctx.summary || '')}</textarea></label>
+      <textarea id="sn-summary" rows="6" maxlength="2000" placeholder="호소 문제, 이번 회기에서 다룬 것, 내담자 상태. 담당의가 읽는다고 생각하고 사실 위주로.">${esc(ctx.summary || '')}</textarea></label>
     <label><span>다음 계획</span>
       <textarea id="sn-plan" rows="2" maxlength="1000" placeholder="다음 회기에 다룰 것, 권한 것">${esc(ctx.plan || '')}</textarea></label>
     <label><span>위험도</span>
@@ -2701,23 +3844,22 @@ function openSessionNote(ctx) {
       </select></label>
     <label><span>이번에 낸 숙제 (있으면)</span>
       <input id="sn-hw" type="text" maxlength="500" value="${esc(ctx.homework || '')}" placeholder="예: 잠들기 전 10분 걷기 · 매일"></label>
-    <label style="display:flex; align-items:center; gap:0.5rem; margin:0.4rem 0 0.8rem;">
-      <input id="sn-shared" type="checkbox" ${ctx.shared === false ? '' : 'checked'} style="width:auto;">
-      <span style="font-size:0.86rem;">담당 상담소와 공유 (상담소가 연결된 내담자에게만 전달돼요)</span></label>
-    <p class="muted" style="margin-bottom:0.8rem; padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
-      🔒 요약은 서버에 저장되고 내담자와 담당의가 볼 수 있어요. 대화 원문은 저장되지 않습니다.</p>
-    <button class="btn" data-act="sn-save" data-id="${esc(ctx.id || '')}" data-client-id="${esc(ctx.clientId || '')}" data-client-name="${esc(ctx.clientName || '')}"
-      data-booking-id="${esc(ctx.bookingId || '')}" data-call-id="${esc(ctx.callId || '')}" data-kind="${esc(ctx.kind || 'chat')}" data-ts="${ctx.ts || Date.now()}">${isEdit ? '저장' : '기록 남기기'}</button>`);
-  setTimeout(() => { const t = $('sn-summary'); if (t) t.focus(); }, 60);
+    <label style="display:flex; align-items:center; gap:0.6rem; margin:0.4rem 0 0.8rem; min-height:44px;">
+      <input id="sn-shared" type="checkbox" ${ctx.shared === false ? '' : 'checked'} style="width:20px; height:20px; flex-shrink:0;">
+      <span style="font-size:0.86rem; margin:0; color:var(--text);">담당 상담소와 공유 (상담소가 연결된 내담자에게만 전달돼요)</span></label>
+    <p class="muted" style="padding:0.55rem 0.7rem; background:var(--accent-soft); border-radius:10px; color:var(--accent);">
+      🔒 요약은 서버에 저장되고 내담자와 담당의가 볼 수 있어요. 대화 원문은 저장되지 않습니다.</p>`,
+  { title: `${esc(ctx.clientName || '내담자')} 님 회기 기록${isEdit ? ' 고치기' : ''}`,
+    sub: `${KIND_LABEL[ctx.kind] || '상담'} · ${fmtDT(ctx.ts || Date.now())}`, back: sheetBack(),
+    foot: `<button class="btn" data-act="sn-save" data-id="${esc(ctx.id || '')}" data-client-id="${esc(ctx.clientId || '')}" data-client-name="${esc(ctx.clientName || '')}"
+      data-booking-id="${esc(ctx.bookingId || '')}" data-call-id="${esc(ctx.callId || '')}" data-kind="${esc(ctx.kind || 'chat')}" data-ts="${ctx.ts || Date.now()}">${isEdit ? '저장' : '기록 남기기'}</button>` });
 }
 
 function openSessionNoteList(t) {
   const mine = D.notes.filter(n => n.clientId === t.clientId);
   sheet(`
-    <h3 class="serif">${esc(t.clientName)} 님 회기 기록</h3>
     <p class="muted" style="margin-bottom:0.8rem;">상담이 끝날 때마다 한 번씩. 담당 상담소가 연결돼 있으면 담당의가 이 기록으로 경과를 봅니다.</p>
-    <button class="btn" data-act="sn-open" data-client-id="${esc(t.clientId)}" data-client-name="${esc(t.clientName)}" data-kind="chat" data-ts="${Date.now()}">＋ 새 기록</button>
-    <div class="sec-title" style="margin-top:0.9rem;">지금까지 ${mine.length}건</div>
+    <div class="sec-title">지금까지 ${mine.length}건</div>
     ${mine.length ? mine.map(n => `
       <div class="card" style="margin-bottom:0.5rem;">
         <div class="row" style="gap:0.4rem;"><strong style="font-size:0.88rem;">${fmtDT(n.ts)}</strong><span class="muted">${KIND_LABEL[n.kind] || ''}</span>${RISK_CHIP[n.risk] || ''}${n.shared ? '' : '<span class="chip off">비공유</span>'}
@@ -2725,21 +3867,24 @@ function openSessionNoteList(t) {
         <p style="margin-top:0.4rem; font-size:0.86rem; white-space:pre-wrap;">${esc(n.summary)}</p>
         ${n.plan ? `<p class="muted" style="margin-top:0.3rem;"><b>계획</b> ${esc(n.plan)}</p>` : ''}
         ${n.homework ? `<p class="muted"><b>숙제</b> ${esc(n.homework)}</p>` : ''}
-      </div>`).join('') : '<p class="muted">아직 기록이 없어요.</p>'}`);
+      </div>`).join('') : `<div class="card">${empty('hw', '아직 기록이 없어요', '아래 버튼으로 첫 기록을 남겨보세요.')}</div>`}`,
+  { title: `${esc(t.clientName)} 님 회기 기록`, back: sheetBack(),
+    foot: `<button class="btn" data-act="sn-open" data-client-id="${esc(t.clientId)}" data-client-name="${esc(t.clientName)}" data-kind="chat" data-ts="${Date.now()}">＋ 새 기록</button>` });
 }
 
 async function saveSessionNote(btn) {
   const d = btn.dataset;
   const summary = (($('sn-summary') || {}).value || '').trim();
-  if (summary.length < 5) { toast('상담 요약을 조금 더 적어주세요.'); return; }
-  btn.disabled = true;
+  if (summary.length < 5) { toast('상담 요약을 조금 더 적어주세요.'); const f = $('sn-summary'); if (f) f.focus(); return; }
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = '저장 중…';
   const res = await postJson('/api/session-notes', authBody({
     id: d.id || '', clientId: d.clientId, clientName: d.clientName, bookingId: d.bookingId || '', callId: d.callId || '',
     kind: d.kind || 'chat', ts: Number(d.ts) || Date.now(), summary,
     plan: (($('sn-plan') || {}).value || '').trim(), risk: ($('sn-risk') || {}).value || 'none',
     homework: (($('sn-hw') || {}).value || '').trim(), shared: !!($('sn-shared') && $('sn-shared').checked)
   }));
-  btn.disabled = false;
+  if (btn.isConnected) { btn.disabled = false; btn.textContent = label; }
   if (!res || !res.ok) {
     const e = res && res.error;
     toast(e === 'missing-summary' ? '요약이 너무 짧아요'
@@ -2748,13 +3893,16 @@ async function saveSessionNote(btn) {
       : '저장하지 못했어요. 잠시 후 다시 시도해주세요.');
     return;
   }
-  closeSheet();
-  // 위험도가 높아 상담소에 긴급 메일을 보내려 했는데 실패했다 — 조용히 넘어가면 아무도 모른다
-  if (res.alertError) setTimeout(() => toast('긴급 메일을 보내지 못했어요 — 상담소에 직접 연락해주세요'), 2400);
+  snDraftDrop(SN_KEY); SN_KEY = '';
   toast(d.id ? '기록을 고쳤어요' : '회기 기록을 남겼어요');
   await loadNotes();
-  renderHome(); renderDots();
+  sheetDone();
+  renderHome(); renderClients(); renderBookings(); renderMoney(); renderDots();
   if (ROOM) renderRoom();
+  // 위험도가 높아 상담소에 긴급 메일을 보내려 했는데 실패했다 — 조용히 넘어가면 아무도 모른다.
+  //  토스트는 2초면 사라진다. 놓치면 안 되는 말이라 창으로 띄운다.
+  if (res.alertError) uiAlert({ title: '긴급 메일을 보내지 못했어요', tone: 'danger', ok: '알겠어요',
+    body: '기록은 저장됐지만 상담소로 가는 긴급 알림이 실패했어요.\n상담소에 직접 연락해주세요.' });
 }
 
 // ============================================================================
@@ -2762,23 +3910,42 @@ async function saveSessionNote(btn) {
 // ============================================================================
 const ACT = {
   tab: (el) => setTab(el.dataset.tab),
-  refresh: () => { loadAll(); toast('새로고침했어요'); },
+  // 받아온 뒤에 말한다 — 전에는 누르자마자 '새로고침했어요'가 떠서, 실패해도 성공한 줄 알았다
+  refresh: async () => {
+    if (LOAD.busy) return;
+    const ok = await loadAll();
+    toast(ok ? '방금 내용으로 새로 받아왔어요' : '불러오지 못했어요. 인터넷 연결을 확인해주세요');
+  },
 
   // ── 회기 기록 (상담사) ──
-  'sn-home': () => { setTab('home'); OPEN.sn = true; renderHome(); const c = document.querySelector('#view-home [data-fold="sn"]'); if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
+  'sn-home': () => goFold('home', 'sn'),
   'sn-open': (el) => openSessionNote({
     id: el.dataset.id || '', clientId: el.dataset.clientId || '', clientName: el.dataset.clientName || '',
     bookingId: el.dataset.bookingId || '', callId: el.dataset.callId || '', kind: el.dataset.kind || 'chat',
     ts: Number(el.dataset.ts) || Date.now()
   }),
   'sn-open-room': () => {
-    const t = curThread();
+    const t = actTarget();
     if (!t) return;
     if (!t.clientId) { toast('이 대화에는 내담자 식별자가 없어 기록을 남길 수 없어요.'); return; }
     openSessionNoteList(t);
   },
   'sn-save': (el) => saveSessionNote(el),
   'sn-edit': (el) => { const n = D.notes.find(x => x.id === el.dataset.id); if (n) openSessionNote(n); },
+  // 틀을 넣는다 — 이미 쓴 글이 있으면 지우지 않고 아래에 붙인다
+  'sn-tpl': (el) => {
+    const f = $('sn-summary'), t = SN_TPL[+el.dataset.arg];
+    if (!f || !t) return;
+    f.value = f.value.trim() ? f.value.replace(/\s+$/, '') + '\n\n' + t.text : t.text;
+    f.focus();
+    snDraftSave();
+  },
+  'sn-draft-clear': () => {
+    snDraftDrop(SN_KEY);
+    ['sn-summary', 'sn-plan', 'sn-hw'].forEach(id => { if ($(id)) $(id).value = ''; });
+    if ($('sn-risk')) $('sn-risk').value = 'none';
+    toast('쓰던 내용을 지웠어요');
+  },
 
   // ── 상담소(소장) 모드 ──
   logout,
@@ -2786,18 +3953,44 @@ const ACT = {
     const k = el.dataset.key;
     OPEN[k] = !OPEN[k];
     renderHome(); renderMoney();
-    // 기기 수는 열어본 사람에게만 물어본다 — 30초 폴링마다 서버를 두드릴 값이 아니다
-    if (k === 'pref' && OPEN[k]) loadDevices();
     if (k === 'dfb' && OPEN[k]) markDfbRead();
   },
-  'ask-noti': askNotify,
+  'go-fold': (el) => goFold(el.dataset.tab || 'home', el.dataset.key),
+  'ask-noti': () => askNotify(),
+  // ── 알림 설정 ──
+  'noti-open': () => openNotiSheet(),
+  'noti-test': () => testNotify(),
+  'noti-server-test': () => serverPushTest(),
+  'noti-resub': () => resubscribePush(),
+  'noti-recheck': async () => {
+    await refreshNotiState();
+    const st = notiSnap().state;
+    if (st === 'default') { askNotify(); return; }
+    toast(st === 'ok' ? '알림이 켜졌어요' : st === 'denied' ? '아직 막혀 있어요. 위 순서를 한 번 더 확인해주세요' : '상태를 다시 확인했어요');
+  },
+  'sound-test': () => { unlockAudio(); tone([[659, 0], [988, 0.11], [1319, 0.22]], 0.12); toast('새 메시지가 오면 이 소리가 나요'); },
+  'ring-test': () => {
+    unlockAudio();
+    tone([[880, 0, 0.16], [1100, 0.18, 0.16], [880, 0.9, 0.16], [1100, 1.08, 0.16]], 0.2);
+    try { if (navigator.vibrate) navigator.vibrate([400, 200, 400]); } catch (e) {}
+    toast('전화가 오면 이 벨이 받을 때까지 울려요');
+  },
+  'batt-ask': async () => {
+    const P = callPlugin();
+    if (!P || !P.requestBatteryExemption) return;
+    await P.requestBatteryExemption().catch(() => {});
+    setTimeout(refreshNotiState, 1500);
+  },
   // 잃어버린 폰·초기화한 태블릿은 스스로 알림을 끊을 수 없다.
   //  남아 있는 기기에서 일방적으로 끊는 길이 하나는 있어야 한다.
   'prune-devices': async () => {
     const id = await myPushId().catch(() => '');
     if (!id) { toast('이 기기의 알림이 아직 등록되지 않았어요'); return; }
     const n = DEVICES ? DEVICES.others : 0;
-    if (!confirm(`이 기기만 남기고 다른 ${n}대의 알림을 끌까요?\n그 기기들은 전화·메시지 알림을 더 이상 받지 않아요.\n(로그인은 그대로예요 — 다시 켜려면 그 기기에서 알림을 다시 허용하면 됩니다)`)) return;
+    if (!await uiConfirm({
+      title: `다른 기기 ${n}대의 알림을 끌까요?`, tone: 'warn', ok: '이 기기만 남기기',
+      body: '그 기기들은 전화·메시지 알림을 더 이상 받지 않아요.\n로그인은 그대로예요. 다시 받으려면 그 기기에서 알림을 다시 켜면 됩니다.'
+    })) return;
     const r = await postJson('/api/push/prune-others', authBody({ token: id, endpoint: id }));
     if (!r || !r.ok) { toast('정리하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
     toast(r.removed ? `다른 기기 ${r.removed}대의 알림을 껐어요` : '끌 기기가 없었어요');
@@ -2805,18 +3998,26 @@ const ACT = {
   },
   // 이미 거부한 뒤의 복구 수단 — 팝업이 다시 뜨지 않으므로 설정 화면으로 데려간다
   'noti-settings': async () => { await guideToNotifSettings(); },
+  settings: () => openSettings(),
   'sub-pay': openSubPay,
 
   presence: async (el) => {
     const on = el.dataset.on === '1';
     el.classList.toggle('on', on);   // 눌린 즉시 움직여야 '먹었다'고 느낀다
-    await postJson('/api/presence', authBody({ available: on }));
+    const r = await postJson('/api/presence', authBody({ available: on }));
     await loadPresence(); renderHome();
+    // 스위치는 움직였는데 서버에는 안 갔다 — 말해주지 않으면 '수신 중'인 줄 알고 자리를 지킨다
+    if (!r || r.error) toast('바꾸지 못했어요. 잠시 뒤 다시 눌러주세요');
+    else toast(on ? '바로상담을 켰어요. 전화가 오면 벨이 울려요' : '바로상담을 껐어요');
   },
   'force-end': async (el) => {
-    if (!confirm('통화 회선을 수동으로 해제할까요?\n(내담자 앱이 비정상 종료된 경우에만 사용하세요)')) return;
+    if (!await uiConfirm({
+      title: '통화 회선을 수동으로 해제할까요?', tone: 'danger', ok: '해제하기',
+      body: '내담자 앱이 갑자기 꺼져서 "통화 중"이 풀리지 않을 때만 쓰세요.\n통화하는 중이라면 그 통화가 끊깁니다.'
+    })) return;
     await postJson('/api/call/end', authBody({ counselorId: el.dataset.id }));
     await loadPresence(); renderHome();
+    toast('회선을 해제했어요');
   },
 
   'inbox-open': async (el) => {
@@ -2835,8 +4036,11 @@ const ACT = {
     const t = (inp.value || '').trim();
     if (!t) return;
     inp.blur();
-    await postJson('/api/reviews/reply', authBody({ id: el.dataset.id, text: t }));
+    el.disabled = true;
+    const r = await postJson('/api/reviews/reply', authBody({ id: el.dataset.id, text: t }));
+    if (!r || r.error) { el.disabled = false; toast('답글을 등록하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
     await loadReviews(); renderHome();
+    toast('답글을 등록했어요');
   },
 
   'room-open': (el) => openRoom(el.dataset.key),
@@ -2844,8 +4048,8 @@ const ACT = {
   'room-send': sendReply,
   'room-menu': openRoomMenu,
   'room-refresh': async () => { closeSheet(); await loadChats(); renderRoom(true); renderChatList(); renderDots(); toast('대화를 새로 받아왔어요'); },
-  'hw-open': () => { closeSheet(); openHomeworkSheet(); },
-  'hw-send': sendHomework,
+  'hw-open': () => openHomeworkSheet(),
+  'hw-send': (el) => sendHomework(el),
   'sheet-close': closeSheet,
 
   // ── 빠른 답장 ──
@@ -2859,40 +4063,78 @@ const ACT = {
     renderQuickBar(); openQuickSheet();
     toast('빠른 답장을 추가했어요');
   },
+  // 지울 때 묻지 않는다 — 대신 되돌릴 수 있다 (한 줄 지우는데 창이 뜨면 정리를 안 하게 된다)
   'qr-del': (el) => {
-    QR.splice(+el.dataset.arg, 1); lsSet('pro_quickreply', QR);
+    const i = +el.dataset.arg, was = QR[i];
+    QR.splice(i, 1); lsSet('pro_quickreply', QR);
     renderQuickBar(); openQuickSheet();
+    toast('문장을 지웠어요', { action: '되돌리기', onAction: () => {
+      QR.splice(Math.min(i, QR.length), 0, was); lsSet('pro_quickreply', QR);
+      renderQuickBar(); if (!$('sheet').hidden && $('qr-new')) openQuickSheet();
+    } });
   },
-  'qr-reset': () => {
-    if (!confirm('저장한 문장을 지우고 기본 3개로 되돌릴까요?')) return;
+  'qr-reset': async () => {
+    const before = QR.slice();
+    if (!await uiConfirm({ title: '기본 문구로 되돌릴까요?', tone: 'warn', ok: '되돌리기',
+      body: `지금 저장한 문장 ${QR.length}개가 지워지고 기본 3개만 남아요.` })) return;
     QR = QR_DEFAULT.slice(); lsSet('pro_quickreply', QR);
     renderQuickBar(); openQuickSheet();
-    toast('기본 문구로 되돌렸어요');
+    toast('기본 문구로 되돌렸어요', { action: '되돌리기', onAction: () => {
+      QR = before; lsSet('pro_quickreply', QR); renderQuickBar(); if (!$('sheet').hidden && $('qr-new')) openQuickSheet();
+    } });
   },
 
   // ── 내담자 메모 (이 기기에만) ──
   'note-open': openNoteSheet,
   'note-save': () => {
-    const t = curThread();
+    const t = actTarget();
     if (!t) return;
     const v = (($('note-text') || {}).value || '').trim();
     if (v) NOTES[noteKey(t)] = { text: v, ts: Date.now() };
     else delete NOTES[noteKey(t)];
-    lsSet('pro_notes', NOTES);
-    closeSheet(); renderRoom();
+    if (!lsSet('pro_notes', NOTES)) return;      // 저장 공간이 찼다 — 시트를 닫으면 쓴 글이 사라진다
+    sheetDone(); if (ROOM) renderRoom(); renderHome(); renderClients();
     toast(v ? '메모를 저장했어요 (이 기기에만)' : '메모를 비웠어요');
   },
+  // 이 메모는 이 기기에만 있는 유일본이다 — 지운 뒤 5초 동안은 되돌릴 수 있게 한다
   'note-del': () => {
-    const t = curThread();
-    if (!t || !confirm('이 내담자의 메모를 지울까요? 되돌릴 수 없어요.')) return;
-    delete NOTES[noteKey(t)];
+    const t = actTarget();
+    if (!t) return;
+    const k = noteKey(t), was = NOTES[k];
+    delete NOTES[k];
     lsSet('pro_notes', NOTES);
-    closeSheet(); renderRoom();
-    toast('메모를 지웠어요');
+    sheetDone(); if (ROOM) renderRoom(); renderHome(); renderClients();
+    toast('메모를 지웠어요', { action: '되돌리기', onAction: () => {
+      if (!was) return;
+      NOTES[k] = was; lsSet('pro_notes', NOTES);
+      if (ROOM) renderRoom(); renderHome(); renderClients();
+      if (SHEET_KIND === 'client' && SHEET_T) openClientSheet(SHEET_T.key, true);
+      toast('메모를 되살렸어요');
+    } });
   },
 
   // ── 채팅 검색 ──
-  'chat-clear': () => { CHATQ = ''; renderChatList(); },
+  'chat-clear': () => { CHATQ = ''; renderChatList(); const s = $('chat-search'); if (s) { s.value = ''; s.focus(); } const x = $('chat-x'); if (x) x.hidden = true; },
+
+  // ── 내담자 ──
+  'client-open': (el) => openClientSheet(el.dataset.key),
+  'client-back': () => { if (SHEET_T) openClientSheet(SHEET_T.key); else closeSheet(); },
+  'client-filter': (el) => { CLIENTF = el.dataset.arg; renderClients(); },
+  'client-clear': () => { CLIENTQ = ''; renderClients(); const s = $('client-search'); if (s) { s.value = ''; s.focus(); } const x = $('client-x'); if (x) x.hidden = true; },
+  'cl-chat': (el) => { const cid = el.dataset.cid, nm = el.dataset.nm; closeSheet(); openRoomFor(cid, nm); },
+  // 카드에서 바로 거는 전화는 한 번 묻는다 — 스크롤하다 스친 손가락에 내담자 폰이 울리면 안 된다
+  'cl-call': async (el) => {
+    const cid = el.dataset.cid, nm = el.dataset.nm;
+    if (!cid) { toast('이 내담자에게는 앱으로 전화를 걸 수 없어요'); return; }
+    if (!await uiConfirm({ title: `${nm} 님에게 전화를 걸까요?`, ok: '전화 걸기',
+      body: '앱으로 거는 무료 통화예요. 전화번호는 서로에게 보이지 않아요.' })) return;
+    closeSheet();
+    callClient(cid, nm);
+  },
+  'onb-hide': () => {
+    lsSet('pro_onb_hide', true); renderHome();
+    toast('시작 준비를 숨겼어요', { action: '되돌리기', onAction: () => { lsSet('pro_onb_hide', false); renderHome(); } });
+  },
 
   // ── 예약 목록 · 달력 ──
   bookview: (el) => {
@@ -2903,6 +4145,17 @@ const ACT = {
       const n = new Date();
       CAL.y = n.getFullYear(); CAL.m = n.getMonth(); CAL.sel = ymd(Date.now());
     }
+    renderBookings();
+  },
+  'book-filter': (el) => {
+    BOOKF = el.dataset.arg; BOOKMORE = false;
+    BOOKVIEW = 'list'; lsSet('pro_bookview', BOOKVIEW);
+    if (TAB !== 'book') setTab('book'); else { renderBookings(); window.scrollTo(0, 0); }
+  },
+  'book-more': () => { BOOKMORE = true; renderBookings(); },
+  'cal-today': () => {
+    const n = new Date();
+    CAL.y = n.getFullYear(); CAL.m = n.getMonth(); CAL.sel = ymd(Date.now());
     renderBookings();
   },
   'cal-move': (el) => {
@@ -2919,63 +4172,94 @@ const ACT = {
   sound: () => {
     SOUND = !SOUND;
     lsSet('pro_sound', SOUND);
-    renderHome();
+    notiChanged(true);
     if (SOUND) { unlockAudio(); chime(); toast('알림음을 켰어요'); }
     else toast('알림음을 껐어요 (전화 벨은 그대로 울려요)');
   },
 
   // ── 예약 ──
   'bk-decline': async (el) => {
-    if (!confirm(`${el.dataset.nm} 님의 예약을 거절할까요?\n내담자에게 전액 환불되며 취소 알림이 전달됩니다.\n(부득이한 경우에만 — 잦은 거절은 노출에 불이익)`)) return;
+    if (!await uiConfirm({
+      title: `${el.dataset.nm} 님의 예약을 거절할까요?`, tone: 'danger', ok: '거절하고 전액 환불', cancel: '그대로 두기',
+      body: '내담자에게 전액 환불되고 취소 알림이 가요.\n부득이할 때만 써주세요. 거절이 잦으면 매칭 목록에서 뒤로 밀려요.\n되돌릴 수 없어요.'
+    })) return;
     const r = await postJson('/api/bookings/decline', authBody({ id: el.dataset.id }));
-    if (!r || !r.ok) toast((r && r.error) || '거절하지 못했어요');
-    await loadBookings(); renderBookings(); renderDots();
+    if (!r || !r.ok) toast((r && r.error) || '거절하지 못했어요. 잠시 뒤 다시 시도해주세요');
+    else toast('예약을 거절했어요. 내담자에게 전액 환불돼요');
+    await loadBookings(); renderBookings(); renderHome(); renderClients(); renderDots();
   },
   'bk-done': async (el) => {
-    if (!confirm(`${el.dataset.nm} 님과의 상담을 마치셨나요?\n\n완료로 표시한 뒤 회기 기록을 남기면 내담자 확인을 거쳐 정산 대상이 됩니다.\n(회기 기록이 없는 상담은 정산되지 않아요)\n되돌릴 수 없어요.`)) return;
+    if (!await uiConfirm({
+      title: `${el.dataset.nm} 님과의 상담을 마치셨나요?`, ok: '상담 완료', cancel: '아직이에요',
+      body: '완료로 표시하면 바로 회기 기록을 쓰는 화면이 열려요.\n기록을 남겨야 내담자 확인을 거쳐 정산돼요.\n완료 표시는 되돌릴 수 없어요.'
+    })) return;
     const r = await postJson('/api/bookings/done', authBody({ id: el.dataset.id }));
-    if (!r || !r.ok) { toast((r && r.error) || '처리하지 못했어요'); return; }
+    if (!r || !r.ok) { toast((r && r.error) || '처리하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
     const b = D.bookings.find(x => x.id === el.dataset.id) || {};
-    await loadBookings(); renderBookings(); renderMoney(); renderDots();
+    await loadBookings(); renderBookings(); renderMoney(); renderHome(); renderDots();
     toast('완료 처리했어요. 이제 회기 기록을 남겨주세요.');
     // 기록을 '나중에'로 미루면 정산도 같이 미뤄진다 — 바로 시트를 연다
     openSessionNote({ clientId: b.clientId || '', clientName: el.dataset.nm || b.clientName || '', bookingId: el.dataset.id, kind: 'booking', ts: b.whenTs || Date.now() });
   },
+  // 사유를 묻는 창과 '정말요?'를 묻는 창이 따로 떴었다. 한 창에서 사유를 적고 그 버튼으로 끝낸다.
   'bk-refund': async (el) => {
-    const why = prompt(`${el.dataset.nm} 님 상담을 환불 처리합니다.\n사유를 적어주세요 (내담자에게 전달됩니다):`, '');
+    const why = await uiPrompt({
+      title: `${el.dataset.nm} 님 상담을 환불할까요?`, tone: 'danger', ok: '전액 환불', cancel: '그만두기',
+      body: '상담료 전액이 내담자에게 돌아가고, 이 상담은 정산에서 빠져요.\n되돌릴 수 없어요.',
+      input: { label: '사유 (내담자에게 전달돼요)', multiline: true, maxlength: 300, placeholder: '예: 제 사정으로 상담을 진행하지 못했습니다',
+        validate: v => v.length < 2 ? '사유를 적어주세요. 내담자가 이유를 알아야 해요.' : '' }
+    });
     if (why === null) return;
-    if (!confirm('전액 환불로 처리할까요? 이 상담은 정산에서 빠집니다.')) return;
-    const r = await postJson('/api/bookings/refund', authBody({ id: el.dataset.id, why: (why || '').trim() }));
-    if (!r || !r.ok) { toast((r && r.error) || '처리하지 못했어요'); return; }
-    await loadBookings(); renderBookings(); renderMoney(); renderDots();
+    const r = await postJson('/api/bookings/refund', authBody({ id: el.dataset.id, why }));
+    if (!r || !r.ok) { toast((r && r.error) || '처리하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
+    toast('환불 처리했어요');
+    await loadBookings(); renderBookings(); renderMoney(); renderHome(); renderClients(); renderDots();
   },
   'bk-note': async (el) => {
     const cur = (D.bookings.find(b => b.id === el.dataset.id) || {}).cnote || '';
-    const v = prompt('상담 메모 (내담자에게는 보이지 않아요)', cur);
+    const v = await uiPrompt({
+      title: `${el.dataset.nm} 님 예약 메모`, ok: '저장',
+      body: '내담자에게는 보이지 않아요. 비워서 저장하면 메모가 지워져요.',
+      input: { multiline: true, maxlength: 500, value: cur, placeholder: '예: 지난번에 이어 수면 문제부터' }
+    });
     if (v === null) return;
-    await postJson('/api/bookings/note', authBody({ id: el.dataset.id, note: v }));
+    const r = await postJson('/api/bookings/note', authBody({ id: el.dataset.id, note: v }));
+    if (!r || r.error) { toast('메모를 저장하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
+    toast(v ? '메모를 저장했어요' : '메모를 지웠어요');
     await loadBookings(); renderBookings();
   },
 
-  withdraw: () => alert('출금 신청이 접수되었습니다. (데모)\n실서비스에서는 등록 계좌로 정산됩니다.'),
+  // ── 정산 ──
+  // 앱에서 바로 출금을 넣는 서버 기능은 아직 없다. '접수됐다'고 말하면 거짓말이 되므로
+  //  지금 정산이 어떻게 나가는지를 그대로 알려준다.
+  withdraw: () => uiAlert({
+    title: '출금 신청 안내',
+    html: '앱에서 바로 출금을 신청하는 기능은 준비 중이에요.<br>정산 대기 금액은 <b>등록하신 계좌</b>로 정산돼요.<br><br>언제 들어오는지 궁금하시면 <b>help@neurumind.com</b> 으로 물어보세요.'
+  }),
+  'money-month': (el) => {
+    const a = String(el.dataset.arg || '');
+    const now = new Date();
+    let y, m;
+    if (a.indexOf('-') > 0) { y = +a.split('-')[0]; m = +a.split('-')[1]; }
+    else { const d = new Date(MONEYM.y, MONEYM.m + (+a), 1); y = d.getFullYear(); m = d.getMonth(); }
+    if (y > now.getFullYear() || (y === now.getFullYear() && m > now.getMonth())) return;   // 앞날은 볼 것이 없다
+    MONEYM.y = y; MONEYM.m = m;
+    renderMoney();
+  },
+  'money-help': () => openMoneyHelp(),
 
   // ── 프로필 · 시간표 · 계좌 ──
-  settings: () => {
-    setTab('home');
-    OPEN.profile = true;
-    renderHome();
-    const c = document.querySelectorAll('#view-home .fold')[0];
-    if (c) c.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  },
   'tag-add': () => {
     const v = (($('pf-tag') || {}).value || '').trim();
     syncProfileForm();
-    if (!v) return;
+    if (!v) { toast('전문 분야를 적어주세요'); return; }
+    DIRTY.profile = true;
     ME.tags = [...new Set([...(ME.tags || []), v])].slice(0, 6);
     renderHome();
   },
   'tag-del': (el) => {
     syncProfileForm();
+    DIRTY.profile = true;
     ME.tags = (ME.tags || []).filter((_, i) => i !== +el.dataset.arg);
     renderHome();
   },
@@ -2985,9 +4269,11 @@ const ACT = {
   'photo-pick': () => pickPhoto(),
   'photo-del': () => {
     syncProfileForm();
+    const was = ME.photo;
     ME.photo = '';
+    DIRTY.profile = true;
     renderHome();
-    toast('사진을 뺐어요 — [내 정보 저장]을 눌러야 반영돼요');
+    toast('사진을 뺐어요. [내 정보 저장]을 눌러야 반영돼요', { action: '되돌리기', onAction: () => { syncProfileForm(); ME.photo = was; renderHome(); } });
   },
 
   'save-profile': async (el) => {
@@ -3002,7 +4288,8 @@ const ACT = {
       photo: ME.photo || ''
     }));
     el.disabled = false; el.textContent = '내 정보 저장';
-    if (!r || !r.ok) { toast((r && r.error) || '저장하지 못했어요'); return; }
+    if (!r || !r.ok) { toast((r && r.error) || '저장하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
+    DIRTY.profile = false;
     // 주소를 바꾸면 서버가 뒤에서 좌표를 구한다 — 그 결과는 이번 loadMe 에
     //  아직 안 담길 수 있다. 다음에 화면을 열면 '지도에서 찾았어요'로 바뀐다.
     toast('내 정보를 저장했어요');
@@ -3012,7 +4299,18 @@ const ACT = {
     const d = +el.dataset.d, h = el.dataset.arg;
     const cur = new Set(_getDay(d));
     cur.has(h) ? cur.delete(h) : cur.add(h);
-    _setDay(d, [...cur]); renderHome();
+    _setDay(d, [...cur]); DIRTY.slots = true; renderHome();
+  },
+  slotday: (el) => { SLOTDAY = +el.dataset.arg; renderHome(); },
+  'offday-add': () => {
+    const v = (($('sl-offday') || {}).value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { toast('쉬는 날을 달력에서 골라주세요'); return; }
+    ME.offdays = [...new Set([...(ME.offdays || []), v])].sort();
+    DIRTY.slots = true; renderHome();
+  },
+  'offday-del': (el) => {
+    ME.offdays = (ME.offdays || []).filter(x => x !== el.dataset.arg);
+    DIRTY.slots = true; renderHome();
   },
   band: (el) => {
     const d = +el.dataset.d, b = BANDS.find(x => x.key === el.dataset.arg);
@@ -3020,29 +4318,37 @@ const ACT = {
     const on = _getDay(d);
     const allOn = b.hrs.every(h => on.includes(h));
     _setDay(d, allOn ? on.filter(h => !b.hrs.includes(h)) : on.concat(b.hrs));
-    renderHome();
+    DIRTY.slots = true; renderHome();
   },
   fillday: (el) => {
     const d = +el.dataset.d, mode = el.dataset.arg;
+    const was = _getDay(d).slice();
     if (mode === 'all') _setDay(d, HOURS.slice());
     else if (mode === 'none') _setDay(d, []);
     else _setDay(d, ['10:00', '11:00', '14:00', '15:00', '16:00', '17:00', '18:00']);
-    renderHome();
+    DIRTY.slots = true; renderHome();
+    // 한 번에 바뀌는 묶음 버튼은 실수로 누르기 쉽다 — 원래대로 돌릴 길을 준다
+    if (was.length) toast(`${DAYNM[d]}요일 시간을 바꿨어요`, { action: '되돌리기', onAction: () => { _setDay(d, was); renderHome(); } });
   },
-  copyday: (el) => {
+  copyday: async (el) => {
     const d = +el.dataset.d;
     const src = _getDay(d).slice();
-    if (!confirm(`${DAYNM[d]}요일 시간표를 나머지 요일에도 똑같이 적용할까요?`)) return;
-    for (let i = 0; i <= 6; i++) _setDay(i, src);
-    renderHome();
+    if (!await uiConfirm({
+      title: `${DAYNM[d]}요일 시간표를 모든 요일에 복사할까요?`, tone: 'warn', ok: '복사하기',
+      body: `다른 요일에 켜 둔 시간은 지워지고, 일곱 요일이 모두 ${DAYNM[d]}요일(${src.length}시간)과 같아져요.`
+    })) return;
+    const before = {};
+    for (let i = 0; i <= 6; i++) { before[i] = _getDay(i).slice(); _setDay(i, src); }
+    DIRTY.slots = true; renderHome();
+    toast('모든 요일에 복사했어요', { action: '되돌리기', onAction: () => { for (let i = 0; i <= 6; i++) _setDay(i, before[i]); renderHome(); } });
   },
   'save-slots': async (el) => {
     el.disabled = true; el.textContent = '저장 중…';
-    const off = ($('sl-off').value || '').split(',').map(x => x.trim()).filter(Boolean);
-    const r = await postJson('/api/me/slots', authBody({ slots: ME.slots || {}, offdays: off }));
+    const r = await postJson('/api/me/slots', authBody({ slots: ME.slots || {}, offdays: ME.offdays || [] }));
     el.disabled = false; el.textContent = '시간표 저장';
-    if (!r || !r.ok) { toast('저장하지 못했어요'); return; }
+    if (!r || !r.ok) { toast('저장하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
     ME.slots = r.slots; ME.offdays = r.offdays;
+    DIRTY.slots = false;
     toast('시간표를 저장했어요'); renderHome();
   },
   'save-payout': async (el) => {
@@ -3050,7 +4356,7 @@ const ACT = {
     el.disabled = true; el.textContent = '저장 중…';
     const r = await postJson('/api/me/payout', authBody({ bank: g('po-bank'), bankNo: g('po-no'), bankHolder: g('po-holder') }));
     el.disabled = false; el.textContent = '계좌 저장';
-    if (!r || !r.ok) { toast((r && r.error) || '저장하지 못했어요'); return; }
+    if (!r || !r.ok) { toast((r && r.error) || '저장하지 못했어요. 잠시 뒤 다시 시도해주세요'); return; }
     // 서버가 돌려준 마스킹 값으로 바로 바꿔 둔다 — 전체 번호는 다시 화면에 띄우지 않는다
     ME.payout = { set: true, bank: g('po-bank'), holder: g('po-holder'), masked: r.masked || '****' };
     toast('계좌를 저장했어요');
@@ -3074,6 +4380,27 @@ document.addEventListener('click', e => {
   const fn = ACT[el.dataset.act];
   if (fn) { e.preventDefault(); fn(el); }
 });
+
+// 키보드 — Esc 는 맨 위에 떠 있는 것 하나를 닫는다(다이얼로그는 자기가 먼저 받는다).
+//  div 로 만든 줄(role=button)은 Enter·Space 로도 눌린다.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (DLG || callFullScreen()) return;
+    const vis = id => { const x = $(id); return x && !x.hidden; };
+    if (vis('sheet')) { closeSheet(); return; }
+    if (vis('addrov')) { closeAddrFinder(); return; }
+    if (vis('chatroom')) { closeRoom(); return; }
+    return;
+  }
+  if ((e.key === 'Enter' || e.key === ' ') && e.target && e.target.matches && e.target.matches('[role="button"][data-act]')) {
+    e.preventDefault();
+    e.target.click();
+  }
+});
+
+// 인터넷이 끊기거나 돌아오면 바로 알린다 — 끊긴 줄 모르고 '예약이 없네' 하지 않게
+window.addEventListener('offline', () => { if (SESSION || CODE) { renderAll(); toast('인터넷이 끊겼어요'); } });
+window.addEventListener('online', () => { if (SESSION || CODE) { toast('다시 연결됐어요'); loadAll(); } });
 
 // ============================================================================
 //  시작
@@ -3115,6 +4442,27 @@ document.addEventListener('input', e => {
   if (x) x.hidden = !CHATQ;
   renderChatList();
 });
+// 내담자 검색 — 같은 방식
+document.addEventListener('input', e => {
+  if (!e.target || e.target.id !== 'client-search') return;
+  CLIENTQ = e.target.value || '';
+  const x = $('client-x');
+  if (x) x.hidden = !CLIENTQ;
+  renderClients();
+});
+// 내 정보 칸을 건드리면 '저장 안 한 변경'으로 적어 둔다 (새로 받아온 값이 덮어쓰지 않게)
+const markProfileDirty = e => { if (e.target && /^pf-(?!tag$)/.test(e.target.id || '')) DIRTY.profile = true; };
+document.addEventListener('input', markProfileDirty);
+document.addEventListener('change', markProfileDirty);
+// 회기 기록 — 쓰는 족족 이 기기에 맡겨 둔다(0.4초 쉬었을 때)
+let SN_DRAFT_T = null;
+const snDraftLater = e => {
+  if (!e.target || !/^sn-(summary|plan|hw|risk)$/.test(e.target.id || '')) return;
+  clearTimeout(SN_DRAFT_T);
+  SN_DRAFT_T = setTimeout(snDraftSave, 400);
+};
+document.addEventListener('input', snDraftLater);
+document.addEventListener('change', snDraftLater);
 
 // 빠른 답장 칩 길게 누르기 → 관리 시트. 편집 버튼을 못 찾는 사람이 반드시 있다.
 (function bindQuickLongPress() {
@@ -3168,7 +4516,8 @@ async function checkMyActive() {
   // 얼어붙은 세션의 통화는 살릴 수 없다(옛 연결 정보가 죽었다) — 정리하고 다시 건다
   await postJson('/api/rtc/end', { callId: c.id, by: 'counselor' }).catch(() => {});
   const nm = nameOfClient(c.clientId);
-  if (confirm(`걸던 전화가 끊겼어요 (${nm} 님).\n다시 걸까요?`)) callClient(c.clientId, nm);
+  if (await uiConfirm({ title: '걸던 전화가 끊겼어요', ok: '다시 걸기', cancel: '괜찮아요',
+    body: `${nm} 님에게 걸던 전화가 연결되지 못하고 끊겼어요.\n다시 걸까요?` })) callClient(c.clientId, nm);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkMyActive(); });
 setTimeout(checkMyActive, 2500); // 앱 시작 직후 한 번
@@ -3252,6 +4601,7 @@ function initBackButton() {
       try {
         const vis = (id) => { const el = $(id); return el && !el.hidden; };
         if (vis('callov')) return;                       // 통화·수신 화면
+        if (DLG) { DLG.close(false); return; }           // 묻는 창 — '취소'와 같다
         if (vis('sheet')) { closeSheet(); return; }      // 바텀시트
         if (vis('chatroom')) { closeRoom(); return; }    // 대화방 → 목록
         if (TAB !== 'home') { setTab('home'); return; }  // 다른 탭 → 홈
@@ -3270,10 +4620,16 @@ initBackButton();
 (async () => {
   const t = new URLSearchParams(location.search).get('t');
   if (t) { if (await verifyLink(t)) askNotify(); }
-  if (SESSION || CODE) { enterApp(); await loadAll(); connectHub(); }
+  if (SESSION || CODE) {
+    enterApp();
+    // 홈 화면 아이콘을 길게 눌러 나오는 바로가기(manifest shortcuts)가 ?tab= 으로 들어온다
+    const tabQ = new URLSearchParams(location.search).get('tab');
+    if (['chat', 'client', 'book', 'money'].includes(tabQ)) setTab(tabQ);
+    await loadAll(); connectHub();
+  }
 })();
 
-initSW();
+SW_READY = initSW();
 
 // 폴링 — 채팅은 자주, 나머지는 느긋하게. 화면이 뒤에 있으면 쉰다.
 setInterval(() => {
@@ -3295,7 +4651,7 @@ setInterval(() => { if (SESSION || CODE) pollIncoming(); }, isNativeApp() ? 1500
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
   handleCallAction();   // 알림의 받기·거절로 앱이 앞으로 나온 길
-  if (SESSION || CODE) { loadAll(); pollIncoming(); }
+  if (SESSION || CODE) { loadAll(); pollIncoming(); refreshNotiState(); }
 });
 
 // 앱이 처음 켜질 때도 — 꺼져 있던 앱을 전화 알림이 깨웠을 수 있다
