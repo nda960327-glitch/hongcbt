@@ -566,6 +566,8 @@ async function loadCommunity() {
   const r = await adminGet('/api/admin/community');
   const rr = await adminGet('/api/admin/community/roles');
   D.roleReqs = rr ? (rr.items || []) : [];
+  const rp = await adminGet('/api/admin/community/reports');
+  D.cmReports = rp ? (rp.items || []) : [];
   D.community = r ? (r.items || []) : null;
   if (TAB === 'community') render();
 }
@@ -590,6 +592,19 @@ function viewCommunity() {
         <div class="muted">${esc([x.org, x.licenseNo ? '번호 ' + x.licenseNo : '', x.email || x.provider].filter(Boolean).join(' · '))}</div>
         ${x.photo ? `<a href="${esc(x.photo)}" target="_blank" rel="noopener"><img src="${esc(x.photo)}" alt="면허·자격증" style="max-width: 260px; max-height: 180px; border-radius: 8px; margin-top: 0.4rem; border: 1px solid var(--line);"></a>` : ''}
         ${x.status === 'pending' ? `<div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;"><button class="btn ghost sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="0">거절</button><button class="btn sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="1">승인</button></div>` : ''}
+      </div>`).join('')}</div>` : ''}
+    ${(D.cmReports || []).length ? `<div class="card" style="margin-bottom: 0.8rem; border-color: rgba(207,107,96,0.4);">
+      <b style="font-size: 0.9rem;">신고 들어온 글·댓글 <span class="chip bad">${D.cmReports.length}건</span></b>
+      <div class="muted" style="margin: 0.2rem 0 0.5rem;">서로 다른 3명이 신고하면 자동으로 가려집니다. 살펴보고 가리거나, 문제가 없으면 신고를 지워 주세요.</div>
+      ${D.cmReports.map(x => `<div style="border-top: 1px solid var(--line); padding: 0.6rem 0;">
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;"><span class="chip ${x.target === 'comment' ? 'off' : 'new'}">${x.target === 'comment' ? '댓글' : '글'}</span><b style="font-size: 0.86rem;">${esc(x.title || '')}</b><span class="chip bad">신고 ${x.n}</span>${x.hidden ? '<span class="chip off">가려짐</span>' : ''}<span class="right muted">${fmtDate(x.ts)}</span></div>
+        <div style="margin-top: 0.3rem; font-size: 0.86rem; white-space: pre-wrap; word-break: break-word;">${esc(x.text || '')}</div>
+        <div class="muted" style="margin-top: 0.2rem;">${esc(x.name || '')}${x.reasons ? ' · 사유: ' + esc(x.reasons) : ''}</div>
+        <div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;">
+          <a class="btn ghost sm" href="https://mindinside.kr/blog/${esc(x.postId)}" target="_blank" rel="noopener">글 열기</a>
+          <button class="btn ghost sm" data-act="rp-clear" data-id="${esc(x.id)}" data-target="${esc(x.target)}">문제없음 (신고 지우기)</button>
+          <button class="btn sm" data-act="${x.target === 'comment' ? 'rp-chide' : 'cm-hide'}" data-id="${esc(x.id)}" data-hidden="${x.hidden ? 0 : 1}">${x.hidden ? '다시 보이기' : '가리기'}</button>
+        </div>
       </div>`).join('')}</div>` : ''}
     ${list.length ? list.map(it => `
       <div class="card"${it.hidden ? ' style="opacity: 0.55; border-color: rgba(207,107,96,0.35);"' : !it.published ? ' style="opacity: 0.7;"' : ''}>
@@ -2518,6 +2533,8 @@ document.addEventListener('click', e => {
 
   if (act === 'goto') { go(el.dataset.tab); return; }
   if (act === 'role-decide') { adminPost('/api/admin/community/role/decide', { userId: id, ok: el.dataset.ok === '1' }).then(() => { toast(el.dataset.ok === '1' ? '승인했어요' : '거절했어요'); loadCommunity(); }); return; }
+  if (act === 'rp-clear') { adminPost('/api/admin/community/report/clear', { id, target: el.dataset.target }).then(() => { toast('신고를 지웠어요'); loadCommunity(); }); return; }
+  if (act === 'rp-chide') { adminPost('/api/admin/community/comment/hide', { cid: id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '가렸어요' : '다시 보여요'); loadCommunity(); }); return; }
   if (act === 'cm-hide') { adminPost('/api/admin/community/hide', { id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '숨겼어요' : '다시 보여요'); loadCommunity(); }); return; }
   if (act === 'install') { doInstall(); return; }
   if (act === 'refresh') {

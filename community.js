@@ -852,6 +852,29 @@ export async function handleCommunity(request, env, cors, path, ctx) {
       }
       return json({ ok: true, id }, 200, cors);
     }
+    // 신고 목록 — 글·댓글별로 묶어서, 신고 수와 사유, 지금 가려졌는지
+    if (path === '/admin/community/reports' && method === 'GET') {
+      let rows = [];
+      try { rows = (await db.prepare("SELECT target, target_id, COUNT(*) AS n, MAX(ts) AS ts, GROUP_CONCAT(reason, ' / ') AS reasons FROM post_reports GROUP BY target, target_id ORDER BY ts DESC LIMIT 60").all()).results || []; }
+      catch (e) { if (!noTable(e)) throw e; }
+      const out = [];
+      for (const r of rows) {
+        const base = { target: r.target, n: r.n, ts: r.ts, reasons: s(String(r.reasons || '').replace(/( \/ )+/g, ' / ').replace(/^ \/ | \/ $/g, ''), 300) };
+        if (r.target === 'comment') {
+          const x = await db.prepare('SELECT c.id, c.post_id, c.name, c.text, c.hidden, p.title FROM post_comments c LEFT JOIN posts p ON p.id = c.post_id WHERE c.id = ?').bind(r.target_id).first();
+          if (x) out.push(Object.assign(base, { id: x.id, postId: x.post_id, name: x.name || '', text: x.text, title: x.title || '', hidden: !!x.hidden }));
+        } else {
+          const x = await db.prepare('SELECT id, title, body, author_name, hidden FROM posts WHERE id = ?').bind(r.target_id).first();
+          if (x) out.push(Object.assign(base, { id: x.id, postId: x.id, name: x.author_name || '', text: plainOf(x.body).slice(0, 300), title: x.title, hidden: !!x.hidden }));
+        }
+      }
+      return json({ items: out }, 200, cors);
+    }
+    // 신고 정리 — 살펴본 뒤 문제없으면 신고 기록을 지운다(글·댓글은 그대로)
+    if (path === '/admin/community/report/clear' && method === 'POST') {
+      await db.prepare('DELETE FROM post_reports WHERE target = ? AND target_id = ?').bind(body.target === 'comment' ? 'comment' : 'post', cleanId(body.id)).run();
+      return json({ ok: true }, 200, cors);
+    }
     if (path === '/admin/community/hide' && method === 'POST') {
       await db.prepare('UPDATE posts SET hidden = ? WHERE id = ?').bind(body.hidden ? 1 : 0, cleanId(body.id)).run();
       return json({ ok: true }, 200, cors);
