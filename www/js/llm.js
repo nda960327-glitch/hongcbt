@@ -1147,6 +1147,21 @@ ${about}
       turnDirective = `[이번 턴 필수 — 위기 신호] 사용자가 방금 자살·자해와 관련된 말을 했습니다. 이번 답장에서 반드시: (1) 들은 말을 받아주고 말해줘서 고맙다고 한 뒤 (2) 에두르지 말고 직접 묻습니다 — "죽고 싶다는 생각까지 드는 거야?"${means ? ' 그리고 "그 약(도구), 지금 손 닿는 데 있어?" "언제 하려고 생각했어?"' : ' 그렇다고 하면 다음 턴에 방법·시점을 묻습니다.'} (3) ${means ? '그 수단을 지금 다른 곳에 두거나 다른 사람에게 맡기도록 요청하고, ' : ''}지금 곁에 있는 사람이나 전화할 사람이 있는지 묻습니다. "요즘 무슨 일 있었어?" 같은 일반 질문으로 대신하지 마세요. 말투는 따뜻하게 — "나 지금 네 얘기 계속 듣고 있어" 처럼 할 수 있는 것을 먼저 말하고, 사람의 도움은 "네 손을 잡아줄 사람도 한 명 있었으면 좋겠어" 처럼 보태는 말로 권합니다("AI라서 못 간다"는 식으로 선을 긋지 않습니다). 몸이 곁에 있는 것처럼 들리는 약속("네 옆에 있어")과 "헐"·"ㅋㅋ" 같은 가벼운 말, 스티커는 쓰지 않습니다. 응답에 '위험감지'를 포함하세요.`;
     }
 
+    // 실습 카드를 적어 보낸 턴 — 다음 단계가 무엇인지는 코드가 정한다(모델이 번호를 헷갈려 같은 단계를 다시 시키는 일이 있었다).
+    const workM = String(userText || '').match(/^\[실습 (\d)\/(\d)/);
+    const workDef = (workM && window.WorkCards && window.Personas) ? window.WorkCards.DEFS[window.Personas.getActive().id] : null;
+    this._workNext = null;
+    if (workDef && !turnDirective) {
+      const n = +workM[1], total = workDef.total;
+      if (n < total) {
+        const nx = workDef.steps[n];
+        this._workNext = { cur: n + 1, total, label: nx.t };
+        turnDirective = `[이번 턴 — 실습 진행] 사용자가 방금 ${n}단계(${workDef.steps[n - 1].t}) 실습 카드를 적어 보냈습니다. 이번 답장에서: (1) 적은 내용에서 잘한 점 한 가지를 사용자의 말을 인용해 구체적으로 짚습니다. (2) 더 정확해질 점이 있으면 한 가지만 짧게 알려 줍니다(없으면 생략). (3) 이 단계에서 방금 한 일이 왜 도움이 되는지 원리를 한 문장으로 가르칩니다. (4) 이어서 다음 단계 "${n + 1}단계 ${nx.t}"를 엽니다 — 무엇을 왜 하는지 한두 문장. 답장 첫 줄은 반드시 "[${n + 1}/${total}] ${nx.t}"로 시작합니다. 앱이 다음 단계의 실습 카드를 답장 아래에 붙이므로, 카드에 있는 질문을 글로 다시 묻지 말고 "아래 카드에 직접 적어 보세요"로 마칩니다. 말풍선은 2~3개.`;
+      } else {
+        turnDirective = `[이번 턴 — 실습 마무리] 사용자가 마지막 ${n}단계 실습 카드를 적어 보냈습니다. 단계 표시는 붙이지 않습니다. (1) 처음 점수와 지금 점수의 변화를 짚습니다. (2) 오늘 사용자가 스스로 해낸 것을 사용자의 말을 인용해 한두 문장으로 정리합니다. (3) 이 과정이 왜 통하는지 원리를 한 문장으로, (4) 다음에 혼자서 할 때 기억할 한 가지를 알려 줍니다. 앱이 여섯 단계를 한 장으로 모은 '돌아보기 카드'를 답장 아래에 붙이므로 요약 카드를 따로 만들지 않습니다.`;
+      }
+    }
+
     const messages = this._buildMessages(sessionNote);
     // 상담사별 '다짐'(말투·태도의 핵심 몇 줄)을 대화 끝에 한 번 더 둔다 — 있는 상담사만.
     try {
@@ -1391,9 +1406,16 @@ ${about}
         const wp = window.Personas.getActive().id;
         const stepItem = items.find(it => it.step) || null;
         const sentWork = String(userText || '').match(/^\[실습 (\d)\/(\d)/);
-        if (sentWork && sentWork[1] === sentWork[2]) {
+        if (sentWork && sentWork[1] === sentWork[2] && window.WorkCards.DEFS[wp]) {
+          items.forEach(it => { if (it.step) it.step = null; });
           items.push({ viz: { type: '실습요약', args: [wp] } });
           this._lastWork = '';
+        } else if (this._workNext && window.WorkCards.has(wp, this._workNext.cur)) {
+          // 실습을 낸 뒤의 답장 — 단계 번호는 모델이 쓴 것과 상관없이 '낸 단계 + 1' 로 맞춘다
+          const nx = this._workNext; let put = false;
+          items.forEach(it => { if (it.text !== undefined) { it.step = put ? null : { cur: nx.cur, total: nx.total, label: nx.label }; put = true; } });
+          this._lastWork = wp + ':' + nx.cur;
+          items.push({ viz: { type: '실습', args: [wp, nx.cur] } });
         } else if (stepItem && window.WorkCards.has(wp, stepItem.step.cur)) {
           const key = wp + ':' + stepItem.step.cur;
           if (this._lastWork !== key) { this._lastWork = key; items.push({ viz: { type: '실습', args: [wp, stepItem.step.cur] } }); }
