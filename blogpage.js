@@ -104,6 +104,7 @@ a{color:#3d7659;text-decoration:none}a:hover{text-decoration:underline}button{fo
 @media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.top .btn.app{display:none}}
 .hero{position:relative;overflow:hidden;border-radius:26px;padding:1.7rem;margin-bottom:1rem;color:#fff;display:flex;gap:1rem;align-items:center;flex-wrap:wrap;background:radial-gradient(120% 140% at 0% 0%,#5c9a79 0%,#3f7a5c 55%,#2f6249 100%);box-shadow:0 18px 40px -22px rgba(47,98,73,.7)}
 .hero::after{content:"";position:absolute;right:-60px;top:-80px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.08)}
+.mascot{display:block;flex-shrink:0}.hero .hm{position:relative;z-index:1;background:rgba(255,255,255,.92);border-radius:50%;padding:6px;box-shadow:0 8px 20px -10px rgba(0,0,0,.4)}.card.wc{position:relative}.card.wc .mascot{position:absolute;right:.9rem;top:.7rem}@media(max-width:640px){.hero .hm{width:64px;height:64px}}
 .hero .sp{flex:1;min-width:240px;position:relative;z-index:1}.hero .new{display:inline-block;background:#fdecc4;color:#7a5400;font-weight:800;font-size:.74rem;padding:.15rem .7rem;border-radius:999px;margin-bottom:.5rem}
 .hero h1{margin:0 0 .3rem;font-size:1.6rem;line-height:1.4}.hero p{margin:0;opacity:.93;font-size:.95rem}.hero .cta{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;position:relative;z-index:1;min-width:250px}.hero .cta .btn{text-align:center}.hero .cta .btn:first-child{grid-column:1/3}.hero .btn{background:#fff;color:#2f6b4c!important;box-shadow:0 6px 16px -8px rgba(0,0,0,.4)}.hero .btn.line{background:transparent;color:#fff!important;border:1.5px solid rgba(255,255,255,.6);box-shadow:none}
 .tabs{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;margin-bottom:1rem;align-items:center}.tabs::-webkit-scrollbar{display:none}
@@ -253,12 +254,13 @@ const hashOf = id => String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0)
 const hue = id => 'g' + (hashOf(id) % 6);
 // 사진이 없는 글에 대신 보여주는 기본 사진 — Pixabay(Pixabay Content License) 11장, home/img/stock/. 글 id 로 고르니 같은 글은 늘 같은 사진.
 const STOCK = 'https://mindinside.kr/img/stock/';
+const MASCOT = (size, cls) => `<img class="mascot ${cls || ''}" src="https://mindinside.kr/img/woorung.svg" alt="우렁이" width="${size}" height="${size}">`;
 const stockOf = id => STOCK + (hashOf(id) % 32) + '.jpg';
 const cover = (r, cls) => `<img class="${cls}" src="${r.has_img ? `/blog/img/${esc(r.id)}/0.jpg` : stockOf(r.id)}" alt="" loading="lazy">`;
 const feedHtml = (rows, withLab) => `<ul class="feed">${rows.map(r => `<li><a class="row" href="/blog/${esc(r.id)}"><div style="flex:1;min-width:0">${whoHtml(r)}<h3>${withLab ? labOf(r) + ' ' : ''}${esc(r.title)}${r.comments ? `<span class="cnt">[${r.comments}]</span>` : ''}</h3><p>${esc(plain(r.body).slice(0, 150))}</p>${meta(r)}</div>${cover(r, 'th')}</a></li>`).join('')}</ul>`;
 const listHtml = rows => `<ul class="list">${rows.map(r => `<li><a href="/blog/${esc(r.id)}">${esc(r.title)}</a>${r.comments ? `<span class="cnt">[${r.comments}]</span>` : ''}<span class="m">${r.likes ? '공감 ' + r.likes + ' · ' : ''}${ago(r.created)}</span></li>`).join('')}</ul>`;
 const appCard = c => `<div class="card appcard side"><h2>마인드 인사이드 앱</h2><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅으로 상담할 수 있어요.</p><a class="btn" href="${APP}/">앱 열기</a> <a class="btn ghost" href="${c.about}">앱 소개 보기</a></div>`;
-const writeCard = `<div class="card"><h2>이야기를 들려주세요</h2><p class="m" style="font-size:.86rem;margin:0 0 .7rem">카카오·네이버·구글로 가입하면 바로 쓸 수 있어요.</p><a class="btn" href="/blog/write?board=free">수다방 글쓰기</a> <a class="btn ghost" href="/blog/write?board=qna">고민 올리기</a></div>`;
+const writeCard = `<div class="card wc"><img class="mascot" src="https://mindinside.kr/img/woorung.svg" alt="" width="56" height="56"><h2>이야기를 들려주세요</h2><p class="m" style="font-size:.86rem;margin:0 0 .7rem">카카오·네이버·구글로 가입하면 바로 쓸 수 있어요.</p><a class="btn" href="/blog/write?board=free">수다방 글쓰기</a> <a class="btn ghost" href="/blog/write?board=qna">고민 올리기</a></div>`;
 const notFound = c => html(page(c, { title: '글을 찾을 수 없어요 — ' + BRAND, desc: '', path: '/blog', noindex: true, body: `<div class="card"><h2>이 글은 지금 볼 수 없어요</h2><p class="m">지워졌거나 가려진 글이에요.</p><p><a class="btn" href="${c.home}">커뮤니티 첫 화면으로</a></p></div>` }), 404, 30);
 const profOf = h => { let p = {}; try { p = h && h.profile ? JSON.parse(h.profile) : {}; } catch (e) {} return p || {}; };
 
@@ -429,7 +431,7 @@ export async function handleBlog(request, env, ctx, path) {
     if (path === '/blog/login') {
       return html(page(c, { title: `로그인 — ${BRAND}`, desc: '마인드 인사이드 커뮤니티 로그인·회원가입', path: '/blog/login', noindex: true, script: LOGIN_JS,
         body: `<div style="max-width:440px;margin:1.5rem auto"><div class="card" style="padding:1.6rem 1.4rem;text-align:center">
-          <h1 class="serif" style="font-size:1.45rem;margin:.2rem 0 .3rem">로그인 · 회원가입</h1>
+          ${MASCOT(84)}<h1 class="serif" style="font-size:1.45rem;margin:.2rem 0 .3rem">로그인 · 회원가입</h1>
           <p class="m" style="font-size:.9rem;margin:0 0 1.2rem" id="lg-msg">처음이라면 아래 버튼을 누르는 것만으로 가입돼요. 앱과 같은 계정이에요.</p>
           <div id="lg-box">
           <div class="roles"><div class="role on"><b>일반 회원</b><span>글·댓글 쓰기, AI 상담, 상담 예약</span></div></div>
@@ -573,7 +575,7 @@ export async function handleBlog(request, env, ctx, path) {
       return html(page(c, { title: `앱 설치 — ${BRAND}`, desc: '마인드 인사이드 앱을 휴대폰과 PC에 설치하는 방법. 안드로이드·아이폰·윈도·맥.', path: '/blog/install',
         script: `<script>(function(){var u=navigator.userAgent,k=/iPhone|iPad|iPod/.test(u)?'ios':/Android/.test(u)?'and':'pc',c=document.querySelector('[data-os='+k+']');if(c){c.classList.add('mine');c.parentNode.insertBefore(c,c.parentNode.firstChild)}
           var t={ios:'아이폰은 사파리에서 열어 홈 화면에 추가해요. 버튼을 누르면 안내가 떠요.',and:'버튼을 누르고 [무료 앱 설치하기]를 한 번 더 누르면 끝나요.',pc:'버튼을 누르고 [무료 앱 설치하기]를 한 번 더 누르면 바탕 화면에 프로그램으로 들어가요.'}[k];document.getElementById('ins-tip').textContent=t})();</script>`,
-        body: `<div class="hero" style="flex-direction:column;align-items:flex-start"><div class="sp"><span class="new">무료 · 30초</span><h1>마인드 인사이드 앱 설치</h1><p id="ins-tip">버튼 하나로 설치돼요. 내려받을 파일도, 스토어도 필요 없어요.</p></div><div class="cta" style="grid-template-columns:1fr"><a class="btn lg" href="${APP}/?install=1" style="font-size:1.1rem;padding:1rem 2.4rem">지금 설치하기</a></div></div>
+        body: `<div class="hero" style="align-items:center">${MASCOT(92, 'hm')}<div class="sp"><span class="new">무료 · 30초</span><h1>마인드 인사이드 앱 설치</h1><p id="ins-tip">버튼 하나로 설치돼요. 내려받을 파일도, 스토어도 필요 없어요.</p></div><div class="cta" style="grid-template-columns:1fr"><a class="btn lg" href="${APP}/?install=1" style="font-size:1.1rem;padding:1rem 2.4rem">지금 설치하기</a></div></div>
           <p class="m" style="margin:-.2rem 0 1rem">설치가 안 되면 아래 방법대로 해보세요. 설치하지 않고 <a href="${APP}/">웹에서 바로 써도</a> 똑같아요.</p>
           <div class="boards">
             <div class="card" data-os="pc"><h2>PC (윈도 · 맥)</h2><ol class="steps"><li>크롬이나 엣지에서 <a href="${APP}/"><b>mindinsideapp.com</b></a> 을 열어요</li><li>주소창 오른쪽의 <b>설치</b> 아이콘(모니터에 화살표)을 눌러요. 안 보이면 메뉴(⋮) → '마인드 인사이드 설치'</li><li><b>설치</b>를 누르면 바탕 화면·시작 메뉴에 프로그램으로 들어가요</li></ol><p class="m" style="margin:.6rem 0 0">설치한 뒤에는 브라우저 없이 따로 창으로 열려요.</p></div>
@@ -702,7 +704,7 @@ export async function handleBlog(request, env, ctx, path) {
       const boardCard = (b, rows, emptyMsg) => `<div class="card"><h2><span class="lab ${b}">${BOARD[b].name}</span> <a class="all" href="/blog?board=${b}">더 보기</a></h2>${rows.length ? listHtml(rows) : `<p class="m" style="margin:.3rem 0 .6rem">${emptyMsg}</p><a class="btn ghost" href="/blog/write?board=${b}">첫 글 쓰기</a>`}</div>`;
       return html(page(c, { title: `${BRAND} — 마음 이야기가 모이는 커뮤니티`, desc: '심리상담사가 쓰는 마음 돌봄 칼럼, 누구나 떠드는 수다방, 상담사가 답하는 고민 Q&A, 심리학도 라운지. 불안·우울·수면·관계 고민을 함께 나눠요.', path: c.home === '/' ? '/' : '/blog', nav: 'home',
         jsonld: { '@context': 'https://schema.org', '@type': 'WebSite', name: BRAND, url: site + '/', potentialAction: { '@type': 'SearchAction', target: site + '/blog?q={search_term_string}', 'query-input': 'required name=search_term_string' }, publisher: { '@type': 'Organization', name: BRAND, url: site + '/' } },
-        body: `<div class="hero"><div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${noNotice.length}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">앱 설치</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
+        body: `<div class="hero">${MASCOT(92, 'hm')}<div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${noNotice.length}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">앱 설치</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
           <form class="search" action="/blog" method="get"><input name="q" placeholder="고민을 검색해 보세요 — 불면, 번아웃, 관계…" aria-label="검색"><button class="btn">검색</button></form>
           <div class="grid"><div>
             ${notices.length ? `<div class="card" style="padding:.7rem 1.25rem">${notices.map(n => `<div class="notice"><span class="lab notice">공지</span><a href="/blog/${esc(n.id)}">${esc(n.title)}</a></div>`).join('')}</div>` : ''}

@@ -270,6 +270,18 @@
     .ptools { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.3rem 0 0.4rem; }
     .ptool { font: inherit; font-size: 0.76rem; font-weight: 700; padding: 0.3rem 0.55rem; border-radius: 9px; border: 1px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; }
     .ptool:hover { background: var(--hover); }
+    /* 폰에서 글쓰기 — 꾸미기 줄은 가로로 밀고(줄바꿈 없이), 올리기 버튼은 화면 바닥에 붙는다 */
+    .pbar { position: sticky; bottom: 0; margin: 0.9rem -1.1rem calc(-1.5rem - env(safe-area-inset-bottom)); padding: 0.7rem 1.1rem calc(0.8rem + env(safe-area-inset-bottom)); background: var(--card); border-top: 1px solid var(--line); display: flex; gap: 0.5rem; z-index: 3; }
+    .pbar .btn { min-height: 44px; }
+    .pcard { margin-bottom: 0.6rem; }
+    @media (max-width: 900px) {
+      .ptools { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.2rem; }
+      .ptools::-webkit-scrollbar { display: none; }
+      .ptool { flex-shrink: 0; min-height: 40px; font-size: 0.82rem; padding: 0.4rem 0.75rem; border-radius: 11px; }
+      .ptool-c { width: 40px; }
+      .pbar-top { position: sticky; top: 0; background: var(--bg); z-index: 2; padding-top: 0.3rem; }
+      #po-body { min-height: 15rem; font-size: 1rem; line-height: 1.7; }
+    }
     .ptool-c { width: 34px; padding: 0.3rem 0; text-align: center; font-weight: 800; }
     .pc-red { color: #c9463d; } .pc-orange { color: #d97a1c; } .pc-green { color: #2f7d4f; } .pc-blue { color: #2d64a8; } .pc-purple { color: #7a4fb0; } .pc-gray { color: var(--sub); }
     .pimgs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
@@ -452,13 +464,13 @@
   <div id="toast" role="status" aria-live="polite"></div>
 
   <!-- core 가 먼저, 화면 파일들은 VIEWS[탭] 을 등록한다. 순서가 바뀌면 안 된다. -->
-  <script src="js/core.js?v=286"></script>
-  <script src="js/view-dash.js?v=286"></script>
-  <script src="js/view-patients.js?v=286"></script>
-  <script src="js/view-counselors.js?v=286"></script>
-  <script src="js/view-notes.js?v=286"></script>
-  <script src="js/view-settle.js?v=286"></script>
-  <script src="js/view-community.js?v=286"></script>
-  <script src="js/view-calendar.js?v=286"></script>
+  <script src="js/core.js?v=287"></script>
+  <script src="js/view-dash.js?v=287"></script>
+  <script src="js/view-patients.js?v=287"></script>
+  <script src="js/view-counselors.js?v=287"></script>
+  <script src="js/view-notes.js?v=287"></script>
+  <script src="js/view-settle.js?v=287"></script>
+  <script src="js/view-community.js?v=287"></script>
+  <script src="js/view-calendar.js?v=287"></script>
 </body>
 </html>

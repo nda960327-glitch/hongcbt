@@ -15,7 +15,16 @@ VIEWS.community = {
         <p class="muted grow">공개한 글은 이용자 앱 홈 <b>커뮤니티</b>와 상담소 페이지에 바로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 소속 상담사도 상담사 앱에서 글을 쓸 수 있고, 그 글도 여기서 고치거나 지울 수 있어요.</p>
         <button class="btn sm" data-act="post-new">＋ 새 글</button>
       </div>
-      ${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>제목</th><th>상태</th><th>고정</th><th class="r">좋아요</th><th class="r">댓글</th><th class="t">작성일</th><th class="acts"></th></tr></thead><tbody>
+      ${list.length && window.matchMedia('(max-width: 700px)').matches ? list.map(it => `
+        <div class="card pcard${it.hidden ? ' dim' : ''}">
+          <div class="row" style="gap:0.6rem; align-items:flex-start;">
+            ${it.thumb ? `<img class="thumb" style="width:64px;height:64px;border-radius:10px;" src="${esc(it.thumb)}" alt="">` : ''}
+            <div class="grow" style="min-width:0;"><b style="display:block;">${esc(it.title)}</b>
+              <div class="muted ell">${esc(it.excerpt || '')}</div>
+              <div class="muted" style="margin-top:0.2rem;">${it.hidden ? '<span class="chip bad">운영팀 숨김</span>' : it.published ? '<span class="chip ok">공개</span>' : '<span class="chip off">임시저장</span>'}${it.author ? ` <span class="chip off">${esc(it.author)} 상담사</span>` : ''} 좋아요 ${it.likes || 0} · 댓글 ${it.comments || 0} · ${fmtDate(it.created)}</div></div>
+          </div>
+          <div class="row" style="gap:0.4rem; margin-top:0.6rem;"><button class="btn ghost sm grow" data-act="post-edit" data-id="${esc(it.id)}">고치기</button><button class="btn ghost sm grow" data-act="post-comments" data-id="${esc(it.id)}">댓글 ${it.comments || 0}</button><button class="btn ghost sm danger-t" data-act="post-del" data-id="${esc(it.id)}">삭제</button></div>
+        </div>`).join('') : list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>제목</th><th>상태</th><th>고정</th><th class="r">좋아요</th><th class="r">댓글</th><th class="t">작성일</th><th class="acts"></th></tr></thead><tbody>
         ${list.map(it => `
           <tr class="${it.hidden ? 'dim' : ''}">
             <td>${it.thumb ? `<img class="thumb" src="${esc(it.thumb)}" alt="">` : '<div class="thumb"></div>'}</td>
@@ -77,37 +86,68 @@ async function shrinkPostImage(file) {
 }
 const DRAFT = { images: [], thumbs: [] };   // 편집 중인 글의 사진 (저장할 때 함께 보낸다)
 
+// 글감 — 고르면 제목과 뼈대가 채워진다(상담사 앱 pro/js/blog.js 와 같은 것). 괄호 부분만 바꿔 써도 글 한 편이 된다.
+const POST_SEEDS = [
+  { k: '마음 돌봄 팁', title: '잠이 안 오는 밤, 이렇게 해보세요', tags: '수면, 마음 돌봄',
+    body: '# (한 문장으로 — 이 글이 누구에게 도움이 되는지)\n\n## 왜 이런 일이 생길까요\n\n(쉬운 말로 두세 문장)\n\n## 오늘 해볼 수 있는 한 가지\n\n(구체적인 방법 하나. 5분 안에 할 수 있는 것으로)\n\n## 이럴 땐 도움을 받으세요\n\n(혼자 해결하기 어려운 신호)' },
+  { k: '자주 받는 질문', title: '상담에서 자주 받는 질문 — ', tags: '상담 안내',
+    body: '# "(자주 듣는 질문을 그대로 적어주세요)"\n\n상담실에서 정말 자주 듣는 질문이에요.\n\n## 저희 답은 이래요\n\n(쉬운 말로)\n\n## 덧붙이고 싶은 말\n\n(안심이 되는 한마디)' },
+  { k: '상담소 소개', title: '저희 상담소를 소개합니다', tags: '상담 안내',
+    body: '# (어떤 마음으로 상담하는 곳인지 한 문장)\n\n## 이런 고민을 주로 함께해요\n\n(예: 불안, 관계, 직장 스트레스)\n\n## 상담은 이렇게 진행돼요\n\n(첫 상담에서 무엇을 하는지)\n\n## 오시는 길과 운영시간\n\n(주소, 시간)' },
+  { k: '프로그램 안내', title: '(달) 프로그램 안내 — ', tags: '프로그램',
+    body: '# (무엇을, 언제, 누구와 하는지 한 문장)\n\n## 무엇을 하나요\n\n\n\n## 누구에게 맞을까요\n\n- \n\n## 신청 방법\n\n(앱에서 상담소 코드로 연결한 뒤 …)' }
+];
+const POST_TAGS = ['마음 돌봄', '수면', '불안', '우울', '관계', '스트레스', '상담 안내', '프로그램'];
+const POST_DRAFT_KEY = 'doc_post_draft';
+
 function openPostEditor(id) {
   const it = id ? (DATA.posts || []).find(x => x.id === id) : null;
   DRAFT.images = (it && Array.isArray(it.images)) ? it.images.slice() : [];
   DRAFT.thumbs = DRAFT.images.map(() => '');
   if (it && it.thumb && DRAFT.images.length) DRAFT.thumbs[0] = it.thumb;
+  // 새 글은 쓰던 내용을 이 기기에 남겨 둔다 — 폰에서 쓰다 전화가 와도 사라지지 않게
+  let dr = null;
+  if (!it) { try { dr = JSON.parse(localStorage.getItem(POST_DRAFT_KEY) || 'null'); } catch (e) {} }
+  const v = it ? { title: it.title, body: it.body, tags: (it.tags || []).join(', ') } : (dr && (dr.title || dr.body) ? dr : { title: '', body: '', tags: '' });
+  const blank = !v.title && !v.body;
   const swatch = c => `<button type="button" class="ptool ptool-c pc-${c}" data-act="po-wrap" data-open="{${c}|" data-close="}" title="${c}">가</button>`;
   openPanel(it ? '글 고치기' : '새 글', `
-    <p class="muted" style="margin-bottom:0.6rem;">이용자 앱에 그대로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요.</p>
-    <label class="f"><span>제목</span><input id="po-title" maxlength="80" value="${esc(it ? it.title : '')}" placeholder="예: 잠이 안 오는 밤, 이렇게 해보세요"></label>
+    <p class="muted" style="margin-bottom:0.6rem;">이용자 앱과 홈페이지(mindinside.kr)에 그대로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요.</p>
+    ${!it && blank ? `<div class="muted" style="margin-bottom:0.3rem;">무엇을 쓸지 막막하다면 — 글감 고르기</div>
+      <div class="ptools pseeds">${POST_SEEDS.map((s, i) => `<button type="button" class="ptool" data-act="po-seed" data-i="${i}">${esc(s.k)}</button>`).join('')}</div>` : ''}
+    ${!it && !blank ? '<p class="muted" style="margin:0 0 0.5rem;">쓰던 글을 이어서 쓰고 있어요. <button type="button" class="btn ghost xs" data-act="po-reset">새로 쓰기</button></p>' : ''}
+    <label class="f"><span>제목</span><input id="po-title" maxlength="80" value="${esc(v.title)}" placeholder="예: 잠이 안 오는 밤, 이렇게 해보세요"></label>
     <div class="muted">본문</div>
-    <div class="ptools">
-      <button type="button" class="ptool" data-act="po-line" data-prefix="## " title="제목 줄">제목</button>
+    <div class="ptools pbar-top">
+      <button type="button" class="ptool" data-act="po-line" data-prefix="## " title="제목 줄">소제목</button>
       <button type="button" class="ptool" data-act="po-line" data-prefix="# " title="큰 글씨 줄">큰 글씨</button>
       <button type="button" class="ptool" data-act="po-wrap" data-open="**" data-close="**" title="굵게"><b>굵게</b></button>
-      ${['red', 'orange', 'green', 'blue', 'purple', 'gray'].map(swatch).join('')}
-      <button type="button" class="ptool" data-act="po-photo" title="사진 넣기">📷 사진</button>
-      <button type="button" class="ptool" data-act="po-preview" title="미리보기">미리보기</button>
+      ${['green', 'blue', 'orange', 'red', 'purple', 'gray'].map(swatch).join('')}
+      <button type="button" class="ptool" data-act="po-photo" title="사진 넣기">사진 넣기</button>
     </div>
-    <textarea id="po-body" rows="14" maxlength="6000" placeholder="문단은 빈 줄로 나눠주세요. 글자를 드래그해 고른 뒤 위 버튼을 누르면 굵게·색이 들어가요.">${esc(it ? it.body : '')}</textarea>
+    <textarea id="po-body" rows="14" maxlength="6000" placeholder="문단은 빈 줄로 나눠주세요. 글자를 길게 눌러 고른 뒤 위 버튼을 누르면 굵게·색이 들어가요.">${esc(v.body)}</textarea>
     <input id="po-file" type="file" accept="image/*" hidden>
     <div id="po-imgs" class="pimgs"></div>
     <div id="po-preview" class="card flat pprev" hidden></div>
-    <label class="f" style="margin-top:0.6rem;"><span>태그 (쉼표로 구분, 5개까지)</span><input id="po-tags" maxlength="80" value="${esc(it ? (it.tags || []).join(', ') : '')}" placeholder="수면, 불안, 상담소 안내"></label>
-    <div class="row wrap" style="gap:1rem;">
-      <label class="row" style="gap:0.4rem; font-size:0.86rem;"><input type="checkbox" id="po-pub" ${!it || it.published ? 'checked' : ''}> 공개</label>
-      <label class="row" style="gap:0.4rem; font-size:0.86rem;"><input type="checkbox" id="po-pin" ${it && it.pinned ? 'checked' : ''}> 상담소 페이지 상단 고정</label>
-    </div>
+    <label class="f" style="margin-top:0.6rem;"><span>태그 (5개까지 · 눌러서 넣기)</span><input id="po-tags" maxlength="80" value="${esc(v.tags || '')}" placeholder="수면, 불안, 상담소 안내"></label>
+    <div class="ptools">${POST_TAGS.map(t => `<button type="button" class="ptool" data-act="po-tag" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    <input type="checkbox" id="po-pub" hidden ${!it || it.published ? 'checked' : ''}>
+    <label class="row" style="gap:0.4rem; font-size:0.86rem; margin-top:0.5rem;"><input type="checkbox" id="po-pin" ${it && it.pinned ? 'checked' : ''}> 상담소 페이지 맨 위에 고정</label>
     <p id="po-err" class="muted danger-t" style="display:none; margin-top:0.4rem;"></p>
-    <button class="btn block" data-act="post-save" data-id="${esc(it ? it.id : '')}" style="margin-top:0.8rem;">${it ? '저장' : '올리기'}</button>`, '', 'editor');
+    <div class="pbar">
+      <button class="btn ghost" data-act="po-preview">미리보기</button>
+      <button class="btn ghost" data-act="post-save" data-pub="0" data-id="${esc(it ? it.id : '')}">${it && it.published ? '내리기' : '임시저장'}</button>
+      <button class="btn grow" data-act="post-save" data-pub="1" data-id="${esc(it ? it.id : '')}">${it && it.published ? '저장' : '올리기'}</button>
+    </div>`, '', 'editor');
   renderDraftImages();
-  setTimeout(() => { const t = $('po-title'); if (t && !it) t.focus(); }, 80);
+  setTimeout(() => { const t = $('po-title'); if (t && !it && blank) t.focus(); }, 80);
+}
+// 새 글 자동 임시저장 (글자만 — 사진은 용량이 커서 남기지 않는다)
+function savePostDraft() {
+  const b = document.querySelector('[data-act="post-save"]');
+  if (!b || b.dataset.id || !$('po-title')) return;
+  const o = { title: $('po-title').value, body: $('po-body').value, tags: $('po-tags').value };
+  try { if (o.title || o.body) localStorage.setItem(POST_DRAFT_KEY, JSON.stringify(o)); else localStorage.removeItem(POST_DRAFT_KEY); } catch (e) {}
 }
 // 텍스트 영역의 선택 부분을 기호로 감싼다 (선택이 없으면 기호만 넣고 커서를 그 사이에 둔다)
 function wrapSelection(open, close) {
@@ -173,6 +213,8 @@ function togglePreview() {
   pv.hidden = false;
 }
 async function savePost(btn) {
+  if (btn.dataset.pub) $('po-pub').checked = btn.dataset.pub === '1';
+  const label = btn.textContent;
   const title = ($('po-title').value || '').trim(), body = ($('po-body').value || '').trim();
   if (!title || !body) { showErr('po-err', '제목과 본문을 적어주세요.'); return; }
   btn.disabled = true; btn.textContent = '저장 중…';
@@ -180,8 +222,9 @@ async function savePost(btn) {
     id: btn.dataset.id || '', title, body, tags: ($('po-tags').value || '').split(','),
     published: $('po-pub').checked, pinned: $('po-pin').checked,
     images: DRAFT.images, thumb: DRAFT.thumbs.find(Boolean) || '' } });
-  btn.disabled = false; btn.textContent = '저장';
+  btn.disabled = false; btn.textContent = label;
   if (!r || !r.ok) { showErr('po-err', r && r.error === 'too-many' ? '오늘은 글을 더 올릴 수 없어요.' : r && r.error === 'bad-image' ? '사진이 너무 커요. 사진을 빼고 다시 넣어주세요.' : '저장하지 못했어요. 잠시 뒤 다시 해주세요.'); return; }
+  if (!btn.dataset.id) { try { localStorage.removeItem(POST_DRAFT_KEY); } catch (e) {} }
   closePanel(); toast(r.post.published ? '공개했어요 — 이용자 앱 커뮤니티에 바로 보여요' : '초안으로 저장했어요');
   loadKey('posts', true);
 }
@@ -280,6 +323,9 @@ document.addEventListener('click', e => {
   else if (act === 'post-save') savePost(el);
   else if (act === 'po-wrap') wrapSelection(el.dataset.open, el.dataset.close);
   else if (act === 'po-line') prefixLine(el.dataset.prefix);
+  else if (act === 'po-seed') { const s = POST_SEEDS[+el.dataset.i]; if (s) { $('po-title').value = s.title; $('po-body').value = s.body.replace(/\\n/g, '\n'); $('po-tags').value = s.tags; const box = document.querySelector('.pseeds'); if (box) box.remove(); savePostDraft(); toast('뼈대를 넣었어요. 괄호 부분만 바꿔 쓰면 돼요'); } }
+  else if (act === 'po-reset') { try { localStorage.removeItem(POST_DRAFT_KEY); } catch (err) {} openPostEditor(''); }
+  else if (act === 'po-tag') { const f = $('po-tags'); const cur = f.value.split(',').map(x => x.trim()).filter(Boolean); const t = el.dataset.t; const i = cur.indexOf(t); if (i >= 0) cur.splice(i, 1); else if (cur.length < 5) cur.push(t); else { toast('태그는 5개까지 넣을 수 있어요'); return; } f.value = cur.join(', '); savePostDraft(); }
   else if (act === 'po-photo') { const f = $('po-file'); if (f) { f.value = ''; f.click(); } }
   else if (act === 'po-img-del') removeDraftImage(+el.dataset.i);
   else if (act === 'po-preview') togglePreview();
@@ -293,3 +339,4 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   if (e.target && e.target.id === 'po-file' && e.target.files && e.target.files[0]) addDraftImage(e.target.files[0]);
 });
+document.addEventListener('input', e => { const id = e.target && e.target.id; if (id === 'po-title' || id === 'po-body' || id === 'po-tags') savePostDraft(); });
