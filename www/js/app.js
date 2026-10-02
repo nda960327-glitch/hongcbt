@@ -1262,7 +1262,7 @@ window.App = {
       bar.style.background = `linear-gradient(180deg, color-mix(in srgb, ${p.color} 13%, var(--bg-secondary)), var(--bg-secondary))`;
       bar.style.borderBottomColor = `color-mix(in srgb, ${p.color} 30%, transparent)`;
     }
-    // 전문 기법 상담 버튼 (햇님 CBT · 달님 DBT · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
+    // 전문 기법 상담 버튼 (우렁이 DBT 파도 상담 · 햇님 CBT · 달님 마음 비우기 · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
     const progBtn = document.getElementById('btn-program');
     const spacer = document.getElementById('chat-tools-spacer');
     if (progBtn) {
@@ -1407,17 +1407,22 @@ window.App = {
         + shown.map(p => `
         <button type="button" data-pick="${p.id}" style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.5rem 0.4rem; border-radius: 10px; min-height: 48px; ${p.id === activeId ? `background: color-mix(in srgb, ${p.color} 12%, transparent);` : ''}">
           <span style="flex-shrink: 0; line-height: 0;">${window.Personas.avatarSvg(p.id, 34)}</span>
-          <span style="flex: 0 0 3.6rem; font-weight: 800; font-size: 0.9rem; color: ${p.color};">${p.name}</span>
+          <span style="flex: 0 0 3.6rem; font-weight: 800; font-size: 0.9rem; color: ${p.color};">${p.name}${p.id === shown[0].id ? '<br><span style="font-size: 0.6rem; font-weight: 800; color: #fff; background: ' + p.color + '; padding: 0.05rem 0.4rem; border-radius: 999px;">추천</span>' : ''}</span>
           <span style="flex: 1 1 auto; min-width: 0; font-size: 0.8rem; line-height: 1.4; color: var(--text-primary);">${p.pickWhen || p.tagline}<br><span style="color: var(--text-muted); font-size: 0.74rem;">${p.pickHow || ''}</span></span>
           <span style="flex-shrink: 0; color: var(--text-muted); font-size: 0.9rem;">${p.id === activeId ? '●' : '›'}</span>
         </button>`).join('')
-        + '<div style="font-size: 0.72rem; color: var(--text-muted); padding: 0.3rem 0.4rem 0.4rem;">아래에서 한 명씩 자세히 볼 수 있어요. 언제든 바꿀 수 있어요.</div>';
+        + '<div style="font-size: 0.72rem; color: var(--text-muted); padding: 0.3rem 0.4rem 0.4rem;">누구를 고를지 모르겠으면 맨 위 추천 상담사로 시작하세요. 언제든 바꿀 수 있어요.</div>';
       cmp.addEventListener('click', e => {
         const b = e.target.closest('[data-pick]');
         if (b) this.selectPersona(b.getAttribute('data-pick'));
       });
       listEl.appendChild(cmp);
     }
+    // 자세한 소개 카드는 접어 둔다 — 한꺼번에 펼치면 상담사가 너무 많아 보여 고르기 어렵다
+    const more = document.createElement('details');
+    more.innerHTML = '<summary style="cursor: pointer; list-style: none; text-align: center; font-size: 0.8rem; font-weight: 800; color: var(--accent-primary); padding: 0.6rem; border: 1px dashed var(--glass-border); border-radius: 12px;">상담사 한 명씩 자세히 보기</summary><div data-cards style="display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.7rem;"></div>';
+    listEl.appendChild(more);
+    const cardBox = more.querySelector('[data-cards]');
     shown.forEach(p => {
       const card = document.createElement('div');
       const isActive = p.id === activeId;
@@ -1450,7 +1455,7 @@ window.App = {
           <button class="btn-primary" style="font-size: 0.76rem; padding: 0.35rem 0.85rem; border-radius: var(--radius-full); width: auto; flex-shrink: 0; background: ${p.color}; border: none;">${isActive ? '대화 계속하기 ›' : '상담사 선택 ›'}</button>
         </div>`;
       card.addEventListener('click', () => this.selectPersona(p.id));
-      listEl.appendChild(card);
+      cardBox.appendChild(card);
     });
     modal.classList.remove('hidden');
     if (window.Sfx) window.Sfx.play('pop');
@@ -1544,6 +1549,8 @@ window.App = {
   // renderPersonaBar의 별칭 (홈 화면 빠른 선택에서 이 이름으로 호출됨)
   updatePersonaBar() {
     this.renderPersonaBar();
+    // 단계 없는 코스의 [오늘은 여기까지] 버튼 — 상담사를 바꾸면 거두고, 돌아오면 다시 건다
+    if (window.Personas && window.Personas.renderEndButton) window.Personas.renderEndButton();
   },
 
   // ==========================================================================

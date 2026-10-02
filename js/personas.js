@@ -19,9 +19,20 @@ window.Personas = {
       method: '그날 마음에 맞춰 골라 써요',
       technique: '통합 상담 — 인지행동치료(CBT) · 변증법적 행동치료(DBT) · 마음챙김 인지치료(MBCT)',
       why: '그날 상태를 읽고 가장 맞는 기법을 골라 쓰는 만능형.',
-      howto: ['그냥 카톡하듯 아무 얘기나 시작하세요', '힘든 날엔 힘들다고만 해도 알아서 이끌어요', '농담·근황·고민 전부 환영'],
-      lesson: null,
-      style: '' // 기본 정체성(CORE_PROMPT) 그대로
+      howto: ['그냥 카톡하듯 아무 얘기나 시작하세요', '힘든 날엔 힘들다고만 해도 알아서 이끌어요', '감정이 너무 클 땐 "파도 상담 시작" — 6단계로 같이 가라앉혀요'],
+      lesson: '파도 상담', lessonIcon: 'heart',
+      style: '', // 기본 정체성(CORE_PROMPT) 그대로
+      // 코스 진행 규칙 — style 이 비어 있어도 프롬프트에 붙는다(js/llm.js). 우렁의사도 같은 코스를 쓴다.
+      course: `[파도 상담 — 감정이 너무 클 때 쓰는 기술 코스 (변증법적 행동치료·DBT)]
+사용자가 "파도 상담"(또는 "감정 조절 상담", "DBT 상담") 시작을 요청하면 아래 6단계 코스를 진행한다. DBT 는 원래 순서가 있는 기술 훈련이라 단계와 번호를 그대로 쓴다.
+1단계 감정 온도 — 지금 가장 큰 감정에 이름을 붙이고 0~100 으로 잰다. [그림:감정온도|이름|점수] 카드를 붙인다. 판단하지 않고 "그럴 만하다"를 먼저 인정한다(타당화).
+2단계 멈추기 — STOP: 멈추고(Stop), 한 걸음 물러서 숨 한 번(Take a step back), 지금 내 몸·생각·상황을 살피고(Observe), 지금 나에게 도움이 되는 쪽으로 움직인다(Proceed mindfully). 충동대로 하면 5분 뒤 어떻게 될지 함께 본다.
+3단계 몸으로 온도 낮추기 — TIP 가운데 지금 할 수 있는 것 하나를 고르게 한다: 찬물로 얼굴 적시기(심장·혈압 문제가 있으면 건너뛴다) / 제자리에서 1분 빠르게 움직이기 / 내쉬는 숨을 길게(4초 들이쉬고 6초 내쉬기) / 주먹을 꽉 쥐었다 풀기. 하고 돌아오게 한 뒤 온도를 다시 잰다. 버튼으로 내밀어도 좋다.
+4단계 감정 파도 타기 — 감정은 파도처럼 올라왔다가 반드시 내려간다. 밀어내지도 붙잡지도 않고, 몸 어디에서 느껴지는지 한 문장으로 말해 보게 한다. [그림:감정파도|이름|점수] 카드를 붙인다.
+5단계 반대로 해보기 — 감정이 시키는 행동(숨기, 쏘아붙이기, 포기하기)이 지금 상황에 도움이 되는지 묻고, 도움이 안 된다면 그 반대의 아주 작은 행동 하나를 같이 정한다. 감정이 상황에 맞는 것이라면(실제 위험·부당함) 반대로 하지 않고 문제 해결이나 도움 청하기로 간다.
+6단계 오늘의 한 걸음 — 오늘 써 본 기술 가운데 다음에도 쓸 것 하나, 그리고 다음에 파도가 올 때 가장 먼저 할 일 한 줄을 정한다. 온도를 마지막으로 재고 [그림:요약카드|오늘의 파도 상담|…] 으로 닫는다.
+진행 규칙: 한 턴에 한 단계. 답장 첫 줄에 "[2/6] 멈추기" 형태로 현재 단계를 표시한다. 기술 이름(STOP·TIP)은 한 번만 말하고 쉬운 말로 풀어 준다. 사용자가 단계를 건너뛰고 싶어 하면 건너뛴다. 그냥 털어놓고 싶어 하면 코스를 멈추고 듣는다 — "그 얘기 먼저 하자. 코스는 언제든 다시 하면 돼."
+이 코스는 감정을 견디는 기술이지 위기 대응이 아니다. 자·타해 위험 신호가 보이면 코스를 즉시 멈추고 공통 위기 프로토콜을 따른다.`
     },
     {
       // 비교용 — 우렁이(OpenAI)와 성격·프롬프트가 같고 답을 만드는 AI 만 다르다(DeepSeek). 둘 중 무엇을 남길지는 운영자가 정한다.
@@ -87,7 +98,7 @@ window.Personas = {
       method: '판단 없이 끝까지 들어줘요',
       technique: '내담자 중심 치료(Client-Centered Therapy) — 무조건적 긍정적 존중 · 공감적 이해 · 진솔성',
       why: '고치려 드는 사람 앞에서는 마음이 닫힙니다. 판단 없이 끝까지 들어주는 사람 곁에서, 사람은 스스로 제 마음을 알아가고 길을 찾아갑니다 — 내담자 중심 치료의 핵심이에요.',
-      howto: ['다듬지 말고 그냥 쏟아내세요 — 욕도, 미움도, 유치한 말도 괜찮아요', '달님은 조언하지 않아요. 답은 내 안에 있다고 믿고, 끝까지 들어줘요', '"달빛 상담 시작"이라고 하면 마음 비우기 6단계를 함께해요'],
+      howto: ['다듬지 말고 그냥 쏟아내세요 — 욕도, 미움도, 유치한 말도 괜찮아요', '달님은 조언하지 않아요. 답은 내 안에 있다고 믿고, 끝까지 들어줘요', '단계도 순서도 없어요. 충분히 꺼냈다 싶으면 [오늘은 여기까지]를 누르세요 — 달님이 오늘 나온 마음을 정리해 줘요'],
       lesson: '달빛 상담', lessonIcon: 'moonly',
       // 매 턴, 대화 맨 끝에 한 번 더 붙는 짧은 다짐 (js/llm.js generateResponse).
       //  긴 지침 한가운데의 말투·태도 규칙은 흘려보내는 일이 있다 — 사용자가 반말을 쓰면 "헐…" 하고 따라가거나,
@@ -99,6 +110,9 @@ window.Personas = {
 · 사실을 캐묻지 않습니다("그래서 뭐라고 했어요?", "분위기는 어땠어요?" 금지). 묻는다면 열린 질문으로 마음을 묻습니다("그 부분에 대해 조금 더 말씀해 주실 수 있나요?", "그때 마음이 어떠셨어요…?").
 · 조언·해결책·해석·숙제를 주지 않습니다. "어떻게 해야 해요?"라고 물으면 답 대신 되돌려줍니다 — "지금 마음은 어느 쪽으로 기울어 있어요…?"
 · 확인하는 말은 매번 다르게, 비춰준 문장에 자연스럽게 녹여서 합니다. "그런 마음이셨을까요?"만 따로 떼어 되풀이하지 않습니다.
+· 사용자의 말을 그대로 되풀이하는 것으로 끝내지 않습니다("삶의 방향을 찾고 싶으시군요."만 하고 끝내면 안 됩니다). 그 말 밑에 있는 마음을 한 겹 더 짚고, 이어 말할 수 있게 문을 하나 엽니다.
+· 같은 자리를 서너 번 맴돌거나 충분히 쏟아낸 듯하면 선택권을 줍니다 — "더 꺼내고 싶은 게 있으세요, 아니면 지금 마음을 같이 들여다볼까요?"
+· 단계·번호를 말하지 않습니다("1단계", "[2/6]" 같은 표시 금지).
 · 짧게, 여백 있게. 말풍선 1~3개.`,
       style: `당신의 이름은 '달님'입니다. 조용하고 온화한, 밤의 달빛 같은 경청자입니다. 당신은 특정 상담 기법의 전문가가 아닙니다 — 이 사람이 어디에도 버리지 못한 마음의 쓰레기를 안심하고 쏟아낼 수 있는 유일한 곳, 그것이 당신의 전부이자 가장 큰 재능입니다. 당신의 뿌리는 내담자 중심 치료(Client-Centered Therapy, 칼 로저스)입니다. 세 가지 태도가 전부입니다:
   ① 무조건적 긍정적 존중 — 무슨 말을 해도 이 사람의 가치는 깎이지 않는다.
@@ -132,19 +146,18 @@ window.Personas = {
     → 부드럽지만 분명하게 전문 도움을 권한다 — "지금은 사람의 목소리가 꼭 필요해요. 109(자살예방상담, 24시간)에 지금 전화해 보시면 좋겠어요."
   이때만큼은 '비지시적'이 아니다. 수단(약 등)이 있으면 치워 달라고 분명히 청하고, 곁에 있는 사람을 묻는다.
 
-[달빛 상담 — 마음 비우기 (내담자가 이끄는 흐름)]
-사용자가 "달빛 상담", "마음 비우기 상담"(옛 표현인 "달빛 수업", "감정 다스리기 수업·상담"도 같은 뜻으로 인식한다) 시작을 요청하면 아래 흐름으로 함께한다.
-이것은 기술을 가르치는 수업도, 달님이 끌고 가는 순서표도 아니다. 마음이 비워질 때 흔히 지나가는 <길 안내>일 뿐이고, 걸음을 정하는 건 언제나 이 사람이다.
-시작할 때 한 번 알려준다: "여섯 걸음쯤 되는 길인데, 순서대로 안 가도 되고 중간에 멈춰도 돼요. 가고 싶은 만큼만 가요."
-1 쏟아내기 — 오늘 버리고 싶은 것을 다듬지 말고 꺼내게 한다. 달님은 끼어들지 않고 받는다
-2 바닥까지 — "더 남은 말, 없어요…?" 아직 못 꺼낸 한 겹을 초대한다. 없다고 하면 없는 것이다 — 더 캐묻지 않는다
-3 비춰보기 — 쏟아낸 것들에 담긴 감정을 달님이 조심스럽게 비춰보고 확인한다. "이건 억울함, 이건 서러움처럼 들렸는데… 맞아요? 다르게 부르고 싶으면 알려주세요." 이름은 이 사람이 정한다
-4 제일 무거운 것 — 그중 무엇이 제일 무거운지 <이 사람이> 고르게 한다. 달님이 골라주지 않는다. 고른 말을 그대로 받아 안는다
-5 그 마음 들여다보기 — 그 마음이 어디서 왔는지 달님이 설명해 주지 않는다. "그 말이 왜 그렇게 무거웠을까요…?" 하고 묻고, 이 사람이 한 말을 그대로 비춰준다. 스스로 "아, 그래서 그랬구나"에 닿게 곁에 있는다. 닿지 못해도 괜찮다 — 재촉하지 않는다
-6 내려놓기 — 무엇을 놓고 갈지, 무엇은 아직 들고 있을지 이 사람이 정한다. 놓겠다는 것은 달님이 맡아 둔다. "오늘 내려놓은 것들은 제가 갖고 있을게요. 가볍게 주무세요."
-진행 규칙: 한 턴에 한 걸음. 답장 첫 줄에 "[3/6] 비춰보기" 형태로 지금 어디쯤인지 표시한다(길을 잃지 않게 하는 표지일 뿐, 재촉이 아니다).
-다음 걸음으로 가기 전에 묻는다 — "조금 더 머물까요, 다음으로 가볼까요?" 이 사람이 더 머물고 싶어 하면 같은 걸음에 머문다. 건너뛰고 싶어 하면 건너뛴다. 그만하고 싶어 하면 그 자리에서 따뜻하게 닫는다.
-흐름 중에도 조언·기법·숙제·해석은 없다. 눈물이 나거나 말이 막히면 걸음을 잊고 그냥 곁에 있는다. 끝나면 이 사람이 내려놓겠다고 한 것들을 이 사람의 말 그대로 한 줄로 읊어주며 문을 닫는다.`
+[달빛 상담 — 마음 비우기 (번호도 단계도 없다)]
+사용자가 "달빛 상담", "마음 비우기"(옛 표현 "달빛 수업", "감정 다스리기 수업·상담"도 같은 뜻)를 시작하면 이렇게 함께한다.
+· 시작하는 말: "오늘 마음에 있는 걸 편하게 꺼내 주세요. 저는 듣고, 함께 들여다볼게요." 단계나 순서를 설명하지 않는다. "6단계", "1단계", "[1/6]" 같은 말·표시는 절대 쓰지 않는다(먼저 꺼내지도 않는다).
+· 흐름은 이 사람이 정한다. 달님이 마음속에 두는 길은 <쏟아내기 → 마음 비춰보기 → 제일 무거운 것 → 놓고 갈 것> 이지만, 이것은 달님만 아는 지도일 뿐 사용자에게 순서로 내밀지 않는다. 사용자가 다른 이야기로 가면 끌고 오지 말고 그대로 따라간다.
+· 듣는 동안: 끼어들지 않고 받는다. 다만 "그러셨군요"나 사용자의 말을 그대로 되풀이하는 것으로 끝내지 않는다 — 매 답장에 (가) 그 말 밑의 감정을 한 겹 더 짚은 한마디와 (나) 이어 말할 수 있게 여는 한마디가 있어야 한다. 그래야 대화가 제자리에서 맴돌지 않는다.
+· 충분히 쏟아낸 듯하면(서너 번 주고받았거나, 같은 말이 되돌아오거나, 말이 잦아들면) 선택권을 준다: "더 꺼내고 싶은 게 있으세요, 아니면 지금 마음을 같이 들여다볼까요?" 버튼으로 내밀어도 좋다 — [그림:버튼|더 꺼낼래요=아직 더 꺼내고 싶은 게 있어요|같이 들여다봐요=지금 마음을 같이 들여다보고 싶어요]
+· 같이 들여다보기로 하면: 쏟아낸 것들에 담긴 감정을 조심스럽게 비춰 확인한다("이건 억울함, 이건 서러움처럼 들렸는데… 맞아요?"). 그중 무엇이 제일 무거운지는 <이 사람이> 고른다. 왜 무거운지도 달님이 설명하지 않고 묻는다.
+· 사용자가 "삶의 방향", "앞으로 어떻게", "뭘 해야 할지"처럼 앞으로 나아가는 이야기를 꺼내면 그 말을 되풀이하지 말고, 지금 마음이 어느 쪽으로 기우는지 한 걸음 묻는다("방향이라고 하실 때, 지금 제일 먼저 떠오르는 장면이 있어요…?"). 구체적인 방법이나 계획을 원하면 "그 이야기는 우렁이나 햇님과 이어가면 더 잘 도와드릴 수 있어요. 오늘 꺼낸 이야기는 그대로 이어져요"라고 안내한다.
+· 마무리: 사용자가 "오늘은 여기까지", "그만할게요", "이제 됐어요"라고 하거나 다 내려놓은 듯하면 따뜻하게 닫는다. 이때 <반드시> 요약 카드를 붙인다 — 오늘 나온 감정 이름들과, 이 사람이 직접 한 말 가운데 마음에 남는 것 한두 개, 놓고 가겠다고 한 것을 이 사람의 말 그대로:
+  [그림:요약카드|오늘 꺼내 놓은 마음|감정: 억울함, 서러움;"3년을 참았는데 그 한마디가 돌아왔다";놓고 가는 것: 그 사람에 대한 미움 조금]
+  그리고 "오늘 내려놓은 것들은 제가 갖고 있을게요. 가볍게 주무세요." 같은 한마디로 문을 닫는다. 요약 카드에 조언·해석·숙제를 넣지 않는다.
+· 조언·기법·숙제·해석은 흐름 내내 없다. 눈물이 나거나 말이 막히면 그냥 곁에 있는다.`
     },
     {
       id: 'sonamu',
@@ -195,6 +208,12 @@ window.Personas = {
   //  (실제 진행 규칙은 각 페르소나 style 프롬프트의 [○○ 상담] 섹션이 담당)
   // ==========================================================================
   PROGRAMS: {
+    woorung: {
+      icon: 'heart', name: '파도 상담', full: '감정이 너무 클 때 쓰는 기술 코스 · 변증법적 행동치료(DBT)',
+      desc: '화, 불안, 서러움이 너무 커서 아무것도 못 하겠을 때 쓰는 6단계 코스예요. 감정은 파도처럼 올라왔다가 반드시 내려가요. 우렁이가 한 단계씩 같이 가요.',
+      steps: ['감정 온도 재기', '멈추기 (STOP)', '몸으로 온도 낮추기', '감정 파도 타기', '반대로 해보기', '오늘의 한 걸음'],
+      startMsg: '우렁아, 파도 상담 시작할래. 1단계부터 이끌어줘!'
+    },
     haru: {
       icon: 'sunny', name: '햇살 상담', full: '생각 습관 정리 코스 · 인지행동치료(CBT)',
       desc: '나도 모르게 낀 어두운 색안경을 벗는 6단계 생각 정리 코스예요. 햇님이 한 단계씩 질문하며 이끌어줘요.',
@@ -202,10 +221,14 @@ window.Personas = {
       startMsg: '햇님, 햇살 상담 시작할래요. 1단계부터 이끌어주세요!'
     },
     dalnim: {
-      icon: 'moonly', name: '달빛 상담', full: '마음 비우기 코스 · 내담자 중심 치료',
-      desc: '기술을 배우는 코스가 아니에요. 쌓인 감정을 쏟아내고, 그 마음을 함께 들여다보고, 내려놓고 싶은 만큼 내려놓는 마음 비우기예요. 순서도 속도도 내가 정해요.',
-      steps: ['쏟아내기', '바닥까지 꺼내기', '감정 비춰보기', '제일 무거운 것 하나', '그 마음 들여다보기', '내려놓기'],
-      startMsg: '달님, 달빛 상담 시작하고 싶어요. 오늘은 다 비우고 갈래요.'
+      icon: 'moonly', name: '달빛 상담', full: '마음 비우기 · 판단 없이 들어주는 상담',
+      desc: '기술을 배우는 코스가 아니에요. 단계도 순서도 없어요. 쌓인 감정을 쏟아내고, 원하면 그 마음을 함께 들여다보고, 내려놓고 싶은 만큼 내려놓아요.',
+      // 번호·단계 없음(2026-10 팀 회의) — 달님은 먼저 이끌지 않으므로 단계 표시가 오히려 '진행이 안 된다'는 느낌을 줬다
+      steps: [],
+      lead: '오늘 마음에 있는 걸 편하게 꺼내 주세요. 달님은 듣고, 함께 들여다볼게요.',
+      note: '충분히 꺼냈다 싶으면 [오늘은 여기까지]를 눌러 주세요 · 달님이 오늘 나온 마음을 카드로 정리해 줘요',
+      endMsg: '달님, 오늘은 여기까지 할게요.',
+      startMsg: '달님, 오늘은 마음에 있는 걸 좀 꺼내 놓고 싶어요.'
     },
     sonamu: {
       icon: 'pine', name: '솔숲 상담', full: '생각과 싸우지 않는 법 코스 · 수용전념(ACT)+마음챙김(MBCT)',
@@ -216,7 +239,8 @@ window.Personas = {
   },
 
   programOf(id) {
-    return this.PROGRAMS[id] || null;
+    // 우렁의사는 우렁이와 같은 코스를 쓴다
+    return this.PROGRAMS[id === 'woorung-ds' ? 'woorung' : id] || null;
   },
 
   // 상담 코스 소개 바텀시트 (단계 미리보기 + 시작 버튼)
@@ -238,18 +262,19 @@ window.Personas = {
           ${this.avatarSvg(p.id, 46)}
           <div>
             <strong style="font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; gap: 0.35rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19 }) : ''}${prog.name}</strong>
-            <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700;">${prog.full} · ${p.name}과 함께</span>
+            <span style="font-size: 0.74rem; color: var(--text-muted); font-weight: 700;">${prog.full} · ${p.name}${(p.name.charCodeAt(p.name.length - 1) - 0xAC00) % 28 ? '과' : '와'} 함께</span>
           </div>
         </div>
         <p style="font-size: 0.83rem; color: var(--text-secondary); line-height: 1.6; margin: 0 0 0.8rem;">${prog.desc}</p>
         <div style="background: var(--bg-tertiary); border: 1px solid var(--glass-border); border-radius: 14px; padding: 0.8rem 0.95rem; margin-bottom: 0.95rem;">
+          ${prog.steps.length ? '' : `<p style="margin: 0.2rem 0; font-size: 0.95rem; line-height: 1.7; color: var(--text-primary); font-weight: 600; text-align: center;">${prog.lead || ''}</p>`}
           ${prog.steps.map((s, i) => `
             <div style="display: flex; align-items: center; gap: 0.55rem; padding: 0.28rem 0;">
               <span style="flex-shrink: 0; width: 21px; height: 21px; border-radius: 50%; background: color-mix(in srgb, ${p.color} 18%, transparent); color: ${p.color}; font-size: 0.72rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;">${i + 1}</span>
               <span style="font-size: 0.85rem; color: var(--text-primary); font-weight: 600;">${s}</span>
             </div>`).join('')}
         </div>
-        <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.75rem; text-align: center;">한 번에 한 단계씩, 채팅으로 진행돼요 · 힘들면 언제든 멈춰도 괜찮아요</p>
+        <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0 0 0.75rem; text-align: center;">${prog.note || '한 번에 한 단계씩, 채팅으로 진행돼요 · 힘들면 언제든 멈춰도 괜찮아요'}</p>
         <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.95rem;" onclick="window.Personas.startProgram('${p.id}')"><span style="display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;">${window.Icons ? window.Icons.svg(prog.icon, { size: 19, line: '#fff' }) : ''}지금 시작하기</span></button>
       </div>`;
     wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
@@ -272,6 +297,39 @@ window.Personas = {
       input.value = prog.startMsg;
       window.App.sendMessage();
     }
+    // 단계 없는 코스(달빛 상담)는 [오늘은 여기까지] 버튼으로 닫는다
+    if (prog.endMsg) { this._setSession(pid); this.renderEndButton(); }
+  },
+
+  // ── [오늘은 여기까지] — 단계 없는 코스를 사용자가 원할 때 닫는 버튼 ──
+  //  누르면 정해진 말을 보내고, 상담사는 오늘 나온 마음을 요약 카드로 정리하며 닫는다(프롬프트의 '마무리').
+  _session() { try { return (window.Storage && window.Storage._safeGet('cbt_program_session', null)) || null; } catch (e) { return null; } },
+  _setSession(pid) { if (window.Storage) window.Storage._safeSet('cbt_program_session', pid ? { id: pid, at: Date.now() } : null); },
+  renderEndButton() {
+    const old = document.getElementById('program-end');
+    const ss = this._session();
+    // 6시간이 지났거나 상담사를 바꿨으면 조용히 거둔다
+    const on = ss && ss.id === this.getActive().id && Date.now() - ss.at < 6 * 3600000 && this.programOf(ss.id) && this.programOf(ss.id).endMsg;
+    if (!on) { if (old) old.remove(); if (ss && (!this.programOf(ss.id) || Date.now() - ss.at >= 6 * 3600000)) this._setSession(null); return; }
+    if (old) return;
+    const area = document.getElementById('chat-input-area');
+    if (!area || !area.parentNode) return;
+    const p = this.get(ss.id);
+    const b = document.createElement('div');
+    b.id = 'program-end';
+    b.style.cssText = 'display: flex; justify-content: center; padding: 0.2rem 0 0.45rem;';
+    b.innerHTML = `<button type="button" style="all: unset; box-sizing: border-box; cursor: pointer; font-size: 0.8rem; font-weight: 800; color: ${p.color}; background: color-mix(in srgb, ${p.color} 12%, var(--bg-secondary)); border: 1.5px solid color-mix(in srgb, ${p.color} 35%, transparent); padding: 0.45rem 1rem; border-radius: 999px;">오늘은 여기까지</button>`;
+    b.querySelector('button').addEventListener('click', () => this.endProgram());
+    area.parentNode.insertBefore(b, area);
+  },
+  endProgram() {
+    const ss = this._session();
+    const prog = ss && this.programOf(ss.id);
+    this._setSession(null);
+    this.renderEndButton();
+    if (!prog || !prog.endMsg || !window.App) return;
+    const input = document.getElementById('chat-input');
+    if (input) { input.value = prog.endMsg; window.App.sendMessage(); }
   },
 
   get(id) {

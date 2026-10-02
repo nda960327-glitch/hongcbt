@@ -2632,7 +2632,7 @@ function foldProfile() {
       <input id="${id}" type="${type || 'text'}" value="${esc(String(val == null ? '' : val))}" placeholder="${esc(ph || '')}">
       ${hint ? `<span class="muted" style="margin-top:0.2rem;">${hint}</span>` : ''}</label>`;
   const tags = ME.tags || [];
-  const sum = [ME.hospital || '소속 미입력', won(ME.price) + '원'].join(' · ');
+  const sum = [ME.hospital || '소속 미입력', (ME.sessionMin === 40 ? 40 : 30) + '분 ' + won(ME.price) + '원'].join(' · ');
 
   // 사진 — 내담자가 카드에서 '가장 먼저' 보는 것이라 맨 위에 둔다
   const photoBlock = `

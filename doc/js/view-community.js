@@ -3,9 +3,12 @@
 //  본문 표기: '# ' 큰 글씨 · '## ' 제목 · **굵게** · {red|글}(색) · [img:0] 사진. HTML 은 전부 이스케이프.
 LOADERS.posts = () => hget('posts').then(d => (d && Array.isArray(d.items)) ? (DATA.posts = d.items, DATA.profile = d.profile || {}, d) : null);
 const POSTS = { comments: null, cmPost: null };
+const INQ = { items: null, waiting: 0 };
+// 답장을 기다리는 쪽지 수 — 글 목록과 함께 받아 둔다
+LOADERS.inqCount = () => hget('inquiries').then(d => { if (d) { INQ.waiting = d.waiting || 0; DATA.inqCount = INQ.waiting; } return d; });
 
 VIEWS.community = {
-  title: '커뮤니티', keys: ['posts'],
+  title: '커뮤니티', keys: ['posts', 'inqCount'],
   sub: () => DATA.posts ? `내 글 ${DATA.posts.length}개 · 공개 ${DATA.posts.filter(p => p.published && !p.hidden).length}개` : '',
   html() {
     const g = gate(['posts'], 'community'); if (g) return g;
@@ -13,7 +16,7 @@ VIEWS.community = {
     return `
       <div class="vhead">
         <p class="muted grow">공개한 글은 이용자 앱 홈 <b>커뮤니티</b>와 상담소 페이지에 바로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 소속 상담사도 상담사 앱에서 글을 쓸 수 있고, 그 글도 여기서 고치거나 지울 수 있어요.</p>
-        <button class="btn ghost sm" data-act="inq-open">받은 쪽지</button>
+        <button class="btn ghost sm" data-act="inq-open">받은 쪽지${INQ.waiting ? ' <span class="chip bad">' + INQ.waiting + '</span>' : ''}</button>
         <button class="btn sm" data-act="post-new">＋ 새 글</button>
       </div>
       ${list.length && window.matchMedia('(max-width: 700px)').matches ? list.map(it => `
@@ -276,11 +279,12 @@ async function replyComment(btn) {
 }
 
 // ── 받은 쪽지 — 회원이 홈페이지 상담소 페이지에서 보낸 것. 답장은 그 회원의 [내 정보]에 보인다 ──
-const INQ = { items: null };
+
 async function openInquiries() {
   INQ.items = null; renderInquiries();
   const d = await hget('inquiries');
   INQ.items = d && Array.isArray(d.items) ? d.items : [];
+  INQ.waiting = d ? (d.waiting || 0) : 0;
   renderInquiries();
 }
 function renderInquiries() {
@@ -289,8 +293,9 @@ function renderInquiries() {
     <p class="muted" style="margin-bottom:0.6rem;">홈페이지(mindinside.kr)의 상담소 페이지에서 회원이 보낸 쪽지예요. 답장은 그 회원의 [내 정보]에 보여요. 진단이나 처방처럼 들릴 말은 피하고, 급해 보이면 109·1577-0199 를 함께 안내해 주세요.</p>
     ${a === null ? loadingHtml() : a.length ? a.map(x => `
       <div class="card flat" style="margin-bottom:0.5rem; padding:0.7rem 0.8rem; ${x.reply ? '' : 'border-color: var(--accent);'}">
-        <div class="row wrap" style="gap:0.4rem;"><b class="small">${esc(x.name)}</b>${x.reply ? '<span class="chip ok">답장함</span>' : '<span class="chip bad">답장 전</span>'}<span class="muted right">${fmtDT(x.ts)}</span></div>
+        <div class="row wrap" style="gap:0.4rem;"><b class="small">${esc(x.name)}</b>${x.crisis ? '<span class="chip bad">위기 신호 — 먼저 확인</span>' : ''}${x.reply ? '<span class="chip ok">답장함</span>' : '<span class="chip bad">답장 전</span>'}<span class="muted right">${fmtDT(x.ts)}</span></div>
         <p class="pre small" style="margin:0.3rem 0 0.5rem;">${esc(x.text)}</p>
+        ${x.crisis && !x.reply ? '<p class="muted danger-t" style="margin:0 0 0.4rem;">자신을 해칠 수 있다는 신호가 담긴 쪽지예요. 가능한 한 빨리 답하고, 109(24시간)·1577-0199 와 가까운 응급실을 함께 안내해 주세요. 이 회원에게는 보낼 때 이미 109 안내가 나갔어요.</p>' : ''}
         <textarea rows="3" maxlength="1000" data-inq="${esc(x.id)}" placeholder="답장 쓰기">${esc(x.reply || '')}</textarea>
         <div class="row" style="justify-content:flex-end; margin-top:0.3rem;"><button class="btn sm" data-act="inq-reply" data-id="${esc(x.id)}">${x.reply ? '답장 고치기' : '답장 보내기'}</button></div>
       </div>`).join('') : empty('아직 받은 쪽지가 없어요')}`, '', 'inquiries');

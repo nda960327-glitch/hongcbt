@@ -149,6 +149,7 @@ window.ChatViz = {
             </span>
           </div>
           <div style="padding: 0.55rem 0.75rem; background: var(--bg-secondary);">
+            ${prog.steps.length ? '' : `<p style="margin: 0.1rem 0 0.2rem; font-size: 0.8rem; line-height: 1.6; font-weight: 600; color: var(--text-primary);">${this._esc(prog.lead || '')}</p>`}
             ${prog.steps.map((s, i) => `
               <div style="display: flex; align-items: center; gap: 0.45rem; padding: 0.16rem 0;">
                 <span style="flex-shrink: 0; width: 17px; height: 17px; border-radius: 50%; background: color-mix(in srgb, ${p.color} 16%, transparent); color: ${p.color}; font-size: 0.62rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center;">${i + 1}</span>

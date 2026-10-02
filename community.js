@@ -83,7 +83,7 @@ const maskContact = t => String(t || '')
 
 // ── 이용자 글·댓글 사전 차단 ──────────────────────────────────────────
 //  원문 그대로 본다. 글자 사이 공백을 지우고 보면 '혼자 해결'(자해)·'다시 발견'(시발) 같은 멀쩡한 말이 걸린다 — 한 칸 띄어 쓴 것까지만 잡는다.
-const RE_CRISIS = /자살|자해(?!결)|죽고\s?싶|죽어\s?버리(고|ㄹ|려|겠|면)|죽을래|죽으려|죽는\s?게\s?(낫|편)|죽을\s?(방법|사람|곳|날|거|까)|같이\s?죽|함께\s?죽|동반\s?(자살|으로)|목숨을?\s?끊|목을?\s?(매|맬)|뛰어\s?내리(고|려|ㄹ|면|겠)|투신|번개탄|연탄\s?(불|가스)|청산가리|수면제를?\s?(모으|모아|한꺼번|다\s?먹|\d+\s?알)|손목을?\s?(긋|그어|그을|그었)|유서를?\s?(쓰|썼|남기|남겼)|극단적인?\s?선택|삶을\s?끝|생을\s?마감|사라지고\s?싶|없어지고\s?싶|살기\s?싫|살고\s?싶지\s?않/;
+const RE_CRISIS = /자살|자해(?!결)|죽고\s?싶|죽어\s?버리(고|ㄹ|려|겠|면)|죽을래|죽으려|죽는\s?게\s?(낫|편)|죽을\s?(방법|사람|곳|날|거|까)|같이\s?죽|함께\s?죽|동반\s?(자살|으로)|목숨을?\s?끊|목을?\s?(매|맬)|뛰어\s?내리(고|려|ㄹ|면|겠)|투신|번개탄|연탄\s?가스|연탄(불)?을?\s?(피우|피워|피울)|청산가리|수면제를?\s?(모으|모아|한꺼번|다\s?먹|\d+\s?알)|손목을?\s?(긋|그어|그을|그었)|유서를?\s?(쓰|썼|남기|남겼)|극단적인?\s?선택|삶을\s?끝|생을\s?마감|사라지고\s?싶|없어지고\s?싶|살기\s?싫|살고\s?싶지\s?않/;
 const RE_ABUSE = /(^|[^가-힣])(시발|씨발|씨바)|ㅅㅂ|ㅆㅂ|씹(새|년|놈|창)|병신|ㅂㅅ|븅신|좆|존나|개새끼|개새|개색|개같은|개년|개놈|(이|저|그|야|미친)\s?새끼|지랄|ㅈㄹ|닥쳐|꺼져(라|버려|\s?줄래|[!~]+)|미친\s?(년|놈)|썅|쌍(년|놈)|엠창|니애미|느금|한남충|김치녀|맘충|틀딱|급식충|정신병자|찐따|fuck|shit|bitch/i;
 const RE_OUT = /오픈\s?채팅|오픈\s?카톡|오픈톡|옾챗|오카방|open\.kakao|t\.me\/|디스코드|discord|텔레(그램)?\s?(로|으로|에서|방|주소|아이디)|디엠\s?(주|줘|보내|해)|dm\s?(주|줘|보내|해)|쪽지\s?(주|줘|보내)|따로\s?(만나|연락|얘기|이야기)|개인(적으로)?\s?연락|카톡\s?(해|하자|주세요|줘|아이디)|번호\s?(알려|교환|줄게|주세요)/i;
 const MSG_CRISIS = '지금 많이 힘드신 것 같아요. 이 글은 공개 게시판에 올리지 않았어요.\n\n혼자 견디지 마세요. 자살예방상담전화 109, 정신건강 위기상담 1577-0199 가 24시간 받습니다. 앱에서는 상담사와 바로 이야기할 수 있어요.';
@@ -311,8 +311,8 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     await db.prepare('INSERT INTO hospital_inquiries (id, hospital_id, user_id, name, text, ts) VALUES (?,?,?,?,?,?)').bind(it.id, it.hospital_id, it.user_id, it.name, it.text, it.ts).run();
     const crisis = !!(bad && bad.error === 'crisis');
     return json({ ok: true, crisis, message: crisis
-      ? '쪽지를 보냈어요. 다만 상담소가 바로 확인하지 못할 수 있어요.\n\n지금 많이 힘들다면 기다리지 말고 자살예방상담전화 109, 정신건강 위기상담 1577-0199 로 전화해 주세요. 24시간 받습니다.'
-      : '쪽지를 보냈어요. 답장은 [내 정보]에서 볼 수 있어요.' }, 200, cors);
+      ? '상담소가 바로 확인하지 못할 수 있어요.\n\n지금 많이 힘들다면 기다리지 말고 자살예방상담전화 109, 정신건강 위기상담 1577-0199 로 전화해 주세요. 24시간 받습니다.'
+      : '답장이 오면 [내 정보]의 새 소식에서 볼 수 있어요.' }, 200, cors);
   }
   if (path === '/community/inquiries' && method === 'GET') {
     const u = await userOf();
@@ -349,7 +349,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const id = rid('lf');
     await db.prepare("INSERT INTO library_files (id, user_id, uploader, title, descr, who, size, data, status, ts, downloads) VALUES (?,?,?,?,?,?,?,?,'pending',?,0)")
       .bind(id, u.id, (u.nick || '회원') + ' · ' + (ROLE_NAME[roles[0]] || '전문가'), title, descr, who, Math.round(m[1].length * 3 / 4), m[1], nowMs()).run();
-    return json({ ok: true, id, message: '올렸어요. 운영팀이 확인한 뒤 자료실에 공개돼요(보통 1~2일).' }, 200, cors);
+    return json({ ok: true, id, message: '운영팀이 확인한 뒤 자료실에 공개돼요(보통 1~2일).' }, 200, cors);
   }
 
   // 새 소식 — 내 글에 달린 댓글 · 내 댓글에 달린 답글 · 상담소의 쪽지 답장 (최근 30일)
@@ -387,7 +387,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const rows = (await db.prepare(`SELECT c.id, c.post_id, c.text, c.ts, p.title,
         (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes
       FROM post_comments c JOIN posts p ON p.id = c.post_id WHERE c.client_id = ? AND c.hidden = 0 AND p.hidden = 0 AND p.published = 1 ORDER BY c.ts DESC LIMIT 100`).bind(u.key).all()).results || [];
-    return json({ items: rows.map(r => ({ id: r.id, postId: r.post_id, title: r.title, text: r.text, ts: r.ts, likes: r.likes || 0 })) }, 200, cors);
+    return json({ items: rows.map(r => ({ id: r.id, postId: r.post_id, title: r.title, text: plainOf(r.text) || '(스티커)', ts: r.ts, likes: r.likes || 0 })) }, 200, cors);
   }
 
   if (path === '/community/tags' && method === 'GET') {
@@ -639,7 +639,10 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (path === '/hospital/inquiries' && method === 'GET') {
       let rows = [];
       try { rows = (await db.prepare('SELECT id, name, text, ts, reply, reply_ts FROM hospital_inquiries WHERE hospital_id = ? ORDER BY (reply IS NULL OR reply = \'\') DESC, ts DESC LIMIT 100').bind(h.id).all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
-      return json({ items: rows.map(r => ({ id: r.id, name: r.name || '회원', text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0 })) }, 200, cors);
+      const items = rows.map(r => ({ id: r.id, name: r.name || '회원', text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0, crisis: !!(screen(r.text) || {}).error && (screen(r.text) || {}).error === 'crisis' }));
+      // 위기 신호가 있고 아직 답하지 않은 쪽지를 맨 위로
+      items.sort((a, b) => ((b.crisis && !b.reply) - (a.crisis && !a.reply)) || ((!b.reply) - (!a.reply)) || (b.ts - a.ts));
+      return json({ items, waiting: items.filter(i => !i.reply).length }, 200, cors);
     }
     if (path === '/hospital/inquiries/reply' && method === 'POST') {
       const id = cleanId(body.id), text = s(body.text, 1000).trim();
