@@ -392,7 +392,7 @@ const APP = {
       if (r) return r;
     }
     // 상담소 소식(커뮤니티) — 상담소 글·좋아요·댓글·상담소 페이지. /hospital/posts… 는 hospital.js 보다 먼저 본다.
-    if (/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) {
+    if (/^\/(community|hospital\/(posts|comments|profile|inquiries)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) {
       const r = await handleCommunity(request, env, cors, path, ctx);
       if (r) return r;
     }

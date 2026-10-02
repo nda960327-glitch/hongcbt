@@ -13,6 +13,7 @@ VIEWS.community = {
     return `
       <div class="vhead">
         <p class="muted grow">공개한 글은 이용자 앱 홈 <b>커뮤니티</b>와 상담소 페이지에 바로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 소속 상담사도 상담사 앱에서 글을 쓸 수 있고, 그 글도 여기서 고치거나 지울 수 있어요.</p>
+        <button class="btn ghost sm" data-act="inq-open">받은 쪽지</button>
         <button class="btn sm" data-act="post-new">＋ 새 글</button>
       </div>
       ${list.length && window.matchMedia('(max-width: 700px)').matches ? list.map(it => `
@@ -274,6 +275,37 @@ async function replyComment(btn) {
   else toast('답글을 남기지 못했어요');
 }
 
+// ── 받은 쪽지 — 회원이 홈페이지 상담소 페이지에서 보낸 것. 답장은 그 회원의 [내 정보]에 보인다 ──
+const INQ = { items: null };
+async function openInquiries() {
+  INQ.items = null; renderInquiries();
+  const d = await hget('inquiries');
+  INQ.items = d && Array.isArray(d.items) ? d.items : [];
+  renderInquiries();
+}
+function renderInquiries() {
+  const a = INQ.items;
+  openPanel('받은 쪽지', `
+    <p class="muted" style="margin-bottom:0.6rem;">홈페이지(mindinside.kr)의 상담소 페이지에서 회원이 보낸 쪽지예요. 답장은 그 회원의 [내 정보]에 보여요. 진단이나 처방처럼 들릴 말은 피하고, 급해 보이면 109·1577-0199 를 함께 안내해 주세요.</p>
+    ${a === null ? loadingHtml() : a.length ? a.map(x => `
+      <div class="card flat" style="margin-bottom:0.5rem; padding:0.7rem 0.8rem; ${x.reply ? '' : 'border-color: var(--accent);'}">
+        <div class="row wrap" style="gap:0.4rem;"><b class="small">${esc(x.name)}</b>${x.reply ? '<span class="chip ok">답장함</span>' : '<span class="chip bad">답장 전</span>'}<span class="muted right">${fmtDT(x.ts)}</span></div>
+        <p class="pre small" style="margin:0.3rem 0 0.5rem;">${esc(x.text)}</p>
+        <textarea rows="3" maxlength="1000" data-inq="${esc(x.id)}" placeholder="답장 쓰기">${esc(x.reply || '')}</textarea>
+        <div class="row" style="justify-content:flex-end; margin-top:0.3rem;"><button class="btn sm" data-act="inq-reply" data-id="${esc(x.id)}">${x.reply ? '답장 고치기' : '답장 보내기'}</button></div>
+      </div>`).join('') : empty('아직 받은 쪽지가 없어요')}`, '', 'inquiries');
+}
+async function replyInquiry(btn) {
+  const ta = document.querySelector('textarea[data-inq="' + btn.dataset.id + '"]');
+  const text = ta ? ta.value.trim() : '';
+  if (!text) { if (ta) ta.focus(); return; }
+  btn.disabled = true;
+  const r = await hpost('inquiries/reply', { id: btn.dataset.id, text });
+  btn.disabled = false;
+  if (r && r.ok) { const x = (INQ.items || []).find(i => i.id === btn.dataset.id); if (x) x.reply = text; renderInquiries(); toast('답장을 보냈어요'); }
+  else toast('답장을 보내지 못했어요');
+}
+
 // ── 상담소 페이지 — 편집 + 이용자 앱 카드 미리보기 ──
 VIEWS.page = {
   title: '상담소 페이지', keys: ['posts'], sub: '이용자 앱에서 상담소 이름을 누르면 보이는 소개',
@@ -331,6 +363,8 @@ document.addEventListener('click', e => {
   else if (act === 'po-preview') togglePreview();
   else if (act === 'post-del') deletePost(el.dataset.id);
   else if (act === 'post-comments') openComments(el.dataset.id);
+  else if (act === 'inq-open') openInquiries();
+  else if (act === 'inq-reply') replyInquiry(el);
   else if (act === 'cm-hide') hideComment(el.dataset.cid, el.dataset.hidden === '1');
   else if (act === 'cm-reply') replyComment(el);
   else if (act === 'profile-save') saveProfile(el);

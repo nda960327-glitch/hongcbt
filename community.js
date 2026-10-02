@@ -28,6 +28,8 @@
 //           GET  /community?mine=1&session=      내가 쓴 글
 //           GET  /community/mycomments?session=  내가 쓴 댓글(글 제목과 함께)
 //           GET  /community/profile?session= · POST /community/profile {session, nick, photo}   커뮤니티 프로필(별명·사진 160px JPEG)
+//           POST /community/inquiry {session, hospitalId, text}   상담소에 쪽지(회원 → 상담소만. 회원끼리는 없다) · GET /community/inquiries?session=  내가 보낸 쪽지와 답장
+//    상담소 GET  /hospital/inquiries?hsession=   POST /hospital/inquiries/reply {hsession, id, text}
 //           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
 //           GET  /community/role?session=                     내 인증 상태
@@ -139,7 +141,7 @@ const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospit
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
 
 export async function handleCommunity(request, env, cors, path, ctx) {
-  if (!/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) return null;
+  if (!/^\/(community|hospital\/(posts|comments|profile|inquiries)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) return null;
   const db = env.DB;
   // 답글이 붙을 댓글 — 답글의 답글은 맨 위 댓글 아래로 모은다(한 단계만). 없는 댓글이면 null.
   const rootOf = async (postId, parentId) => {
@@ -268,6 +270,34 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     }
     const pf = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
     return json({ ok: true, profile: { id: u.id, nick: (pf && pf.nick) || u.nick || '', hasPhoto: !!(pf && pf.photo), provider: u.provider, email: u.email } }, 200, cors);
+  }
+
+  // 쪽지 — 회원이 상담소에 보낸다. 회원끼리 주고받는 쪽지는 없다(서로 연락해 함께 위험해지는 일을 막으려고).
+  //  욕설만 막는다. 힘들다는 말은 상담소에 전해져야 하므로 막지 않고, 대신 그 자리에서 109 를 함께 알려 준다(상담소가 바로 못 볼 수 있다).
+  if (path === '/community/inquiry' && method === 'POST') {
+    const u = await userOf();
+    if (!u) return LOGIN();
+    const hid = cleanId(body.hospitalId), text = s(body.text, 600).trim();
+    if (!hid || text.length < 5) return json({ error: 'short', message: '내용을 조금 더 적어주세요' }, 400, cors);
+    const h = await db.prepare("SELECT id, name FROM hospitals WHERE id = ? AND active = 1 AND id != 'community'").bind(hid).first();
+    if (!h) return json({ error: 'not-found' }, 404, cors);
+    const bad = screen(text);
+    if (bad && bad.error === 'abuse') return json(bad, 422, cors);
+    const day = await db.prepare('SELECT COUNT(*) AS n FROM hospital_inquiries WHERE user_id = ? AND ts > ?').bind(u.id, nowMs() - 86400000).first();
+    if (day && day.n >= 5) return json({ error: 'limit', message: '쪽지는 하루에 5통까지 보낼 수 있어요' }, 429, cors);
+    const it = { id: rid('iq'), hospital_id: h.id, user_id: u.id, name: u.nick || '회원', text, ts: nowMs() };
+    await db.prepare('INSERT INTO hospital_inquiries (id, hospital_id, user_id, name, text, ts) VALUES (?,?,?,?,?,?)').bind(it.id, it.hospital_id, it.user_id, it.name, it.text, it.ts).run();
+    const crisis = !!(bad && bad.error === 'crisis');
+    return json({ ok: true, crisis, message: crisis
+      ? '쪽지를 보냈어요. 다만 상담소가 바로 확인하지 못할 수 있어요.\n\n지금 많이 힘들다면 기다리지 말고 자살예방상담전화 109, 정신건강 위기상담 1577-0199 로 전화해 주세요. 24시간 받습니다.'
+      : '쪽지를 보냈어요. 답장은 [내 정보]에서 볼 수 있어요.' }, 200, cors);
+  }
+  if (path === '/community/inquiries' && method === 'GET') {
+    const u = await userOf();
+    if (!u) return json({ items: [], login: true }, 200, cors);
+    let rows = [];
+    try { rows = (await db.prepare('SELECT i.id, i.hospital_id, i.text, i.ts, i.reply, i.reply_ts, h.name AS hospital FROM hospital_inquiries i JOIN hospitals h ON h.id = i.hospital_id WHERE i.user_id = ? ORDER BY i.ts DESC LIMIT 50').bind(u.id).all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
+    return json({ items: rows.map(r => ({ id: r.id, hospitalId: r.hospital_id, hospital: r.hospital, text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0 })) }, 200, cors);
   }
 
   // 내 우렁이 방 사진 — 앱이 방이 바뀔 때 올린다. 커뮤니티 옆칸과 내 정보에 보인다.
@@ -530,6 +560,20 @@ export async function handleCommunity(request, env, cors, path, ctx) {
   if (path.startsWith('/hospital/')) {
     const h = await resolveHospital(db, { hsession: s(body.hsession || q('hsession'), 128), hcode: s(body.hcode || q('hcode'), 64) });
     if (!h) return json({ error: 'bad-code' }, 403, cors);
+
+    // 받은 쪽지 — 회원이 상담소 페이지에서 보낸 것. 답장은 한 번(고쳐 쓰면 덮어쓴다).
+    if (path === '/hospital/inquiries' && method === 'GET') {
+      let rows = [];
+      try { rows = (await db.prepare('SELECT id, name, text, ts, reply, reply_ts FROM hospital_inquiries WHERE hospital_id = ? ORDER BY (reply IS NULL OR reply = \'\') DESC, ts DESC LIMIT 100').bind(h.id).all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
+      return json({ items: rows.map(r => ({ id: r.id, name: r.name || '회원', text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0 })) }, 200, cors);
+    }
+    if (path === '/hospital/inquiries/reply' && method === 'POST') {
+      const id = cleanId(body.id), text = s(body.text, 1000).trim();
+      if (!id || !text) return json({ error: 'missing' }, 400, cors);
+      const r = await db.prepare('UPDATE hospital_inquiries SET reply = ?, reply_ts = ? WHERE id = ? AND hospital_id = ?').bind(text, nowMs(), id, h.id).run();
+      if (!(r.meta && r.meta.changes)) return json({ error: 'not-found' }, 404, cors);
+      return json({ ok: true, reply: text, replyTs: nowMs() }, 200, cors);
+    }
 
     if (path === '/hospital/posts' && method === 'GET') {
       let rows = [];

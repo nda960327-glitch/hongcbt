@@ -165,6 +165,9 @@ CREATE TABLE IF NOT EXISTS post_likes (post_id TEXT NOT NULL, client_id TEXT NOT
 CREATE TABLE IF NOT EXISTS post_comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL, client_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, by_hospital INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
 CREATE TABLE IF NOT EXISTS user_roles (user_id TEXT PRIMARY KEY, role TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', name TEXT, org TEXT, license_no TEXT, photo TEXT, requested INTEGER NOT NULL DEFAULT 0, decided INTEGER NOT NULL DEFAULT 0, reason TEXT);
+CREATE TABLE IF NOT EXISTS hospital_inquiries (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, reply TEXT, reply_ts INTEGER);
+CREATE INDEX IF NOT EXISTS idx_inq_h ON hospital_inquiries (hospital_id, ts);
+CREATE INDEX IF NOT EXISTS idx_inq_u ON hospital_inquiries (user_id, ts);
 CREATE TABLE IF NOT EXISTS user_pets (user_id TEXT PRIMARY KEY, photo TEXT, level INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS user_profiles (user_id TEXT PRIMARY KEY, nick TEXT, photo TEXT, updated INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS post_comment_likes (comment_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (comment_id, client_id));
