@@ -18,7 +18,7 @@
 //     사실(누가·언제·긴급)만은 담당의에게 알린다 — 요약은 공유일 때만 싣는다.
 //
 //  경로 (앱은 /api/… 로 부르고 Worker 가 /api 를 뗀다)
-//   환자   POST /patient/link · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read · /patient/erase
+//   환자   GET /patient/hospitals(고를 수 있는 상담소) · POST /patient/link {hospitalId | hcode, name, birth, shareWeekly} · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read · /patient/erase
 //          GET  /patient/hospital · /patient/records
 //   상담사 POST /session-notes · GET /session-notes · GET /session-notes/pending · GET /doctor-feedback · POST /doctor-feedback/read
 //   의사   POST /hospital/auth/request · /hospital/auth/verify · /hospital/auth/logout
@@ -142,8 +142,16 @@ export async function handleHospital(request, env, cors, path, ctx) {
     if (await verifyClient(env, cid, s(body.clientKey || q('clientKey'), 64)) === 'deny')
       return json({ error: 'forbidden' }, 403, cors);
 
+    // 고를 수 있는 상담소 목록 — 코드를 몰라도 이름으로 골라 연결한다(사장님 결정 2026-10-03). 시스템 상담소(커뮤니티)는 뺀다.
+    if (path === '/patient/hospitals' && method === 'GET') {
+      const rows = (await db.prepare("SELECT id, name, dept, doctor FROM hospitals WHERE active = 1 AND id != 'community' ORDER BY name LIMIT 200").all()).results || [];
+      return json({ items: rows.map(r => ({ id: r.id, name: r.name, dept: r.dept || '', doctor: r.doctor || '' })) }, 200, cors);
+    }
     if (path === '/patient/link' && method === 'POST') {
-      const h = await hospitalByCode(s(body.hcode || body.code, 64).trim().toUpperCase());
+      const hid = cleanId(body.hospitalId);
+      const h = hid && hid !== 'community'
+        ? await db.prepare('SELECT * FROM hospitals WHERE id = ? AND active = 1').bind(hid).first()
+        : await hospitalByCode(s(body.hcode || body.code, 64).trim().toUpperCase());
       if (!h) return json({ error: 'bad-code' }, 404, cors);
       const name = s(body.name, 40).trim();
       if (!name) return json({ error: 'missing-name' }, 400, cors);

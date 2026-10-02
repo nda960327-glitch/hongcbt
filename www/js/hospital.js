@@ -170,9 +170,13 @@ window.Hospital = {
     const name = window.Storage._safeGet('cbt_user_name', '') || '';
     this._sheet('hospital-link-ov', `
       <div class="feed-ov__bar"><span class="feed-tag">담당 상담소 연결</span><button class="feed-ov__x" data-hosp-close>닫기</button></div>
-      <h3>상담소 코드를 넣어주세요</h3>
-      <p class="feed-ov__author">상담소에서 받은 코드예요. 형식: H-XXXX-XXXX</p>
-      <input id="hosp-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="H-XXXX-XXXX" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.6rem;">
+      <h3>담당 상담소를 골라 주세요</h3>
+      <p class="feed-ov__author">다니고 있는 상담소를 고르면 돼요. 코드는 없어도 돼요.</p>
+      <input id="hosp-q" type="search" autocomplete="off" placeholder="상담소 이름으로 찾기" oninput="window.Hospital._filterPick(this.value)" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font: inherit; font-size: 0.9rem; margin-bottom: 0.4rem;">
+      <div id="hosp-pick" style="max-height: 11.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem;"><p class="feed-ov__author" style="margin: 0.4rem 0;">불러오는 중…</p></div>
+      <details style="margin-bottom: 0.6rem;"><summary style="font-size: 0.78rem; color: var(--text-muted); cursor: pointer;">목록에 없거나 코드를 받았다면</summary>
+        <input id="hosp-code" type="text" autocomplete="off" autocapitalize="characters" placeholder="상담소 코드 H-XXXX-XXXX" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font: inherit; font-size: 0.9rem; margin-top: 0.4rem; letter-spacing: 0.04em;">
+      </details>
       <input id="hosp-name" type="text" maxlength="40" value="${this._esc(name)}" placeholder="이름 (상담소에서 쓰는 이름)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.6rem;">
       <input id="hosp-birth" type="text" inputmode="numeric" maxlength="10" placeholder="생년월일 (선택, 예: 1995-03-27)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.7rem;">
       <div class="feed-ov__note"><span>연결하면 담당 상담소의 선생님이 <b>상담사가 남긴 상담 요약·계획·숙제</b>를 볼 수 있고, 선생님이 남긴 피드백이 이 앱으로 옵니다.
@@ -183,7 +187,35 @@ window.Hospital = {
       </label>
       <p id="hosp-err" class="feed-ov__author" style="color: #cf6b60; display: none;"></p>
       <button class="btn-primary" style="width: 100%; padding: 0.8rem;" data-hosp-submit>동의하고 연결하기</button>`);
-    setTimeout(() => { const i = document.getElementById('hosp-code'); if (i) i.focus(); }, 80);
+    this._pickId = '';
+    this._loadPick();
+  },
+
+  // 고를 수 있는 상담소 목록
+  async _loadPick() {
+    const box = document.getElementById('hosp-pick'); if (!box) return;
+    let items = [];
+    try { const d = await window.Api.json('/api/patient/hospitals?clientId=' + encodeURIComponent(this._cid())); items = (d && d.items) || []; } catch (e) {}
+    this._pickItems = items;
+    this._filterPick('');
+  },
+  _filterPick(q) {
+    const box = document.getElementById('hosp-pick'); if (!box) return;
+    const v = String(q || '').trim().toLowerCase();
+    const list = (this._pickItems || []).filter(x => !v || (x.name + ' ' + x.dept + ' ' + x.doctor).toLowerCase().includes(v));
+    if (!list.length) { box.innerHTML = `<p class="feed-ov__author" style="margin: 0.4rem 0;">${(this._pickItems || []).length ? '찾는 상담소가 없어요. 아래에서 코드로 연결할 수 있어요.' : '지금은 목록을 불러오지 못했어요. 아래에서 코드로 연결할 수 있어요.'}</p>`; return; }
+    box.innerHTML = list.map(x => {
+      const on = x.id === this._pickId;
+      return `<button type="button" data-hid="${this._esc(x.id)}" onclick="window.Hospital._pick(this.dataset.hid)" aria-pressed="${on}"
+        style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.55rem; padding: 0.6rem 0.8rem; border-radius: 12px; border: 1.5px solid ${on ? 'var(--accent-primary)' : 'var(--glass-border)'}; background: ${on ? 'color-mix(in srgb, var(--accent-primary) 10%, transparent)' : 'var(--bg-tertiary)'};">
+        <span style="flex: 0 0 1.1rem; height: 1.1rem; border-radius: 50%; border: 2px solid ${on ? 'var(--accent-primary)' : 'var(--glass-border)'}; background: ${on ? 'var(--accent-primary)' : 'transparent'}; box-shadow: inset 0 0 0 2.5px var(--bg-tertiary);"></span>
+        <span style="min-width: 0;"><b style="display: block; font-size: 0.9rem; color: var(--text-primary);">${this._esc(x.name)}</b>${(x.dept || x.doctor) ? `<span style="font-size: 0.74rem; color: var(--text-muted);">${this._esc([x.dept, x.doctor].filter(Boolean).join(' · '))}</span>` : ''}</span></button>`;
+    }).join('');
+  },
+  _pick(id) {
+    this._pickId = this._pickId === id ? '' : id;
+    this._filterPick((document.getElementById('hosp-q') || {}).value || '');
+    if (window.Sfx) window.Sfx.play('pop');
   },
 
   async submitLink(btn) {
@@ -192,13 +224,15 @@ window.Hospital = {
     const birth = ((document.getElementById('hosp-birth') || {}).value || '').trim();
     const err = document.getElementById('hosp-err');
     const say = m => { if (err) { err.textContent = m; err.style.display = 'block'; } };
-    if (!/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(code.trim())) return say('코드 형식이 달라요. H-XXXX-XXXX 처럼 넣어주세요.');
+    const hospitalId = code.trim() ? '' : (this._pickId || '');
+    if (!hospitalId && !code.trim()) return say('연결할 상담소를 골라 주세요.');
+    if (!hospitalId && !/^H-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/i.test(code.trim())) return say('코드 형식이 달라요. H-XXXX-XXXX 처럼 넣어주세요.');
     if (!name) return say('이름을 적어주세요. 선생님이 누구인지 알아봐야 해요.');
     if (btn) { btn.disabled = true; btn.textContent = '연결 중…'; }
     const shareWeekly = !!((document.getElementById('hosp-weekly') || { checked: true }).checked);
     let d = null;
     try {
-      const r = await window.Api.post('/api/patient/link', { clientId: this._cid(), hcode: code.trim().toUpperCase(), name, birth, shareWeekly });
+      const r = await window.Api.post('/api/patient/link', { clientId: this._cid(), hospitalId: hospitalId || undefined, hcode: hospitalId ? undefined : code.trim().toUpperCase(), name, birth, shareWeekly });
       d = r ? await r.json().catch(() => null) : null;
     } catch (e) {}
     if (btn) { btn.disabled = false; btn.textContent = '동의하고 연결하기'; }
