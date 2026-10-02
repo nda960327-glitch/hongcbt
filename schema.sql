@@ -213,3 +213,4 @@ CREATE TABLE IF NOT EXISTS survey_responses (id TEXT PRIMARY KEY, ts INTEGER NOT
 CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(ts);
 
 -- 상담 시간 30·40분(2026-10): ALTER TABLE counselors ADD COLUMN session_min INTEGER; ALTER TABLE bookings ADD COLUMN session_min INTEGER; (없으면 30)
+CREATE TABLE IF NOT EXISTS library_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, uploader TEXT, title TEXT NOT NULL, descr TEXT, who TEXT, size INTEGER, data TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, downloads INTEGER NOT NULL DEFAULT 0);

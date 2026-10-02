@@ -566,6 +566,8 @@ async function loadCommunity() {
   const r = await adminGet('/api/admin/community');
   const rr = await adminGet('/api/admin/community/roles');
   D.roleReqs = rr ? (rr.items || []) : [];
+  const lb = await adminGet('/api/admin/community/library');
+  D.cmLib = lb ? (lb.items || []) : [];
   const rp = await adminGet('/api/admin/community/reports');
   D.cmReports = rp ? (rp.items || []) : [];
   D.community = r ? (r.items || []) : null;
@@ -592,6 +594,18 @@ function viewCommunity() {
         <div class="muted">${esc([x.org, x.licenseNo ? '번호 ' + x.licenseNo : '', x.email || x.provider].filter(Boolean).join(' · '))}</div>
         ${x.photo ? `<a href="${esc(x.photo)}" target="_blank" rel="noopener"><img src="${esc(x.photo)}" alt="면허·자격증" style="max-width: 260px; max-height: 180px; border-radius: 8px; margin-top: 0.4rem; border: 1px solid var(--line);"></a>` : ''}
         ${x.status === 'pending' ? `<div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;"><button class="btn ghost sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="0">거절</button><button class="btn sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="1">승인</button></div>` : ''}
+      </div>`).join('')}</div>` : ''}
+    ${(D.cmLib || []).length ? `<div class="card" style="margin-bottom: 0.8rem;">
+      <b style="font-size: 0.9rem;">자료실 — 회원이 올린 자료 ${D.cmLib.filter(x => x.status === 'pending').length ? '<span class="chip new">' + D.cmLib.filter(x => x.status === 'pending').length + '건 대기</span>' : ''}</b>
+      <div class="muted" style="margin: 0.2rem 0 0.5rem;">인증된 전문가가 올린 PDF 입니다. 열어 보고 내담자 정보·남의 저작물·광고가 없으면 승인하세요. 승인해야 자료실에 보입니다.</div>
+      ${D.cmLib.map(x => `<div style="border-top: 1px solid var(--line); padding: 0.6rem 0;">
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;"><b style="font-size: 0.86rem;">${esc(x.title)}</b><span class="chip ${x.status === 'approved' ? 'ok' : 'new'}">${x.status === 'approved' ? '공개' : '대기'}</span><span class="right muted">${fmtDate(x.ts)}</span></div>
+        <div class="muted">${esc(x.uploader)} · ${esc(x.who)}용 · ${Math.max(1, Math.round(x.size / 1024))}KB · 받은 횟수 ${x.downloads}${x.desc ? ' · ' + esc(x.desc) : ''}</div>
+        <div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;">
+          <button class="btn ghost sm" data-act="lib-open" data-id="${esc(x.id)}">열어 보기</button>
+          <button class="btn ghost sm" data-act="lib-decide" data-id="${esc(x.id)}" data-ok="0">삭제</button>
+          ${x.status === 'pending' ? `<button class="btn sm" data-act="lib-decide" data-id="${esc(x.id)}" data-ok="1">승인</button>` : ''}
+        </div>
       </div>`).join('')}</div>` : ''}
     ${(D.cmReports || []).length ? `<div class="card" style="margin-bottom: 0.8rem; border-color: rgba(207,107,96,0.4);">
       <b style="font-size: 0.9rem;">신고 들어온 글·댓글 <span class="chip bad">${D.cmReports.length}건</span></b>
@@ -2533,6 +2547,16 @@ document.addEventListener('click', e => {
 
   if (act === 'goto') { go(el.dataset.tab); return; }
   if (act === 'role-decide') { adminPost('/api/admin/community/role/decide', { userId: id, ok: el.dataset.ok === '1' }).then(() => { toast(el.dataset.ok === '1' ? '승인했어요' : '거절했어요'); loadCommunity(); }); return; }
+  if (act === 'lib-decide') { adminPost('/api/admin/community/library/decide', { id, ok: el.dataset.ok === '1' }).then(() => { toast(el.dataset.ok === '1' ? '승인했어요' : '삭제했어요'); loadCommunity(); }); return; }
+  if (act === 'lib-open') {
+    // 새 창을 먼저 열어 둔다(팝업 차단 피하기) → 파일을 받아 그 창에 띄운다
+    const w = window.open('', '_blank');
+    adminGet('/api/admin/community/library/file?id=' + encodeURIComponent(id)).then(r => {
+      if (!r || !r.file) { if (w) w.close(); toast('파일을 열지 못했어요'); return; }
+      fetch(r.file).then(x => x.blob()).then(bl => { const u = URL.createObjectURL(bl); if (w) w.location = u; else location.href = u; });
+    });
+    return;
+  }
   if (act === 'rp-clear') { adminPost('/api/admin/community/report/clear', { id, target: el.dataset.target }).then(() => { toast('신고를 지웠어요'); loadCommunity(); }); return; }
   if (act === 'rp-chide') { adminPost('/api/admin/community/comment/hide', { cid: id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '가렸어요' : '다시 보여요'); loadCommunity(); }); return; }
   if (act === 'cm-hide') { adminPost('/api/admin/community/hide', { id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '숨겼어요' : '다시 보여요'); loadCommunity(); }); return; }

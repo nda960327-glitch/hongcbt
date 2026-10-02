@@ -78,6 +78,7 @@ const STEPS = [
   ["게시판 첫 글: 전문가 라운지", "INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_op_exp1', 'community', '전문가 라운지를 열었어요 — 현장 이야기를 나눠요', '# 정신건강의학과 의사, 심리상담사, 임상심리사분들을 위한 곳이에요.\n\n## 이런 이야기를 기다려요\n\n- 현장에서 느끼는 고민과 보람\n- 치료·상담 기법에 대한 생각과 공부한 것\n- 진료와 상담이 서로 어떻게 이어지면 좋을지\n- 후배와 학생에게 해주고 싶은 말\n\n## 꼭 지켜주세요\n\n내담자·환자를 알아볼 수 있는 정보는 한 줄도 적지 말아 주세요. 사례를 이야기할 때는 나이·직업·사연을 바꾸거나 빼 주세요.\n\n상담사 입점과 상담소 제휴는 앱 소개 페이지에서 신청할 수 있어요.', '', 1, 0, 0, 1790900000016, 1790900000016, '운영팀', 'expert')"],
   ['상담사 상담 시간(30·40분)', 'ALTER TABLE counselors ADD COLUMN session_min INTEGER'],
   ['예약의 상담 시간', 'ALTER TABLE bookings ADD COLUMN session_min INTEGER'],
+  ['자료실 회원 자료 표', "CREATE TABLE IF NOT EXISTS library_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, uploader TEXT, title TEXT NOT NULL, descr TEXT, who TEXT, size INTEGER, data TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, downloads INTEGER NOT NULL DEFAULT 0)"],
   ['상담소 쪽지 표', 'CREATE TABLE IF NOT EXISTS hospital_inquiries (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, reply TEXT, reply_ts INTEGER)'],
   ['상담소 쪽지 색인', 'CREATE INDEX IF NOT EXISTS idx_inq_h ON hospital_inquiries (hospital_id, ts)'],
   ['상담소 쪽지 색인(회원)', 'CREATE INDEX IF NOT EXISTS idx_inq_u ON hospital_inquiries (user_id, ts)'],

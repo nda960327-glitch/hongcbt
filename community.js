@@ -30,6 +30,7 @@
 //           GET  /community/profile?session= · POST /community/profile {session, nick, photo}   커뮤니티 프로필(별명·사진 160px JPEG)
 //           POST /community/inquiry {session, hospitalId, text}   상담소에 쪽지(회원 → 상담소만. 회원끼리는 없다) · GET /community/inquiries?session=  내가 보낸 쪽지와 답장
 //    상담소 GET  /hospital/inquiries?hsession=   POST /hospital/inquiries/reply {hsession, id, text}
+//           GET  /community/library   공개된 회원 자료 · POST /community/library/upload {session, title, desc, who, file(PDF data URL ≤300KB)}  인증된 전문가만, 운영자 승인 뒤 공개
 //           GET  /community/notifs?session=                    새 소식(내 글의 댓글·내 댓글의 답글·쪽지 답장, 30일)
 //           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
@@ -299,6 +300,36 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     let rows = [];
     try { rows = (await db.prepare('SELECT i.id, i.hospital_id, i.text, i.ts, i.reply, i.reply_ts, h.name AS hospital FROM hospital_inquiries i JOIN hospitals h ON h.id = i.hospital_id WHERE i.user_id = ? ORDER BY i.ts DESC LIMIT 50').bind(u.id).all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
     return json({ items: rows.map(r => ({ id: r.id, hospitalId: r.hospital_id, hospital: r.hospital, text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0 })) }, 200, cors);
+  }
+
+  // 자료실 — 인증된 전문가(의사·전공의·상담사·상담소)가 작은 PDF 를 올린다. 운영자가 확인한 뒤에 공개된다.
+  //  서버 공간이 작아서 파일은 300KB 까지, 한 사람이 하루 3개, 전체 300개까지만 받는다.
+  if (path === '/community/library' && method === 'GET') {
+    let rows = [];
+    try { rows = (await db.prepare("SELECT id, title, descr, who, uploader, size, ts, downloads FROM library_files WHERE status = 'approved' ORDER BY ts DESC LIMIT 200").all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
+    return json({ items: rows.map(r => ({ id: r.id, title: r.title, desc: r.descr || '', who: r.who || '', uploader: r.uploader || '', size: r.size || 0, ts: r.ts, downloads: r.downloads || 0 })) }, 200, cors);
+  }
+  if (path === '/community/library/upload' && method === 'POST') {
+    const u = await userOf();
+    if (!u) return LOGIN();
+    const roles = await rolesOf(db, u.id);
+    if (!roles.length) return json({ error: 'role', message: '인증된 전문가만 자료를 올릴 수 있어요' }, 403, cors);
+    const title = s(body.title, 60).trim(), descr = s(body.desc, 200).trim();
+    const who = ['상담사', '전공의', '의사', '내담자'].includes(body.who) ? body.who : '상담사';
+    const file = typeof body.file === 'string' ? body.file : '';
+    const m = file.match(/^data:application\/pdf;base64,(JVBERi[A-Za-z0-9+/=]+)$/);
+    if (!title || title.length < 3) return json({ error: 'short', message: '자료 이름을 적어주세요' }, 400, cors);
+    if (!m) return json({ error: 'bad-file', message: 'PDF 파일만 올릴 수 있어요' }, 400, cors);
+    if (m[1].length > 410 * 1024) return json({ error: 'too-big', message: '파일이 너무 커요. 300KB 이하의 PDF 만 올릴 수 있어요' }, 400, cors);
+    const bad = screen(title + ' ' + descr);
+    if (bad) return json(bad, 422, cors);
+    const n = await db.prepare('SELECT (SELECT COUNT(*) FROM library_files WHERE user_id = ? AND ts > ?) AS mine, (SELECT COUNT(*) FROM library_files) AS total').bind(u.id, nowMs() - 86400000).first();
+    if (n && n.mine >= 3) return json({ error: 'limit', message: '자료는 하루에 3개까지 올릴 수 있어요' }, 429, cors);
+    if (n && n.total >= 300) return json({ error: 'full', message: '자료실이 가득 찼어요. 운영팀에 알려주세요' }, 507, cors);
+    const id = rid('lf');
+    await db.prepare("INSERT INTO library_files (id, user_id, uploader, title, descr, who, size, data, status, ts, downloads) VALUES (?,?,?,?,?,?,?,?,'pending',?,0)")
+      .bind(id, u.id, (u.nick || '회원') + ' · ' + (ROLE_NAME[roles[0]] || '전문가'), title, descr, who, Math.round(m[1].length * 3 / 4), m[1], nowMs()).run();
+    return json({ ok: true, id, message: '올렸어요. 운영팀이 확인한 뒤 자료실에 공개돼요(보통 1~2일).' }, 200, cors);
   }
 
   // 새 소식 — 내 글에 달린 댓글 · 내 댓글에 달린 답글 · 상담소의 쪽지 답장 (최근 30일)
@@ -870,6 +901,23 @@ export async function handleCommunity(request, env, cors, path, ctx) {
           .bind(id, SYS_HOSP, title, text, body.pinned ? 1 : 0, nowMs(), nowMs()).run();
       }
       return json({ ok: true, id }, 200, cors);
+    }
+    // 자료실 심사 — 올라온 파일 목록(파일 내용은 빼고), 열어 보기, 승인·삭제
+    if (path === '/admin/community/library' && method === 'GET') {
+      let rows = [];
+      try { rows = (await db.prepare("SELECT id, title, descr, who, uploader, size, status, ts, downloads FROM library_files ORDER BY (status = 'pending') DESC, ts DESC LIMIT 300").all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
+      return json({ items: rows.map(r => ({ id: r.id, title: r.title, desc: r.descr || '', who: r.who || '', uploader: r.uploader || '', size: r.size || 0, status: r.status, ts: r.ts, downloads: r.downloads || 0 })) }, 200, cors);
+    }
+    if (path === '/admin/community/library/file' && method === 'GET') {
+      const r = await db.prepare('SELECT data FROM library_files WHERE id = ?').bind(cleanId(q('id'))).first();
+      if (!r) return json({ error: 'not-found' }, 404, cors);
+      return json({ ok: true, file: 'data:application/pdf;base64,' + r.data }, 200, cors);
+    }
+    if (path === '/admin/community/library/decide' && method === 'POST') {
+      const id = cleanId(body.id);
+      if (body.ok) await db.prepare("UPDATE library_files SET status = 'approved' WHERE id = ?").bind(id).run();
+      else await db.prepare('DELETE FROM library_files WHERE id = ?').bind(id).run();
+      return json({ ok: true }, 200, cors);
     }
     // 신고 목록 — 글·댓글별로 묶어서, 신고 수와 사유, 지금 가려졌는지
     if (path === '/admin/community/reports' && method === 'GET') {
