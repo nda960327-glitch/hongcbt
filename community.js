@@ -15,6 +15,17 @@
 //           GET  /community/author?id=&clientId=             상담사 블로그(프로필 + 글 + 합계)
 //           POST /community/comment/like {cid, clientId, clientKey}   댓글 공감 토글 — 공감 많은 댓글이 '베스트 댓글'
 //           GET  /community/best                        요즘 공감 많이 받은 댓글(글 제목과 함께)
+//    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · qna=고민 Q&A · idea=기능 제안·오류 신고 · notice=공지
+//      이용자 글은 상담소 자리에 시스템 상담소 'community' 를 넣어 같은 표를 쓴다 — 좋아요·댓글·답글·검색·공개 페이지가 그대로 붙는다.
+//           GET  /community?board=column|free|qna|idea|notice
+//           POST /community/write {clientId, clientKey, board, title, body, tags, images, thumb, name}   이용자 글쓰기(하루 5개)
+//           POST /community/write/delete {id, clientId, clientKey}     내 글 지우기
+//           POST /community/report {target: post|comment, id, reason, clientId, clientKey}   신고 — 3명이 신고하면 자동으로 가린다
+//    상담사 POST /pro/board/reply {session|code, id, text, parentId}   이용자 글(Q&A 등)에 상담사 이름으로 답하기
+//    운영자 POST /admin/community/notice {code, title, body, pinned, id?}   공지 쓰기·고치기
+//    이용자가 쓰는 글·댓글은 올리기 전에 screen() 이 거른다 — 욕설·비하 / 자살·자해 언급 / 밖에서 따로 만나자는 말.
+//      이곳이 '같이 죽을 사람을 찾는 곳'이 되는 것을 무엇보다 먼저 막는다: 자살·자해를 말하는 글은 공개하지 않고, 그 자리에서 109 와 앱의 상담을 안내한다.
+//      이용자끼리 1:1 로 연락하는 기능(쪽지)은 같은 이유로 만들지 않는다. 연락처·오픈채팅 주소도 올릴 수 없다.
 //    댓글은 한 단계 답글(parentId)까지. 답글의 답글은 같은 댓글 아래에 붙는다.
 //    같은 글이 검색엔진용 HTML 로도 나간다 — blogpage.js (/blog/…)
 //           GET  /community/post?id=&clientId=               글 하나 + 댓글
@@ -42,6 +53,9 @@ const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).sli
 const PAGE = 20;
 const TITLE_MAX = 80, BODY_MAX = 6000, COMMENT_MAX = 500, NAME_MAX = 20, TAGS_MAX = 5;
 const COMMENT_PER_10MIN = 6;         // 기기당 댓글 도배 방지
+const BOARDS = ['free', 'qna', 'student', 'idea'];            // 이용자가 쓸 수 있는 게시판
+const SYS_HOSP = 'community';                       // 이용자 글·공지가 속하는 시스템 상담소 (hospitals 표의 한 줄 — 마이그레이션이 넣는다)
+const USER_PER_DAY = 5, USER_TITLE_MAX = 60, USER_BODY_MAX = 3000, REPORT_HIDE = 3;
 const AUTHOR_PER_DAY = 5;            // 상담사 한 사람이 하루에 새로 올릴 수 있는 글 수
 const POST_PER_DAY = 20;             // 상담소당 하루 글 수(실수로 스크립트가 돌아도 표가 터지지 않게)
 
@@ -50,6 +64,21 @@ const maskContact = t => String(t || '')
   .replace(/(\+?82[-\s]?)?0?1[016789][-\s.]?\d{3,4}[-\s.]?\d{4}/g, '[연락처]')
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[이메일]')
   .replace(/(카톡|카카오톡|카카오|kakao|katalk|라인|line|텔레그램|telegram|인스타|insta)\s*(아이디|id|ID)?\s*[:：]?\s*[\w.-]{3,}/gi, '[아이디]');
+
+// ── 이용자 글·댓글 사전 차단 ──────────────────────────────────────────
+//  원문 그대로 본다. 글자 사이 공백을 지우고 보면 '혼자 해결'(자해)·'다시 발견'(시발) 같은 멀쩡한 말이 걸린다 — 한 칸 띄어 쓴 것까지만 잡는다.
+const RE_CRISIS = /자살|자해(?!결)|죽고\s?싶|죽어\s?버리(고|ㄹ|려|겠|면)|죽을래|죽으려|죽는\s?게\s?(낫|편)|죽을\s?(방법|사람|곳|날|거|까)|같이\s?죽|함께\s?죽|동반\s?(자살|으로)|목숨을?\s?끊|목을?\s?(매|맬)|뛰어\s?내리(고|려|ㄹ|면|겠)|투신|번개탄|연탄\s?(불|가스)|청산가리|수면제를?\s?(모으|모아|한꺼번|다\s?먹|\d+\s?알)|손목을?\s?(긋|그어|그을|그었)|유서를?\s?(쓰|썼|남기|남겼)|극단적인?\s?선택|삶을\s?끝|생을\s?마감|사라지고\s?싶|없어지고\s?싶|살기\s?싫|살고\s?싶지\s?않/;
+const RE_ABUSE = /(^|[^가-힣])(시발|씨발|씨바)|ㅅㅂ|ㅆㅂ|씹(새|년|놈|창)|병신|ㅂㅅ|븅신|좆|존나|개새끼|개새|개색|개같은|개년|개놈|(이|저|그|야|미친)\s?새끼|지랄|ㅈㄹ|닥쳐|꺼져|미친\s?(년|놈)|썅|쌍(년|놈)|엠창|니애미|느금|한남충|김치녀|맘충|틀딱|급식충|정신병자|찐따|fuck|shit|bitch/i;
+const RE_OUT = /오픈\s?채팅|오픈\s?카톡|오픈톡|옾챗|오카방|open\.kakao|t\.me\/|디스코드|discord|텔레(그램)?\s?(로|으로|에서|방|주소|아이디)|디엠\s?(주|줘|보내|해)|dm\s?(주|줘|보내|해)|쪽지\s?(주|줘|보내)|따로\s?(만나|연락|얘기|이야기)|개인(적으로)?\s?연락|카톡\s?(해|하자|주세요|줘|아이디)|번호\s?(알려|교환|줄게|주세요)/i;
+const MSG_CRISIS = '지금 많이 힘드신 것 같아요. 이 글은 공개 게시판에 올리지 않았어요.\n\n혼자 견디지 마세요. 자살예방상담전화 109, 정신건강 위기상담 1577-0199 가 24시간 받습니다. 앱에서는 상담사와 바로 이야기할 수 있어요.';
+function screen(text) {
+  const raw = String(text || '');
+  if (RE_CRISIS.test(raw)) return { error: 'crisis', message: MSG_CRISIS };
+  if (RE_ABUSE.test(raw)) return { error: 'abuse', message: '욕설이나 누군가를 깎아내리는 표현이 들어 있어요. 그 부분을 고쳐서 다시 올려주세요.' };
+  if (RE_OUT.test(raw)) return { error: 'contact', message: '연락처를 주고받거나 다른 곳에서 따로 만나자는 내용은 올릴 수 없어요. 이야기는 이곳에서 나눠주세요.' };
+  return null;
+}
+export { screen };
 
 const tagsOf = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(t => s(t, 12).trim()).filter(Boolean).slice(0, TAGS_MAX);
 
@@ -75,9 +104,9 @@ function checkImages(list) {
   return arr;
 }
 
-const rowPost = (r, mine) => ({
+const rowPost = (r, mine, cid) => ({
   id: r.id, hospitalId: r.hospital_id, hospital: r.hospital_name || '', dept: r.hospital_dept || '',
-  author: r.author_name || '', authorId: r.author_id || '',
+  author: r.author_name || '', authorId: r.author_id || '', board: r.board || 'column', own: !!(cid && r.client_id && r.client_id === cid),
   title: r.title, body: r.body || '', excerpt: plainOf(r.body).slice(0, 120), thumb: r.thumb || '', images: r.images === undefined ? undefined : parseImages(r.images),
   tags: String(r.tags || '').split(',').filter(Boolean),
   published: !!r.published, pinned: !!r.pinned, hidden: !!r.hidden,
@@ -91,14 +120,14 @@ const rowComment = c => ({
 
 // 댓글 + 공감 수
 const CM_SQL = 'SELECT c.*, (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes FROM post_comments c';
-const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb, p.author_id, p.author_name, p.views';
+const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb, p.author_id, p.author_name, p.views, p.board, p.client_id';
 const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospital_dept,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likes,
   (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id AND c.hidden = 0) AS comments
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
 
 export async function handleCommunity(request, env, cors, path, ctx) {
-  if (!/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|admin\/community|admin\/hospital-apps)/.test(path)) return null;
+  if (!/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) return null;
   const db = env.DB;
   // 답글이 붙을 댓글 — 답글의 답글은 맨 위 댓글 아래로 모은다(한 단계만). 없는 댓글이면 null.
   const rootOf = async (postId, parentId) => {
@@ -135,7 +164,11 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const authors = listOf(q('authors')), hosps = listOf(q('hospitals')), ids = listOf(q('ids'));
     const author = cleanId(q('author'));
     const tag = s(q('tag'), 12).trim(), kw = s(q('q'), 40).trim();
+    const board = s(q('board'), 10);
     const where = ['p.published = 1', 'p.hidden = 0', 'h.active = 1'], args = [];
+    if (board === 'column') where.push("(p.board IS NULL OR p.board = '')");
+    else if (BOARDS.includes(board) || board === 'notice') { where.push('p.board = ?'); args.push(board); }
+    if (q('mine') && cid) { where.push('p.client_id = ?'); args.push(cid); }
     const inList = (col, arr) => `${col} IN (${arr.map(() => '?').join(',')})`;
     if (hosp) { where.push('p.hospital_id = ?'); args.push(hosp); }
     if (author) { where.push('p.author_id = ?'); args.push(author); }
@@ -150,6 +183,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (kw) { const like = '%' + kw.replace(/[%_]/g, '') + '%'; where.push('(p.title LIKE ? OR p.body LIKE ? OR p.tags LIKE ? OR p.author_name LIKE ? OR h.name LIKE ?)'); args.push(like, like, like, like, like); }
     if (cursor && !hot) { where.push('p.created < ?'); args.push(cursor); }
     // 인기순: 좋아요·댓글·조회에 새 글 가산점(일주일 안의 글이 위로). 숫자가 바뀌는 순서라 offset 으로 넘긴다.
+    const pinFirst = board === 'notice' || board === 'idea' && false;
     const order = hot ? `(likes * 3 + comments * 4 + COALESCE(p.views, 0) * 0.3 + CASE WHEN p.created > ${nowMs() - 7 * 86400000} THEN 6 ELSE 0 END) DESC, p.created DESC`
       : (hosp ? 'p.pinned DESC, ' : '') + 'p.created DESC';
     let rows = [];
@@ -160,7 +194,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const more = rows.length > PAGE;
     if (more) rows.pop();
     const likes = await myLikes(cid, rows.map(r => r.id));
-    return json({ items: rows.map(r => rowPost(r, likes.has(r.id))), next: more && !hot ? rows[rows.length - 1].created : 0, nextOffset: more && hot ? offset + PAGE : 0 }, 200, cors);
+    return json({ items: rows.map(r => rowPost(r, likes.has(r.id), cid)), next: more && !hot ? rows[rows.length - 1].created : 0, nextOffset: more && hot ? offset + PAGE : 0 }, 200, cors);
   }
 
   if (path === '/community/tags' && method === 'GET') {
@@ -218,7 +252,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
   }
 
   if (path === '/community/hospitals' && method === 'GET') {
-    const rows = (await db.prepare('SELECT id, name, dept, profile FROM hospitals WHERE active = 1 ORDER BY name').all()).results || [];
+    const rows = (await db.prepare("SELECT id, name, dept, profile FROM hospitals WHERE active = 1 AND id != 'community' ORDER BY name").all()).results || [];
     return json({ items: rows.map(h => ({ id: h.id, name: h.name, dept: h.dept || '', addr: profileOf(h).addr })) }, 200, cors);
   }
 
@@ -243,7 +277,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
       more = (await db.prepare(LIST_SQL + ` WHERE p.published = 1 AND p.hidden = 0 AND h.active = 1 AND p.id != ? AND (p.hospital_id = ? OR p.author_id = ?)
         ORDER BY (CASE WHEN p.author_id = ? THEN 0 ELSE 1 END), p.created DESC LIMIT 4`).bind(id, r.hospital_id, r.author_id || '-', r.author_id || '-').all()).results || [];
     } catch (e) {}
-    return json({ ok: true, post: rowPost(r, likes.has(id)), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)) }, 200, cors);
+    return json({ ok: true, post: rowPost(r, likes.has(id), cid), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)) }, 200, cors);
   }
 
   if (path === '/community/hospital' && method === 'GET') {
@@ -279,6 +313,8 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const name = s(body.name, NAME_MAX).trim() || '익명';
     if (!cid || !id || !text) return json({ error: 'missing' }, 400, cors);
     if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
+    const badC = screen(text + ' ' + name);
+    if (badC) return json(badC, 422, cors);
     const p = await db.prepare('SELECT id FROM posts WHERE id = ? AND published = 1 AND hidden = 0').bind(id).first();
     if (!p) return json({ error: 'not-found' }, 404, cors);
     const recent = await db.prepare('SELECT COUNT(*) n FROM post_comments WHERE client_id = ? AND ts > ?').bind(cid, nowMs() - 600000).first();
@@ -289,6 +325,57 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,0,?)')
       .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts, parent || null).run();
     return json({ ok: true, comment: rowComment(c) }, 200, cors);
+  }
+
+  if (path === '/community/write' && method === 'POST') {
+    const cid = cleanId(body.clientId);
+    const board = s(body.board, 10);
+    if (!cid || !BOARDS.includes(board)) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
+    const title = maskContact(s(body.title, USER_TITLE_MAX)).trim(), text = maskContact(s(body.body, USER_BODY_MAX)).trim();
+    if (title.length < 2 || text.length < 5) return json({ error: 'short', message: '제목과 내용을 조금 더 적어주세요' }, 400, cors);
+    const bad = screen(title + ' ' + text + ' ' + s(body.name, NAME_MAX));
+    if (bad) return json(bad, 422, cors);
+    const images = checkImages(body.images);
+    if (!images) return json({ error: 'bad-image' }, 400, cors);
+    const thumb = jpegOk(body.thumb, THUMB_BYTES) ? body.thumb : '';
+    const n = await db.prepare('SELECT COUNT(*) n, MAX(created) last FROM posts WHERE client_id = ? AND created > ?').bind(cid, nowMs() - 86400000).first();
+    if (n && (n.n >= USER_PER_DAY || (n.last && nowMs() - n.last < 30000))) return json({ error: 'too-many' }, 429, cors);
+    const sys = await db.prepare('SELECT id FROM hospitals WHERE id = ? AND active = 1').bind(SYS_HOSP).first();
+    if (!sys) return json({ error: 'not-ready' }, 503, cors);
+    const id = rid('po');
+    await db.prepare('INSERT INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, images, thumb, author_name, board, client_id) VALUES (?,?,?,?,?,1,0,0,?,?,?,?,?,?,?)')
+      .bind(id, SYS_HOSP, title, text, tagsOf(body.tags).join(','), nowMs(), nowMs(), images.length ? JSON.stringify(images) : null, thumb, s(body.name, NAME_MAX).trim() || '익명', board, cid).run();
+    pingIndexNow(ctx, id, env);
+    const r = await db.prepare(LIST_SQL + ' WHERE p.id = ?').bind(id).first();
+    return json({ ok: true, post: rowPost(r, false, cid) }, 200, cors);
+  }
+
+  if (path === '/community/write/delete' && method === 'POST') {
+    const cid = cleanId(body.clientId), id = cleanId(body.id);
+    if (!cid || !id) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey, 64)) !== 'ok') return json({ error: 'forbidden' }, 403, cors);
+    const r = await db.prepare('DELETE FROM posts WHERE id = ? AND client_id = ? AND hospital_id = ?').bind(id, cid, SYS_HOSP).run();
+    if (r.meta && r.meta.changes) await db.batch([
+      db.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(id),
+      db.prepare('DELETE FROM post_comments WHERE post_id = ?').bind(id)
+    ]);
+    return json({ ok: true, deleted: !!(r.meta && r.meta.changes) }, 200, cors);
+  }
+
+  // 신고 — 서로 다른 3명이 신고하면 자동으로 가린다(이용자 글과 댓글만. 상담사 칼럼·공지는 운영자가 본다).
+  if (path === '/community/report' && method === 'POST') {
+    const cid = cleanId(body.clientId), id = cleanId(body.id);
+    const target = body.target === 'comment' ? 'comment' : 'post';
+    if (!cid || !id) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
+    await db.prepare('INSERT OR IGNORE INTO post_reports (target, target_id, client_id, reason, ts) VALUES (?,?,?,?,?)').bind(target, id, cid, s(body.reason, 100), nowMs()).run();
+    const n = await db.prepare('SELECT COUNT(*) n FROM post_reports WHERE target = ? AND target_id = ?').bind(target, id).first();
+    if (n && n.n >= REPORT_HIDE) {
+      if (target === 'comment') await db.prepare('UPDATE post_comments SET hidden = 1 WHERE id = ? AND by_hospital = 0').bind(id).run();
+      else await db.prepare("UPDATE posts SET hidden = 1 WHERE id = ? AND board IN ('free','qna','student','idea')").bind(id).run();
+    }
+    return json({ ok: true }, 200, cors);
   }
 
   if (path === '/community/comment/like' && method === 'POST') {
@@ -418,6 +505,21 @@ export async function handleCommunity(request, env, cors, path, ctx) {
 
   // ══════════════ 소속 상담사 (상담사 앱) ══════════════
   //  소속이 확인된(hospital_ok) 상담사만 쓴다 — 상담소 이름을 걸고 나가는 글이라, 소장이 받아들인 사람이어야 한다.
+  if (path === '/pro/board/reply' && method === 'POST') {
+    const me = await resolveCounselor(db, { session: s(body.session, 128), code: s(body.code, 64) });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    const id = cleanId(body.id), text = maskContact(s(body.text, 1000)).trim();
+    if (!id || !text) return json({ error: 'missing' }, 400, cors);
+    const p = await db.prepare("SELECT id FROM posts WHERE id = ? AND published = 1 AND hidden = 0 AND board IN ('free','qna','student','idea')").bind(id).first();
+    if (!p) return json({ error: 'not-found' }, 404, cors);
+    const parent = await rootOf(id, cleanId(body.parentId));
+    if (parent === null) return json({ error: 'not-found' }, 404, cors);
+    const cm = { id: rid('cm'), post_id: id, client_id: 'pro:' + me.id, name: s(me.name, 20) + ' 상담사', text, ts: nowMs(), hidden: 0, by_hospital: 1, parent_id: parent };
+    await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,1,?)')
+      .bind(cm.id, cm.post_id, cm.client_id, cm.name, cm.text, cm.ts, parent || null).run();
+    return json({ ok: true, comment: rowComment(cm) }, 200, cors);
+  }
+
   if (path.startsWith('/pro/posts')) {
     const me = await resolveCounselor(db, { session: s(body.session || q('session'), 128), code: s(body.code || q('code'), 64) });
     if (!me) return json({ error: 'bad-code' }, 403, cors);
@@ -569,6 +671,18 @@ export async function handleCommunity(request, env, cors, path, ctx) {
       try { rows = (await db.prepare(LIST_SQL + ' ORDER BY p.created DESC LIMIT 300').all()).results || []; }
       catch (e) { if (noTable(e)) return json({ items: [], missing: true }, 200, cors); throw e; }
       return json({ items: rows.map(r => rowPost(r, false)) }, 200, cors);
+    }
+    if (path === '/admin/community/notice' && method === 'POST') {
+      const title = s(body.title, TITLE_MAX).trim(), text = s(body.body, BODY_MAX).trim();
+      if (!title || !text) return json({ error: 'missing' }, 400, cors);
+      let id = cleanId(body.id);
+      if (id) await db.prepare("UPDATE posts SET title = ?, body = ?, pinned = ?, updated = ? WHERE id = ? AND board = 'notice'").bind(title, text, body.pinned ? 1 : 0, nowMs(), id).run();
+      else {
+        id = rid('po');
+        await db.prepare("INSERT INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES (?,?,?,?,'',1,?,0,?,?,'운영팀','notice')")
+          .bind(id, SYS_HOSP, title, text, body.pinned ? 1 : 0, nowMs(), nowMs()).run();
+      }
+      return json({ ok: true, id }, 200, cors);
     }
     if (path === '/admin/community/hide' && method === 'POST') {
       await db.prepare('UPDATE posts SET hidden = ? WHERE id = ?').bind(body.hidden ? 1 : 0, cleanId(body.id)).run();

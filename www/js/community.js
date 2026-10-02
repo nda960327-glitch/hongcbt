@@ -6,6 +6,10 @@
 //  · 상담소 페이지: 소개·전화·주소·홈페이지·운영시간 + 그 상담소의 글.
 //  · 서버(community.js)가 원본이고 기기에는 마지막 목록 사본만 둔다(오프라인에도 카드는 뜬다).
 //  · 댓글 이름은 온보딩 별명(cbt_user_name). 없으면 '익명'. 연락처는 서버가 가린다.
+//  · 2026-10: 글 화면과 전체 보기는 웹 커뮤니티(mindinside.kr 와 같은 화면 — 서버 blogpage.js 가 그리는 /blog)를
+//    앱 안에 그대로 띄운다(_web). 게시판·글쓰기·답글·베스트 댓글·신고가 한 벌로 관리되고, 앱 도메인의 /blog 라
+//    내 기기 식별(cbt_client_id)과 별명이 그대로 이어진다 — 앱에서 쓴 글이 홈페이지에, 홈페이지에서 쓴 글이 앱에.
+//    홈의 가로 카드만 앱이 직접 그린다(오프라인에서도 뜨게).
 // ============================================================================
 window.Community = {
   HOME_MAX: 6,
@@ -14,10 +18,43 @@ window.Community = {
   _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 
+  BOARD_NAME: { free: '수다방', qna: '고민 Q&A', student: '심리학도 라운지', idea: '기능 제안', notice: '공지' },
+
   init() {
     const c = window.Storage._safeGet('cbt_cm_cache', null);
     if (c && Array.isArray(c.items)) { this._items = c.items; this.render(); }
     this.refresh();
+    // 홈페이지에서 넘어온 길 — ?post=글 · ?counselor=상담사 (mindinside.kr 의 '앱에서 보기'·'이 상담사와 상담하기')
+    try {
+      const u = new URLSearchParams(location.search);
+      const post = (u.get('post') || '').replace(/[^\w-]/g, ''), co = (u.get('counselor') || '').replace(/[^\w-]/g, '');
+      if (post) setTimeout(() => this.open(post), 600);
+      else if (co) setTimeout(() => this._toCounselor(co), 900);
+    } catch (e) {}
+  },
+
+  // 웹 커뮤니티 화면을 앱 안에 띄운다. 앱 도메인이면 같은 출처(/blog) — 식별이 이어진다. 그 밖(미리보기 주소 등)에서는 홈페이지 것을 띄운다.
+  _base() { return /(^|\.)mindinsideapp\.com$/.test(location.hostname) ? '' : 'https://mindinside.kr'; },
+  _web(path) {
+    this.close(); this.closeAll();
+    const ov = document.createElement('div');
+    ov.id = 'cm-web'; ov.className = 'feed-all'; ov.dataset.ovGuard = '1';
+    ov.innerHTML = `
+      <div class="feed-all__head">
+        <button class="feed-all__back" data-cm-web-close aria-label="닫기">‹</button>
+        <h2>커뮤니티</h2>
+        <button class="feed-all__sort" data-cm-web-write>글쓰기</button>
+      </div>
+      <iframe class="cm-web__frame" title="커뮤니티" src="${this._esc(this._base() + path)}" style="flex:1; width:100%; border:0; background: var(--bg-primary, #f7f3ec);"></iframe>`;
+    document.body.appendChild(ov);
+    if (window.Sfx) window.Sfx.play('nav');
+  },
+  closeWeb() { const ov = document.getElementById('cm-web'); if (ov) ov.remove(); this.refresh(); },
+  _toCounselor(id) {
+    this.closeWeb();
+    if (window.App && window.App.switchTab) window.App.switchTab('counselors');
+    const go = n => { const M = window.Marketplace; if (M && M.getCounselor && M.getCounselor(id)) M.openProfile(id); else if (n > 0) setTimeout(() => go(n - 1), 500); };
+    go(8);
   },
 
   _cid() { return (window.App && window.App.clientId) ? window.App.clientId() : ''; },
@@ -84,7 +121,7 @@ window.Community = {
     const esc = this._esc;
     const inner = `
       ${it.thumb ? `<span class="cm-card__thumb"><img src="${esc(it.thumb)}" alt="" loading="lazy"></span>` : ''}
-      <span class="cm-card__hosp">${esc(it.hospital)}${it.author ? ' · ' + esc(it.author) + ' 상담사' : ''}${it.pinned ? ' <em>고정</em>' : ''}</span>
+      <span class="cm-card__hosp">${this.BOARD_NAME[it.board] ? esc(this.BOARD_NAME[it.board]) + (it.author ? ' · ' + esc(it.author) : '') : esc(it.hospital) + (it.author ? ' · ' + esc(it.author) + (it.hospitalId === 'community' ? '' : ' 상담사') : '')}${it.pinned ? ' <em>고정</em>' : ''}</span>
       <span class="cm-card__t">${esc(it.title)}</span>
       <span class="cm-card__ex">${esc(it.excerpt || '')}</span>
       <span class="cm-card__meta">
@@ -99,7 +136,7 @@ window.Community = {
   render() {
     const el = document.getElementById('home-community');
     if (!el) return;
-    const items = (this._items || []).filter(it => it && it.id);
+    const items = (this._items || []).filter(it => it && it.id && it.board !== 'notice');
     if (!items.length) {
       el.innerHTML = `<div class="glass-card clinic-prompt"><div class="clinic-prompt__ico" data-ic="note" data-ic-size="22"></div>
         <div class="clinic-prompt__txt"><b>아직 올라온 글이 없어요</b><span>제휴 상담소가 마음 돌봄 이야기와 안내를 올리면 여기에 보여요.</span></div></div>`;
@@ -110,7 +147,8 @@ window.Community = {
   },
 
   // ── 전체 보기 ──
-  openAll() {
+  openAll() { this._web('/blog'); },
+  _openAllNative() {
     if (document.getElementById('cm-all')) { this.renderAll(); return; }
     const ov = document.createElement('div');
     ov.id = 'cm-all'; ov.className = 'feed-all'; ov.dataset.ovGuard = '1';
@@ -137,7 +175,8 @@ window.Community = {
   closeAll() { const ov = document.getElementById('cm-all'); if (ov) ov.remove(); },
 
   // ── 글 하나 ──
-  async open(id) {
+  open(id) { this._web('/blog/' + encodeURIComponent(id)); },
+  async _openNative(id) {
     this.close();
     const cached = this.get(id);
     const ov = document.createElement('div');
@@ -339,6 +378,8 @@ window.Community = {
 document.addEventListener('click', function (e) {
   const C = window.Community;
   if (!C) return;
+  if (e.target.closest('[data-cm-web-close]')) { C.closeWeb(); return; }
+  if (e.target.closest('[data-cm-web-write]')) { const f = document.querySelector('#cm-web iframe'); if (f) f.src = C._base() + '/blog/write'; return; }
   if (e.target.closest('[data-cm-all]')) { C.openAll(); return; }
   if (e.target.closest('[data-cm-all-close]')) { C.closeAll(); return; }
   if (e.target.closest('[data-cm-more]')) { C.more(); return; }
@@ -362,4 +403,15 @@ document.addEventListener('input', function (e) {
   const ta = e.target && e.target.closest && e.target.closest('[data-cm-text]');
   if (!ta) return;
   ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+});
+
+// 앱 안에 띄운 웹 커뮤니티가 보내는 신호 — 앱으로 가는 링크(상담 예약·앱 열기)를 눌렀을 때
+window.addEventListener('message', function (e) {
+  const d = e.data;
+  if (!d || d.mi !== 'app' || !window.Community) return;
+  if (!/^https:\/\/(mindinside\.kr|(www\.)?mindinsideapp\.com)$/.test(e.origin)) return;
+  let co = '';
+  try { co = (new URL(d.href).searchParams.get('counselor') || '').replace(/[^\w-]/g, ''); } catch (err) {}
+  if (co) window.Community._toCounselor(co);
+  else window.Community.closeWeb();
 });

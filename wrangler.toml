@@ -24,6 +24,7 @@ workers_dev = true
 #  나머지 주소는 그대로 Pages(앱)가 받는다.
 #  대표 주소는 홈페이지(mindinside.kr/blog). 앱 도메인의 /blog 도 같은 글을 보여주되 canonical 은 대표 주소를 가리킨다.
 routes = [
+  { pattern = "mindinside.kr/", zone_name = "mindinside.kr" },   # 첫 화면이 곧 커뮤니티 (앱 소개는 /about/ — Pages)
   { pattern = "mindinside.kr/blog", zone_name = "mindinside.kr" },
   { pattern = "mindinside.kr/blog/*", zone_name = "mindinside.kr" },
   { pattern = "mindinsideapp.com/blog", zone_name = "mindinsideapp.com" },

@@ -11,7 +11,7 @@
 //   · 상담소장 관리 코드(HA-) 로그인이 막힌다(hospitals.admin_code 필요) — 이메일 링크 로그인은 된다
 //   · 나머지(통화 신호 분리·예약 30분 전 알림·상담소 몫 정산 도장·상담 잔액 상한)는 조용히 옛 방식으로 돈다
 import { execSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';
+import { writeFileSync, unlinkSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -65,8 +65,20 @@ const STEPS = [
   ['글 조회수', 'ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0'],
   ['댓글의 윗댓글', 'ALTER TABLE post_comments ADD COLUMN parent_id TEXT'],
   ['댓글 공감 표', 'CREATE TABLE IF NOT EXISTS post_comment_likes (comment_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (comment_id, client_id))'],
+  // 이용자 글(수다방·고민 Q&A·기능 제안) · 공지 · 신고 — community.js
+  ["글 게시판", "ALTER TABLE posts ADD COLUMN board TEXT"],
+  ["글 쓴 기기", "ALTER TABLE posts ADD COLUMN client_id TEXT"],
+  ["글 게시판 색인", "CREATE INDEX IF NOT EXISTS idx_posts_board ON posts(board, created)"],
+  ["신고 표", "CREATE TABLE IF NOT EXISTS post_reports (target TEXT NOT NULL, target_id TEXT NOT NULL, client_id TEXT NOT NULL, reason TEXT, ts INTEGER NOT NULL, PRIMARY KEY (target, target_id, client_id))"],
+  ["커뮤니티 시스템 상담소", "INSERT OR IGNORE INTO hospitals (id, name, dept, doctor, email, code, active, created) VALUES ('community', '마인드 인사이드 커뮤니티', '', '', '', 'SYS-' || lower(hex(randomblob(12))), 1, 1790900000000)"],
+  ["공지: 이용 규칙", "INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_notice_rules', 'community', '커뮤니티 이용 규칙 — 꼭 읽어주세요', '# 서로의 마음을 다치게 하지 않는 것, 그게 이곳의 유일한 큰 규칙이에요.\n\n## 이런 글을 환영해요\n\n- 오늘 있었던 일, 웃긴 이야기, 소소한 자랑\n- AI 상담사와 나눈 대화 중 기억에 남는 장면 (캡처도 좋아요)\n- 요즘 마음이 어떤지, 어떻게 버티고 있는지\n- 상담이나 마음 돌봄에 대한 궁금증 (고민 Q&A 게시판)\n\n## 이것만은 지켜주세요\n\n**1. 비난·조롱·혐오 표현은 쓰지 않아요.** 특정 사람이나 집단을 깎아내리는 글과 댓글은 가려집니다.\n\n**2. 개인정보를 올리지 않아요.** 실명, 전화번호, 주소, 학교·직장, 얼굴이 나온 사진, 다른 사람과의 대화 캡처는 올리지 말아 주세요. 전화번호·이메일·메신저 아이디는 자동으로 가려집니다.\n\n**3. 진단하거나 약을 권하지 않아요.** \"그거 우울증이에요\", \"이 약 드세요\" 같은 말은 전문가의 몫이에요. 내 경험을 나누는 것은 좋아요.\n\n**4. 자해·자살의 방법을 적지 않아요.** 힘든 마음을 털어놓는 것은 괜찮습니다. 다만 구체적인 방법이나 수단은 다른 분께 위험할 수 있어 가려집니다.\n\n**5. 광고·홍보·외부 연락 유도는 안 돼요.** 상담사분들도 이곳에서는 연락처나 다른 곳으로 오라는 안내를 남길 수 없어요.\n\n## 신고와 가림\n\n글이나 댓글의 **신고** 버튼을 누르면 운영팀이 확인합니다. 여러 분이 신고한 글은 먼저 가려지고, 운영팀이 확인한 뒤 되살리거나 지웁니다. 규칙을 반복해서 어기면 글쓰기가 제한될 수 있어요.\n\n## 꼭 기억해 주세요\n\n{green|이곳의 글과 댓글은 전문 상담이나 진료를 대신하지 않아요.} 지금 많이 힘들다면 자살예방상담전화 **109**, 정신건강 위기상담 **1577-0199** 로 바로 연락해 주세요. 24시간 받습니다.', '', 1, 1, 0, 1790900000000 + 3, 1790900000000 + 3, '운영팀', 'notice')"],
+  ["공지: 사용법", "INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_notice_guide', 'community', '처음 오셨나요? 커뮤니티 사용법', '# 마인드 인사이드 커뮤니티에 오신 걸 환영해요.\n\n## 게시판은 다섯 곳이에요\n\n**상담사 칼럼** — 심리상담사와 상담소가 직접 쓰는 마음 돌봄 글이에요. 글쓴 상담사의 블로그에서 다른 글도 볼 수 있고, 마음에 들면 앱에서 바로 상담을 예약할 수 있어요.\n\n**수다방** — 누구나 편하게 쓰는 곳이에요. 오늘 있었던 일, 웃긴 이야기, AI 상담사 느루와 나눈 대화 캡처까지.\n\n**고민 Q&A** — 고민을 올리면 다른 분들과 상담사가 답을 남겨요. 상담사의 답에는 ''상담사'' 표시가 붙어요.\n\n**기능 제안** — 앱에 이런 기능이 있으면 좋겠다, 여기가 불편하다, 오류가 있다 — 무엇이든 남겨주세요. 공감이 많은 제안부터 살펴봅니다.\n\n**공지** — 운영팀이 알리는 소식이에요.\n\n## 이렇게 즐겨보세요\n\n- 글이 마음에 들면 **공감**을 눌러주세요. 공감이 많은 글은 ''지금 인기 글''에 올라가요.\n- 댓글에도 공감할 수 있어요. 공감을 많이 받은 댓글은 **베스트 댓글**이 됩니다.\n- 댓글에 **답글**을 달아 이야기를 이어갈 수 있어요.\n- 가입 없이 별명만 정하면 바로 쓸 수 있어요. 앱에서 쓰던 별명이 그대로 이어집니다.\n\n## 앱과 이어져 있어요\n\n마인드 인사이드 앱의 커뮤니티와 이 홈페이지는 같은 곳이에요. 앱에서 쓴 글이 여기에도 보이고, 여기서 쓴 글이 앱에도 보입니다.', '', 1, 1, 0, 1790900000000 + 2, 1790900000000 + 2, '운영팀', 'notice')"],
+  ["공지: 기능 제안", "INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_notice_idea', 'community', '기능 제안·오류 신고는 이렇게 남겨주세요', '# 앱을 쓰다가 떠오른 생각을 들려주세요.\n\n**기능 제안** 게시판은 운영팀이 매일 읽습니다.\n\n## 이렇게 쓰면 더 빨리 반영돼요\n\n**바라는 기능이라면** — 어떤 상황에서 필요했는지 한 줄만 적어주세요. \"잠들기 전에 느루랑 얘기하다가, 대화를 저장하고 싶었어요\"처럼요.\n\n**오류 신고라면** — 어느 화면에서, 무엇을 눌렀을 때, 어떻게 됐는지 적어주세요. 화면 캡처가 있으면 가장 좋아요.\n\n## 공감이 곧 투표예요\n\n다른 분의 제안이 마음에 들면 **공감**을 눌러주세요. 공감이 많은 제안부터 검토하고, 반영되면 댓글로 알려드릴게요.\n\n개인정보가 담긴 문의나 결제 문제는 게시판 대신 mindinsideapp@gmail.com 으로 보내주세요.', '', 1, 0, 0, 1790900000000 + 1, 1790900000000 + 1, '운영팀', 'notice')"],
   ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
+
+// 커뮤니티 첫 글(편집팀 칼럼 + 사진, 게시판 여는 글) — 길어서 따로 둔 파일. INSERT OR IGNORE 라 몇 번 돌려도 한 번만 들어간다.
+try { STEPS.push(...JSON.parse(readFileSync(new URL('./seed-community.json', import.meta.url), 'utf8'))); } catch (e) {}
 
 // 시험용: node tools/migrate-2026-10.mjs --local [wrangler 추가 인자…] 로 로컬 DB 에 먼저 돌려볼 수 있다
 const extra = process.argv.slice(2);

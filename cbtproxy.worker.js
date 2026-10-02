@@ -267,7 +267,7 @@ const APP = {
     const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
 
     // 상담소 블로그의 공개 웹 페이지(검색엔진용 HTML) — mindinsideapp.com/blog… 가 이 Worker 로 온다 (wrangler.toml routes)
-    if (path === "/blog" || path.startsWith("/blog/")) {
+    if (path === "/blog" || path.startsWith("/blog/") || (path === "/" && /(^|\.)mindinside\.kr$/.test(new URL(request.url).hostname))) {
       const r = await handleBlog(request, env, ctx, path);
       if (r) return r;
     }
@@ -392,7 +392,7 @@ const APP = {
       if (r) return r;
     }
     // 상담소 소식(커뮤니티) — 상담소 글·좋아요·댓글·상담소 페이지. /hospital/posts… 는 hospital.js 보다 먼저 본다.
-    if (/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|admin\/community|admin\/hospital-apps)/.test(path)) {
+    if (/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|pro\/board|admin\/community|admin\/hospital-apps)/.test(path)) {
       const r = await handleCommunity(request, env, cors, path, ctx);
       if (r) return r;
     }

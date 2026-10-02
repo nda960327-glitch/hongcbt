@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS post_comment_likes (comment_id TEXT NOT NULL, client_
 
 -- 글 사진: images = JSON 배열(data:image/jpeg, 긴 변 640px·각 100KB 이하·4장까지), thumb = 첫 사진 240px 미리보기
 -- ALTER TABLE posts ADD COLUMN images TEXT; ALTER TABLE posts ADD COLUMN thumb TEXT;
+-- 게시판·이용자 글·신고(2026-10): ALTER TABLE posts ADD COLUMN board TEXT; ALTER TABLE posts ADD COLUMN client_id TEXT; CREATE TABLE post_reports (...) — tools/migrate-2026-10.mjs 참고. hospitals 에 시스템 줄 'community' 가 있어야 이용자 글을 쓸 수 있다.
 -- 조회수·답글(2026-10): ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0; ALTER TABLE post_comments ADD COLUMN parent_id TEXT;
 -- 소속 상담사가 쓴 글의 글쓴이(2026-10): ALTER TABLE posts ADD COLUMN author_id TEXT; ALTER TABLE posts ADD COLUMN author_name TEXT;
 
