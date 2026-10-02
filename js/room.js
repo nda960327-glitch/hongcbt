@@ -441,6 +441,138 @@ window.Room = {
       </div>`;
   },
 
+  // ==========================================================================
+  //  방 사진 — 지금 꾸며 둔 방과 옷 입은 우렁이를 한 장으로
+  //   · 자랑하기(공유·저장·자랑방 글)   · 커뮤니티 옆칸의 '내 우렁이'(로그인한 사람만, 방이 바뀌면 올린다)
+  // ==========================================================================
+  snapshotSvg(placed, pose, level) {
+    const p = placed || this.placed();
+    const draw = slot => { const it = this.item(p[slot]); return it ? it.svg() : ''; };
+    const snail = window.Stickers ? window.Stickers.svgDressed(null, pose || 'joy', 140) : '';
+    const inner = snail.replace(/^\s*<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+    const lv = level || this.level();
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 210" width="640" height="420">
+      <defs>
+        <linearGradient id="snap-wallsh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0.10"/><stop offset="0.45" stop-color="#000" stop-opacity="0"/></linearGradient>
+        <radialGradient id="snap-lamp" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#FFF3D0" stop-opacity="0.55"/><stop offset="1" stop-color="#FFF3D0" stop-opacity="0"/></radialGradient>
+      </defs>
+      ${draw('wallpaper')}
+      <rect x="0" y="0" width="320" height="140" fill="url(#snap-wallsh)"/>
+      ${draw('floor')}
+      <g opacity="0.16" stroke="#5E4530" stroke-width="1.2"><path d="M40 210 L74 143M110 210 L128 143M186 210 L192 143M262 210 L250 143"/></g>
+      <rect x="0" y="134" width="320" height="9" fill="#EFE6D6"/><rect x="0" y="134" width="320" height="2.5" fill="#D9CBB4"/><rect x="0" y="141" width="320" height="2" fill="#000" opacity="0.10"/>
+      <ellipse cx="160" cy="176" rx="118" ry="40" fill="url(#snap-lamp)"/>
+      ${draw('wall')}${draw('rug')}${draw('left')}${draw('right')}
+      <ellipse cx="160" cy="196" rx="34" ry="5" fill="#000" opacity="0.10"/>
+      <svg x="112" y="102" width="96" height="96" viewBox="0 0 140 140">${inner}</svg>
+      <g font-family="Pretendard, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif" font-weight="800">
+        <rect x="8" y="8" width="54" height="20" rx="10" fill="#FFFCF5" opacity="0.92"/><text x="35" y="22" font-size="10.5" text-anchor="middle" fill="#4a4038">Lv.${lv}</text>
+        <rect x="222" y="8" width="90" height="16" rx="8" fill="#FFFCF5" opacity="0.8"/><text x="267" y="19" font-size="7.5" text-anchor="middle" fill="#4a4038" opacity="0.8">mindinside.kr</text>
+      </g>
+    </svg>`;
+  },
+
+  snapshot() {
+    return new Promise(res => {
+      try {
+        const url = URL.createObjectURL(new Blob([this.snapshotSvg()], { type: 'image/svg+xml' }));
+        const im = new Image();
+        im.onload = () => {
+          try {
+            const cv = document.createElement('canvas'); cv.width = 640; cv.height = 420;
+            const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 640, 420); g.drawImage(im, 0, 0, 640, 420);
+            URL.revokeObjectURL(url);
+            cv.toBlob(b => res({ blob: b, url: cv.toDataURL('image/jpeg', 0.8) }), 'image/jpeg', 0.9);
+          } catch (e) { res(null); }
+        };
+        im.onerror = () => { URL.revokeObjectURL(url); res(null); };
+        im.src = url;
+      } catch (e) { res(null); }
+    });
+  },
+
+  _toast(m) { if (window.App && window.App.showRecordToast) window.App.showRecordToast(m); },
+
+  async brag() {
+    const r = await this.snapshot();
+    if (!r || !r.blob) { this._toast('사진을 만들지 못했어요'); return; }
+    this._snap = r;
+    if (window.Sfx) window.Sfx.play('nav');
+    const old = document.getElementById('wr-brag'); if (old) old.remove();
+    const btn = 'all: unset; box-sizing: border-box; cursor: pointer; text-align: center; font-weight: 800; font-size: 0.9rem; padding: 0.8rem 0.5rem; border-radius: 13px;';
+    const d = document.createElement('div');
+    d.id = 'wr-brag';
+    d.style.cssText = 'position: fixed; inset: 0; z-index: 9000; background: rgba(20, 16, 12, 0.55); display: flex; align-items: flex-end; justify-content: center;';
+    d.innerHTML = `
+      <div role="dialog" aria-label="우렁이 방 자랑하기" style="width: 100%; max-width: 460px; background: var(--bg-secondary); border-radius: 22px 22px 0 0; padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));">
+        <p style="margin: 0 0 0.6rem; font-weight: 800; color: var(--text-primary);">내 우렁이 방 자랑하기</p>
+        <img src="${r.url}" alt="내 우렁이 방" style="width: 100%; border-radius: 14px; display: block; border: 1.5px solid var(--glass-border);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; margin-top: 0.7rem;">
+          <button data-brag="post" style="${btn} grid-column: 1 / -1; background: var(--accent-primary); color: #fff;">우렁이 자랑방에 올리기</button>
+          <button data-brag="share" style="${btn} background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--glass-border);">카톡 등으로 공유</button>
+          <button data-brag="save" style="${btn} background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--glass-border);">사진으로 저장</button>
+        </div>
+        <button data-brag="close" style="${btn} display: block; width: 100%; margin-top: 0.4rem; color: var(--text-muted);">닫기</button>
+      </div>`;
+    d.addEventListener('click', e => {
+      const b = e.target.closest('[data-brag]');
+      if (b) this.bragAct(b.dataset.brag); else if (e.target === d) d.remove();
+    });
+    document.body.appendChild(d);
+  },
+
+  async bragAct(what) {
+    const r = this._snap;
+    const close = () => { const d = document.getElementById('wr-brag'); if (d) d.remove(); };
+    if (what === 'close' || !r) { close(); return; }
+    const download = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(r.blob); a.download = '내-우렁이-방.jpg';
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    };
+    if (what === 'save') { download(); this._toast('사진으로 저장했어요'); close(); return; }
+    if (what === 'share') {
+      const file = new File([r.blob], 'my-woorung.jpg', { type: 'image/jpeg' });
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: '내 우렁이 방', text: '내가 꾸민 우렁이 방이에요. mindinside.kr' });
+          close(); return;
+        }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+      download();
+      this._toast('이 기기에는 공유 창이 없어 사진으로 저장했어요. 카카오톡에 붙여 보내세요');
+      close(); return;
+    }
+    if (what === 'post') {
+      close();
+      if (!window.Community || !window.Community._web) return;
+      window.Community._web('/blog/write?board=neru');
+      const f = document.querySelector('#cm-web iframe');
+      // 글쓰기 화면이 뜨면 사진을 건넨다 (같은 출처의 화면에만)
+      if (f) f.addEventListener('load', () => { try { if (/\/blog\/write/.test(f.contentWindow.location.pathname)) f.contentWindow.postMessage({ mi: 'attach', image: r.url }, location.origin); } catch (e) {} });
+    }
+  },
+
+  // 로그인한 사람의 방 사진을 서버에 올려 둔다 — 커뮤니티 옆칸 '내 우렁이'. 방·옷·레벨이 바뀌었을 때만.
+  syncPet() {
+    clearTimeout(this._petT);
+    this._petT = setTimeout(async () => {
+      try {
+        const A = window.Account;
+        const session = A && A._session ? A._session() : '';
+        if (!session) return;
+        let outfit = ''; try { outfit = localStorage.getItem('cbt_closet_equipped') || ''; } catch (e) {}
+        const sig = JSON.stringify(this.placed()) + '|' + outfit + '|' + this.level();
+        let last = ''; try { last = localStorage.getItem('cbt_pet_sync') || ''; } catch (e) {}
+        if (sig === last) return;
+        const r = await this.snapshot();
+        if (!r || !r.url || r.url.length > 120 * 1024) return;
+        const j = await A._post('/community/pet', { session, photo: r.url, level: this.level() });
+        if (j && j.ok) { try { localStorage.setItem('cbt_pet_sync', sig); } catch (e) {} }
+      } catch (e) {}
+    }, 3500);
+  },
+
   _shopOpen: false,
 
   toggleShop() {
@@ -502,7 +634,9 @@ window.Room = {
           회색 아이템을 누르면 구매, 가진 아이템을 누르면 방에 놓거나 치울 수 있어요. 우렁이가 입은 옷도 방에 그대로 나와요.
         </p>
       </div>
+      <button onclick="window.Room.brag()" style="all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; text-align: center; margin-top: 0.5rem; font-size: 0.82rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent); padding: 0.6rem; border-radius: 11px;">내 우렁이 방 자랑하기 (사진 찍기)</button>
       ${window.Game ? window.Game.careBar() : ''}`;
+    this.syncPet();
 
     // 우렁이를 만지고 옮길 수 있게 — 방을 다시 그릴 때마다 새 캐릭터에 붙인다
     this._mountSnail();

@@ -28,6 +28,7 @@
 //           GET  /community?mine=1&session=      내가 쓴 글
 //           GET  /community/mycomments?session=  내가 쓴 댓글(글 제목과 함께)
 //           GET  /community/profile?session= · POST /community/profile {session, nick, photo}   커뮤니티 프로필(별명·사진 160px JPEG)
+//           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
 //           GET  /community/role?session=                     내 인증 상태
 //           POST /community/role/request {session, role, name, org, licenseNo, photo}   인증 신청(면허·자격증 사진, 심사 뒤 지운다)
@@ -267,6 +268,17 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     }
     const pf = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
     return json({ ok: true, profile: { id: u.id, nick: (pf && pf.nick) || u.nick || '', hasPhoto: !!(pf && pf.photo), provider: u.provider, email: u.email } }, 200, cors);
+  }
+
+  // 내 우렁이 방 사진 — 앱이 방이 바뀔 때 올린다. 커뮤니티 옆칸과 내 정보에 보인다.
+  if (path === '/community/pet' && method === 'POST') {
+    const u = await userOf();
+    if (!u) return LOGIN();
+    if (!jpegOk(body.photo, 130 * 1024)) return json({ error: 'bad-image' }, 400, cors);
+    const lv = Math.max(1, Math.min(999, parseInt(body.level, 10) || 1));
+    await db.prepare('INSERT INTO user_pets (user_id, photo, level, updated) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET photo = excluded.photo, level = excluded.level, updated = excluded.updated')
+      .bind(u.id, body.photo, lv, nowMs()).run();
+    return json({ ok: true }, 200, cors);
   }
 
   if (path === '/community/mycomments' && method === 'GET') {
