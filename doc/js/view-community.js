@@ -126,6 +126,7 @@ function openPostEditor(id) {
       <button type="button" class="ptool" data-act="po-line" data-prefix="## " title="제목 줄">소제목</button>
       <button type="button" class="ptool" data-act="po-line" data-prefix="# " title="큰 글씨 줄">큰 글씨</button>
       <button type="button" class="ptool" data-act="po-wrap" data-open="**" data-close="**" title="굵게"><b>굵게</b></button>
+      <button type="button" class="ptool" data-act="po-line" data-prefix="- " title="목록">목록</button>
       ${['green', 'blue', 'orange', 'red', 'purple', 'gray'].map(swatch).join('')}
       <button type="button" class="ptool" data-act="po-photo" title="사진 넣기">사진 넣기</button>
     </div>
@@ -144,6 +145,8 @@ function openPostEditor(id) {
       <button class="btn grow" data-act="post-save" data-pub="1" data-id="${esc(it ? it.id : '')}">${it && it.published ? '저장' : '올리기'}</button>
     </div>`, '', 'editor');
   renderDraftImages();
+  // 보이는 그대로 쓰는 편집기를 얹는다(js/richedit.js) — textarea 는 숨은 채 값만 받는다
+  if (window.RichEdit) RichEdit.mount($('po-body'), { img: i => DRAFT.images[i], placeholder: '편하게 적어주세요. 글자를 고른 뒤 위 버튼을 누르면 바로 굵게·색이 들어가요.' });
   setTimeout(() => { const t = $('po-title'); if (t && !it && blank) t.focus(); }, 80);
 }
 // 새 글 자동 임시저장 (글자만 — 사진은 용량이 커서 남기지 않는다)
@@ -156,6 +159,7 @@ function savePostDraft() {
 // 텍스트 영역의 선택 부분을 기호로 감싼다 (선택이 없으면 기호만 넣고 커서를 그 사이에 둔다)
 function wrapSelection(open, close) {
   const ta = $('po-body'); if (!ta) return;
+  const re = window.RichEdit && RichEdit.of(ta); if (re) { re.wrap(open); return; }
   const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
   const sel = v.slice(a, b);
   ta.value = v.slice(0, a) + open + sel + close + v.slice(b);
@@ -166,6 +170,7 @@ function wrapSelection(open, close) {
 // 커서가 있는 줄 앞에 표기를 붙인다 (이미 있으면 뗀다)
 function prefixLine(prefix) {
   const ta = $('po-body'); if (!ta) return;
+  const re = window.RichEdit && RichEdit.of(ta); if (re) { re.line(prefix); return; }
   const v = ta.value, a = ta.selectionStart;
   const ls = v.lastIndexOf('\n', a - 1) + 1;
   const le = v.indexOf('\n', a); const end = le < 0 ? v.length : le;
@@ -177,6 +182,7 @@ function prefixLine(prefix) {
 }
 function insertAtCursor(text) {
   const ta = $('po-body'); if (!ta) return;
+  const re = window.RichEdit && RichEdit.of(ta), im = re && String(text).match(/^\[img:(\d+)\]$/); if (im) { re.image(+im[1]); return; }
   const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value;
   const before = v.slice(0, a), after = v.slice(b);
   const pad1 = before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '';
@@ -208,6 +214,7 @@ function removeDraftImage(i) {
   DRAFT.images.splice(i, 1); DRAFT.thumbs.splice(i, 1);
   const ta = $('po-body');
   if (ta) ta.value = ta.value.replace(/\[img:(\d+)\]/g, (m, n) => { n = +n; if (n === i) return ''; return n > i ? '[img:' + (n - 1) + ']' : m; }).replace(/\n{3,}/g, '\n\n');
+  const re = ta && window.RichEdit && RichEdit.of(ta); if (re) re.refresh();
   renderDraftImages();
 }
 function togglePreview() {
@@ -360,7 +367,7 @@ document.addEventListener('click', e => {
   else if (act === 'post-save') savePost(el);
   else if (act === 'po-wrap') wrapSelection(el.dataset.open, el.dataset.close);
   else if (act === 'po-line') prefixLine(el.dataset.prefix);
-  else if (act === 'po-seed') { const s = POST_SEEDS[+el.dataset.i]; if (s) { $('po-title').value = s.title; $('po-body').value = s.body.replace(/\\n/g, '\n'); $('po-tags').value = s.tags; const box = document.querySelector('.pseeds'); if (box) box.remove(); savePostDraft(); toast('뼈대를 넣었어요. 괄호 부분만 바꿔 쓰면 돼요'); } }
+  else if (act === 'po-seed') { const s = POST_SEEDS[+el.dataset.i]; if (s) { $('po-title').value = s.title; $('po-body').value = s.body.replace(/\\n/g, '\n'); { const re = window.RichEdit && RichEdit.of($('po-body')); if (re) re.refresh(); } $('po-tags').value = s.tags; const box = document.querySelector('.pseeds'); if (box) box.remove(); savePostDraft(); toast('뼈대를 넣었어요. 괄호 부분만 바꿔 쓰면 돼요'); } }
   else if (act === 'po-reset') { try { localStorage.removeItem(POST_DRAFT_KEY); } catch (err) {} openPostEditor(''); }
   else if (act === 'po-tag') { const f = $('po-tags'); const cur = f.value.split(',').map(x => x.trim()).filter(Boolean); const t = el.dataset.t; const i = cur.indexOf(t); if (i >= 0) cur.splice(i, 1); else if (cur.length < 5) cur.push(t); else { toast('태그는 5개까지 넣을 수 있어요'); return; } f.value = cur.join(', '); savePostDraft(); }
   else if (act === 'po-photo') { const f = $('po-file'); if (f) { f.value = ''; f.click(); } }

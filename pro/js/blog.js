@@ -170,6 +170,7 @@ function renderBlogEditor(keepScroll) {
       <button type="button" class="ptool" data-act="blog-line" data-prefix="## ">소제목</button>
       <button type="button" class="ptool" data-act="blog-line" data-prefix="# ">큰 글씨</button>
       <button type="button" class="ptool" data-act="blog-wrap" data-open="**" data-close="**"><b>굵게</b></button>
+      <button type="button" class="ptool" data-act="blog-line" data-prefix="- ">목록</button>
       ${BLOG_COLORS.map(c => `<button type="button" class="ptool ptool-c pc-${c}" data-act="blog-wrap" data-open="{${c}|" data-close="}" aria-label="글자색 ${c}">가</button>`).join('')}
       <button type="button" class="ptool" data-act="blog-photo">사진 넣기</button>
     </div>
@@ -183,6 +184,12 @@ function renderBlogEditor(keepScroll) {
     ${d.id ? `<button class="btn ghost sm" data-act="blog-del" data-id="${esc(d.id)}" style="color:var(--danger); margin-top:0.8rem;">이 글 지우기</button>` : (empty ? '' : '<button class="btn ghost sm" data-act="blog-reset" style="margin-top:0.8rem;">처음부터 새로 쓰기</button>')}`,
   { title: d.id ? '글 고치기' : '새 글 쓰기', sub: `${esc((BLOG.hospital && BLOG.hospital.name) || '')} · ${esc(ME.name || '')} 상담사`, kind: 'blog', keepScroll: !!keepScroll,
     foot: `<button class="btn ghost" data-act="blog-preview">미리보기</button><button class="btn ghost" data-act="blog-save-draft">${d.published ? '내리기' : '임시저장'}</button><button class="btn" data-act="blog-publish">${d.published ? '저장' : '올리기'}</button>` });
+  blogRich();
+}
+// 보이는 그대로 쓰는 편집기를 얹는다(js/richedit.js) — 시트를 다시 그릴 때마다 부른다
+function blogRich() {
+  const ta = $('bl-body'); if (!ta || !window.RichEdit) return null;
+  return RichEdit.mount(ta, { img: i => BLOG.d.images[i], placeholder: '편하게 적어주세요. 글자를 고른 뒤 위 버튼을 누르면 바로 굵게·색이 들어가요.' });
 }
 function blogImgsHtml() {
   const d = BLOG.d;
@@ -192,6 +199,7 @@ function blogImgsHtml() {
 // ── 글 꾸미기 (선택한 글자를 기호로 감싼다 / 줄 앞에 표기를 붙인다) ──
 function blogWrap(open, close) {
   const ta = $('bl-body'); if (!ta) return;
+  const re = blogRich(); if (re) { re.wrap(open); return; }
   const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value, sel = v.slice(a, b);
   ta.value = v.slice(0, a) + open + sel + close + v.slice(b);
   ta.focus();
@@ -202,6 +210,7 @@ function blogWrap(open, close) {
 }
 function blogLine(prefix) {
   const ta = $('bl-body'); if (!ta) return;
+  const re = blogRich(); if (re) { re.line(prefix); return; }
   const v = ta.value, a = ta.selectionStart;
   const ls = v.lastIndexOf('\n', a - 1) + 1, le = v.indexOf('\n', a), end = le < 0 ? v.length : le;
   const cur = v.slice(ls, end), had = cur.startsWith(prefix);
@@ -212,6 +221,7 @@ function blogLine(prefix) {
 }
 function blogInsert(text) {
   const ta = $('bl-body'); if (!ta) return;
+  const re = blogRich(), im = re && String(text).match(/^\[img:(\d+)\]$/); if (im) { re.image(+im[1]); return; }
   const a = ta.selectionStart, b = ta.selectionEnd, v = ta.value, before = v.slice(0, a), after = v.slice(b);
   const p1 = before && !/\n\n$/.test(before) ? (/\n$/.test(before) ? '\n' : '\n\n') : '';
   const p2 = after && !/^\n\n/.test(after) ? (/^\n/.test(after) ? '\n' : '\n\n') : '';
@@ -250,7 +260,7 @@ function blogPickPhoto() {
       blogInsert('[img:' + (BLOG.d.images.length - 1) + ']');
       blogSync();
       const box = $('bl-imgs'); if (box) box.innerHTML = blogImgsHtml();
-      toast('사진을 넣었어요 — 글에서 [img:…] 가 있는 자리에 보여요');
+      toast('사진을 넣었어요');
     } catch (e) { toast('이 사진은 넣을 수 없어요. 다른 사진으로 해주세요'); }
   });
   inp.click();
