@@ -1,6 +1,6 @@
 // ── 대시보드 — 오늘 봐야 할 것을 한 화면에 ──────────────────────────────
 LOADERS.dash = () => hget('dashboard').then(d => (d && d.ok) ? (DATA.dash = d) : null);
-LOADERS.patients = () => hget('patients').then(d => (d && Array.isArray(d.items)) ? (DATA.patients = d.items) : null);
+LOADERS.patients = () => hget('patients').then(d => { if (!(d && Array.isArray(d.items))) return null; DATA.patientReqs = d.requests || []; return (DATA.patients = d.items); });
 LOADERS.notes = () => hget('notes?limit=300').then(d => (d && d.ok) ? (DATA.notes = d.items) : null);
 LOADERS.info = () => hget('info').then(d => (d && d.ok) ? (DATA.info = d.info) : null);
 

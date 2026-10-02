@@ -21,12 +21,22 @@ function patientsCsv() {
 
 VIEWS.patients = {
   title: '내담자', keys: ['patients'],
-  sub: () => DATA.patients ? `연결된 내담자 ${DATA.patients.length}명` : '',
+  sub: () => DATA.patients ? `연결된 내담자 ${DATA.patients.length}명${(DATA.patientReqs || []).length ? ` · 연결 요청 ${DATA.patientReqs.length}건` : ''}` : '',
   html() {
     const g = gate(['patients'], 'patients'); if (g) return g;
     const all = DATA.patients, list = patientRows();
     const moodTxt = w => w && w.moodAvg != null ? `<b class="${w.moodAvg < 2.5 ? 'danger-t' : w.moodAvg < 3.5 ? 'gold-t' : ''}">${w.moodAvg.toFixed(1)}</b><span class="muted">/5${w.checkins ? ` · ${w.checkins}회` : ''}</span>` : '<span class="muted">—</span>';
-    return `
+    const reqs = DATA.patientReqs || [];
+    const reqHtml = reqs.length ? `
+      <div class="card" style="border-color: var(--gold); background: var(--gold-soft); margin-bottom: 0.8rem;">
+        <b>연결 요청 ${reqs.length}건</b>
+        <p class="muted" style="margin: 0.2rem 0 0.6rem;">내담자가 앱에서 우리 상담소를 골랐어요. 실제로 다니는 분이 맞으면 수락해 주세요. 수락하기 전에는 아무 정보도 오가지 않아요.</p>
+        ${reqs.map(r => `<div class="row" style="gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--line2); flex-wrap: wrap;">
+          ${avatar(r.name, 'sm')}<b>${esc(r.name)}</b><span class="sub">${esc(r.birth || '생년 미입력')}</span><span class="muted">${fmtDT(r.requestedAt)} 요청</span>
+          <span class="right row" style="gap: 0.4rem;"><button class="btn ghost sm" data-act="req-decide" data-id="${esc(r.clientId)}" data-ok="0">거절</button><button class="btn sm" data-act="req-decide" data-id="${esc(r.clientId)}" data-ok="1">수락</button></span>
+        </div>`).join('')}
+      </div>` : '';
+    return `${reqHtml}
       <div class="filters">
         <input id="pq" type="search" placeholder="이름·생년으로 찾기" value="${esc(PT.q)}" style="min-width:200px;">
         <select id="psort">${Object.entries(PATIENT_SORT).map(([k, v]) => `<option value="${k}" ${PT.sort === k ? 'selected' : ''}>${v}</option>`).join('')}</select>
@@ -47,7 +57,7 @@ VIEWS.patients = {
             <td>${moodTxt(p.week)}</td>
             <td>${p.shareWeekly ? '<span class="chip ok">공유</span>' : '<span class="chip off">안 함</span>'}</td>
           </tr>`).join('') || `<tr><td colspan="9"><div class="empty"><b>검색 결과가 없어요</b></div></td></tr>`}</tbody></table></div>`
-        : empty('아직 연결된 내담자가 없어요', '내담자에게 상담소 코드를 알려주세요.<br>내담자 앱 → 마이 → 담당 상담소 연결하기 (대시보드에서 코드 복사)')}
+        : empty('아직 연결된 내담자가 없어요', '내담자 앱 → 마이 → 담당 상담소 연결하기에서 우리 상담소를 고르면 여기에 연결 요청이 떠요.<br>상담소 코드를 알려 주면 수락 없이 바로 연결돼요 (대시보드에서 코드 복사)')}
       <p class="muted">위험도는 상담사가 가장 최근 회기 기록에 표시한 값이에요. 줄을 누르면 타임라인·주간 상태·메모·피드백이 열립니다.</p>`;
   }
 };
@@ -199,6 +209,15 @@ async function deleteMemo(id) {
   if (!r || !r.ok) { toast('지우지 못했어요'); return; }
   PT.memos = (PT.memos || []).filter(m => m.id !== id); renderPatient();
 }
+// 연결 요청 수락·거절
+async function decideRequest(id, ok) {
+  const r0 = (DATA.patientReqs || []).find(x => x.clientId === id) || {};
+  if (!ok && !(await confirmBox({ title: `${r0.name || '내담자'} 님의 연결 요청을 거절할까요?`, body: '요청이 사라져요. 내담자는 다시 요청할 수 있어요.', okLabel: '거절', danger: true }))) return;
+  const r = await hpost('patient/request', { clientId: id, ok: !!ok });
+  if (!r || !r.ok) { toast('처리하지 못했어요'); return; }
+  toast(ok ? '연결했어요' : '요청을 거절했어요');
+  loadKey('patients', true); loadKey('dash', true);
+}
 async function unlinkPatient(id) {
   const p = (DATA.patients || []).find(x => x.clientId === id) || {};
   if (!(await confirmBox({ title: `${p.name || '내담자'} 님과의 연결을 끊을까요?`, body: '내담자 목록에서 사라지고, 올라와 있던 주간 상태 숫자는 지워져요. 회기 기록·피드백은 서버에 남지만 여기서는 보이지 않습니다. 내담자가 코드를 다시 넣으면 다시 연결됩니다.', okLabel: '연결 해제', danger: true }))) return;
@@ -220,6 +239,7 @@ document.addEventListener('click', e => {
   else if (act === 'memo-save') saveMemo(el);
   else if (act === 'memo-del') deleteMemo(el.dataset.id);
   else if (act === 'unlink-patient') unlinkPatient(el.dataset.id);
+  else if (act === 'req-decide') decideRequest(el.dataset.id, el.dataset.ok === '1');
 });
 document.addEventListener('input', e => {
   if (e.target && e.target.id === 'pq') { PT.q = e.target.value || ''; const pos = e.target.selectionStart; render(true); const a = $('pq'); if (a) { a.focus(); a.setSelectionRange(pos, pos); } }

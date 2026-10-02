@@ -5,6 +5,8 @@
 // ============================================================================
 window.Hospital = {
   KEY: 'cbt_hospital_link',
+  PEND: 'cbt_hospital_pending',   // 목록에서 고른 뒤 상담소의 수락을 기다리는 요청
+  pending() { return window.Storage._safeGet(this.PEND, null); },
   REC: 'cbt_hospital_records',
   POLL_MS: 10 * 60 * 1000,
   _lastPoll: 0,
@@ -26,11 +28,23 @@ window.Hospital = {
   async _syncLink() {
     try {
       const d = await window.Api.json('/api/patient/hospital?clientId=' + encodeURIComponent(this._cid()));
-      if (d && d.link) { window.Storage._safeSet(this.KEY, d.link); this.render(); this.refresh(); }
+      if (d && d.link) {
+        const was = this.pending();
+        window.Storage._safeSet(this.KEY, d.link); window.Storage._safeSet(this.PEND, null);
+        if (was && window.App && window.App.notify) window.App.notify(`${d.link.hospital.name}에 연결됐어요`, '상담소에서 연결 요청을 수락했어요.', 'hospital');
+        this.render(); this.refresh();
+      } else if (d) {
+        // 요청이 거절·취소됐으면 대기 표시를 지운다
+        const was = this.pending();
+        window.Storage._safeSet(this.PEND, d.pending || null);
+        if (was && !d.pending) this.render(); else if (d.pending) this.render();
+      }
     } catch (e) {}
   },
 
   tick() {
+    // 수락을 기다리는 동안에는 가끔 물어본다
+    if (!this.link() && this.pending() && Date.now() - (this._pendPoll || 0) > 60000) { this._pendPoll = Date.now(); this._syncLink(); }
     if (!this.link()) return;
     this.uploadWeekly();
     if (Date.now() - this._lastPoll < this.POLL_MS) return;
@@ -116,11 +130,24 @@ window.Hospital = {
     if (!el) return;
     const esc = this._esc;
     const lk = this.link();
-    if (!lk) {
+    const pd = !lk ? this.pending() : null;
+    if (pd) {
+      el.innerHTML = `
+        <div class="my-row my-row--static">
+          <span class="my-row__ico" data-ic="hospital" data-ic-size="19"></span>
+          <span class="my-row__txt"><b>${esc((pd.hospital || {}).name || '상담소')} · 수락을 기다리는 중</b><span>상담소에서 확인하면 연결돼요. 코드를 받았다면 코드로 바로 연결할 수 있어요</span></span>
+          <button class="my-row__btn" data-hosp-unlink>요청 취소</button>
+        </div>
+        <button class="my-row" data-hosp-link>
+          <span class="my-row__ico" data-ic="hospital" data-ic-size="19"></span>
+          <span class="my-row__txt"><b>다른 상담소 고르기 · 코드로 연결</b><span>요청을 바꾸거나, 상담소에서 받은 코드로 바로 연결해요</span></span>
+          <span class="my-row__go">›</span>
+        </button>`;
+    } else if (!lk) {
       el.innerHTML = `
         <button class="my-row" data-hosp-link>
           <span class="my-row__ico" data-ic="hospital" data-ic-size="19"></span>
-          <span class="my-row__txt"><b>담당 상담소 연결하기</b><span>상담소에서 받은 코드를 넣으면 담당 선생님이 상담 기록을 함께 봐요</span></span>
+          <span class="my-row__txt"><b>담당 상담소 연결하기</b><span>다니는 상담소를 고르면 담당 선생님이 상담 기록을 함께 봐요</span></span>
           <span class="my-row__go">›</span>
         </button>`;
     } else {
@@ -171,7 +198,7 @@ window.Hospital = {
     this._sheet('hospital-link-ov', `
       <div class="feed-ov__bar"><span class="feed-tag">담당 상담소 연결</span><button class="feed-ov__x" data-hosp-close>닫기</button></div>
       <h3>담당 상담소를 골라 주세요</h3>
-      <p class="feed-ov__author">다니고 있는 상담소를 고르면 돼요. 코드는 없어도 돼요.</p>
+      <p class="feed-ov__author">다니고 있는 상담소를 고르면 연결 요청이 가요. 상담소에서 수락하면 연결돼요.</p>
       <input id="hosp-q" type="search" autocomplete="off" placeholder="상담소 이름으로 찾기" oninput="window.Hospital._filterPick(this.value)" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font: inherit; font-size: 0.9rem; margin-bottom: 0.4rem;">
       <div id="hosp-pick" style="max-height: 11.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem;"><p class="feed-ov__author" style="margin: 0.4rem 0;">불러오는 중…</p></div>
       <details style="margin-bottom: 0.6rem;"><summary style="font-size: 0.78rem; color: var(--text-muted); cursor: pointer;">목록에 없거나 코드를 받았다면</summary>
@@ -239,6 +266,16 @@ window.Hospital = {
     if (!d || !d.ok) {
       return say(d && d.error === 'bad-code' ? '이 코드로 등록된 상담소를 찾지 못했어요. 상담소에 다시 확인해주세요.' : '지금은 연결하지 못했어요. 잠시 후 다시 시도해주세요.');
     }
+    if (d.pending) {
+      // 목록에서 골랐다 — 상담소가 수락할 때까지는 연결이 아니다
+      window.Storage._safeSet(this.PEND, { hospital: d.hospital, name: d.name, requestedAt: d.requestedAt });
+      if (name && !window.Storage._safeGet('cbt_user_name', '')) window.Storage._safeSet('cbt_user_name', name);
+      const ov0 = document.getElementById('hospital-link-ov'); if (ov0) ov0.remove();
+      if (window.App) window.App.showRecordToast(`${d.hospital.name}에 연결을 요청했어요`);
+      this.render();
+      return;
+    }
+    window.Storage._safeSet(this.PEND, null);
     window.Storage._safeSet(this.KEY, { hospital: d.hospital, name: d.name, birth: d.birth, linkedAt: d.linkedAt, shareWeekly: d.shareWeekly !== false });
     this._weeklyAt = 0;   // 연결 직후 첫 주간 요약을 바로 올린다
     if (name && !window.Storage._safeGet('cbt_user_name', '')) window.Storage._safeSet('cbt_user_name', name);
@@ -252,6 +289,14 @@ window.Hospital = {
 
   async unlink() {
     const lk = this.link();
+    // 아직 수락 전인 요청 — 취소만 한다
+    if (!lk && this.pending()) {
+      try { await window.Api.post('/api/patient/unlink', { clientId: this._cid() }); } catch (e) {}
+      window.Storage._safeSet(this.PEND, null);
+      if (window.App) window.App.showRecordToast('연결 요청을 취소했어요');
+      this.render();
+      return;
+    }
     if (!lk) return;
     if (!await window.UI.confirm(`${lk.hospital.name} 연결을 해제할까요?\n이후 상담 기록이 상담소에 공유되지 않고, 소장 피드백도 오지 않아요.`)) return;
     try { await window.Api.post('/api/patient/unlink', { clientId: this._cid() }); } catch (e) {}

@@ -18,7 +18,7 @@
 //     사실(누가·언제·긴급)만은 담당의에게 알린다 — 요약은 공유일 때만 싣는다.
 //
 //  경로 (앱은 /api/… 로 부르고 Worker 가 /api 를 뗀다)
-//   환자   GET /patient/hospitals(고를 수 있는 상담소) · POST /patient/link {hospitalId | hcode, name, birth, shareWeekly} · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read · /patient/erase
+//   환자   GET /patient/hospitals(고를 수 있는 상담소) · POST /patient/link {hospitalId | hcode, …} — hospitalId 로 고르면 '요청'(상담소가 POST /hospital/patient/request {clientId, ok} 로 수락), 코드면 바로 연결 · /patient/unlink · /patient/consent · /patient/weekly · /patient/feedback/read · /patient/erase
 //          GET  /patient/hospital · /patient/records
 //   상담사 POST /session-notes · GET /session-notes · GET /session-notes/pending · GET /doctor-feedback · POST /doctor-feedback/read
 //   의사   POST /hospital/auth/request · /hospital/auth/verify · /hospital/auth/logout
@@ -157,6 +157,19 @@ export async function handleHospital(request, env, cors, path, ctx) {
       if (!name) return json({ error: 'missing-name' }, 400, cors);
       const t = nowMs();
       const shareWeekly = body.shareWeekly === false ? 0 : 1;
+      // 목록에서 골랐으면(코드 없음) 바로 연결하지 않고 요청으로 둔다 — 상담소가 콘솔에서 수락해야 연결된다.
+      //  unlinked_at = -1 이 '수락 대기'. 이미 그 상담소와 연결돼 있으면 그대로 연결로 답한다.
+      if (hid) {
+        const cur = await db.prepare('SELECT unlinked_at FROM patient_links WHERE client_id = ? AND hospital_id = ?').bind(cid, h.id).first();
+        if (!cur || cur.unlinked_at !== 0) {
+          await db.prepare('DELETE FROM patient_links WHERE client_id = ? AND unlinked_at = -1 AND hospital_id != ?').bind(cid, h.id).run();   // 요청은 한 곳에만
+          await db.prepare(`INSERT INTO patient_links (client_id, hospital_id, name, birth, linked_at, unlinked_at, share_weekly)
+            VALUES (?,?,?,?,?,-1,?)
+            ON CONFLICT(client_id, hospital_id) DO UPDATE SET name = excluded.name, birth = excluded.birth, linked_at = excluded.linked_at, unlinked_at = -1, share_weekly = excluded.share_weekly`)
+            .bind(cid, h.id, name, s(body.birth, 10), t, shareWeekly).run();
+          return json({ ok: true, pending: true, hospital: hospitalPublic(h), name, birth: s(body.birth, 10), requestedAt: t, shareWeekly: !!shareWeekly }, 200, cors);
+        }
+      }
       // 다른 병원에 연결돼 있었으면 그 연결은 닫는다 — 담당 병원은 하나
       await db.prepare('UPDATE patient_links SET unlinked_at = ? WHERE client_id = ? AND unlinked_at = 0 AND hospital_id != ?').bind(t, cid, h.id).run();
       await db.prepare(`INSERT INTO patient_links (client_id, hospital_id, name, birth, linked_at, unlinked_at, share_weekly)
@@ -166,6 +179,7 @@ export async function handleHospital(request, env, cors, path, ctx) {
       return json({ ok: true, hospital: hospitalPublic(h), name, birth: s(body.birth, 10), linkedAt: t, shareWeekly: !!shareWeekly }, 200, cors);
     }
     if (path === '/patient/unlink' && method === 'POST') {
+      await db.prepare('DELETE FROM patient_links WHERE client_id = ? AND unlinked_at = -1').bind(cid).run();   // 수락 대기 중인 요청도 거둔다
       await db.prepare('UPDATE patient_links SET unlinked_at = ? WHERE client_id = ? AND unlinked_at = 0').bind(nowMs(), cid).run();
       // 연결을 끊으면 올라가 있던 주간 숫자도 지운다 — 동의가 끝났으니 남길 이유가 없다
       await db.prepare('DELETE FROM patient_weekly WHERE client_id = ?').bind(cid).run();
@@ -201,7 +215,12 @@ export async function handleHospital(request, env, cors, path, ctx) {
     }
     if (path === '/patient/hospital' && method === 'GET') {
       const l = await activeLink(cid);
-      if (!l) return json({ link: null }, 200, cors);
+      if (!l) {
+        // 수락을 기다리는 요청이 있으면 알려 준다
+        const p = await db.prepare(`SELECT l.name, l.linked_at, h.id AS hid, h.name AS h_name, h.dept AS h_dept, h.doctor AS h_doctor FROM patient_links l JOIN hospitals h ON h.id = l.hospital_id
+          WHERE l.client_id = ? AND l.unlinked_at = -1 ORDER BY l.linked_at DESC LIMIT 1`).bind(cid).first();
+        return json({ link: null, pending: p ? { name: p.name, requestedAt: p.linked_at, hospital: { id: p.hid, name: p.h_name, dept: p.h_dept || '', doctor: p.h_doctor || '' } } : null }, 200, cors);
+      }
       return json({ link: { name: l.name, birth: l.birth || '', linkedAt: l.linked_at, shareWeekly: !!l.share_weekly,
         hospital: { id: l.hospital_id, name: l.h_name, dept: l.h_dept || '', doctor: l.h_doctor || '' }, hospitalActive: !!l.h_active } }, 200, cors);
     }
@@ -470,7 +489,9 @@ export async function handleHospital(request, env, cors, path, ctx) {
            (SELECT w.week_key FROM patient_weekly w WHERE w.client_id = l.client_id ORDER BY w.week_key DESC LIMIT 1) AS week_key
          FROM patient_links l WHERE l.hospital_id = ? AND l.unlinked_at = 0
          ORDER BY COALESCE(last_note, l.linked_at) DESC LIMIT 300`).bind(h.id).all();
-      return json({ hospital: hospitalPublic(h), items: (r.results || []).map(x => ({
+      // 수락을 기다리는 연결 요청(내담자가 앱에서 이 상담소를 골랐다)
+      const rq = (await db.prepare('SELECT client_id, name, birth, linked_at FROM patient_links WHERE hospital_id = ? AND unlinked_at = -1 ORDER BY linked_at DESC LIMIT 100').bind(h.id).all()).results || [];
+      return json({ hospital: hospitalPublic(h), requests: rq.map(x => ({ clientId: x.client_id, name: x.name, birth: x.birth || '', requestedAt: x.linked_at })), items: (r.results || []).map(x => ({
         clientId: x.client_id, name: x.name, birth: x.birth || '', linkedAt: x.linked_at, shareWeekly: !!x.share_weekly,
         lastNote: x.last_note || 0, lastRisk: x.last_risk || 'none', notes: x.notes || 0, hwOpen: x.hw_open || 0, lastFeedback: x.last_fb || 0,
         week: x.week_key ? { weekKey: x.week_key, moodAvg: x.week_avg == null ? null : Number(x.week_avg), checkins: x.week_checkins || 0 } : null
@@ -850,6 +871,21 @@ export async function handleHospital(request, env, cors, path, ctx) {
     }
 
     // ── 상담소 쪽에서 내담자 연결을 끊는다 (내담자 앱의 /patient/unlink 와 같은 결과) ──
+    // 연결 요청 수락·거절
+    if (path === '/hospital/patient/request' && method === 'POST') {
+      const cid = cleanId(body.clientId);
+      const row = await db.prepare('SELECT 1 x FROM patient_links WHERE client_id = ? AND hospital_id = ? AND unlinked_at = -1').bind(cid, h.id).first();
+      if (!row) return json({ error: 'not-found' }, 404, cors);
+      if (body.ok) {
+        // 담당 상담소는 하나 — 다른 곳과의 연결은 닫는다
+        await db.prepare('UPDATE patient_links SET unlinked_at = ? WHERE client_id = ? AND unlinked_at = 0 AND hospital_id != ?').bind(tNow, cid, h.id).run();
+        await db.prepare('UPDATE patient_links SET unlinked_at = 0, linked_at = ? WHERE client_id = ? AND hospital_id = ?').bind(tNow, cid, h.id).run();
+      } else {
+        await db.prepare('DELETE FROM patient_links WHERE client_id = ? AND hospital_id = ? AND unlinked_at = -1').bind(cid, h.id).run();
+      }
+      return json({ ok: true, linked: !!body.ok }, 200, cors);
+    }
+
     if (path === '/hospital/patient/unlink' && method === 'POST') {
       const cid = cleanId(body.clientId);
       const r = await db.prepare('UPDATE patient_links SET unlinked_at = ? WHERE client_id = ? AND hospital_id = ? AND unlinked_at = 0').bind(tNow, cid, h.id).run();
