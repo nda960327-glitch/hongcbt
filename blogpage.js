@@ -967,7 +967,7 @@ export async function handleBlog(request, env, ctx, path) {
     return (privPost ? htmlPrivate : html)(page(c, {
       title: `${r.title} — ${isCol ? who : BOARD[bd].name}`, desc: privPost ? '' : text.slice(0, 150), path: '/blog/' + id, type: 'article', nav: bd, noindex: privPost,
       ogImage: imgs.length && !privPost ? `${site}/blog/img/${id}/0.jpg` : bd === 'column' ? stockOf(id) : '', script: POST_JS(id),
-      jsonld: privPost ? null : { '@context': 'https://schema.org', '@type': bd === 'column' ? 'BlogPosting' : 'DiscussionForumPosting', headline: r.title, description: text.slice(0, 150), text: text.slice(0, 3000),
+      jsonld: privPost ? null : { '@context': 'https://schema.org', '@type': kbOf ? 'MedicalWebPage' : bd === 'column' ? 'BlogPosting' : 'DiscussionForumPosting', ...(kbOf ? { about: { '@type': kbOf === KB.med ? 'Drug' : 'MedicalCondition', name: kbCat }, audience: { '@type': 'Patient' }, lastReviewed: iso(r.updated || r.created).slice(0, 10) } : {}), headline: r.title, description: text.slice(0, 150), text: text.slice(0, 3000),
         datePublished: iso(r.created), dateModified: iso(r.updated || r.created), mainEntityOfPage: `${site}/blog/${id}`, url: `${site}/blog/${id}`,
         author: isCol && r.author_name ? { '@type': 'Person', name: r.author_name, jobTitle: '심리상담사', url: `${site}/blog/a/${r.author_id}`, worksFor: { '@type': 'Organization', name: r.hospital_name } } : isCol ? { '@type': 'Organization', name: r.hospital_name } : { '@type': 'Person', name: who },
         publisher: { '@type': 'Organization', name: BRAND, logo: { '@type': 'ImageObject', url: site + '/icon.png' } },

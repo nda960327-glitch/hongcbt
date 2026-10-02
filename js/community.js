@@ -169,7 +169,10 @@ window.Community = {
       if (window.App && window.App.hydrateInlineIcons) window.App.hydrateInlineIcons(el);
       return;
     }
-    el.innerHTML = `<div class="home-ads cm-strip">${items.slice(0, this.HOME_MAX).map(it => this._card(it, false)).join('')}</div>`;
+    // 바로가기 — 병·약 정보와 오늘의 한 줄은 앱에서도 한 번에 닿게 (기운 없는 사람은 메뉴를 찾아 들어가지 않는다)
+    const quick = [['/blog/kb', '마음건강 백과'], ['/blog/medinfo', '약 정보'], ['/blog?board=qna', '고민 Q&A'], ['/blog/counselors', '상담사 찾기']];
+    el.innerHTML = `<div class="cm-quick" style="display: flex; gap: 0.4rem; overflow-x: auto; scrollbar-width: none; padding: 0 0 0.55rem;">${quick.map(q => `<button type="button" data-cm-go="${q[0]}" style="all: unset; box-sizing: border-box; cursor: pointer; flex-shrink: 0; font-size: 0.78rem; font-weight: 800; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 9%, var(--bg-secondary)); border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, transparent); padding: 0.42rem 0.8rem; border-radius: 999px;">${q[1]}</button>`).join('')}</div>
+      <div class="home-ads cm-strip">${items.slice(0, this.HOME_MAX).map(it => this._card(it, false)).join('')}</div>`;
   },
 
   // ── 전체 보기 ──
@@ -404,6 +407,7 @@ window.Community = {
 document.addEventListener('click', function (e) {
   const C = window.Community;
   if (!C) return;
+  { const g = e.target.closest('[data-cm-go]'); if (g) { C._web(g.getAttribute('data-cm-go')); return; } }
   if (e.target.closest('[data-cm-web-close]')) { C.closeWeb(); return; }
   if (e.target.closest('[data-cm-web-write]')) { const f = document.querySelector('#cm-web iframe'); if (f) f.src = C._base() + '/blog/write'; return; }
   if (e.target.closest('[data-cm-all]')) { C.openAll(); return; }

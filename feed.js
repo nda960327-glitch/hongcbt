@@ -99,9 +99,10 @@ export async function handleFeed(request, env, cors, path) {
     const id = cleanId(it.id) || ('fd_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 6));
     const type = it.type === 'article' ? 'article' : 'youtube';
     let link = s(it.url, 300).trim();
-    let title = s(it.title, 120).trim();
+    // 제목·작성자가 글자가 아니면(객체가 넘어오면 '[object Object]'로 저장된다) 비운다 — 유튜브 제목을 가져오는 쪽이 채운다
+    let title = typeof it.title === 'string' ? s(it.title, 120).trim() : '';
     let thumb = s(it.thumb, 300).trim();
-    let author = s(it.author, 80).trim();
+    let author = typeof it.author === 'string' ? s(it.author, 80).trim() : '';
     let videoId = '';
     if (type === 'youtube') {
       videoId = ytId(link);
