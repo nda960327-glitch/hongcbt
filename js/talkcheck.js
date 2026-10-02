@@ -71,7 +71,8 @@ window.TalkCheck = {
   // ── 화면 ──────────────────────────────────────────────────────────
   open() {
     this.close();
-    this._msgs = []; this._me = ''; this._res = null; this._tab = 'neutral';
+    const busy = this._job && (this._job.state === 'running' || (this._job.state === 'done' && !this._job.seen));
+    if (!busy) { this._msgs = []; this._me = ''; this._tab = 'neutral'; }
     const ov = document.createElement('div');
     ov.id = 'talkcheck-ov';
     ov.dataset.ovGuard = '1';
@@ -83,6 +84,9 @@ window.TalkCheck = {
       </div>
       <div id="tc-body" style="flex: 1 1 auto; overflow-y: auto; padding: 1rem; max-width: 640px; width: 100%; margin: 0 auto; box-sizing: border-box;"></div>`;
     document.body.appendChild(ov);
+    const j = this._job;
+    if (j && j.state === 'running') { this._renderProgress(); return; }
+    if (j && j.state === 'done' && !j.seen) { j.seen = true; this._renderResult(); return; }
     this._renderInput();
   },
   close() { const o = document.getElementById('talkcheck-ov'); if (o) o.remove(); },
@@ -93,6 +97,7 @@ window.TalkCheck = {
     const b = this._body(); if (!b) return;
     const EMO = ['화', '억울함', '서운함', '불안', '서러움', '외로움', '죄책감', '수치심', '허탈함'];
     b.innerHTML = `
+      ${this._res ? `<button type="button" onclick="window.TalkCheck._renderResult()" style="all: unset; box-sizing: border-box; cursor: pointer; display: block; width: 100%; text-align: center; margin-bottom: 0.8rem; padding: 0.6rem; border-radius: 12px; font-size: 0.84rem; font-weight: 700; color: var(--accent-primary); background: color-mix(in srgb, var(--accent-primary) 10%, transparent);">방금 본 분석 결과 다시 보기 ›</button>` : ''}
       <p style="margin: 0 0 0.9rem; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary);">다툰 대화를 넣으면 <b style="color: var(--text-primary);">있었던 일을 먼저 정리</b>하고, 네 가지 눈으로 보여 드려요 — 지나가는 사람의 눈, 내 편, 내 몫, 다음 한 걸음.</p>
 
       <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">1. 대화 넣기</div>
@@ -235,11 +240,6 @@ window.TalkCheck = {
       return;
     }
 
-    const b = this._body();
-    b.innerHTML = `<div style="padding: 3rem 1rem; text-align: center; color: var(--text-secondary);">
-      <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">대화를 읽고 있어요</div>
-      <div style="font-size: 0.82rem; line-height: 1.6;">사실과 해석을 가르고, 네 가지 눈으로 볼게요.<br>30초쯤 걸려요.</div></div>`;
-
     const prompt = `당신은 사람들 사이의 다툼을 풀어 보는 일을 돕는 상담 전문가입니다. 아래는 사용자가 넣은 대화입니다. "나"가 사용자이고, 나머지는 상대방입니다. 이름과 연락처는 가려져 있습니다.
 
 [누구와의 대화] ${rel || '(고르지 않음)'}
@@ -266,6 +266,8 @@ ${transcript}
  "audit": {
    "other": [{"sign": "상대방의 말·행동에 붙이는 이름(아래 목록에서)", "quote": "근거가 되는 실제 말(짧게 인용)", "level": "good | mild | concern | serious"}],
    "me": [{"sign": "'나'의 말·행동에 붙이는 이름(같은 목록, 같은 기준)", "quote": "근거가 되는 실제 말", "level": "good | mild | concern | serious"}],
+   "tone": {"other": {"score": 0, "desc": "상대방 말투를 한 구절로(예: 날이 서 있지만 선은 넘지 않음)"}, "me": {"score": 0, "desc": "'나'의 말투를 한 구절로"}},
+   "together": {"good": ["이 대화에서 보인, 함께 지내기에 좋은 신호 0~3개(근거가 된 말과 함께). 없으면 빈 배열"], "hard": ["함께 지내기에 힘든 신호 0~3개(근거와 함께). 없으면 빈 배열"], "say": "이 대화 한 번만 놓고 본 한 문장 — 사람 전체를 판정하지 않는다"},
    "verdict": "danger | concern | ordinary | myread | unknown 중 하나",
    "verdictWhy": "그렇게 본 까닭 두 문장. 근거가 된 말을 짚어서",
    "bias": "'나'의 읽기에 쏠림이 보이면 한 문장(예: 한 번의 말을 '항상'으로 넓혀 읽음, 확인 없이 속마음을 단정함). 없으면 빈 문자열",
@@ -286,6 +288,8 @@ ${transcript}
   level: good(건강함) · mild(흔히 있는 날 선 말) · concern(되풀이되면 해로움) · serious(한 번이어도 위험 — 협박, 폭력 암시, 스토킹, 성적 강요, 금전 갈취, 사실 부정이 여러 번).
   의견이 다른 것, 서운함을 말한 것, 한 번의 날 선 말은 가스라이팅이 아닙니다. '가스라이팅'은 사실 부정이 분명히 보일 때만 씁니다.
   verdict: danger(위험 신호가 뚜렷함 — serious 가 있음) / concern(걱정되는 패턴 — 상대의 concern 이 여럿) / ordinary(흔한 다툼 범위 — 양쪽 다 mild 중심) / myread(대화에 드러난 것보다 '나'의 해석이 앞서 있음) / unknown(이 대화만으로는 판단할 수 없음). 근거가 부족하면 unknown 을 고릅니다 — 억지로 판정하지 않습니다.
+  tone.score 는 상대를 존중하는 말투인 정도(0 막말·비하 ~ 50 무뚝뚝하거나 날이 섬 ~ 100 예의 바르고 따뜻함). 반말·사투리·짧은 말투 자체는 감점하지 않습니다 — 내용이 상대를 깎아내리는지로 봅니다. 양쪽을 같은 기준으로 매깁니다.
+  together 는 '좋은 사람/나쁜 사람' 판정이 아니라, 이 대화에서 드러난 신호만 적습니다(예: 좋은 신호 — 사정을 설명함, 먼저 연락함 / 힘든 신호 — 내 말을 끊고 단정함). 대화 한 번으로 사람을 다 알 수는 없다는 점을 say 에 담습니다.
   '쓰레기', '나르시시스트', '소시오패스', '정신병' 같은 꼬리표와 진단명은 어느 쪽에도 붙이지 않습니다.
 - pairs 는 1~3개. '나'의 마음을 가장 크게 건드린 말부터. danger 가 있으면 빈 배열.
 - heat 는 대화의 흐름을 따라 6~10개. t 는 그 순간 대화의 긴장도(0 평온 ~ 100 폭발 직전). 처음·불이 붙은 곳·가장 높은 곳·끝을 꼭 넣는다.
@@ -295,26 +299,108 @@ ${transcript}
 - 대화에 없는 일을 지어내지 않습니다. 진단명이나 성격 유형(나르시시스트 등)을 붙이지 않습니다.
 - 사용자가 자책이 심해 보이면 mine.not 을 충분히, 남 탓이 심해 보이면 mine.can 을 한 가지는 꼭 적습니다.`;
 
-    let res = null, raw = '';
+    // 분석은 화면과 따로 돈다 — 화면을 닫거나 다른 앱에 다녀와도 멈추지 않는다. 끝나면 알려 주고, 다시 열면 결과가 보인다.
+    this._job = { state: 'running', prompt, chars: transcript.length, t0: Date.now(), got: 0, first: 0, tries: 0, seen: false, raw: ta ? ta.value : '' };
+    this._renderProgress();
+    this._exec();
+  },
+
+  // 진행률 — 답이 오기 전에는 시간으로(대화가 길수록 천천히) 18%까지, 답이 흘러오기 시작하면 받은 글자 수만큼 96%까지.
+  _pct() {
+    const j = this._job; if (!j) return 0;
+    if (j.state === 'done') return 100;
+    const el = (Date.now() - j.t0) / 1000;
+    const wait = 6 + j.chars / 2500;                 // 첫 글자가 오기까지 걸릴 것으로 보는 시간(초)
+    if (!j.first) return Math.min(18, Math.round(18 * (1 - Math.exp(-el / wait))));
+    return Math.min(96, 18 + Math.round(78 * Math.min(1, j.got / 3600)));
+  },
+  _renderProgress() {
+    const b = this._body(); if (!b) return;
+    b.innerHTML = `<div style="padding: 2.6rem 0.4rem 1rem;">
+      <div style="font-size: 1.05rem; font-weight: 800; color: var(--text-primary); text-align: center; margin-bottom: 0.3rem;">대화를 분석하고 있어요</div>
+      <div id="tc-pg-stage" style="font-size: 0.86rem; color: var(--text-secondary); text-align: center; margin-bottom: 1.4rem;">대화를 읽는 중</div>
+      <div style="display: flex; align-items: center; gap: 0.7rem;">
+        <div style="flex: 1 1 auto; height: 12px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;"><div id="tc-pg-bar" style="height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, #4f8a6b, #6aa98a); transition: width .4s ease;"></div></div>
+        <b id="tc-pg-pct" style="flex: 0 0 3rem; text-align: right; font-size: 1.05rem; color: var(--accent-primary);">0%</b>
+      </div>
+      <div id="tc-pg-eta" style="margin-top: 0.5rem; font-size: 0.78rem; color: var(--text-muted); text-align: center;"></div>
+      <div style="margin-top: 1.6rem; padding: 0.8rem 0.95rem; border-radius: 14px; background: var(--bg-secondary); border: 1px solid var(--glass-border); font-size: 0.84rem; line-height: 1.65; color: var(--text-secondary);">
+        <b style="color: var(--text-primary);">기다리지 않아도 돼요.</b> 이 화면을 닫거나 다른 앱에 다녀와도 분석은 계속돼요. 끝나면 알려 드리고, [대화 분석]을 다시 열면 결과가 보여요.
+      </div>
+      <button type="button" class="btn-secondary" style="width: 100%; margin-top: 0.8rem;" onclick="window.TalkCheck.close()">닫고 다른 것 하기</button>
+    </div>`;
+    clearInterval(this._pgT);
+    const tick = () => {
+      const j = this._job, bar = document.getElementById('tc-pg-bar');
+      if (!j || j.state !== 'running' || !bar) { clearInterval(this._pgT); return; }
+      const p = this._pct();
+      bar.style.width = p + '%';
+      const pe = document.getElementById('tc-pg-pct'); if (pe) pe.textContent = p + '%';
+      const st = document.getElementById('tc-pg-stage');
+      if (st) st.textContent = p < 18 ? '대화를 읽는 중' : p < 40 ? '있었던 일과 해석을 가르는 중' : p < 62 ? '양쪽을 같은 잣대로 평가하는 중' : p < 82 ? '네 가지 눈으로 보는 중' : '답장 초안을 쓰는 중';
+      const eta = document.getElementById('tc-pg-eta');
+      if (eta) { const el = Math.round((Date.now() - j.t0) / 1000); const left = p > 20 ? Math.max(3, Math.round(el * (100 - p) / p)) : Math.round(25 + j.chars / 600); eta.textContent = `${el}초 지났어요 · 약 ${left}초 남았어요`; }
+    };
+    tick(); this._pgT = setInterval(tick, 400);
+  },
+
+  // 실제 요청 — 답을 흘려 받으며(스트리밍) 받은 만큼 진행률을 올린다. 흘려 받기가 안 되면 통째로 받는다.
+  async _exec() {
+    const j = this._job; if (!j) return;
+    j.tries++;
+    let raw = '';
+    const payload = { model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: j.prompt }], temperature: 0.2, max_tokens: 3800 };
     try {
-      const r = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 3800 }, 180000);
-      if (r && r.ok) {
-        const d = await r.json();
-        raw = ((d.choices && d.choices[0] && d.choices[0].message.content) || '').trim();
-        const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
-        if (s >= 0 && e > s) res = JSON.parse(raw.slice(s, e + 1));
+      const base = (window.LLM.BACKEND_URL || '').replace(/\/+$/, '');
+      if (!base || !window.ReadableStream) throw new Error('nostream');
+      const ac = new AbortController(); const kill = setTimeout(() => ac.abort(), 240000);
+      const r = await fetch(base + '/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ac.signal,
+        body: JSON.stringify({ ...payload, stream: true, clientId: (window.App && window.App.clientId) ? window.App.clientId() : undefined }) });
+      if (!r.ok || !r.body) { clearTimeout(kill); throw new Error('http' + r.status); }
+      const rd = r.body.getReader(), dec = new TextDecoder(); let buf = '';
+      for (;;) {
+        const { done, value } = await rd.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+          if (!line.startsWith('data:')) continue;
+          const d = line.slice(5).trim(); if (!d || d === '[DONE]') continue;
+          try { const o = JSON.parse(d); const c = o.choices && o.choices[0] && o.choices[0].delta && o.choices[0].delta.content; if (c) { raw += c; j.got = raw.length; if (!j.first) j.first = Date.now(); } } catch (e) {}
+        }
       }
-    } catch (e) { res = null; }
-    if (!document.getElementById('talkcheck-ov')) return;      // 그 사이 닫았다
-    if (!res || !Array.isArray(res.timeline)) {
-      this._renderInput();
-      const ta2 = document.getElementById('tc-text'); if (ta2 && ta) { ta2.value = ta.value; this._changed(); }
-      return this._say('지금은 분석하지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
+      clearTimeout(kill);
+    } catch (e) {
+      // 흘려 받다 끊겼거나(다른 앱에 다녀오면 끊길 수 있다) 안 되는 환경 — 통째로 한 번 더 받는다
+      raw = '';
+      try {
+        const r2 = await window.LLM._chatCompletion(payload, 200000);
+        if (r2 && r2.ok) { const d2 = await r2.json(); raw = ((d2.choices && d2.choices[0] && d2.choices[0].message.content) || '').trim(); }
+      } catch (e2) {}
     }
-    this._res = res; this._tab = res.danger ? 'ally' : 'neutral';
-    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0; this._tab = 'ally';
+    if (this._job !== j) return;                       // 그 사이 새 분석을 시작했다
+    let res = null;
+    try { const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); if (s >= 0 && e > s) res = JSON.parse(raw.slice(s, e + 1)); } catch (e) { res = null; }
+    if (!res || !Array.isArray(res.timeline)) {
+      if (j.tries < 2) { j.t0 = Date.now(); j.got = 0; j.first = 0; return this._exec(); }      // 한 번은 조용히 다시
+      j.state = 'fail';
+      if (document.getElementById('talkcheck-ov')) {
+        this._renderInput();
+        const ta2 = document.getElementById('tc-text'); if (ta2) { ta2.value = j.raw || ''; this._changed(); }
+        this._say('지금은 분석하지 못했어요. 잠시 뒤에 [분석하기]를 다시 눌러 주세요.');
+      } else if (window.App && window.App.showRecordToast) window.App.showRecordToast('대화 분석을 끝내지 못했어요. 다시 시도해 주세요');
+      return;
+    }
+    j.state = 'done';
+    this._res = res; this._tab = 'ally';
+    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0;
     this._savePattern();
-    this._renderResult();
+    if (document.getElementById('talkcheck-ov')) { j.seen = true; this._renderResult(); }
+    else {
+      // 화면을 닫아 둔 사이에 끝났다 — 알려 준다. [대화 분석]을 다시 열면 결과가 보인다.
+      try { if (window.App && window.App.notify) window.App.notify('대화 분석이 끝났어요', '홈의 [대화 분석]을 열면 결과를 볼 수 있어요.', 'talkcheck'); } catch (e) {}
+      if (window.App && window.App.showRecordToast) window.App.showRecordToast('대화 분석이 끝났어요 — [대화 분석]을 열어 보세요');
+    }
   },
 
   _list(a) { return (Array.isArray(a) ? a : [a]).filter(Boolean); },
@@ -464,6 +550,27 @@ ${transcript}
           <p style="margin: 0 0 0.5rem; font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">${vd[2]}</p>
           ${au.verdictWhy ? `<p style="margin: 0; font-size: 0.92rem; line-height: 1.7; color: var(--text-primary);">${esc(au.verdictWhy)}</p>` : ''}
         </div>
+        ${(() => {
+          const tn = au.tone || {}; if (!tn.other && !tn.me) return '';
+          const tcol = v => v >= 70 ? '#3d7659' : v >= 40 ? '#d98a4a' : '#c0564f';
+          const tlab = v => v >= 80 ? '따뜻하고 예의 바름' : v >= 60 ? '대체로 존중함' : v >= 40 ? '날이 서 있음' : v >= 20 ? '무례함' : '막말에 가까움';
+          const row = (who, o, c) => { if (!o) return ''; const v = Math.max(0, Math.min(100, +o.score || 0)); return `
+            <div style="margin-bottom: 0.7rem;">
+              <div style="display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.25rem;"><b style="font-size: 0.8rem; color: ${c};">${who}</b><span style="font-size: 0.78rem; font-weight: 700; color: ${tcol(v)};">${tlab(v)}</span><b style="margin-left: auto; font-size: 0.9rem; color: ${tcol(v)};">${Math.round(v)}</b></div>
+              <div style="height: 8px; border-radius: 999px; background: var(--bg-tertiary); overflow: hidden;"><span style="display: block; height: 100%; width: ${v}%; background: ${tcol(v)};"></span></div>
+              ${o.desc ? `<div style="margin-top: 0.25rem; font-size: 0.84rem; line-height: 1.55; color: var(--text-secondary);">${esc(o.desc)}</div>` : ''}
+            </div>`; };
+          return `<div style="${card}">${h('말투 — 상대를 존중하는 정도')}${row('상대', tn.other, 'var(--text-muted)')}${row('나', tn.me, A)}<p style="margin: 0; font-size: 0.74rem; line-height: 1.5; color: var(--text-muted);">반말이나 짧은 말투는 감점하지 않았어요. 내용이 상대를 깎아내리는지로 봤어요.</p></div>`;
+        })()}
+        ${(() => {
+          const tg = au.together || {}; const g = this._list(tg.good), hd = this._list(tg.hard);
+          if (!g.length && !hd.length && !tg.say) return '';
+          return `<div style="${card}">${h('함께 지내기에 — 이 대화에서 보인 신호')}
+            ${g.length ? `<div style="font-size: 0.7rem; font-weight: 800; color: #3d7659; margin: 0.2rem 0 0.3rem;">좋은 신호</div>${bullets(g, '#3d7659')}` : ''}
+            ${hd.length ? `<div style="font-size: 0.7rem; font-weight: 800; color: #c0564f; margin: 0.5rem 0 0.3rem;">힘든 신호</div>${bullets(hd, '#c0564f')}` : ''}
+            ${tg.say ? `<p style="margin: 0.5rem 0 0; font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(tg.say)}</p>` : ''}
+            <p style="margin: 0.5rem 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--text-muted);">대화 한 번으로 사람을 다 알 수는 없어요. 같은 신호가 여러 번 되풀이되는지를 보세요.</p></div>`;
+        })()}
         <div style="${card}">
           ${h('상대의 말과 행동', 'var(--text-muted)')}${meter(count(au.other))}
           <div style="margin-top: 0.5rem;">${rows(au.other)}</div>
