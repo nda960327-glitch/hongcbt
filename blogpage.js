@@ -822,6 +822,9 @@ export async function handleBlog(request, env, ctx, path) {
       const all = (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${PUB} ORDER BY p.created DESC LIMIT 200`).all()).results || [];
       const of = b => all.filter(r => boardOf(r) === b);
       const noNotice = all.filter(r => boardOf(r) !== 'notice');
+      // 전체 글 수 — 위의 all 은 최근 200개뿐이라 그대로 세면 실제보다 적게 나온다
+      let totalP = noNotice.length;
+      try { const tp = await db.prepare(`SELECT COUNT(*) AS n ${FROM} WHERE ${PUB} AND (p.board IS NULL OR p.board != 'notice')`).first(); if (tp && tp.n) totalP = tp.n; } catch (e) {}
       const hotRows = noNotice.slice().sort((a, b) => score(b) - score(a)).slice(0, 7);
       const tagN = {}; all.forEach(r => tagsOf(r.tags).forEach(t => { tagN[t] = (tagN[t] || 0) + 1; }));
       const topTags = Object.keys(tagN).sort((a, b) => tagN[b] - tagN[a]).slice(0, 14);
@@ -846,14 +849,15 @@ export async function handleBlog(request, env, ctx, path) {
         }
       } catch (e) {}
       const notices = of('notice').sort((a, b) => (b.pinned || 0) - (a.pinned || 0) || b.created - a.created).slice(0, 3);
-      const totalC = all.reduce((x, r) => x + (r.comments || 0), 0);
+      let totalC = all.reduce((x, r) => x + (r.comments || 0), 0);
+      try { const tc = await db.prepare(`SELECT COUNT(*) AS n FROM post_comments c JOIN posts p ON p.id = c.post_id JOIN hospitals h ON h.id = p.hospital_id WHERE c.hidden = 0 AND ${PUB}`).first(); if (tc && tc.n) totalC = tc.n; } catch (e) {}
       const ideas = of('idea').slice().sort((a, b) => (b.likes || 0) - (a.likes || 0) || b.created - a.created).slice(0, 6);
       let vids = [];
       try { vids = (await db.prepare("SELECT title, video_id, author FROM feed WHERE published = 1 AND type = 'youtube' AND video_id != '' ORDER BY pinned DESC, created DESC LIMIT 4").all()).results || []; } catch (e) {}
       const boardCard = (b, rows, emptyMsg) => `<div class="card"><h2><span class="lab ${b}">${BOARD[b].name}</span> <a class="all" href="/blog?board=${b}">더 보기</a></h2>${rows.length ? listHtml(rows) : `<p class="m" style="margin:.3rem 0 .6rem">${emptyMsg}</p><a class="btn ghost" href="/blog/write?board=${b}">첫 글 쓰기</a>`}</div>`;
       return html(page(c, { title: `${BRAND} — 마음 이야기가 모이는 커뮤니티`, desc: '심리상담사가 쓰는 마음 돌봄 칼럼, 누구나 떠드는 수다방, 상담사가 답하는 고민 Q&A, 심리학도 라운지. 불안·우울·수면·관계 고민을 함께 나눠요.', path: c.home === '/' ? '/' : '/blog', nav: 'home',
         jsonld: { '@context': 'https://schema.org', '@type': 'WebSite', name: BRAND, url: site + '/', potentialAction: { '@type': 'SearchAction', target: site + '/blog?q={search_term_string}', 'query-input': 'required name=search_term_string' }, publisher: { '@type': 'Organization', name: BRAND, url: site + '/' } },
-        body: `<div class="hero">${MASCOT(92, 'hm')}<div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${noNotice.length}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">앱 설치</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
+        body: `<div class="hero">${MASCOT(92, 'hm')}<div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${totalP.toLocaleString('ko-KR')}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">앱 설치</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
           <form class="search" action="/blog" method="get"><input name="q" placeholder="고민을 검색해 보세요 — 불면, 번아웃, 관계…" aria-label="검색"><button class="btn">검색</button></form>
           <div class="grid"><div>
             ${notices.length ? `<div class="card" style="padding:.7rem 1.25rem">${notices.map(n => `<div class="notice"><span class="lab notice">공지</span><a href="/blog/${esc(n.id)}">${esc(n.title)}</a></div>`).join('')}</div>` : ''}

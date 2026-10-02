@@ -757,10 +757,12 @@ export async function handleMarket(request, env, cors, path, ctx) {
     try {
       // 소속 상담소 id 도 같이 준다 — 앱이 '내 담당 상담소 상담사'를 맨 위에 올린다.
       //  소장이 소속을 승인한(hospital_ok) 경우만. 승인 전엔 아무 상담소나 골라 적을 수 있으니 믿지 않는다.
+      //  (구독은 2026-09 에 없앴다 — 예전에는 여기서 sub_until 을 봤는데, 그 칸이 없는 운영 DB 에서는 이 문장이 통째로
+      //   실패해 아래 예비 문장으로 떨어졌고, 그러면 소속 상담소 id 가 빠져 '내 담당 상담소 상담사 먼저'가 동작하지 않았다)
       r = await db.prepare(
         `SELECT ${COLS}, CASE WHEN hospital_ok = 1 THEN hospital_id ELSE NULL END AS hosp_id FROM counselors
-          WHERE active = 1 AND (1 = 1 OR COALESCE(sub_until, 0) > ?) ORDER BY created DESC`
-      ).bind(nowMs()).all();
+          WHERE active = 1 ORDER BY created DESC`
+      ).all();
     } catch (e) {
       // sub_until 칸이 아직 없는 배포(schema-prosub.sql 미적용). 예전 흐름 그대로 —
       //  여기서 빈 목록을 돌려주면 매칭 탭이 통째로 비어 앱이 망가진 것처럼 보인다.
@@ -2037,13 +2039,18 @@ export async function handleMarket(request, env, cors, path, ctx) {
           `SELECT ${COLS},sub_until,sub_started,hospital_ok FROM counselors WHERE id = ?`).bind(me.id).first();
       } catch (e) {
         // hospital_ok(소속 승인) 또는 구독 칸이 아직 없는 배포 — 있는 칸만으로 다시 읽는다.
+        //  구독 칸만 없는 DB(운영 DB 가 그렇다)에서 소속 승인까지 같이 떨어뜨리면, 소장이 승인하기 전인데도
+        //  상담사 앱이 '상담소 승인됨'으로 보인다(2026-10-02 점검에서 발견). 소속 승인 칸은 따로 한 번 더 시도한다.
         try {
+          c = await db.prepare(
+            `SELECT ${COLS},hospital_ok FROM counselors WHERE id = ?`).bind(me.id).first();
+        } catch (e1) { try {
           c = await db.prepare(
             `SELECT ${COLS},sub_until,sub_started FROM counselors WHERE id = ?`).bind(me.id).first();
         } catch (e2) {
           // schema-prosub.sql 미적용 — 구독 칸 없이. 앱은 subActive 가 없으면 안 그린다.
           c = await db.prepare(`SELECT ${COLS} FROM counselors WHERE id = ?`).bind(me.id).first();
-        }
+        } }
       }
       return json({ ok: true, me: Object.assign(rowProfile(c), { sessionMin: await sessionMinOf(db, me.id) }) }, 200, cors);
     }
