@@ -546,12 +546,34 @@ const credOf = async (request) => {
   return (h >>> 0).toString(36);
 };
 
+// 최고관리자의 운영자 콘솔 — code 자리에 'su_<로그인 세션>' 이 오면, 그 세션이 최고관리자(user_roles.role='super')일 때만 진짜 운영자 코드로 바꿔 넣는다.
+//  GET 은 ?code=su_…, POST 는 ?su=1 을 붙이고 본문의 code 에 싣는다(모든 POST 본문을 읽지 않으려고 표시를 받는다).
+async function suSwap(request, env) {
+  try {
+    if (!env.DB || !env.ADMIN_CODE || request.url.indexOf('su') < 0) return request;
+    const url = new URL(request.url);
+    const qc = url.searchParams.get('code') || '';
+    const viaBody = request.method === 'POST' && url.searchParams.get('su') === '1';
+    if (!qc.startsWith('su_') && !viaBody) return request;
+    let b = null, tok = qc.startsWith('su_') ? qc.slice(3) : '';
+    if (viaBody) { try { b = JSON.parse(await request.clone().text()); } catch (e) { return request; } if (b && typeof b.code === 'string' && b.code.startsWith('su_')) tok = b.code.slice(3); }
+    if (!/^[a-f0-9]{64}$/.test(tok)) return request;
+    const row = await env.DB.prepare("SELECT 1 x FROM user_sessions s JOIN user_roles r ON r.user_id = s.user_id WHERE s.token = ? AND s.expires > ? AND r.role = 'super' AND r.status = 'approved'").bind(tok, Date.now()).first();
+    if (!row) return request;
+    if (qc.startsWith('su_')) url.searchParams.set('code', env.ADMIN_CODE);
+    url.searchParams.delete('su');
+    if (b) { b.code = env.ADMIN_CODE; return new Request(url.toString(), { method: 'POST', headers: request.headers, body: JSON.stringify(b) }); }
+    return new Request(url.toString(), request);
+  } catch (e) { return request; }
+}
+
 export default {
   scheduled: (event, env, ctx) => APP.scheduled(event, env, ctx),
   async fetch(request, env, ctx) {
     // http 로 들어온 사이트 주소는 https 로 넘긴다 — 검색엔진이 같은 글을 두 주소로 보지 않게
     if (request.method === 'GET' && request.url.startsWith('http://') && /^http:\/\/(www\.)?mindinside(\.kr|app\.com)\//.test(request.url)) return Response.redirect('https://' + request.url.slice(7), 301);
     if (request.method === 'OPTIONS' || !env.DB) return APP.fetch(request, env, ctx);
+    request = await suSwap(request, env);
     const pth = new URL(request.url).pathname.replace(/^\/api/, '');
     if (!AUTHY.test(pth)) return APP.fetch(request, env, ctx);
     const ip = request.headers.get('cf-connecting-ip') || '?';

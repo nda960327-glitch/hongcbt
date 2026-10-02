@@ -1252,7 +1252,7 @@ window.App = {
     const name = document.getElementById('persona-bar-name');
     const tagline = document.getElementById('persona-bar-tagline');
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
-    if (name) name.textContent = p.name;
+    if (name) name.textContent = p.label || p.name;
     if (tagline) tagline.textContent = p.tagline;
     // 상담사마다 채팅방 분위기를 다르게 — 말풍선·아바타·전송 버튼이 이 색을 따라간다
     const chatTab = document.getElementById('tab-chat');
@@ -1407,7 +1407,7 @@ window.App = {
         + shown.map(p => `
         <button type="button" data-pick="${p.id}" style="all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.5rem 0.4rem; border-radius: 10px; min-height: 48px; ${p.id === activeId ? `background: color-mix(in srgb, ${p.color} 12%, transparent);` : ''}">
           <span style="flex-shrink: 0; line-height: 0;">${window.Personas.avatarSvg(p.id, 34)}</span>
-          <span style="flex: 0 0 3.6rem; font-weight: 800; font-size: 0.9rem; color: ${p.color};">${p.name}${p.id === shown[0].id ? '<br><span style="font-size: 0.6rem; font-weight: 800; color: #fff; background: ' + p.color + '; padding: 0.05rem 0.4rem; border-radius: 999px;">추천</span>' : ''}</span>
+          <span style="flex: 0 0 3.6rem; font-weight: 800; font-size: 0.9rem; color: ${p.color};">${p.label || p.name}${p.id === shown[0].id ? '<br><span style="font-size: 0.6rem; font-weight: 800; color: #fff; background: ' + p.color + '; padding: 0.05rem 0.4rem; border-radius: 999px;">추천</span>' : ''}</span>
           <span style="flex: 1 1 auto; min-width: 0; font-size: 0.8rem; line-height: 1.4; color: var(--text-primary);">${p.pickWhen || p.tagline}<br><span style="color: var(--text-muted); font-size: 0.74rem;">${p.pickHow || ''}</span></span>
           <span style="flex-shrink: 0; color: var(--text-muted); font-size: 0.9rem;">${p.id === activeId ? '●' : '›'}</span>
         </button>`).join('')
@@ -1432,7 +1432,7 @@ window.App = {
           <span style="flex-shrink: 0;">${window.Personas.avatarSvg(p.id, 52)}</span>
           <div style="flex: 1 1 130px; min-width: 0;">
             <div style="font-weight: 800; font-size: 1.02rem; color: var(--text-primary); display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; flex-wrap: wrap;">
-              <span>${p.name}</span>
+              <span>${p.label || p.name}</span>
               ${isActive ? `<span style="font-size:0.72rem; background: color-mix(in srgb, ${p.color} 20%, transparent); color: ${p.color}; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700; white-space: nowrap; flex-shrink: 0;">● 현재 활성 상담사</span>` : ''}
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 0.15rem;">${p.tagline}</div>

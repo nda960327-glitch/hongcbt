@@ -15,7 +15,9 @@ export const PRIVATE = {
   expert: ['counselor', 'clinic']
 };
 export const PRIVATE_SQL = "('doctor','resident','expert')";
-export const ROLE_NAME = { doctor: '정신건강의학과 전문의', resident: '전공의', counselor: '상담사', clinic: '상담소' };
+export const ROLE_NAME = { doctor: '정신건강의학과 전문의', resident: '전공의', counselor: '상담사', clinic: '상담소', super: '최고관리자' };
+// 최고관리자 — 운영 DB 의 user_roles 에 role='super', status='approved' 로 직접 넣는다(신청으로는 될 수 없다). 모든 라운지를 보고, 어떤 글·댓글이든 지운다.
+export const isSuper = roles => (roles || []).includes('super');
 export const isPrivate = b => Object.prototype.hasOwnProperty.call(PRIVATE, b || '');
 export const canSee = (board, roles) => !isPrivate(board) || (roles || []).some(r => PRIVATE[board].includes(r));
 
@@ -25,7 +27,8 @@ export async function rolesOf(db, userId) {
   const out = new Set();
   try {
     const r = await db.prepare("SELECT role FROM user_roles WHERE user_id = ? AND status = 'approved'").bind(userId).first();
-    if (r && r.role) out.add(r.role);
+    if (r && r.role === 'super') ['super', 'doctor', 'resident', 'counselor', 'clinic'].forEach(x => out.add(x));
+    else if (r && r.role) out.add(r.role);
   } catch (e) {}
   try {
     const rs = (await db.prepare('SELECT role FROM staff_links WHERE user_id = ?').bind(userId).all()).results || [];

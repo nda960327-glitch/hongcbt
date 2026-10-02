@@ -69,7 +69,8 @@ async function adminGet(p) {
 
 async function adminPost(p, d) {
   try {
-    const r = await api(p, {
+    // 최고관리자(구글 로그인으로 들어온 경우)는 코드 자리에 su_<세션> 이 실린다 — 서버 입구가 알아보도록 ?su=1 을 붙인다
+    const r = await api(CODE.indexOf('su_') === 0 ? p + (p.includes('?') ? '&' : '?') + 'su=1' : p, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(Object.assign({ code: CODE }, d || {}))
     });
@@ -2712,8 +2713,20 @@ $('adm-code').addEventListener('keydown', e => {
 });
 
 // ── 시작 ─────────────────────────────────────────────────────────────
-if (CODE) enterApp();
-else setTimeout(() => $('adm-code').focus(), 200);
+// 커뮤니티 '내 정보'의 [운영자 콘솔 열기]로 넘어온 최고관리자 — 주소의 한 번짜리 코드를 로그인으로 바꾼다
+(async () => {
+  const m = location.hash.match(/^#su=([A-Za-z0-9_-]{10,80})$/);
+  if (m) {
+    try { history.replaceState(null, '', location.pathname); } catch (e) {}
+    try {
+      const r = await api('/community/su/claim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ handoff: m[1] }) });
+      const j = r.ok ? await r.json() : null;
+      if (j && j.code) { CODE = j.code; try { localStorage.setItem(CODE_KEY, CODE); } catch (e) {} }
+    } catch (e) {}
+  }
+  if (CODE) enterApp();
+  else setTimeout(() => $('adm-code').focus(), 200);
+})();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));

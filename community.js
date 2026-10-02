@@ -67,7 +67,7 @@ import { resolveHospital } from './hospital.js';
 import { pingIndexNow } from './blogpage.js';
 import { notifyClient } from './push.js';
 import { resolveUser } from './oauth.js';
-import { PRIVATE, PRIVATE_SQL, ROLE_NAME, isPrivate, canSee, rolesOf } from './roles.js';
+import { PRIVATE, PRIVATE_SQL, ROLE_NAME, isPrivate, canSee, rolesOf, isSuper } from './roles.js';
 import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY, resolveCounselor } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -120,6 +120,9 @@ export { screen };
 const RE_TITLE = /인증|전문의|전공의|의사|닥터|상담사|심리사|치료사|약사|간호사|원장|소장|교수|박사|운영팀|운영자|관리자|편집팀|마인드\s?인사이드/;
 const MSG_TITLE = '별명에는 자격이나 직함을 나타내는 말을 쓸 수 없어요. 전문가라면 [전문가 인증]을 받은 뒤 글을 쓸 때 인증 표시를 달 수 있어요.';
 const PRO_SHORT = { doctor: '전문의', resident: '전공의', counselor: '상담사', clinic: '상담소' };
+// 이름 뒤에 붙는 표시 — 최고관리자는 어느 게시판에서든 '운영팀'
+const proLab = rs => isSuper(rs) ? '운영팀' : '인증 ' + PRO_SHORT[rs[0]];
+const loungeLab = (rs, board) => isSuper(rs) ? '운영팀' : ROLE_NAME[(rs || []).find(x => PRIVATE[board].includes(x))];
 
 const tagsOf = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(t => s(t, 12).trim()).filter(Boolean).slice(0, TAGS_MAX);
 
@@ -143,6 +146,27 @@ function checkImages(list) {
   const arr = Array.isArray(list) ? list.slice(0, IMG_MAX) : [];
   for (const v of arr) if (!jpegOk(v, IMG_BYTES)) return null;
   return arr;
+}
+
+// 전문가 인증 자동 심사 — 적어 낸 것(역할·이름·소속·번호)의 앞뒤가 맞는지, 사진이 있으면 사진이 그 사람의 면허·자격증인지 본다.
+//  글만 있으면 DeepSeek(없으면 OpenAI), 사진이 있으면 그림을 읽을 수 있는 OpenAI 로 간다. 실패하거나 확신이 없으면 false — 운영팀이 직접 본다.
+async function aiVerify(env, { role, name, org, lic, photo }) {
+  const sys = '너는 한국 정신건강 전문가 커뮤니티의 가입 심사 보조다. 신청 정보가 실제 그 직역의 사람이 낸 것으로 볼 만한지 판단한다. 반드시 JSON 한 줄로만 답한다: {"ok":true 또는 false,"reason":"한 문장"}. '
+    + '기준: 이름이 사람 실명 형태인가. 소속이 실제 있을 법한 병원·의원·대학·상담센터·학회 이름인가. 면허·자격 번호가 그 직역의 형식에 맞는가(의사면허·전문의 자격번호는 숫자, 상담심리사·임상심리사·정신건강임상심리사 등은 발급 기관의 번호 형태). 서로 모순이 없는가. '
+    + '빈 값, 장난, 의미 없는 문자열, 12345·00000·1111 같은 뻔한 숫자, 유명인 이름, 역할과 맞지 않는 소속이면 false. 사진이 있으면 그 사진이 면허증·자격증·재직(수련)증명서이고 적힌 이름이 신청 이름과 같은지 본다 — 다르거나 알아볼 수 없으면 false. 확신이 서지 않으면 false.';
+  const info = `역할: ${ROLE_NAME[role]}\n이름: ${name}\n소속: ${org || '(없음)'}\n면허·자격 번호: ${lic || '(없음)'}\n사진: ${photo ? '있음(첨부)' : '없음'}`;
+  const useOpenAI = !!photo || !env.DEEPSEEK_API_KEY;
+  if (useOpenAI && !env.OPENAI_API_KEY) return { ok: false, reason: '' };
+  const user = photo ? [{ type: 'text', text: info }, { type: 'image_url', image_url: { url: photo } }] : info;
+  const res = await fetch(useOpenAI ? 'https://api.openai.com/v1/chat/completions' : 'https://api.deepseek.com/chat/completions', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (useOpenAI ? env.OPENAI_API_KEY : env.DEEPSEEK_API_KEY) },
+    body: JSON.stringify({ model: useOpenAI ? 'gpt-4o-mini' : 'deepseek-chat', temperature: 0, max_tokens: 120, response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: sys }, { role: 'user', content: user }] })
+  });
+  if (!res.ok) return { ok: false, reason: '' };
+  const j = await res.json().catch(() => null);
+  let out = null; try { out = JSON.parse(j.choices[0].message.content); } catch (e) {}
+  return { ok: !!(out && out.ok === true), reason: s((out && out.reason) || '', 160) };
 }
 
 const rowPost = (r, mine, cid) => ({
@@ -265,22 +289,64 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     let req = null; try { req = await db.prepare('SELECT role, status, reason, requested FROM user_roles WHERE user_id = ?').bind(u.id).first(); } catch (e) {}
     return json({ ok: true, roles, names: roles.map(r => ROLE_NAME[r]), request: req ? { role: req.role, status: req.status, reason: req.reason || '', ts: req.requested } : null }, 200, cors);
   }
+  // 최고관리자가 운영자 콘솔을 여는 길 — 운영자 코드를 몰라도 구글 로그인만으로 들어간다.
+  //  open: 60초짜리 한 번 쓰는 코드를 만든다 → 콘솔이 claim 으로 바꿔 'su_<세션>' 을 받는다(주소에는 한 번짜리 코드만 실린다).
+  //  콘솔이 code 자리에 su_<세션> 을 보내면 Worker 입구(cbtproxy.worker.js suSwap)가 확인하고 진짜 운영자 코드로 바꿔 넣는다.
+  if (path === '/community/su/open' && method === 'POST') {
+    const u = await userOf();
+    if (!u || !isSuper(await rolesOf(db, u.id))) return json({ error: 'forbidden' }, 403, cors);
+    const code = rid('suh') + rid('x');
+    await db.prepare('INSERT INTO oauth_handoff (code, user_id, expires) VALUES (?,?,?)').bind(code, u.id, nowMs() + 60000).run();
+    return json({ ok: true, code }, 200, cors);
+  }
+  if (path === '/community/su/claim' && method === 'POST') {
+    const code = s(body.handoff, 80);
+    const h = code ? await db.prepare('SELECT user_id, expires FROM oauth_handoff WHERE code = ?').bind(code).first() : null;
+    if (h) await db.prepare('DELETE FROM oauth_handoff WHERE code = ?').bind(code).run();
+    if (!h || h.expires < nowMs() || !isSuper(await rolesOf(db, h.user_id))) return json({ error: 'bad-code' }, 403, cors);
+    const b = new Uint8Array(32); crypto.getRandomValues(b);
+    const token = [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+    await db.prepare('INSERT INTO user_sessions (token, user_id, expires, created, last_seen) VALUES (?,?,?,?,?)').bind(token, h.user_id, nowMs() + 30 * 86400000, nowMs(), nowMs()).run();
+    return json({ ok: true, code: 'su_' + token }, 200, cors);
+  }
+
   if (path === '/community/role/request' && method === 'POST') {
     const u = await userOf();
     if (!u) return LOGIN();
     const role = ['doctor', 'resident', 'counselor'].includes(body.role) ? body.role : '';
     const name = s(body.name, 40).trim(), org = s(body.org, 80).trim(), lic = s(body.licenseNo, 40).trim();
     if (!role || !name) return json({ error: 'missing', message: '역할과 이름을 적어주세요' }, 400, cors);
-    if (!jpegOk(body.photo, 350 * 1024)) return json({ error: 'bad-image', message: '면허·자격증 사진을 넣어주세요' }, 400, cors);
-    const cur = await db.prepare('SELECT status FROM user_roles WHERE user_id = ?').bind(u.id).first();
+    // 사진은 없어도 된다 — 대신 소속과 면허·자격 번호를 적는다. 사진을 넣으면 사진까지 함께 본다.
+    const photo = body.photo ? (jpegOk(body.photo, 350 * 1024) ? body.photo : null) : '';
+    if (photo === null) return json({ error: 'bad-image', message: '이 사진은 쓸 수 없어요. 다른 사진으로 해주세요' }, 400, cors);
+    if (!photo && (!org || !lic)) return json({ error: 'missing', message: '소속과 면허·자격 번호를 적어주세요. (또는 면허증·자격증 사진을 넣어도 돼요)' }, 400, cors);
+    const cur = await db.prepare('SELECT status, requested FROM user_roles WHERE user_id = ?').bind(u.id).first();
     if (cur && cur.status === 'approved') return json({ error: 'dup', message: '이미 인증된 계정이에요' }, 409, cors);
+    if (cur && nowMs() - (cur.requested || 0) < 60000) return json({ error: 'too-many', message: '방금 신청했어요. 1분 뒤에 다시 해주세요' }, 429, cors);
+    // 자동 심사 — 사진이 있으면 AI 가 읽고 이름·역할이 맞으면 그 자리에서 승인한다. 애매하면 운영팀이 본다(심사 중).
+    let auto = { ok: false, reason: '' };
+    try {
+      const dupLic = lic ? await db.prepare("SELECT 1 x FROM user_roles WHERE license_no = ? AND status = 'approved' AND user_id != ?").bind(lic, u.id).first() : null;
+      // 자동 승인은 면허증·자격증 사진이 있을 때만 — 번호만 적은 신청은 진위를 확인할 길이 없어 운영팀이 본다(사장님 결정 2026-10-03)
+      auto = !photo ? { ok: false, reason: '' } : dupLic ? { ok: false, reason: '같은 번호로 이미 인증된 계정이 있어요' } : await aiVerify(env, { role, name, org, lic, photo });
+    } catch (e) { auto = { ok: false, reason: '' }; }
+    if (auto.ok) {
+      await db.prepare(`INSERT INTO user_roles (user_id, role, status, name, org, license_no, photo, requested, decided, reason) VALUES (?,?,'approved',?,?,?,'',?,?,?)
+        ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, status = 'approved', name = excluded.name, org = excluded.org, license_no = excluded.license_no, photo = '', requested = excluded.requested, decided = excluded.decided, reason = excluded.reason`)
+        .bind(u.id, role, name, org, lic, nowMs(), nowMs(), s('자동 승인 — ' + (auto.reason || ''), 200)).run();
+      const noteA = sendApplicationToOps(env, db, `전문가 인증 자동 승인 — ${name} (${ROLE_NAME[role]})`, `${name} 님의 전문가 인증이 자동 심사로 승인됐습니다. 이상하면 운영자 콘솔 › 커뮤니티에서 취소해 주세요.`,
+        [['역할', ROLE_NAME[role]], ['이름', name], ['소속', org], ['면허·자격 번호', lic], ['계정', u.email || u.provider], ['심사 메모', auto.reason || '']]).catch(() => {});
+      if (ctx && ctx.waitUntil) ctx.waitUntil(noteA);
+      return json({ ok: true, approved: true, role }, 200, cors);
+    }
+    body.photo = photo;
     await db.prepare(`INSERT INTO user_roles (user_id, role, status, name, org, license_no, photo, requested, decided, reason) VALUES (?,?,'pending',?,?,?,?,?,0,'')
       ON CONFLICT(user_id) DO UPDATE SET role = excluded.role, status = 'pending', name = excluded.name, org = excluded.org, license_no = excluded.license_no, photo = excluded.photo, requested = excluded.requested, decided = 0, reason = ''`)
       .bind(u.id, role, name, org, lic, body.photo, nowMs()).run();
     const note = sendApplicationToOps(env, db, `전문가 인증 신청 — ${name} (${ROLE_NAME[role]})`, `${name} 님이 커뮤니티 전문가 인증을 신청했습니다. 운영자 콘솔 › 커뮤니티에서 면허·자격증 사진을 확인하고 승인해 주세요.`,
       [['역할', ROLE_NAME[role]], ['이름', name], ['소속', org], ['면허·자격 번호', lic], ['계정', u.email || u.provider]]).catch(() => {});
     if (ctx && ctx.waitUntil) ctx.waitUntil(note);
-    return json({ ok: true }, 200, cors);
+    return json({ ok: true, approved: false }, 200, cors);
   }
 
   if (path === '/community/profile') {
@@ -546,7 +612,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const meP = q('session') ? await userOf() : null;
     let saved = false;
     if (meP) { try { saved = !!(await db.prepare('SELECT 1 AS x FROM post_saves WHERE user_id = ? AND post_id = ?').bind(meP.id, id).first()); } catch (e) {} }
-    return json({ ok: true, saved, post: rowPost(r, likes.has(id), meP ? meP.key : cid), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)), me: meP ? meP.key : '' }, 200, cors);
+    return json({ ok: true, saved, post: rowPost(r, likes.has(id), meP ? meP.key : cid), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)), me: meP ? meP.key : '', su: meP ? isSuper(await rolesOf(db, meP.id)) : false }, 200, cors);
   }
 
   if (path === '/community/hospital' && method === 'GET') {
@@ -589,12 +655,12 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (!p) return json({ error: 'not-found' }, 404, cors);
     if (isPrivate(p.board)) {
       const g = await gate(p.board, u); if (g) return g;
-      const lab = ROLE_NAME[(u.roles || []).find(r => PRIVATE[p.board].includes(r))]; if (lab) name = s(name + ' · ' + lab, 40);
+      const lab = loungeLab(u.roles, p.board); if (lab) name = s(name + ' · ' + lab, 40);
     } else {
       const badC = screen(text + ' ' + name);
       if (badC) return json(badC, 422, cors);
       if (RE_TITLE.test(name)) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors);
-      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) name = s(name + ' · 인증 ' + PRO_SHORT[rs[0]], 40); }
+      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) name = s(name + ' · ' + proLab(rs), 40); }
     }
     const recent = await db.prepare('SELECT COUNT(*) n FROM post_comments WHERE client_id = ? AND ts > ?').bind(cid, nowMs() - 600000).first();
     if ((recent && recent.n) >= COMMENT_PER_10MIN) return json({ error: 'too-many' }, 429, cors);
@@ -641,12 +707,12 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     let roleLabel = '';
     if (own ? isPrivate(own.board) : isPrivate(board)) {
       const g = await gate(own ? own.board : board, u); if (g) return g;
-      roleLabel = ROLE_NAME[(u.roles || []).find(r => PRIVATE[board].includes(r))] || '';
+      roleLabel = loungeLab(u.roles, board) || '';
     } else {
       const bad = screen(title + ' ' + text + ' ' + s(body.name, NAME_MAX));
       if (bad) return json(bad, 422, cors);
       if (RE_TITLE.test(s(body.name, NAME_MAX))) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors);
-      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) roleLabel = '인증 ' + PRO_SHORT[rs[0]]; }
+      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) roleLabel = proLab(rs); }
     }
     if (own) {
       await db.prepare('UPDATE posts SET title = ?, body = ?, updated = ? WHERE id = ? AND client_id = ?').bind(title, text, nowMs(), own.id, cid).run();
@@ -673,7 +739,10 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const u = await userOf();
     if (!u) return LOGIN();
     const cid = u.key;
-    const r = await db.prepare('DELETE FROM posts WHERE id = ? AND client_id = ? AND hospital_id = ?').bind(id, cid, SYS_HOSP).run();
+    // 최고관리자는 누구의 글이든 지운다(상담소·편집팀 글 포함)
+    const su = isSuper(await rolesOf(db, u.id));
+    const r = su ? await db.prepare('DELETE FROM posts WHERE id = ?').bind(id).run()
+      : await db.prepare('DELETE FROM posts WHERE id = ? AND client_id = ? AND hospital_id = ?').bind(id, cid, SYS_HOSP).run();
     if (r.meta && r.meta.changes) await db.batch([
       db.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(id),
       db.prepare('DELETE FROM post_comments WHERE post_id = ?').bind(id)
@@ -742,7 +811,8 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const u = await userOf();
     if (!u || !cmid) return LOGIN();
     const cid = u.key;
-    const r = await db.prepare('DELETE FROM post_comments WHERE id = ? AND client_id = ? AND by_hospital = 0').bind(cmid, cid).run();
+    const r = isSuper(await rolesOf(db, u.id)) ? await db.prepare('DELETE FROM post_comments WHERE id = ?').bind(cmid).run()
+      : await db.prepare('DELETE FROM post_comments WHERE id = ? AND client_id = ? AND by_hospital = 0').bind(cmid, cid).run();
     // 지운 댓글에 달린 답글도 함께 지운다 — 남겨 두면 어디에 단 말인지 알 수 없다
     if (r.meta && r.meta.changes) { await db.prepare('DELETE FROM post_comments WHERE parent_id = ?').bind(cmid).run(); await db.prepare('DELETE FROM post_comment_likes WHERE comment_id = ?').bind(cmid).run().catch(() => {}); }
     return json({ ok: true, deleted: !!(r.meta && r.meta.changes) }, 200, cors);
