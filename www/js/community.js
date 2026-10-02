@@ -19,7 +19,7 @@ window.Community = {
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 
   // 사진이 없는 글에 보여주는 기본 사진(홈페이지와 같은 11장, 글 id 로 고른다) — 카드 높이가 들쭉날쭉하지 않게
-  _stock(id) { return 'https://mindinside.kr/img/stock/' + (String(id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0) % 11) + '.jpg'; },
+  _stock(id) { return 'https://mindinside.kr/img/stock/' + (String(id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0) % 32) + '.jpg'; },
   BOARD_NAME: { neru: '우렁이 자랑방', meds: '약 이야기', resident: '전공의 라운지', expert: '전문가 라운지', free: '수다방', qna: '고민 Q&A', student: '심리학도 라운지', idea: '기능 제안', notice: '공지' },
 
   init() {

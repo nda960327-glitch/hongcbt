@@ -2574,3 +2574,9 @@ body.kb-open #tab-chat .chat-messages { padding-bottom: calc(var(--chat-input-h,
 #settings-overlay .btn-secondary { white-space: nowrap; flex: none; }
 /* 한글은 낱말 중간에서 끊기면 읽기 어렵다 — 모달 안 글은 어절 단위로 줄바꿈 */
 .modal-content { word-break: keep-all; overflow-wrap: anywhere; }
+
+/* 대화 캡처 — 고르는 동안 (js/capture.js) */
+body.cap-mode #chat-messages .message { cursor: pointer; opacity: 0.55; transition: opacity 0.15s; }
+body.cap-mode #chat-messages .message.cap-sel { opacity: 1; }
+body.cap-mode #chat-messages .message.cap-sel .message-bubble { outline: 2.5px solid var(--accent-primary); outline-offset: 2px; }
+body.cap-mode #chat-messages { padding-bottom: 9rem; }

@@ -515,7 +515,30 @@ window.Room = {
   //   · 드래그(8px+)→ 방 안에서 위치 이동, 놓으면 저장 (경계 clamp)
   //   · 더블탭     → 원래 자리로 복귀
   // ==========================================================================
-  _SAYS: ['아야!', '간지러워~', '또 눌렀네', '히힛', '왜 자꾸 만져~', '어? 불렀어?', '말랑말랑'],
+  _SAYS: ['아야!', '간지러워~', '또 눌렀네', '히힛', '왜 자꾸 만져~', '어? 불렀어?', '말랑말랑', '우로로록!', '우렁우렁~', '호고고곡?!', '느적느적…', '뿌롱!'],
+  // 가끔 하는 특별한 말 — 늘 같은 말만 하면 금방 질린다. 시간·요일·꾸준함에 맞춰 골라 한다(3번에 1번쯤).
+  //  우렁이는 우렁각시처럼 '몰래 챙겨 주는' 친구다. 잔소리하지 않고, 해낸 것을 알아봐 준다.
+  _special() {
+    const d = new Date(), h = d.getHours(), day = d.getDay();
+    const L = [];
+    if (h < 6) L.push('아직 안 잤어? 우렁이는 옆에 있을게', '새벽엔 생각이 커 보여. 아침에 다시 보자', '우로로록… 같이 깨어 있어 줄게');
+    else if (h < 11) L.push('일어났네! 그것만으로 한 건 했어', '물 한 컵 마셨어? 우렁우렁', '오늘은 하나만 해도 충분해');
+    else if (h < 14) L.push('밥은 먹었어? 몰래 차려 놓고 싶다', '점심 먹고 햇빛 3분 어때');
+    else if (h < 18) L.push('오후엔 좀 느려도 돼. 느적느적', '창문 한 번 열어 볼래?', '지금까지 버틴 거, 우렁이는 다 봤어');
+    else if (h < 22) L.push('오늘 하루 수고했어. 진짜로', '저녁엔 너한테 좀 다정해지자', '오늘 좋았던 거 하나만 떠올려 볼래?');
+    else L.push('이제 내려놓을 시간이야. 우로로록', '오늘 못 한 건 내일의 네가 할 거야', '불 끄기 전에 숨 한 번 길게');
+    if (day === 1) L.push('월요일이네. 살살 가자');
+    if (day === 5) L.push('금요일까지 온 거 대단해!');
+    if (day === 0 || day === 6) L.push('주말엔 아무것도 안 해도 돼');
+    try {
+      const g = window.Growth && window.Growth.streak ? window.Growth.streak() : 0;
+      if (g >= 3) L.push(g + '일째 와 줬네. 우렁우렁!', '매일 오는 네가 제일 대단해');
+    } catch (e) {}
+    L.push('나 여기서 몰래 응원하고 있었어', '네 편 한 마리 여기 있어', '껍데기 안은 따뜻해. 너도 쉬어', '오늘 표정이 궁금하네. 체크인 해 줄래?',
+      '천천히 가도 도착해. 내가 그래', '힘들면 말 안 해도 돼. 옆에만 있을게', '어제보다 한 뼘 자란 것 같아. 너도, 나도', '호고고곡! 깜짝이야, 반가워서 그래',
+      '오늘도 살아 있어 줘서 고마워', '우렁각시처럼 몰래 도와주고 싶어');
+    return L[Math.floor(Math.random() * L.length)];
+  },
   _curDx: 0, _curDy: 0, _lastTap: 0, _reacting: false,
 
   _pos() {
@@ -665,9 +688,10 @@ window.Room = {
     if (old) old.remove();
     const b = document.createElement('div');
     b.className = 'wr-say';
-    b.textContent = this._SAYS[Math.floor(Math.random() * this._SAYS.length)];
+    const special = Math.random() < 0.35;
+    b.textContent = special ? this._special() : this._SAYS[Math.floor(Math.random() * this._SAYS.length)];
     move.appendChild(b);
-    setTimeout(() => { if (b.parentNode) b.remove(); }, 1350);
+    setTimeout(() => { if (b.parentNode) b.remove(); }, special ? 3200 : 1350);   // 긴 말은 읽을 시간을 더 준다
   },
 
   _resetPos(snail, stage) {

@@ -33,43 +33,27 @@ window.App = {
       }
     })();
 
-    // 리브랜딩(우렁의사→우렁이) 전에 저장된 상담사 발화·주간 편지의 이름을 한 번만 바꾼다.
-    //  안 바꾸면 첫 인사가 영원히 "우렁의사예요"로 남고, 모델도 대화 이력에서 옛 이름을 읽어 헷갈린다.
+    // 이름 바꾸기(2026-10-02: 느루 → 우렁이) — 이 기기에 저장된 대화·편지·장기기억·리포트에 남은 옛 이름을 한 번만 바꾼다.
+    //  안 바꾸면 모델이 대화 이력과 장기기억에서 옛 이름을 읽고 계속 '느루'라고 자기를 부른다.
+    //  (예전의 '우렁의사→느루' 바꾸기 두 번은 이름이 다시 우렁이가 되면서 필요 없어져 뺐다. '우렁의사'는 지금도 비교용 상담사 이름이라 건드리지 않는다)
     try {
-      if (!window.Storage._safeGet('cbt_rename_neuru', false)) {
-        const MAP = [['우로로록', '우로로록'], ['우로록', '우렁우렁'], ['우렁우렁', '우렁우렁'], ['우덩우덩', '느적느적'], ['우렁의사', '우렁이'], ['우렁이', '우렁이'], ['우렁', '우렁이']];
-        const fix = t => MAP.reduce((s, [a, b]) => s.split(a).join(b), String(t));
+      if (!window.Storage._safeGet('cbt_rename_woorung', false)) {
+        const OLD = '느루';   // 옛 이름 (이 파일에서 낱말을 통째로 바꿀 때 이 줄까지 바뀌지 않게 코드로 적는다)
+        const fixW = t => String(t).split('뇨로로롱').join('우로로록').split('뇨롱').join('우렁우렁').split(OLD + OLD).join('우렁우렁').split(OLD).join('우렁이');
+        const has = v => typeof v === 'string' && v.indexOf(OLD) !== -1;
         const msgs = window.Storage.getMessages() || [];
         let touched = false;
-        msgs.forEach(m => { if (m && m.role === 'bot' && /우렁/.test(m.text || '')) { m.text = fix(m.text); touched = true; } });
+        msgs.forEach(m => { if (m && has(m.text)) { m.text = fixW(m.text); touched = true; } });
         if (touched) window.Storage._safeSet('cbt_messages', msgs);
-        const letters = window.Storage._safeGet('cbt_weekly_letters', []) || [];
-        let lt = false;
-        letters.forEach(l => { if (l && /우렁/.test(l.text || '')) { l.text = fix(l.text); lt = true; } });
-        if (lt) window.Storage._safeSet('cbt_weekly_letters', letters);
-        window.Storage._safeSet('cbt_rename_neuru', true);
-      }
-      // 2차(2026-09-30): 장기기억·편지함·리포트·밤 일기 답글에 남은 옛 이름도 바꾼다.
-      //  장기기억은 매 대화 프롬프트에 실리므로, 여기 '우렁이'가 남아 있으면 우렁이가 계속 옛 이름을 쓴다.
-      //  단 '우렁의사'는 지금 살아 있는 비교용 상담사 이름이라 건드리지 않는다.
-      if (!window.Storage._safeGet('cbt_rename_neuru2', false)) {
-        const fix2 = t => String(t)
-          .split('우로로록').join('우로로록').split('우로록').join('우렁우렁')
-          .split('우렁우렁').join('우렁우렁').split('우덩우덩').join('느적느적')
-          .replace(/우렁이/g, '우렁이')
-          .replace(/우렁(?!의사)/g, '우렁이');
         const mem = window.Storage.getUserMemory();
-        if (mem && /우렁/.test(mem)) window.Storage.setUserMemory(fix2(mem));
-        ['cbt_mailbox', 'cbt_my_reports', 'cbt_night_journal'].forEach(k => {
+        if (has(mem)) window.Storage.setUserMemory(fixW(mem));
+        ['cbt_weekly_letters', 'cbt_mailbox', 'cbt_my_reports', 'cbt_night_journal'].forEach(k => {
           try {
             const v = window.Storage._safeGet(k, null);
-            if (v != null) {
-              const s = JSON.stringify(v);
-              if (/우렁/.test(s)) window.Storage._safeSet(k, JSON.parse(fix2(s)));
-            }
+            if (v != null) { const s = JSON.stringify(v); if (has(s)) window.Storage._safeSet(k, JSON.parse(fixW(s))); }
           } catch (e) {}
         });
-        window.Storage._safeSet('cbt_rename_neuru2', true);
+        window.Storage._safeSet('cbt_rename_woorung', true);
       }
     } catch (e) {}
 
@@ -461,6 +445,13 @@ window.App = {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
+    // 홈페이지의 [지금 설치하기]로 넘어온 사람(?install=1) — PC 든 폰이든 설치 창을 바로 띄운다. 버튼 한 번이면 설치된다.
+    if (/[?&]install=1/.test(location.search) && !isStandalone) {
+      setTimeout(() => {
+        const globalModal = document.getElementById('global-install-modal');
+        if (globalModal) globalModal.classList.remove('hidden');
+      }, 600);
+    } else
     if (isMobile && !isStandalone && !localStorage.getItem('cbt_install_prompt_dismissed')) {
       setTimeout(() => {
         const globalModal = document.getElementById('global-install-modal');
