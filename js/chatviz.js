@@ -43,6 +43,8 @@ window.ChatViz = {
         case '수업진행':   return this.steps(viz.args);
         case '요약카드':   return this.summary(viz.args);
         case '버튼':       return this.buttons(viz.args);
+        case '실습':       return window.WorkCards ? window.WorkCards.render(viz.args) : '';      // js/workcards.js
+        case '실습요약':   return window.WorkCards ? window.WorkCards.summary(viz.args) : '';
         case '수업카드':   return this.lesson(viz.args);
         case '영상':       return this.video(viz.args);
         case '명상':       return this.meditation(viz.args);

@@ -890,6 +890,7 @@ window.App = {
         const pcol = (window.Personas && spid) ? window.Personas.get(spid).color : 'var(--accent-primary)';
         const total = Math.max(1, Math.min(8, +msg.step.total || 6));
         const cur = Math.max(1, Math.min(total, +msg.step.cur || 1));
+        this._setStage(spid, cur, total, msg);
         let dots = '';
         for (let i = 1; i <= total; i++) {
           dots += `<span style="display: inline-block; width: ${i === cur ? '15px' : '5px'}; height: 5px; border-radius: 999px; background: ${i <= cur ? pcol : `color-mix(in srgb, ${pcol} 22%, transparent)`};"></span>`;
@@ -1254,6 +1255,7 @@ window.App = {
     if (avatar) avatar.innerHTML = window.Personas.avatarSvg(p.id, 34);
     if (name) name.textContent = p.label || p.name;
     if (tagline) tagline.textContent = p.tagline;
+    this.renderStageBar();
     // 상담사마다 채팅방 분위기를 다르게 — 말풍선·아바타·전송 버튼이 이 색을 따라간다
     const chatTab = document.getElementById('tab-chat');
     if (chatTab) chatTab.style.setProperty('--chat-accent', p.color);
@@ -1262,7 +1264,7 @@ window.App = {
       bar.style.background = `linear-gradient(180deg, color-mix(in srgb, ${p.color} 13%, var(--bg-secondary)), var(--bg-secondary))`;
       bar.style.borderBottomColor = `color-mix(in srgb, ${p.color} 30%, transparent)`;
     }
-    // 전문 기법 상담 버튼 (우렁이 DBT 파도 상담 · 햇님 CBT · 달님 마음 비우기 · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
+    // 전문 기법 상담 버튼 (햇님 CBT · 달님 DBT · 소나무 ACT) — 있을 땐 CTA가 줄을 채운다
     const progBtn = document.getElementById('btn-program');
     const spacer = document.getElementById('chat-tools-spacer');
     if (progBtn) {
@@ -1464,9 +1466,9 @@ window.App = {
   // 상담사별 첫 인사 (선택 직후와 대화 초기화 때 사용)
   personaGreetings: {
     woorung: '안녕하세요, 우렁이예요. 저는 그날 마음 상태에 맞춰 생각 정리(CBT)·감정 진정(DBT)·마음챙김(MBCT)을 골라 쓰는 통합 상담사예요. 쉽게 말하면, 엉킨 생각을 같이 정리하거나 격해진 감정을 가라앉히는 걸 도와요. ||| 사용법은 간단해요 — 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요. 방향은 제가 잡을게요.',
-    'woorung-ds': '안녕하세요, 우렁의사예요. 우렁이와 똑같은 상담사인데 답을 만드는 AI 가 달라요 — 같은 이야기를 해 보고 어느 쪽이 더 편한지 비교해보세요. ||| 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요.',
+    'woorung-ds': '안녕하세요, 우렁의사예요. 여러 상담 기법을 합쳐서 그날 마음에 맞게 이야기 나누는 상담사예요. ||| 오늘 있었던 일이든 고민이든, 카톡하듯 편하게 말해주세요.',
     haru: '안녕! 나는 생각 습관을 같이 정리해주는 햇님이야. 인지행동치료(CBT)가 전문이야. ||| 속상했던 장면을 구체적으로 말해주면, 그 순간 스친 생각을 붙잡아서 진짜 사실인지 같이 검증해줘. "다 내 잘못이야" 같은 생각이 맴돌 때 나한테 와. ||| 차근차근 배우고 싶으면 이 코스로 시작해도 좋아. [그림:수업카드]',
-    dalnim: '…안녕하세요, 달님이에요. 여기는 어디에도 못 버린 마음을 쏟아내는 곳이에요. ||| 여기서 한 이야기는 상담사에게도, 누구에게도 저절로 전해지지 않아요. 안심하고 꺼내셔도 돼요. ||| 미움도, 욕도, 찌질한 생각도 다듬지 말고 그냥 쏟아내세요. 놀라지 않아요. 판단하지 않아요. 고치려 들지도 않아요. 그냥 끝까지 들을게요 — 답은 당신 안에 있다고 믿어요. ||| 오늘 쌓인 걸 바닥까지 비우고 싶은 날엔, 이걸로 시작하셔도 좋아요. [그림:수업카드]',
+    dalnim: '…안녕하세요, 달님이에요. 감정이 너무 커서 힘들 때, 먼저 그 마음을 들어 드리고 가라앉히는 방법을 같이 해 보는 곳이에요. ||| 여기서 한 이야기는 상담사에게도, 누구에게도 저절로 전해지지 않아요. 안심하고 꺼내셔도 돼요. ||| 지금 마음이 어떤지, 다듬지 말고 그대로 말해 주세요.',
     sonamu: '반갑습니다, 소나무입니다. 저는 수용전념치료(ACT)와 마음챙김(MBCT)을 함께 쓰는 상담사예요. 쉽게 말하면 괴로운 생각과 싸우지 않는 법을 알려드려요 — 생각과 싸우는 대신 한 발 떨어져 바라보고, 호흡으로 지금 이 순간에 닻을 내리고, 내가 원하는 삶의 방향으로 걷게 돕습니다. ||| 없애고 싶은 생각이 있거나 머리가 시끄럽다면 말해보세요. 싸움을 멈추는 것부터 함께합니다. ||| 체계적으로 배우고 싶다면, 이 코스로 시작하셔도 좋습니다. [그림:수업카드]'
   },
 
@@ -1547,6 +1549,42 @@ window.App = {
   },
 
   // renderPersonaBar의 별칭 (홈 화면 빠른 선택에서 이 이름으로 호출됨)
+  // ── 상담 단계 띠 ──────────────────────────────────────────────────
+  //  기법 상담사와 이야기할 때, 지금 몇 단계에서 무엇을 하는지 채팅 위에 늘 보여 준다.
+  //  상담사의 답장 첫 줄 "[2/6] …" 표시(msg.step)가 올 때마다 갱신된다. 반나절 지난 표시는 지난 상담이라 숨긴다.
+  _setStage(pid, cur, total, msg) {
+    const ts = (msg && (msg.ts || msg.time)) ? +new Date(msg.ts || msg.time) : Date.now();
+    this._stage = { pid, cur, total, ts: isNaN(ts) ? Date.now() : ts };
+    this.renderStageBar();
+  },
+  renderStageBar() {
+    const el = document.getElementById('stage-bar');
+    if (!el || !window.Personas) return;
+    const p = window.Personas.getActive();
+    const prog = window.Personas.programOf(p.id);
+    const st = this._stage;
+    if (!prog || !prog.steps || !prog.steps.length || !st || st.pid !== p.id || Date.now() - st.ts > 12 * 3600000) { el.hidden = true; el.innerHTML = ''; return; }
+    const total = prog.steps.length, cur = Math.max(1, Math.min(total, st.cur));
+    const esc = v => this._escHtml(v);
+    const chips = prog.steps.map((s, i) => {
+      const n = i + 1, on = n === cur, done = n < cur;
+      return `<span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.16rem 0.5rem 0.16rem 0.2rem; border-radius: 999px; font-size: 0.66rem; font-weight: ${on ? 800 : 600}; white-space: nowrap; color: ${on ? '#fff' : (done ? p.color : 'var(--text-muted)')}; background: ${on ? p.color : `color-mix(in srgb, ${p.color} ${done ? 14 : 6}%, transparent)`};">
+        <span style="display: inline-flex; align-items: center; justify-content: center; width: 1.05rem; height: 1.05rem; border-radius: 50%; font-size: 0.6rem; font-weight: 800; background: ${on ? 'rgba(255,255,255,.25)' : `color-mix(in srgb, ${p.color} 18%, transparent)`};">${done ? '✓' : n}</span>${esc(s)}</span>`;
+    }).join('');
+    const help = (prog.help && prog.help[cur - 1]) || '';
+    el.innerHTML = `
+      <div style="display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.3rem;">
+        <b style="font-size: 0.72rem; color: ${p.color};">${esc(prog.name)}</b>
+        <span style="font-size: 0.66rem; color: var(--text-muted);">${cur} / ${total} 단계</span>
+      </div>
+      <div id="stage-chips" style="display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 0.1rem;">${chips}</div>
+      ${help ? `<div style="margin-top: 0.35rem; font-size: 0.72rem; color: var(--text-primary);"><b style="color: ${p.color};">지금 하는 일</b> · ${esc(help)}</div>` : ''}`;
+    el.hidden = false;
+    // 지금 단계가 가로로 넘쳐 안 보이면 그쪽으로 민다
+    const row = document.getElementById('stage-chips');
+    if (row && row.children[cur - 1]) row.scrollLeft = Math.max(0, row.children[cur - 1].offsetLeft - 60);
+  },
+
   updatePersonaBar() {
     this.renderPersonaBar();
     // 단계 없는 코스의 [오늘은 여기까지] 버튼 — 상담사를 바꾸면 거두고, 돌아오면 다시 건다

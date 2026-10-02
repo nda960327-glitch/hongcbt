@@ -797,7 +797,7 @@ DBT 대인관계 효율 기술이 여기 있습니다 — DEAR MAN(원하는 걸
 · 방·농장 아래'물이 고이는 돌봄'5칸 버튼 — 체크인과 퀘스트는 탭 이동 없이 그 자리에서 시트로 열려 바로 처리됨
 · 농장 씨앗: 빈 밭의 ＋를 누르면 아래에 씨앗 목록이 나옴. 상추는 무료, 나머지는 씨앗값(코인)이 듦. 심은 작물은 칸 오른쪽 위 로 뽑을 수 있음(물은 안 돌아옴)
 · 방 꾸미기 아이템은'가구 상점'버튼으로. 옷장은 방의'옷장'버튼(탈의실 거울 씬), 훈장은 방의 작은 버튼으로 들어감. 게임 탭은 방/농장/퀘스트/서재 4개, 레벨·스트릭(나의 우렁이)은 탭 아래 상시 표시
-· AI 상담사 4명과 기법: 우렁이(통합·일상대화), 햇님(CBT 생각교정 — "햇살 상담"), 우렁이의 "파도 상담"(감정이 너무 클 때 쓰는 DBT 기술 6단계), 달님(공감·수용 경청, 판단 없이 쏟아내는 곳 — 단계 없는 "달빛 상담"=마음 비우기), 소나무(ACT+MBCT 수용전념·마음챙김·가치 — "솔숲 상담"). 상담사 변경은 챗봇 도구줄. 각자 언제 좋은지는 선택 화면 카드에 설명됨
+· AI 상담사 4명과 기법: 우렁이(통합·일상대화), 햇님(CBT 생각교정 — "햇살 상담"), 달님(DBT 감정 조절 — 먼저 받아주고 감정을 가라앉히는 기술을 같이 익힘, 6단계 "달빛 상담"), 소나무(ACT+MBCT 수용전념·마음챙김·가치 — "솔숲 상담"). 상담사 변경은 챗봇 도구줄. 각자 언제 좋은지는 선택 화면 카드에 설명됨
 · 이모티콘 서랍(챗봇 도구줄 )은 카톡처럼 아래 탭으로 팩 전환. 햇님/달님/소나무 캐릭터 팩은 각 2,000캐시
 · 기분 체크인은 20분에 한 번. '퀘스트 더 받기'(완료 후 하루 3개까지)와 '맞춤 숙제 받기'(최근 대화 기반 행동 숙제 추천)는 홈이 아니라 대시보드 › 퀘스트 탭에 있음
 안내할 때는 "대시보드 탭 → 아래 농장 버튼" 처럼 손에 잡히게. 기능이 없는 걸 지어내지 마세요.`,
@@ -858,8 +858,8 @@ ${persona.style}
 단, 상담 원칙·안전 규칙·말풍선 형식·장기기억 사용법 등 나머지 규칙은 전부 그대로 지킵니다.`;
     }
 
-    // 페르소나 style 과 별개로 붙는 코스 진행 규칙 (우렁이의 파도 상담 — 우렁의사도 같이 쓴다)
-    const courseOf = persona && window.Personas ? (persona.course || (persona.id === 'woorung-ds' ? window.Personas.get('woorung').course : '')) : '';
+    // 페르소나 style 과 별개로 붙는 코스 진행 규칙(persona.course — 지금은 쓰는 상담사가 없다)
+    const courseOf = persona ? (persona.course || '') : '';
     if (courseOf) prompt += '\n\n' + courseOf;
 
     // 호칭 혼동 방지 (짧고 치명적이라 항상 유지)
@@ -1384,6 +1384,21 @@ ${about}
         if (stickerName && !crisis) items.push({ sticker: stickerName }); // 위기 시 스티커 금지
       });
       if (items.length === 0) items.push({ text: botText.replace(/\[스티커:[^\]]*\]/g, '').replace(/\[그림:[^\]]*\]/g, '').trim() || '응, 듣고 있어.' });
+
+      // 햇님(CBT)·달님(DBT)은 '직접 해 보며 배우는' 상담사다 — 답장에 단계 표시가 있으면 그 단계의 실습 카드를 붙인다(js/workcards.js).
+      //  같은 단계에 머무는 동안에는 한 번만 붙인다. 사용자가 6단계 실습을 보낸 턴에는 여섯 단계를 한 장으로 돌아보는 카드를 붙인다.
+      if (!crisis && window.WorkCards && window.Personas) {
+        const wp = window.Personas.getActive().id;
+        const stepItem = items.find(it => it.step) || null;
+        const sentWork = String(userText || '').match(/^\[실습 (\d)\/(\d)/);
+        if (sentWork && sentWork[1] === sentWork[2]) {
+          items.push({ viz: { type: '실습요약', args: [wp] } });
+          this._lastWork = '';
+        } else if (stepItem && window.WorkCards.has(wp, stepItem.step.cur)) {
+          const key = wp + ':' + stepItem.step.cur;
+          if (this._lastWork !== key) { this._lastWork = key; items.push({ viz: { type: '실습', args: [wp, stepItem.step.cur] } }); }
+        }
+      }
 
       // ㅋㅋ·ㅎㅎ 웃음이 글로만 가면 캐릭터가 논다 — 모델이 스티커를 깜빡했으면 코드가 붙인다
       if (!crisis) this._autoLaughSticker(items);
