@@ -292,7 +292,22 @@ export async function handleCommunity(request, env, cors, path, ctx) {
         .bind(u.id, nick || (cur && cur.nick) || '', hasPhoto ? (body.photo || '') : ((cur && cur.photo) || ''), nowMs()).run();
     }
     const pf = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
-    return json({ ok: true, profile: { id: u.id, nick: (pf && pf.nick) || u.nick || '', hasPhoto: !!(pf && pf.photo), provider: u.provider, email: u.email } }, 200, cors);
+    // 활동 요약 — 내 정보의 '내 발자국'. 글·댓글을 남길수록 새싹 → 잎새 → 나무 → 숲.
+    let stats = null;
+    if (method === 'GET') {
+      try {
+        const st = await db.prepare(`SELECT
+          (SELECT COUNT(*) FROM posts WHERE client_id = ? AND hidden = 0) AS posts,
+          (SELECT COUNT(*) FROM post_comments WHERE client_id = ? AND hidden = 0) AS comments,
+          (SELECT COUNT(*) FROM post_likes l JOIN posts p ON p.id = l.post_id WHERE p.client_id = ?) AS likes,
+          (SELECT COUNT(*) FROM post_comment_likes l JOIN post_comments c ON c.id = l.comment_id WHERE c.client_id = ?) AS clikes`).bind(u.key, u.key, u.key, u.key).first();
+        const n = (st.posts || 0) * 2 + (st.comments || 0);
+        const tier = n >= 80 ? ['숲', 3] : n >= 30 ? ['나무', 2] : n >= 8 ? ['잎새', 1] : ['새싹', 0];
+        const next = [8, 30, 80][tier[1]] || 0;
+        stats = { posts: st.posts || 0, comments: st.comments || 0, likes: (st.likes || 0) + (st.clikes || 0), tier: tier[0], score: n, next };
+      } catch (e) {}
+    }
+    return json({ ok: true, stats, profile: { id: u.id, nick: (pf && pf.nick) || u.nick || '', hasPhoto: !!(pf && pf.photo), provider: u.provider, email: u.email } }, 200, cors);
   }
 
   // 쪽지 — 회원이 상담소에 보낸다. 회원끼리 주고받는 쪽지는 없다(서로 연락해 함께 위험해지는 일을 막으려고).
