@@ -619,7 +619,7 @@ ${transcript}
     }
     // ② 사실과 해석 ────────────────────────────────────────────────
     else if (step === 1) {
-      const pr = this._list(r.pairs).filter(x => x && typeof x === 'object' && x.said);
+      const pr = r.danger ? [] : this._list(r.pairs).filter(x => x && typeof x === 'object' && x.said);   // 위험한 대화에서는 상대 말을 '다르게 읽어' 주지 않는다
       const st = this._stat;
       let statHtml = '';
       if (st && st.me.n + st.ot.n > 0) {
