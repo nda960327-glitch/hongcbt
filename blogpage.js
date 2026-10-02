@@ -850,7 +850,9 @@ export async function handleBlog(request, env, ctx, path) {
       if (kw) { const like = '%' + kw.replace(/[%_]/g, '') + '%'; where.push('(p.title LIKE ? OR p.body LIKE ? OR p.tags LIKE ? OR p.author_name LIKE ? OR h.name LIKE ?)'); args.push(like, like, like, like, like); }
       const hot = sort === 'hot' || (!sort && board === 'idea');
       const order = (board === 'notice' ? 'p.pinned DESC, ' : '') + (hot ? `(likes * 3 + comments * 4 + COALESCE(p.views, 0) * 0.3 + CASE WHEN p.created > ${Date.now() - 7 * 86400000} THEN 6 ELSE 0 END) DESC, p.created DESC` : 'p.created DESC');
-      const rows = (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT 21 OFFSET ?`).bind(...args, pg * 20).all()).results || [];
+      // 검색일 때는 제목에 낱말이 든 글을 먼저 — '자낙스'를 찾으면 그 약의 정보 글이 수다 글보다 위에 온다
+      const kwOrder = kw ? "(CASE WHEN p.title LIKE ? THEN 0 ELSE 1 END), (CASE WHEN p.hospital_id = 'community' AND p.client_id IS NULL AND (p.board IS NULL OR p.board = '') THEN 0 ELSE 1 END), " : '';
+      const rows = (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${where.join(' AND ')} ORDER BY ${kwOrder}${order} LIMIT 21 OFFSET ?`).bind(...args, ...(kw ? ['%' + kw.replace(/[%_]/g, '') + '%'] : []), pg * 20).all()).results || [];
       const more = rows.length > 20; if (more) rows.pop();
       const head = kw ? `"${kw}" 검색 결과` : tag ? `#${tag}` : board ? BOARD[board].name : hot ? '인기 글' : '최신 글';
       const sub = board && !kw && !tag ? BOARD[board].desc : '';
