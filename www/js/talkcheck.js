@@ -54,7 +54,8 @@ window.TalkCheck = {
     const msgs = this._msgs.slice(-n);
     const others = [...new Set(msgs.map(m => m.who).filter(w => w && w !== this._me))];
     const label = w => !w ? '' : (w === this._me ? '나' : (others.length > 1 ? '상대방' + (others.indexOf(w) + 1) : '상대방'));
-    const names = [this._me, ...others].filter(w => w && w.length >= 2);
+    const ROLE = /^(엄마|아빠|어머니|아버지|언니|누나|오빠|형|동생|여보|자기|남편|아내|와이프|딸|아들|할머니|할아버지|이모|고모|삼촌|.{0,6}(팀장|부장|과장|차장|대리|사원|실장|대표|사장|이사|선생|교수|선배|후배|쌤)님?)$/;
+    const names = [this._me, ...others].filter(w => w && w.length >= 2 && !ROLE.test(w));
     let lines = msgs.map(m => {
       let t = this._mask(m.text);
       names.forEach(nm => { t = t.split(nm).join(label(nm)); });
@@ -222,7 +223,7 @@ window.TalkCheck = {
     const b = this._body();
     b.innerHTML = `<div style="padding: 3rem 1rem; text-align: center; color: var(--text-secondary);">
       <div style="font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.4rem;">대화를 읽고 있어요</div>
-      <div style="font-size: 0.82rem;">있었던 일을 먼저 정리한 뒤 네 가지 눈으로 볼게요. 30초쯤 걸려요.</div></div>`;
+      <div style="font-size: 0.82rem; line-height: 1.6;">사실과 해석을 가르고, 네 가지 눈으로 볼게요.<br>30초쯤 걸려요.</div></div>`;
 
     const prompt = `당신은 사람들 사이의 다툼을 풀어 보는 일을 돕는 상담 전문가입니다. 아래는 사용자가 넣은 대화입니다. "나"가 사용자이고, 나머지는 상대방입니다. 이름과 연락처는 가려져 있습니다.
 
@@ -237,6 +238,8 @@ ${transcript}
 
 {
  "danger": "대화에 폭력·협박·스토킹·성적 강요·지속적인 모욕과 통제(가스라이팅)·금전 갈취가 보이면 무엇이 보이는지 한 문장. 없으면 빈 문자열",
+ "one": "이 대화를 한 문장으로 — 누구 편도 들지 않고(40자 안팎)",
+ "pairs": [{"said": "상대방이 실제로 한 말(짧게 인용)", "read": "'나'가 그 말을 어떻게 받아들인 것으로 보이는지", "alt": "같은 말을 다르게 읽을 수 있는 뜻 하나(상대를 감싸려는 게 아니라 가능한 다른 뜻)"}],
  "timeline": ["있었던 일을 순서대로 4~7줄. 각 줄은 '나: …' 또는 '상대방: …'으로 시작. 해석 없이 실제로 오간 말과 행동만"],
  "start": "갈등이 시작된 지점 한 문장",
  "gap": "서로 엇갈린 지점 한 문장 — 한쪽은 무엇을 말했고 다른 쪽은 무엇으로 들었는지",
@@ -255,6 +258,7 @@ ${transcript}
 }
 
 규칙:
+- pairs 는 1~3개. '나'의 마음을 가장 크게 건드린 말부터. danger 가 있으면 빈 배열.
 - heat 는 대화의 흐름을 따라 6~10개. t 는 그 순간 대화의 긴장도(0 평온 ~ 100 폭발 직전). 처음·불이 붙은 곳·가장 높은 곳·끝을 꼭 넣는다.
 - 관계(직장·가족·친구·연인)에 맞는 말투와 거리감으로 조언한다. 직장이면 예의와 기록, 가족·연인이면 마음을 알아주는 말이 먼저다.
 - danger 가 비어 있지 않으면 other 는 빈 배열, spark.instead 는 빈 문자열로 둔다.
@@ -279,173 +283,193 @@ ${transcript}
       return this._say('지금은 분석하지 못했어요. 잠시 뒤에 다시 눌러 주세요.');
     }
     this._res = res; this._tab = res.danger ? 'ally' : 'neutral';
-    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = '';
+    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0; this._tab = 'ally';
     this._savePattern();
     this._renderResult();
   },
 
   _list(a) { return (Array.isArray(a) ? a : [a]).filter(Boolean); },
+
+  // ── 결과: 다섯 걸음 ────────────────────────────────────────────────
+  STEPS: ['한눈에', '사실과 해석', '네 가지 눈', '다음 한 걸음', '마음 재기'],
   _renderResult() {
     const b = this._body(), r = this._res, esc = this._esc.bind(this); if (!b || !r) return;
-    const card = 'background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 16px; padding: 0.9rem 1rem; margin-bottom: 0.8rem;';
-    const h = t => `<div style="font-size: 0.72rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 0.35rem;">${t}</div>`;
-    const lines = a => this._list(a).map(x => `<p style="margin: 0 0 0.45rem; font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(x)}</p>`).join('');
-    const bullets = a => this._list(a).map(x => `<div style="display: flex; gap: 0.45rem; margin-bottom: 0.35rem; font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);"><span style="flex: 0 0 auto; color: var(--accent-primary);">•</span><span>${esc(x)}</span></div>`).join('');
+    const A = 'var(--accent-primary)';
+    const card = 'background: var(--bg-secondary); border: 1px solid var(--glass-border); border-radius: 18px; padding: 1rem 1.05rem; margin-bottom: 0.8rem; box-shadow: 0 6px 18px -14px rgba(60,45,25,.35);';
+    const h = (t2, c) => `<div style="font-size: 0.74rem; font-weight: 800; letter-spacing: 0.01em; color: ${c || A}; margin-bottom: 0.4rem;">${t2}</div>`;
+    const lines = a2 => this._list(a2).map(x => `<p style="margin: 0 0 0.5rem; font-size: 0.93rem; line-height: 1.7; color: var(--text-primary);">${esc(x)}</p>`).join('');
+    const bullets = (a2, c) => this._list(a2).map(x => `<div style="display: flex; gap: 0.5rem; margin-bottom: 0.45rem; font-size: 0.92rem; line-height: 1.65; color: var(--text-primary);"><span style="flex: 0 0 auto; width: 0.42rem; height: 0.42rem; margin-top: 0.6rem; border-radius: 50%; background: ${c || A};"></span><span>${esc(x)}</span></div>`).join('');
+    const quote = (who, q, c) => `<div style="border-left: 3px solid ${c || 'var(--glass-border)'}; padding: 0.15rem 0 0.15rem 0.7rem; margin-bottom: 0.5rem;">${who ? `<div style="font-size: 0.68rem; font-weight: 800; color: var(--text-muted);">${esc(who)}</div>` : ''}<div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);">"${esc(q)}"</div></div>`;
+    const hot = v => v >= 70 ? '#c0564f' : v >= 40 ? '#d98a4a' : '#6f97ab';
+    const step = this._step = Math.max(0, Math.min(this.STEPS.length - 1, this._step || 0));
+
+    // 걸음 표시
+    const bar = `<div style="display: flex; gap: 4px; margin-bottom: 0.45rem;">${this.STEPS.map((s, i) => `<button type="button" aria-label="${s}" onclick="window.TalkCheck._to(${i})" style="all: unset; cursor: pointer; flex: 1 1 0; height: 5px; border-radius: 999px; background: ${i <= step ? A : `color-mix(in srgb, ${A} 16%, transparent)`};"></button>`).join('')}</div>
+      <div style="display: flex; align-items: baseline; gap: 0.45rem; margin-bottom: 0.9rem;"><span style="font-size: 0.72rem; font-weight: 800; color: ${A};">${step + 1} / ${this.STEPS.length}</span><b style="font-size: 1.15rem; color: var(--text-primary);">${this.STEPS[step]}</b></div>`;
 
     const danger = r.danger ? `
       <div style="${card} border-color: #c0564f; background: color-mix(in srgb, #c0564f 8%, var(--bg-secondary));">
-        <div style="font-size: 0.72rem; font-weight: 800; color: #c0564f; margin-bottom: 0.35rem;">먼저 확인해 주세요</div>
-        <p style="margin: 0 0 0.5rem; font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(r.danger)}</p>
-        <p style="margin: 0 0 0.5rem; font-size: 0.86rem; line-height: 1.6; color: var(--text-primary);">이런 일은 서로 조금씩 양보해서 풀 문제가 아니에요. 지금 안전한지가 먼저예요.</p>
-        <div style="font-size: 0.84rem; line-height: 1.8; color: var(--text-primary);">· 위급하면 <b>112</b><br>· 여성긴급전화 <b>1366</b> (24시간, 가정폭력·성폭력·스토킹)<br>· 학교폭력 <b>117</b> · 청소년 <b>1388</b><br>· 직장 내 괴롭힘 고용노동부 <b>1350</b></div>
+        ${h('먼저 확인해 주세요', '#c0564f')}
+        <p style="margin: 0 0 0.5rem; font-size: 0.93rem; line-height: 1.65; color: var(--text-primary);">${esc(r.danger)}</p>
+        <p style="margin: 0 0 0.5rem; font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);">이런 일은 서로 조금씩 양보해서 풀 문제가 아니에요. 지금 안전한지가 먼저예요.</p>
+        <div style="font-size: 0.86rem; line-height: 1.85; color: var(--text-primary);">· 위급하면 <b>112</b><br>· 여성긴급전화 <b>1366</b> (24시간, 가정폭력·성폭력·스토킹)<br>· 학교폭력 <b>117</b> · 청소년 <b>1388</b><br>· 직장 내 괴롭힘 고용노동부 <b>1350</b></div>
       </div>` : '';
 
-    const tl = this._list(r.timeline).map(x => {
-      const mine = /^나\s*[:：]/.test(x);
-      const t = String(x).replace(/^(나|상대방\d?)\s*[:：]\s*/, '');
-      const who = (String(x).match(/^(나|상대방\d?)\s*[:：]/) || [])[1] || '';
-      return `<div style="display: flex; gap: 0.5rem; margin-bottom: 0.4rem;">
-        <span style="flex: 0 0 3.1rem; font-size: 0.7rem; font-weight: 800; padding-top: 0.15rem; color: ${mine ? 'var(--accent-primary)' : 'var(--text-muted)'};">${esc(who)}</span>
-        <span style="font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);">${esc(t)}</span></div>`;
-    }).join('');
-
-    const TABS = r.danger ? [['ally', '내 편'], ['next', '다음 한 걸음']] : [['neutral', '나그네의 눈'], ['other', '상대의 자리'], ['ally', '내 편'], ['mine', '내 몫'], ['next', '다음 한 걸음']];
-
-    // 대화의 온도 — 어디서 달아올랐는지 한눈에. 점을 누르면 그때의 말이 보인다.
-    const hp = this._list(r.heat).filter(x => x && typeof x === 'object' && x.quote).slice(0, 12);
-    let heatHtml = '';
-    if (hp.length >= 3) {
-      const W = 300, H = 96, pad = 12;
-      const X = i => pad + (W - pad * 2) * (hp.length === 1 ? 0.5 : i / (hp.length - 1));
-      const Y = v => H - pad - (H - pad * 2) * Math.max(0, Math.min(100, +v || 0)) / 100;
-      const pts = hp.map((p, i) => X(i).toFixed(1) + ',' + Y(p.t).toFixed(1)).join(' ');
-      const hot = v => v >= 70 ? '#c0564f' : v >= 40 ? '#d98a4a' : '#6f97ab';
-      const top = hp.reduce((a, p, i) => (+p.t > +hp[a].t ? i : a), 0);
-      this._heat = hp; this._heatSel = this._heatSel == null || this._heatSel >= hp.length ? top : this._heatSel;
-      const sel = hp[this._heatSel];
-      heatHtml = `
-        <div style="${card}">
-          ${h('대화의 온도')}
-          <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block;">
-            <line x1="${pad}" y1="${Y(70)}" x2="${W - pad}" y2="${Y(70)}" stroke="#c0564f" stroke-width="0.6" stroke-dasharray="3 3" opacity="0.5"/>
-            <polyline points="${pts}" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" opacity="0.7"/>
-            ${hp.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.t).toFixed(1)}" r="${i === this._heatSel ? 6.5 : 4.5}" fill="${hot(+p.t)}" stroke="#fff" stroke-width="${i === this._heatSel ? 2 : 1}" style="cursor: pointer;" onclick="window.TalkCheck._heatPick(${i})"/>`).join('')}
-          </svg>
-          <div style="display: flex; justify-content: space-between; font-size: 0.64rem; color: var(--text-muted); margin: 0.1rem 0 0.5rem;"><span>처음</span><span>점선 위는 서로 듣기 어려운 구간</span><span>끝</span></div>
-          <div style="padding: 0.5rem 0.65rem; border-radius: 10px; background: var(--bg-primary); border: 1px solid var(--glass-border);">
-            <span style="font-size: 0.7rem; font-weight: 800; color: ${/^나/.test(sel.who || '') ? 'var(--accent-primary)' : 'var(--text-muted)'};">${esc(sel.who || '')}</span>
-            <span style="font-size: 0.7rem; font-weight: 800; color: ${hot(+sel.t)}; margin-left: 0.3rem;">${Math.round(+sel.t || 0)}°</span>
-            <div style="font-size: 0.88rem; line-height: 1.55; color: var(--text-primary); margin-top: 0.15rem;">"${esc(sel.quote)}"</div>
-          </div>
-          <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.35rem;">점을 누르면 그때의 말이 보여요.</div>
+    let body = '';
+    // ① 한눈에 ────────────────────────────────────────────────────
+    if (step === 0) {
+      const hp = this._list(r.heat).filter(x => x && typeof x === 'object' && x.quote).slice(0, 12);
+      let heatHtml = '';
+      if (hp.length >= 3) {
+        const W = 300, H = 110, pad = 14;
+        const X = i => pad + (W - pad * 2) * i / (hp.length - 1);
+        const Y = v => H - pad - (H - pad * 2) * Math.max(0, Math.min(100, +v || 0)) / 100;
+        const pts = hp.map((p, i) => X(i).toFixed(1) + ',' + Y(p.t).toFixed(1));
+        const top = hp.reduce((a2, p, i) => (+p.t > +hp[a2].t ? i : a2), 0);
+        this._heatSel = this._heatSel == null || this._heatSel >= hp.length ? top : this._heatSel;
+        const sel = hp[this._heatSel];
+        heatHtml = `
+          <div style="${card}">
+            ${h('대화의 온도')}
+            <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; display: block;">
+              <defs><linearGradient id="tcg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c0564f" stop-opacity="0.22"/><stop offset="1" stop-color="#6f97ab" stop-opacity="0.03"/></linearGradient></defs>
+              <polygon points="${pad},${H - pad} ${pts.join(' ')} ${W - pad},${H - pad}" fill="url(#tcg)"/>
+              <line x1="${pad}" y1="${Y(70)}" x2="${W - pad}" y2="${Y(70)}" stroke="#c0564f" stroke-width="0.6" stroke-dasharray="3 3" opacity="0.55"/>
+              <polyline points="${pts.join(' ')}" fill="none" stroke="var(--text-muted)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" opacity="0.75"/>
+              ${hp.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p.t).toFixed(1)}" r="13" fill="transparent" style="cursor: pointer;" onclick="window.TalkCheck._heatPick(${i})"/><circle cx="${X(i).toFixed(1)}" cy="${Y(p.t).toFixed(1)}" r="${i === this._heatSel ? 6.5 : 4.2}" fill="${/^나/.test(p.who || '') ? 'var(--accent-primary)' : hot(+p.t)}" stroke="#fff" stroke-width="${i === this._heatSel ? 2.2 : 1.2}" pointer-events="none"/>`).join('')}
+            </svg>
+            <div style="display: flex; justify-content: space-between; font-size: 0.66rem; color: var(--text-muted); margin: 0.15rem 0 0.55rem;"><span>처음</span><span>점선 위 = 서로 듣기 어려운 구간</span><span>끝</span></div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; border-radius: 12px; background: var(--bg-primary);">
+              <b style="flex: 0 0 auto; font-size: 1.05rem; color: ${hot(+sel.t)};">${Math.round(+sel.t || 0)}°</b>
+              <div style="min-width: 0;"><div style="font-size: 0.68rem; font-weight: 800; color: ${/^나/.test(sel.who || '') ? A : 'var(--text-muted)'};">${esc(sel.who || '')}</div><div style="font-size: 0.92rem; line-height: 1.5; color: var(--text-primary);">"${esc(sel.quote)}"</div></div>
+            </div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.4rem;">점을 누르면 그때 오간 말이 보여요. 초록 점이 내 말이에요.</div>
+          </div>`;
+      }
+      const sp = r.spark || {};
+      body = danger + `
+        <div style="${card} background: linear-gradient(160deg, color-mix(in srgb, ${A} 13%, var(--bg-secondary)), var(--bg-secondary));">
+          ${h('한 줄로 보면')}
+          <p style="margin: 0; font-size: 1.08rem; font-weight: 700; line-height: 1.6; color: var(--text-primary);">${esc(r.one || r.start || '')}</p>
+          ${r.pattern ? `<div style="margin-top: 0.65rem; display: inline-block; padding: 0.25rem 0.7rem; border-radius: 999px; font-size: 0.76rem; font-weight: 700; color: ${A}; background: color-mix(in srgb, ${A} 12%, transparent);">${esc(r.pattern)}</div>` : ''}
+        </div>
+        ${heatHtml}
+        ${sp.quote ? `<div style="${card}">
+          ${h('불이 붙은 한마디', '#c0564f')}
+          ${quote(sp.who, sp.quote, '#c0564f')}
+          ${sp.why ? `<p style="margin: 0 0 0.7rem; font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">${esc(sp.why)}</p>` : ''}
+          ${(!r.danger && sp.instead) ? `<div style="padding: 0.65rem 0.8rem; border-radius: 12px; background: color-mix(in srgb, ${A} 9%, transparent);">
+            <div style="font-size: 0.7rem; font-weight: 800; color: ${A}; margin-bottom: 0.2rem;">그때 이렇게 말했다면</div>
+            <div style="font-size: 0.93rem; line-height: 1.6; color: var(--text-primary);">"${esc(sp.instead)}"</div></div>` : ''}
+        </div>` : ''}`;
+    }
+    // ② 사실과 해석 ────────────────────────────────────────────────
+    else if (step === 1) {
+      const pr = this._list(r.pairs).filter(x => x && typeof x === 'object' && x.said);
+      const st = this._stat;
+      let statHtml = '';
+      if (st && st.me.n + st.ot.n > 0) {
+        const tot = st.me.n + st.ot.n, mp = Math.round(st.me.n / tot * 100);
+        const row = (lab, a2, b2) => `<div style="display: flex; align-items: center; font-size: 0.84rem; padding: 0.26rem 0; color: var(--text-primary);"><span style="flex: 1 1 auto; color: var(--text-secondary);">${lab}</span><b style="flex: 0 0 3.4rem; text-align: right; color: ${A};">${a2}</b><b style="flex: 0 0 3.4rem; text-align: right; color: var(--text-muted);">${b2}</b></div>`;
+        const notes = [];
+        if (mp >= 65) notes.push('내가 훨씬 많이 말했어요. 상대가 말할 틈이 있었는지 돌아볼 만해요.');
+        else if (mp <= 35) notes.push('상대가 훨씬 많이 말했어요. 하고 싶은 말을 다 못 했을 수 있어요.');
+        if (st.me.abs + st.ot.abs >= 2) notes.push("'항상·매번·맨날' 같은 말은 한 번의 일을 그 사람 전체로 넓혀서, 듣는 쪽을 방어하게 만들어요.");
+        if (st.me.sorry >= 3 && st.ot.sorry === 0) notes.push('사과는 나만 했어요. 내 몫이 아닌 것까지 떠안고 있지 않은지 다음 걸음의 [내 몫]에서 확인해 보세요.');
+        statHtml = `<div style="${card}">
+          ${h('숫자로 본 대화')}
+          <div style="display: flex; height: 8px; border-radius: 999px; overflow: hidden; margin-bottom: 0.55rem; background: var(--bg-tertiary);"><span style="width: ${mp}%; background: ${A};"></span></div>
+          <div style="display: flex; font-size: 0.7rem; font-weight: 800; padding-bottom: 0.25rem; border-bottom: 1px dashed var(--glass-border);"><span style="flex: 1 1 auto;"></span><span style="flex: 0 0 3.4rem; text-align: right; color: ${A};">나</span><span style="flex: 0 0 3.4rem; text-align: right; color: var(--text-muted);">상대</span></div>
+          ${row('보낸 말', st.me.n + '개', st.ot.n + '개')}${row("'항상·매번·맨날'", st.me.abs + '번', st.ot.abs + '번')}${row('사과', st.me.sorry + '번', st.ot.sorry + '번')}${row('물음', st.me.q + '번', st.ot.q + '번')}
+          ${notes.map(x => `<p style="margin: 0.5rem 0 0; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">${esc(x)}</p>`).join('')}
         </div>`;
+      }
+      const pairHtml = pr.map(x => `
+        <div style="${card} padding: 0;">
+          <div style="padding: 0.8rem 1rem;">${h('실제로 오간 말', 'var(--text-muted)')}<div style="font-size: 0.95rem; line-height: 1.6; color: var(--text-primary);">"${esc(x.said)}"</div></div>
+          <div style="padding: 0.8rem 1rem; border-top: 1px dashed var(--glass-border); background: color-mix(in srgb, #d98a4a 8%, transparent);">${h('내가 읽은 뜻', '#d98a4a')}<div style="font-size: 0.93rem; line-height: 1.6; color: var(--text-primary);">${esc(x.read || '')}</div></div>
+          ${x.alt ? `<div style="padding: 0.8rem 1rem; border-top: 1px dashed var(--glass-border); background: color-mix(in srgb, ${A} 8%, transparent); border-radius: 0 0 18px 18px;">${h('다르게 읽으면')}<div style="font-size: 0.93rem; line-height: 1.6; color: var(--text-primary);">${esc(x.alt)}</div></div>` : ''}
+        </div>`).join('');
+      body = `
+        <p style="margin: 0 0 0.8rem; font-size: 0.86rem; line-height: 1.65; color: var(--text-secondary);">다툴 때 우리를 아프게 하는 건 상대의 말 그 자체보다, <b style="color: var(--text-primary);">그 말에 내가 붙인 뜻</b>일 때가 많아요. 둘을 나눠 볼게요.</p>
+        ${pairHtml || (r.danger ? '' : `<div style="${card}"><p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">이 대화에서는 따로 짚을 만한 해석이 보이지 않았어요.</p></div>`)}
+        ${r.gap ? `<div style="${card}">${h('서로 엇갈린 곳')}<p style="margin: 0; font-size: 0.93rem; line-height: 1.7; color: var(--text-primary);">${esc(r.gap)}</p></div>` : ''}
+        ${statHtml}`;
     }
-
-    // 불이 붙은 한마디 — 그리고 그때 이렇게 말했다면
-    const sp = r.spark || {};
-    const sparkHtml = sp.quote ? `
-      <div style="${card}">
-        ${h('불이 붙은 한마디')}
-        <p style="margin: 0 0 0.3rem; font-size: 0.95rem; font-weight: 700; line-height: 1.5; color: var(--text-primary);"><span style="font-size: 0.7rem; font-weight: 800; color: var(--text-muted);">${esc(sp.who || '')}</span> "${esc(sp.quote)}"</p>
-        ${sp.why ? `<p style="margin: 0 0 0.6rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">${esc(sp.why)}</p>` : ''}
-        ${(!r.danger && sp.instead) ? `<div style="padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, var(--accent-primary) 9%, transparent);">
-          <div style="font-size: 0.7rem; font-weight: 800; color: var(--accent-primary); margin-bottom: 0.15rem;">그때 이렇게 말했다면</div>
-          <div style="font-size: 0.9rem; line-height: 1.6; color: var(--text-primary);">"${esc(sp.instead)}"</div></div>` : ''}
-        ${r.pattern ? `<div style="margin-top: 0.6rem; font-size: 0.8rem; color: var(--text-secondary);">이 다툼의 꼴 · <b style="color: var(--text-primary);">${esc(r.pattern)}</b></div>` : ''}
-      </div>` : '';
-
-    // 말버릇 숫자(기기에서 센 것)
-    const st = this._stat;
-    let statHtml = '';
-    if (st && st.me.n + st.ot.n > 0) {
-      const tot = st.me.n + st.ot.n, mp = Math.round(st.me.n / tot * 100);
-      const row = (lab, a, b2) => `<div style="display: flex; align-items: center; font-size: 0.82rem; padding: 0.22rem 0; color: var(--text-primary);"><span style="flex: 1 1 auto; color: var(--text-secondary);">${lab}</span><b style="flex: 0 0 3.2rem; text-align: right; color: var(--accent-primary);">${a}</b><b style="flex: 0 0 3.2rem; text-align: right; color: var(--text-muted);">${b2}</b></div>`;
-      const notes = [];
-      if (mp >= 65) notes.push('내가 훨씬 많이 말했어요. 상대가 말할 틈이 있었는지 돌아볼 만해요.');
-      else if (mp <= 35) notes.push('상대가 훨씬 많이 말했어요. 하고 싶은 말을 다 못 했을 수 있어요.');
-      if (st.me.abs + st.ot.abs >= 2) notes.push("'항상·매번·절대' 같은 말은 한 번의 일을 그 사람 전체로 넓혀서, 듣는 쪽을 방어하게 만들어요.");
-      if (st.me.sorry >= 3 && st.ot.sorry === 0) notes.push('사과는 나만 했어요. 내 몫이 아닌 것까지 떠안고 있지 않은지 [내 몫]에서 확인해 보세요.');
-      statHtml = `
-        <div style="${card}">
-          ${h('말버릇 숫자')}
-          <div style="display: flex; height: 8px; border-radius: 999px; overflow: hidden; margin-bottom: 0.5rem; background: var(--bg-tertiary);"><span style="width: ${mp}%; background: var(--accent-primary);"></span></div>
-          <div style="display: flex; font-size: 0.7rem; font-weight: 800; padding-bottom: 0.2rem; border-bottom: 1px dashed var(--glass-border);"><span style="flex: 1 1 auto;"></span><span style="flex: 0 0 3.2rem; text-align: right; color: var(--accent-primary);">나</span><span style="flex: 0 0 3.2rem; text-align: right; color: var(--text-muted);">상대</span></div>
-          ${row('보낸 말', st.me.n + '개', st.ot.n + '개')}${row('한 번에 쓴 길이', st.me.len + '자', st.ot.len + '자')}${row("'항상·매번·절대'", st.me.abs + '번', st.ot.abs + '번')}${row('사과', st.me.sorry + '번', st.ot.sorry + '번')}${row('물음', st.me.q + '번', st.ot.q + '번')}
-          ${notes.length ? `<div style="margin-top: 0.5rem;">${notes.map(x => `<p style="margin: 0 0 0.3rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-secondary);">${esc(x)}</p>`).join('')}</div>` : ''}
-        </div>`;
+    // ③ 네 가지 눈 ────────────────────────────────────────────────
+    else if (step === 2) {
+      const TABS = r.danger ? [['ally', '내 편']] : [['ally', '내 편'], ['neutral', '나그네의 눈'], ['other', '상대의 자리'], ['mine', '내 몫']];
+      if (!TABS.some(x => x[0] === this._tab)) this._tab = TABS[0][0];
+      const tabBar = TABS.length > 1 ? `<div style="display: flex; gap: 0.3rem; margin-bottom: 0.7rem; padding: 0.25rem; border-radius: 14px; background: var(--bg-tertiary);">${TABS.map(x => `
+        <button type="button" onclick="window.TalkCheck._go('${x[0]}')" style="all: unset; cursor: pointer; flex: 1 1 0; text-align: center; padding: 0.5rem 0.2rem; border-radius: 11px; font-size: 0.8rem; font-weight: 800; white-space: nowrap; color: ${this._tab === x[0] ? A : 'var(--text-secondary)'}; background: ${this._tab === x[0] ? 'var(--bg-secondary)' : 'transparent'}; box-shadow: ${this._tab === x[0] ? '0 2px 8px -4px rgba(60,45,25,.4)' : 'none'};">${x[1]}</button>`).join('')}</div>` : '';
+      let pane = '';
+      if (this._tab === 'ally') pane = h('내 마음이 그럴 만했던 이유') + lines(r.ally);
+      else if (this._tab === 'neutral') pane = h('지나가는 사람이 본다면') + lines(r.neutral);
+      else if (this._tab === 'other') {
+        const nd = r.need || {};
+        pane = h('상대가 오늘 일을 일기에 쓴다면') + `<div style="padding: 0.7rem 0.85rem 0.3rem; border-radius: 14px; background: var(--bg-primary); border: 1px solid var(--glass-border); margin-bottom: 0.5rem;">${lines(r.other)}</div>
+          <p style="margin: 0 0 0.9rem; font-size: 0.74rem; color: var(--text-muted);">대화에서 드러난 것으로 짐작한 글이에요. 상대의 진짜 속마음은 알 수 없어요.</p>`
+          + ((nd.me || nd.other) ? h('서로 정말 원했던 것') + `<div style="display: flex; gap: 0.5rem;">
+              <div style="flex: 1 1 0; padding: 0.65rem 0.75rem; border-radius: 14px; background: color-mix(in srgb, ${A} 10%, transparent);"><div style="font-size: 0.68rem; font-weight: 800; color: ${A}; margin-bottom: 0.15rem;">나</div><div style="font-size: 0.9rem; line-height: 1.55; color: var(--text-primary);">${esc(nd.me || '')}</div></div>
+              <div style="flex: 1 1 0; padding: 0.65rem 0.75rem; border-radius: 14px; background: var(--bg-tertiary);"><div style="font-size: 0.68rem; font-weight: 800; color: var(--text-muted); margin-bottom: 0.15rem;">상대</div><div style="font-size: 0.9rem; line-height: 1.55; color: var(--text-primary);">${esc(nd.other || '')}</div></div></div>
+            <p style="margin: 0.7rem 0 0; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">다툼은 대개 방법이 부딪힌 것이고, 원하는 것 자체는 함께 이룰 수 있을 때가 많아요.</p>` : '');
+      } else {
+        const m = r.mine || {};
+        pane = h('내 몫이 아닌 것', 'var(--text-muted)') + bullets(m.not, 'var(--text-muted)') + '<div style="height: 0.6rem;"></div>'
+          + h('다음에 내가 다르게 해 볼 수 있는 것') + (this._list(m.can).length ? bullets(m.can) : '<p style="margin: 0; font-size: 0.9rem; color: var(--text-secondary);">이 대화에서는 딱히 보이지 않아요.</p>');
+      }
+      const lead = { ally: '먼저, 내 마음부터요.', neutral: '이번엔 한 걸음 떨어져서요.', other: '이번엔 상대의 자리에 앉아 봐요.', mine: '마지막으로, 내가 쥐고 있는 것만 골라내요.' }[this._tab];
+      body = danger + tabBar + `<p style="margin: 0 0 0.6rem; font-size: 0.84rem; color: var(--text-secondary);">${lead}</p><div style="${card}">${pane}</div>`
+        + (TABS.length > 1 ? `<p style="margin: 0; font-size: 0.76rem; line-height: 1.55; color: var(--text-muted);">네 가지를 다 읽어 보세요. 한 가지 눈으로만 보면 사람을 너무 믿게 되거나, 아예 믿지 않게 돼요.</p>` : '');
     }
-    if (!TABS.some(t => t[0] === this._tab)) this._tab = TABS[0][0];
-    const tabBar = `<div style="display: flex; gap: 0.3rem; margin-bottom: 0.6rem; overflow-x: auto; scrollbar-width: none;">${TABS.map(t => `
-      <button type="button" onclick="window.TalkCheck._go('${t[0]}')" style="all: unset; cursor: pointer; flex: 1 0 auto; text-align: center; padding: 0.55rem 0.7rem; border-radius: 12px; font-size: 0.84rem; font-weight: 800; white-space: nowrap; color: ${this._tab === t[0] ? '#fff' : 'var(--text-secondary)'}; background: ${this._tab === t[0] ? 'var(--accent-primary)' : 'var(--bg-tertiary)'};">${t[1]}</button>`).join('')}</div>`;
-
-    let pane = '';
-    if (this._tab === 'neutral') pane = h('지나가는 사람이 본다면') + lines(r.neutral);
-    else if (this._tab === 'other') {
-      const nd = r.need || {};
-      pane = h('상대가 오늘 일을 일기에 쓴다면') + `<div style="padding: 0.6rem 0.75rem; border-radius: 12px; background: var(--bg-primary); border: 1px solid var(--glass-border); margin-bottom: 0.6rem;">${lines(r.other)}</div>`
-        + `<p style="margin: 0 0 0.7rem; font-size: 0.74rem; color: var(--text-muted);">대화에서 드러난 것으로 짐작한 글이에요. 상대의 진짜 속마음은 알 수 없어요.</p>`
-        + ((nd.me || nd.other) ? h('서로 정말 원했던 것') + `<div style="display: flex; gap: 0.5rem;">
-            <div style="flex: 1 1 0; padding: 0.55rem 0.65rem; border-radius: 12px; background: color-mix(in srgb, var(--accent-primary) 9%, transparent);"><div style="font-size: 0.68rem; font-weight: 800; color: var(--accent-primary);">나</div><div style="font-size: 0.86rem; line-height: 1.5; color: var(--text-primary);">${esc(nd.me || '')}</div></div>
-            <div style="flex: 1 1 0; padding: 0.55rem 0.65rem; border-radius: 12px; background: var(--bg-tertiary);"><div style="font-size: 0.68rem; font-weight: 800; color: var(--text-muted);">상대</div><div style="font-size: 0.86rem; line-height: 1.5; color: var(--text-primary);">${esc(nd.other || '')}</div></div></div>
-          <p style="margin: 0.6rem 0 0; font-size: 0.8rem; line-height: 1.55; color: var(--text-secondary);">다툼은 대개 방법이 부딪힌 것이고, 원하는 것 자체는 양립할 때가 많아요.</p>` : '');
-    }
-    else if (this._tab === 'ally') pane = h('내 마음이 그럴 만했던 이유') + lines(r.ally);
-    else if (this._tab === 'mine') {
-      const m = r.mine || {};
-      pane = h('내가 다르게 할 수 있었던 것') + (this._list(m.can).length ? bullets(m.can) : '<p style="margin: 0 0 0.45rem; font-size: 0.88rem; color: var(--text-secondary);">이 대화에서는 딱히 보이지 않아요.</p>')
-        + '<div style="height: 0.5rem;"></div>' + h('내 몫이 아닌 것') + bullets(m.not);
-    } else {
+    // ④ 다음 한 걸음 ──────────────────────────────────────────────
+    else if (step === 3) {
       const n = r.next || {};
-      const draft = (label, t) => t ? `<div style="border: 1px solid var(--glass-border); border-radius: 12px; padding: 0.6rem 0.75rem; margin-bottom: 0.45rem; background: var(--bg-primary);">
-        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem;"><b style="flex: 1 1 auto; font-size: 0.74rem; color: var(--accent-primary);">${label}</b>
-          <button type="button" data-copy="${esc(t)}" onclick="window.TalkCheck._copy(this)" style="all: unset; cursor: pointer; font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; color: var(--text-secondary); background: var(--bg-tertiary);">복사</button></div>
-        <div style="font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);">${esc(t)}</div></div>` : '';
-      pane = h('보낼 수 있는 답장') + (r.danger ? '' : draft('부드럽게 풀고 싶을 때', n.soft)) + draft('내 입장을 분명히', n.firm) + draft('잠시 거리를 두고 싶을 때', n.space)
-        + (n.wait ? `<p style="margin: 0.5rem 0 0; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);"><b style="color: var(--text-primary);">답하지 않는 것도 선택이에요.</b> ${esc(n.wait)}</p>` : '')
-        + (r.danger ? '' : `<div style="margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px dashed var(--glass-border);">
+      const draft = (label, t2) => t2 ? `<div style="${card} padding: 0.8rem 0.95rem;">
+        <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;"><b style="flex: 1 1 auto; font-size: 0.76rem; color: ${A};">${label}</b>
+          <button type="button" data-copy="${esc(t2)}" onclick="window.TalkCheck._copy(this)" style="all: unset; cursor: pointer; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 999px; color: ${A}; background: color-mix(in srgb, ${A} 11%, transparent);">복사</button></div>
+        <div style="font-size: 0.93rem; line-height: 1.65; color: var(--text-primary);">${esc(t2)}</div></div>` : '';
+      body = danger + (r.danger ? '' : draft('부드럽게 풀고 싶을 때', n.soft)) + draft('내 입장을 분명히 할 때', n.firm) + draft('잠시 거리를 두고 싶을 때', n.space)
+        + (n.wait ? `<div style="${card} background: var(--bg-tertiary); box-shadow: none;">${h('답하지 않는 것도 선택이에요', 'var(--text-secondary)')}<p style="margin: 0; font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(n.wait)}</p></div>` : '')
+        + (r.danger ? '' : `<div style="${card}">
             ${h('보내기 전에, 미리 보내 보기')}
-            <p style="margin: 0 0 0.45rem; font-size: 0.8rem; line-height: 1.55; color: var(--text-secondary);">보내려는 답장을 적으면, 상대가 어떻게 받아들일지 먼저 봐 드려요.</p>
-            <textarea id="tc-try" rows="3" maxlength="400" placeholder="보내려는 말을 그대로 적어 보세요" style="${this._field} line-height: 1.5; resize: vertical;">${esc(this._tryText || '')}</textarea>
-            <button type="button" class="btn-secondary" style="width: 100%; margin-top: 0.45rem;" onclick="window.TalkCheck._rehearse(this)">상대는 어떻게 받을까</button>
-            <div id="tc-try-out" style="margin-top: 0.6rem;">${this._tryHtml || ''}</div>
+            <p style="margin: 0 0 0.5rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">보내려는 말을 적으면, 상대가 어떻게 받아들일지 먼저 봐 드려요.</p>
+            <textarea id="tc-try" rows="3" maxlength="400" placeholder="보내려는 말을 그대로 적어 보세요" style="${this._field} line-height: 1.55; resize: vertical; background: var(--bg-primary);">${esc(this._tryText || '')}</textarea>
+            <button type="button" class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="window.TalkCheck._rehearse(this)">상대는 어떻게 받을까</button>
+            <div id="tc-try-out" style="margin-top: 0.7rem;">${this._tryHtml || ''}</div>
           </div>`);
     }
-
-    const thought = (!r.danger && r.thought) ? `
-      <div style="${card} border-color: #d98a4a;">
-        <div style="font-size: 0.72rem; font-weight: 800; color: #d98a4a; margin-bottom: 0.35rem;">지금 마음을 가장 무겁게 하는 생각</div>
-        <p style="margin: 0 0 0.6rem; font-size: 0.95rem; font-weight: 700; line-height: 1.5; color: var(--text-primary);">"${esc(r.thought)}"</p>
-        <p style="margin: 0 0 0.7rem; font-size: 0.82rem; line-height: 1.6; color: var(--text-secondary);">이 생각이 사실인지, 햇님과 6단계로 직접 살펴볼 수 있어요. 같은 일이 또 생겨도 덜 흔들리게 돼요.</p>
-        <button type="button" class="btn-primary" style="width: 100%; padding: 0.7rem; background: #d98a4a;" onclick="window.TalkCheck._toHaru()">이 생각, 햇님과 살펴보기 ›</button>
-      </div>` : '';
-
-    b.innerHTML = `
-      ${danger}
-      <div style="${card}">
-        ${h('있었던 일')}
-        ${tl}
-        ${r.start ? `<div style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed var(--glass-border);">${h('갈등이 시작된 곳')}<p style="margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);">${esc(r.start)}</p></div>` : ''}
-        ${r.gap ? `<div style="margin-top: 0.6rem;">${h('서로 엇갈린 곳')}<p style="margin: 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-primary);">${esc(r.gap)}</p></div>` : ''}
-        ${this._list(r.readings).length ? `<div style="margin-top: 0.6rem;">${h('대화에 적힌 사실이 아니라, 내가 짐작한 것')}${bullets(r.readings)}</div>` : ''}
-      </div>
-      ${heatHtml}
-      ${sparkHtml}
-      ${statHtml}
-      ${tabBar}
-      <div style="${card}">${pane}</div>
-      ${thought}
-      <div style="${card}">
-        ${h('지금 마음, 다시 재 보기')}
-        <div style="display: flex; align-items: center; gap: 0.6rem;">
-          <input type="range" min="0" max="100" step="5" value="${this._score1 == null ? this._score0 : this._score1}" oninput="window.TalkCheck._rerate(this.value)" style="flex: 1 1 auto; accent-color: var(--accent-primary);">
-          <b id="tc-re-v" style="flex: 0 0 2.4rem; text-align: right; color: var(--accent-primary);">${this._score1 == null ? this._score0 : this._score1}</b>
+    // ⑤ 마음 다시 재기 ────────────────────────────────────────────
+    else {
+      const v = this._score1 == null ? this._score0 : this._score1;
+      body = `
+        <div style="${card}">
+          ${h('지금 마음은 몇 점인가요')}
+          <div style="display: flex; align-items: center; gap: 0.7rem; margin: 0.3rem 0 0.2rem;">
+            <input type="range" min="0" max="100" step="5" value="${v}" oninput="window.TalkCheck._rerate(this.value)" style="flex: 1 1 auto; accent-color: ${A};">
+            <b id="tc-re-v" style="flex: 0 0 2.8rem; text-align: right; font-size: 1.3rem; color: ${A};">${v}</b>
+          </div>
+          <div id="tc-re-msg" style="font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">처음에는 ${this._score0}점이었어요. 다 읽고 난 지금은 어떤가요?</div>
         </div>
-        <div id="tc-re-msg" style="margin-top: 0.35rem; font-size: 0.82rem; line-height: 1.55; color: var(--text-secondary);">처음에는 ${this._score0}점이었어요. 다 읽고 난 지금은 어떤가요?</div>
-      </div>
-      ${this._patternHtml()}
-      <p style="margin: 0 0 0.8rem; font-size: 0.74rem; line-height: 1.55; color: var(--text-muted);">${r.limit ? esc(r.limit) + ' ' : ''}한쪽이 넣은 대화만 보고 한 분석이에요. 대화 원문과 이 결과는 저장되지 않아요.</p>
-      <button type="button" class="btn-secondary" style="width: 100%;" onclick="window.TalkCheck.open()">다른 대화 넣기</button>`;
+        ${(!r.danger && r.thought) ? `<div style="${card} border-color: #d98a4a;">
+          ${h('지금 마음을 가장 무겁게 하는 생각', '#d98a4a')}
+          <p style="margin: 0 0 0.6rem; font-size: 1rem; font-weight: 700; line-height: 1.55; color: var(--text-primary);">"${esc(r.thought)}"</p>
+          <p style="margin: 0 0 0.75rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">이 생각이 사실인지, 햇님과 6단계로 직접 살펴볼 수 있어요. 같은 일이 또 생겨도 덜 흔들리게 돼요.</p>
+          <button type="button" class="btn-primary" style="width: 100%; padding: 0.75rem; background: #d98a4a;" onclick="window.TalkCheck._toHaru()">이 생각, 햇님과 살펴보기 ›</button>
+        </div>` : ''}
+        ${this._patternHtml()}
+        <p style="margin: 0 0 0.8rem; font-size: 0.76rem; line-height: 1.6; color: var(--text-muted);">${r.limit ? esc(r.limit) + ' ' : ''}한쪽이 넣은 대화만 보고 한 분석이에요. 대화 원문과 이 결과는 저장되지 않아요.</p>
+        <button type="button" class="btn-secondary" style="width: 100%;" onclick="window.TalkCheck.open()">다른 대화 넣기</button>`;
+    }
+
+    const last = step === this.STEPS.length - 1;
+    const nav = `<div style="position: sticky; bottom: -1rem; margin: 1rem -1rem -1rem; padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom)); display: flex; gap: 0.5rem; background: linear-gradient(180deg, transparent, var(--bg-primary) 30%);">
+      ${step > 0 ? `<button type="button" class="btn-secondary" style="flex: 0 0 5.5rem; width: auto;" onclick="window.TalkCheck._to(${step - 1})">‹ 이전</button>` : ''}
+      ${last ? '' : `<button type="button" class="btn-primary" style="flex: 1 1 auto; width: auto;" onclick="window.TalkCheck._to(${step + 1})">다음 · ${this.STEPS[step + 1]} ›</button>`}
+    </div>`;
+    b.innerHTML = bar + body + nav;
   },
+  _to(i) { this._step = i; this._renderResult(); const b = this._body(); if (b) b.scrollTop = 0; },
   _heatPick(i) { this._heatSel = i; const b = this._body(); const y = b ? b.scrollTop : 0; this._renderResult(); if (b) b.scrollTop = y; },
   _rerate(v) {
     this._score1 = +v;
