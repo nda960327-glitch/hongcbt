@@ -11,14 +11,17 @@
   //  DeepSeek 는 형식·숫자를 느슨하게 다루므로(||| 를 | 로, 시각 반올림) 파서와 [현재 시각] 표기가 그걸 감안한다.
   //  목소리는 모델이 아니라 [6-4] 금지 표현 규칙으로 붙잡는다.
   // 2026-09-28: 우렁이는 다시 OpenAI(mini), 비교용 우렁의사만 DeepSeek — 페르소나의 model 이 우선한다.
+  // 2026-10-03: 느루(기본 페르소나, model 없음)만 OpenAI. 다른 상담사와 앱의 나머지 AI 작업(요약·기억·리포트·대화 분석)은 전부 DeepSeek(사장님 결정).
+  //  위기 턴만은 어느 상담사든 MODEL_CRISIS(OpenAI 상위)로 올린다 — 여기서 아끼면 사람이 다친다.
   MODEL: "gpt-4o-mini",
 
   // 목소리가 없는 배경 작업 — 사고기록 정리·미션 생성·주간 편지·세션 정리·주제별 요약.
   //  사용자가 문장을 읽지 않거나, 형식이 프롬프트로 정해져 있어 등급 차가 안 드러난다.
-  MODEL_LIGHT: "gpt-4o-mini",
+  MODEL_LIGHT: "deepseek-chat",
   // 품질이 곧 안전인 곳에만 쓰는 상위 모델.
   //  위기 턴 · 리포트 생성. 여기서 아끼면 사람이 다친다.
-  MODEL_HIGH: "gpt-4o",
+  MODEL_HIGH: "deepseek-chat",
+  MODEL_CRISIS: "gpt-4o",
 
   // 장기기억 정리 · 일기 답글 · 요약 · 맞춤 숙제.
   //  전에는 4o 였는데, 실측해 보니 기억 정리 한 번이 38.3원 —
@@ -26,7 +29,7 @@
   //  (하루 55턴이면 구독료를 넘어섰다. mini 로 내리면 84턴까지 버틴다)
   //  출력이 3,000자로 길어 상위 모델의 출력 단가가 그대로 얹히는 자리라
   //  여기가 가장 큰 레버였다.
-  MEMORY_MODEL: "gpt-4o-mini",
+  MEMORY_MODEL: "deepseek-chat",
 
   // 보내기 전에 규칙으로 먼저 훑는 위기 신호.
   //  모델 응답의 '위험감지' 만 믿으면 이미 낮은 모델이 답을 쓴 뒤라 늦다.
@@ -1199,7 +1202,7 @@ ${about}
       // 위기 신호가 있는 턴만 OpenAI 상위 모델. 재치 턴 승격은 2026-09-26 에 뺐다(비용의 큰 몫이었고 안전과 무관하다).
       const stream = await this._chatStream({
         // 페르소나가 모델을 지정하면(우렁의사 = DeepSeek) 그 모델로 — 단, 위기 턴은 어느 상담사든 OpenAI 상위 모델로 올린다.
-        model: risky ? this.MODEL_HIGH : (((window.Personas && window.Personas.getActive && window.Personas.getActive().model) || '') || this.MODEL),
+        model: risky ? this.MODEL_CRISIS : (((window.Personas && window.Personas.getActive && window.Personas.getActive().model) || '') || this.MODEL),
         messages: messages,
         temperature: 0.9,       // 따뜻함·유머·자연스러움
         max_tokens: 700,
@@ -1235,7 +1238,7 @@ ${about}
         if (!userBye && userLen >= 6 && plain.length < 30 && !/[?？]/.test(plain)) {
           try {
             const again = await this._chatStream({
-              model: risky ? this.MODEL_HIGH : (((window.Personas && window.Personas.getActive && window.Personas.getActive().model) || '') || this.MODEL),
+              model: risky ? this.MODEL_CRISIS : (((window.Personas && window.Personas.getActive && window.Personas.getActive().model) || '') || this.MODEL),
               messages: messages.concat([
                 { role: 'assistant', content: botText },
                 { role: 'system', content: '방금 답장은 한 줄 맞장구로만 끝나서 대화가 끊깁니다. 같은 말투로 다시 쓰세요: 방금 한 말을 받아주는 말 한두 마디에, 이어갈 거리(이 사람의 말에서 나온 질문 하나, 또는 지금 같이 할 다음 한 걸음)를 반드시 붙입니다. 말풍선 2~3개. [세션끝] 은 붙이지 않습니다. 다시 쓴 답장만 출력하세요.' }
