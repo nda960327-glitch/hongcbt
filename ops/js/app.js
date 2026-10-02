@@ -566,6 +566,8 @@ async function loadCommunity() {
   const r = await adminGet('/api/admin/community');
   const rr = await adminGet('/api/admin/community/roles');
   D.roleReqs = rr ? (rr.items || []) : [];
+  const rc = await adminGet('/api/admin/community/recent');
+  D.cmRecent = rc || { posts: [], comments: [] };
   const lb = await adminGet('/api/admin/community/library');
   D.cmLib = lb ? (lb.items || []) : [];
   const rp = await adminGet('/api/admin/community/reports');
@@ -595,6 +597,21 @@ function viewCommunity() {
         ${x.photo ? `<a href="${esc(x.photo)}" target="_blank" rel="noopener"><img src="${esc(x.photo)}" alt="면허·자격증" style="max-width: 260px; max-height: 180px; border-radius: 8px; margin-top: 0.4rem; border: 1px solid var(--line);"></a>` : ''}
         ${x.status === 'pending' ? `<div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;"><button class="btn ghost sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="0">거절</button><button class="btn sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="1">승인</button></div>` : ''}
       </div>`).join('')}</div>` : ''}
+    ${D.cmRecent && (D.cmRecent.posts.length || D.cmRecent.comments.length) ? `<div class="card" style="margin-bottom: 0.8rem;">
+      <b style="font-size: 0.9rem;">회원이 쓴 최근 글 ${D.cmRecent.posts.length} · 댓글 ${D.cmRecent.comments.length}</b>
+      <div class="muted" style="margin: 0.2rem 0 0.5rem;">예시·편집팀 글을 뺀, 실제 회원이 쓴 것만 모았습니다. 자살·자해·만남 유도·욕설이 걸러지지 않고 올라온 것이 있으면 바로 가려 주세요(걸러지지 않은 표현은 개발 쪽에 알려 주시면 필터에 넣습니다).</div>
+      <details ${D.cmRecent.posts.length ? 'open' : ''}><summary style="cursor: pointer; font-weight: 700; font-size: 0.84rem; padding: 0.3rem 0;">글 ${D.cmRecent.posts.length}</summary>
+      ${D.cmRecent.posts.map(x => `<div style="border-top: 1px solid var(--line); padding: 0.55rem 0; ${x.hidden ? 'opacity: 0.55;' : ''}">
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;"><b style="font-size: 0.86rem;">${esc(x.title)}</b><span class="chip off">${esc(x.board)}</span>${x.hidden ? '<span class="chip bad">가려짐</span>' : ''}<span class="right muted">${esc(x.name)} · ${fmtDate(x.ts)}</span></div>
+        <div style="margin-top: 0.25rem; font-size: 0.84rem; white-space: pre-wrap; word-break: break-word;">${esc(x.text)}</div>
+        <div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.3rem;"><a class="btn ghost sm" href="https://mindinside.kr/blog/${esc(x.id)}" target="_blank" rel="noopener">열기</a><button class="btn ghost sm" data-act="cm-hide" data-id="${esc(x.id)}" data-hidden="${x.hidden ? 0 : 1}">${x.hidden ? '다시 보이기' : '가리기'}</button></div>
+      </div>`).join('')}</details>
+      <details><summary style="cursor: pointer; font-weight: 700; font-size: 0.84rem; padding: 0.3rem 0;">댓글 ${D.cmRecent.comments.length}</summary>
+      ${D.cmRecent.comments.map(x => `<div style="border-top: 1px solid var(--line); padding: 0.5rem 0; ${x.hidden ? 'opacity: 0.55;' : ''}">
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;"><b style="font-size: 0.82rem;">${esc(x.name)}</b>${x.hidden ? '<span class="chip bad">가려짐</span>' : ''}<span class="right muted">${esc(String(x.title).slice(0, 24))} · ${fmtDate(x.ts)}</span></div>
+        <div style="margin-top: 0.2rem; font-size: 0.84rem; white-space: pre-wrap; word-break: break-word;">${esc(x.text)}</div>
+        <div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.3rem;"><a class="btn ghost sm" href="https://mindinside.kr/blog/${esc(x.postId)}" target="_blank" rel="noopener">글 열기</a><button class="btn ghost sm" data-act="rp-chide" data-id="${esc(x.id)}" data-hidden="${x.hidden ? 0 : 1}">${x.hidden ? '다시 보이기' : '가리기'}</button></div>
+      </div>`).join('')}</details></div>` : ''}
     ${(D.cmLib || []).length ? `<div class="card" style="margin-bottom: 0.8rem;">
       <b style="font-size: 0.9rem;">자료실 — 회원이 올린 자료 ${D.cmLib.filter(x => x.status === 'pending').length ? '<span class="chip new">' + D.cmLib.filter(x => x.status === 'pending').length + '건 대기</span>' : ''}</b>
       <div class="muted" style="margin: 0.2rem 0 0.5rem;">인증된 전문가가 올린 PDF 입니다. 열어 보고 내담자 정보·남의 저작물·광고가 없으면 승인하세요. 승인해야 자료실에 보입니다.</div>

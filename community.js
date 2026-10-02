@@ -641,8 +641,9 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (!cid || !id) return json({ error: 'missing' }, 400, cors);
     if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
     await db.prepare('INSERT OR IGNORE INTO post_reports (target, target_id, client_id, reason, ts) VALUES (?,?,?,?,?)').bind(target, id, cid, s(body.reason, 100), nowMs()).run();
-    const n = await db.prepare('SELECT COUNT(*) n FROM post_reports WHERE target = ? AND target_id = ?').bind(target, id).first();
-    if (n && n.n >= REPORT_HIDE) {
+    // 사유가 '위험'(자신·남을 해치는 내용)인 신고는 두 사람만 모여도 가린다 — 이런 글은 오래 떠 있으면 안 된다.
+    const n = await db.prepare("SELECT COUNT(*) n, SUM(CASE WHEN reason LIKE '위험%' THEN 1 ELSE 0 END) d FROM post_reports WHERE target = ? AND target_id = ?").bind(target, id).first();
+    if (n && (n.n >= REPORT_HIDE || (n.d || 0) >= 2)) {
       if (target === 'comment') await db.prepare('UPDATE post_comments SET hidden = 1 WHERE id = ? AND by_hospital = 0').bind(id).run();
       else await db.prepare("UPDATE posts SET hidden = 1 WHERE id = ? AND board IN ('free','neru','qna','meds','student','doctor','resident','expert','idea')").bind(id).run();
     }
@@ -1001,6 +1002,16 @@ export async function handleCommunity(request, env, cors, path, ctx) {
       if (body.ok) await db.prepare("UPDATE library_files SET status = 'approved' WHERE id = ?").bind(id).run();
       else await db.prepare('DELETE FROM library_files WHERE id = ?').bind(id).run();
       return json({ ok: true }, 200, cors);
+    }
+    // 회원이 쓴 최근 글·댓글 — 예시·편집팀 글에 묻히지 않게 따로. 가려진 것도 함께 보여 준다.
+    if (path === '/admin/community/recent' && method === 'GET') {
+      let posts = [], comments = [];
+      try { posts = (await db.prepare("SELECT id, title, substr(body, 1, 300) AS body, author_name, board, hidden, created FROM posts WHERE client_id LIKE 'acc:%' ORDER BY created DESC LIMIT 60").all()).results || []; } catch (e) {}
+      try { comments = (await db.prepare("SELECT c.id, c.post_id, c.name, c.text, c.hidden, c.ts, p.title FROM post_comments c LEFT JOIN posts p ON p.id = c.post_id WHERE c.client_id LIKE 'acc:%' ORDER BY c.ts DESC LIMIT 100").all()).results || []; } catch (e) {}
+      return json({
+        posts: posts.map(r => ({ id: r.id, title: r.title, text: plainOf(r.body), name: r.author_name || '', board: r.board || '', hidden: !!r.hidden, ts: r.created })),
+        comments: comments.map(r => ({ id: r.id, postId: r.post_id, title: r.title || '', name: r.name || '', text: r.text, hidden: !!r.hidden, ts: r.ts }))
+      }, 200, cors);
     }
     // 신고 목록 — 글·댓글별로 묶어서, 신고 수와 사유, 지금 가려졌는지
     if (path === '/admin/community/reports' && method === 'GET') {
