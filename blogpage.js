@@ -335,7 +335,9 @@ const whoHtml0 = r => `<span class="who">${avatar(isSys(r) ? '' : r.author_id, n
 const whoHtml = r => (boardOf(r) !== 'column' && uidOf(r.client_id)) ? `<span class="who">${avatarU(r.client_id, nameOf(r))}<span>${esc(nameOf(r))}</span></span>` : whoHtml0(r);
 const meta = r => `<span class="m">${ago(r.created)} · 조회 ${r.views || 0} · 공감 ${r.likes || 0}${r.comments ? ` · 댓글 ${r.comments}` : ''}</span>`;
 const proName = n => { const m = String(n || '').match(/^(.*) · 인증 (전문의|전공의|상담사|상담소)$/); return m ? `${esc(m[1])}<span class="badge gold">인증 ${m[2]}</span>` : esc(n); };
-const labOf = r => `<span class="lab ${boardOf(r)}">${BOARD[boardOf(r)].name}</span>`;
+// 편집팀 글(백과·약 정보)은 '상담사 칼럼'이 아니라 제 이름으로 표시한다
+const kbLab = r => { if (!isSys(r) || boardOf(r) !== 'column') return ''; const g = tagsOf(r.tags); return g.includes(KB.med.tag) ? '약 정보' : g.includes(KB.kb.tag) ? '백과' : ''; };
+const labOf = r => `<span class="lab ${boardOf(r)}">${kbLab(r) || BOARD[boardOf(r)].name}</span>`;
 const hashOf = id => String(id).split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
 const hue = id => 'g' + (hashOf(id) % 6);
 // 사진이 없는 글에 대신 보여주는 기본 사진 — Pixabay(Pixabay Content License) 11장, home/img/stock/. 글 id 로 고르니 같은 글은 늘 같은 사진.
