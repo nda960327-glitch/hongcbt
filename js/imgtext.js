@@ -37,6 +37,8 @@ window.ImgText = {
     this._onProg = onProg;
     if (!this._worker) {
       this._worker = await window.Tesseract.createWorker('kor+eng', 1, { logger: m => { if (this._onProg && m && m.status) this._onProg(m); } });
+      // 한 덩어리의 글로 읽는다(6) — 말풍선이 좌우로 흩어진 캡처에서 줄을 가장 덜 놓친다
+      try { await this._worker.setParameters({ tessedit_pageseg_mode: '6' }); } catch (e) {}
     }
     return this._worker;
   },
@@ -47,14 +49,32 @@ window.ImgText = {
       const im = new Image();
       im.onload = () => {
         const sc = Math.min(1, this.MAX_SIDE / Math.max(im.naturalWidth, im.naturalHeight));
+        // 작은 캡처는 키운다(글자가 작으면 못 읽는다) — 긴 변이 1400 이 되도록, 많아야 2.5배
+        const up = Math.min(2.5, Math.max(1, 1400 / Math.max(im.naturalWidth, im.naturalHeight)));
+        const k = sc < 1 ? sc : up;
         const cv = document.createElement('canvas');
-        cv.width = Math.max(1, Math.round(im.naturalWidth * sc)); cv.height = Math.max(1, Math.round(im.naturalHeight * sc));
-        cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        cv.width = Math.max(1, Math.round(im.naturalWidth * k)); cv.height = Math.max(1, Math.round(im.naturalHeight * k));
+        const cx = cv.getContext('2d'); cx.imageSmoothingQuality = 'high';
+        cx.drawImage(im, 0, 0, cv.width, cv.height);
         URL.revokeObjectURL(im.src); ok(cv);
       };
       im.onerror = () => no(new Error('img'));
       im.src = URL.createObjectURL(file);
     });
+  },
+
+  // 흑백으로 — 메신저 캡처는 말풍선 색(노랑·흰색·파랑 바탕) 때문에 그대로는 잘 못 읽는다. 글자만 검게, 나머지는 희게 만든다.
+  //  어두운 화면(다크 모드)은 뒤집어서 같은 식으로 읽는다. (실측: 원본 1줄 → 흑백 6줄 중 6줄)
+  _bw(src) {
+    const o = document.createElement('canvas'); o.width = src.width; o.height = src.height;
+    const x = o.getContext('2d'); x.drawImage(src, 0, 0);
+    const d = x.getImageData(0, 0, o.width, o.height), p = d.data;
+    let sum = 0; const n = p.length / 4;
+    for (let i = 0; i < p.length; i += 4) { const g = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2]; p[i] = g; sum += g; }
+    const dark = sum / n < 110;
+    for (let i = 0; i < p.length; i += 4) { let g = p[i]; if (dark) g = 255 - g; g = g < 120 ? 0 : 255; p[i] = p[i + 1] = p[i + 2] = g; }
+    x.putImageData(d, 0, 0);
+    return o;
   },
 
   // 글자 인식 결과 다듬기 — 한글 사이에 낀 띄어쓰기('안 녕 하 세 요'), 시계·배터리 같은 상태줄, 빈 줄
@@ -92,7 +112,7 @@ window.ImgText = {
         prog(`${files.length > 1 ? (i + 1) + '/' + files.length + '장 · ' : ''}글자를 읽고 있어요…`);
         const cv = await this._shrink(files[i]);
         if (!thumb) { try { const t = document.createElement('canvas'); const sc = 120 / Math.max(cv.width, cv.height); t.width = Math.round(cv.width * sc); t.height = Math.round(cv.height * sc); t.getContext('2d').drawImage(cv, 0, 0, t.width, t.height); thumb = t.toDataURL('image/jpeg', 0.6); } catch (e) {} }
-        const r = await w.recognize(cv);
+        const r = await w.recognize(this._bw(cv));
         const txt = this._clean(r && r.data && r.data.text);
         if (txt) parts.push(txt);
       }
