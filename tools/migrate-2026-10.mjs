@@ -79,6 +79,7 @@ const STEPS = [
   ['상담사 상담 시간(30·40분)', 'ALTER TABLE counselors ADD COLUMN session_min INTEGER'],
   ['예약의 상담 시간', 'ALTER TABLE bookings ADD COLUMN session_min INTEGER'],
   ['자료실 회원 자료 표', "CREATE TABLE IF NOT EXISTS library_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, uploader TEXT, title TEXT NOT NULL, descr TEXT, who TEXT, size INTEGER, data TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', ts INTEGER NOT NULL, downloads INTEGER NOT NULL DEFAULT 0)"],
+  ['담아 둔 글 표', 'CREATE TABLE IF NOT EXISTS post_saves (user_id TEXT NOT NULL, post_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (user_id, post_id))'],
   ['상담소 쪽지 표', 'CREATE TABLE IF NOT EXISTS hospital_inquiries (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, reply TEXT, reply_ts INTEGER)'],
   ['상담소 쪽지 색인', 'CREATE INDEX IF NOT EXISTS idx_inq_h ON hospital_inquiries (hospital_id, ts)'],
   ['상담소 쪽지 색인(회원)', 'CREATE INDEX IF NOT EXISTS idx_inq_u ON hospital_inquiries (user_id, ts)'],

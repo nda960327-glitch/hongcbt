@@ -31,6 +31,7 @@
 //           POST /community/inquiry {session, hospitalId, text}   상담소에 쪽지(회원 → 상담소만. 회원끼리는 없다) · GET /community/inquiries?session=  내가 보낸 쪽지와 답장
 //    상담소 GET  /hospital/inquiries?hsession=   POST /hospital/inquiries/reply {hsession, id, text}
 //           GET  /community/library   공개된 회원 자료 · POST /community/library/upload {session, title, desc, who, file(PDF data URL ≤300KB)}  인증된 전문가만, 운영자 승인 뒤 공개
+//           POST /community/write 에 id 를 주면 내 글 고치기(제목·본문) · POST /community/save {session, id} 담아 두기 토글 · GET /community/saved?session=
 //           GET  /community/notifs?session=                    새 소식(내 글의 댓글·내 댓글의 답글·쪽지 답장, 30일)
 //           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
@@ -352,6 +353,32 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     return json({ ok: true, id, message: '운영팀이 확인한 뒤 자료실에 공개돼요(보통 1~2일).' }, 200, cors);
   }
 
+  // 담아 두기(스크랩) — 다시 보고 싶은 글을 내 정보에 모아 둔다. 누가 담았는지는 본인만 안다.
+  if (path === '/community/save' && method === 'POST') {
+    const u = await userOf();
+    if (!u) return LOGIN();
+    const id = cleanId(body.id);
+    const p = await db.prepare('SELECT id, board FROM posts WHERE id = ? AND published = 1 AND hidden = 0').bind(id).first();
+    if (!p) return json({ error: 'not-found' }, 404, cors);
+    const had = await db.prepare('SELECT 1 AS x FROM post_saves WHERE user_id = ? AND post_id = ?').bind(u.id, id).first();
+    if (had) await db.prepare('DELETE FROM post_saves WHERE user_id = ? AND post_id = ?').bind(u.id, id).run();
+    else {
+      const n = await db.prepare('SELECT COUNT(*) n FROM post_saves WHERE user_id = ?').bind(u.id).first();
+      if (n && n.n >= 300) return json({ error: 'limit', message: '담아 둔 글이 300개예요. 몇 개를 빼고 다시 담아 주세요' }, 429, cors);
+      await db.prepare('INSERT OR IGNORE INTO post_saves (user_id, post_id, ts) VALUES (?,?,?)').bind(u.id, id, nowMs()).run();
+    }
+    return json({ ok: true, saved: !had }, 200, cors);
+  }
+  if (path === '/community/saved' && method === 'GET') {
+    const u = await userOf();
+    if (!u) return json({ items: [], login: true }, 200, cors);
+    u.roles = await rolesOf(db, u.id);
+    let rows = [];
+    try { rows = (await db.prepare('SELECT p.id, p.title, p.board, p.created, s.ts FROM post_saves s JOIN posts p ON p.id = s.post_id WHERE s.user_id = ? AND p.published = 1 AND p.hidden = 0 ORDER BY s.ts DESC LIMIT 100').bind(u.id).all()).results || []; }
+    catch (e) { if (!noTable(e)) throw e; }
+    return json({ items: rows.filter(r => canSee(r.board, u.roles)).map(r => ({ id: r.id, title: r.title, board: r.board || 'column', ts: r.ts })) }, 200, cors);
+  }
+
   // 새 소식 — 내 글에 달린 댓글 · 내 댓글에 달린 답글 · 상담소의 쪽지 답장 (최근 30일)
   if (path === '/community/notifs' && method === 'GET') {
     const u = await userOf();
@@ -472,7 +499,9 @@ export async function handleCommunity(request, env, cors, path, ctx) {
         ORDER BY (CASE WHEN p.author_id = ? THEN 0 ELSE 1 END), p.created DESC LIMIT 4`).bind(id, r.hospital_id, r.author_id || '-', r.author_id || '-').all()).results || [];
     } catch (e) {}
     const meP = q('session') ? await userOf() : null;
-    return json({ ok: true, post: rowPost(r, likes.has(id), meP ? meP.key : cid), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)), me: meP ? meP.key : '' }, 200, cors);
+    let saved = false;
+    if (meP) { try { saved = !!(await db.prepare('SELECT 1 AS x FROM post_saves WHERE user_id = ? AND post_id = ?').bind(meP.id, id).first()); } catch (e) {} }
+    return json({ ok: true, saved, post: rowPost(r, likes.has(id), meP ? meP.key : cid), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)), me: meP ? meP.key : '' }, 200, cors);
   }
 
   if (path === '/community/hospital' && method === 'GET') {
@@ -538,17 +567,29 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const u = await userOf();
     if (!u) return LOGIN();
     const cid = u.key;
+    // 고치기 — 내 글만. 게시판·사진은 그대로 두고 제목과 본문만 바꾼다(같은 거르기를 다시 거친다).
+    const editId = cleanId(body.id);
+    let own = null;
+    if (editId) {
+      own = await db.prepare('SELECT id, board FROM posts WHERE id = ? AND client_id = ?').bind(editId, cid).first();
+      if (!own) return json({ error: 'not-found' }, 404, cors);
+    }
     const title = maskContact(s(body.title, USER_TITLE_MAX)).trim(), text = maskContact(s(body.body, USER_BODY_MAX)).trim();
     if (title.length < 2 || text.length < 5) return json({ error: 'short', message: '제목과 내용을 조금 더 적어주세요' }, 400, cors);
     let roleLabel = '';
-    if (isPrivate(board)) {
-      const g = await gate(board, u); if (g) return g;
+    if (own ? isPrivate(own.board) : isPrivate(board)) {
+      const g = await gate(own ? own.board : board, u); if (g) return g;
       roleLabel = ROLE_NAME[(u.roles || []).find(r => PRIVATE[board].includes(r))] || '';
     } else {
       const bad = screen(title + ' ' + text + ' ' + s(body.name, NAME_MAX));
       if (bad) return json(bad, 422, cors);
       if (RE_TITLE.test(s(body.name, NAME_MAX))) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors);
       if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) roleLabel = '인증 ' + PRO_SHORT[rs[0]]; }
+    }
+    if (own) {
+      await db.prepare('UPDATE posts SET title = ?, body = ?, updated = ? WHERE id = ? AND client_id = ?').bind(title, text, nowMs(), own.id, cid).run();
+      const r2 = await db.prepare(LIST_SQL + ' WHERE p.id = ?').bind(own.id).first();
+      return json({ ok: true, edited: true, post: rowPost(r2, false, cid) }, 200, cors);
     }
     const images = checkImages(body.images);
     if (!images) return json({ error: 'bad-image' }, 400, cors);
