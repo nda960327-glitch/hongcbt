@@ -42,6 +42,8 @@ const BOARD = {
   idea: { name: '기능 제안', desc: '앱에 바라는 기능, 불편한 점, 오류 신고 — 공감이 많은 제안부터 살펴봐요' },
   notice: { name: '공지', desc: '운영팀이 알리는 소식과 커뮤니티 규칙' }
 };
+// 자료실 — 바로 내려받아 쓰는 양식(PDF, 한 장~두 장). 파일은 홈페이지(home/files/)에 있다. tools 가 아니라 scratch 의 make_forms.py 로 만들었다.
+const LIBRARY = [{"slug": "intake", "title": "접수면접(초기면접) 기록지", "desc": "첫 만남에서 확인할 내용을 한 장에", "who": "상담사"}, {"slug": "session-note", "title": "회기 기록지 (SOAP)", "desc": "매 회기 뒤 10분 안에 적는 기록", "who": "상담사"}, {"slug": "consent", "title": "상담 동의서 (예시)", "desc": "비밀보장의 범위와 한계, 비대면 상담 안내", "who": "상담사"}, {"slug": "safety-plan", "title": "안전 계획서", "desc": "힘든 순간이 오기 전에 미리 적어 두는 나만의 계획", "who": "상담사·내담자"}, {"slug": "case-formulation", "title": "사례개념화 양식 (인지행동)", "desc": "호소 문제를 한 장의 지도로", "who": "상담사"}, {"slug": "thought-record", "title": "생각 기록지", "desc": "마음이 흔들린 순간을 다섯 칸으로", "who": "내담자"}, {"slug": "activity-plan", "title": "주간 활동 계획표 (행동활성화)", "desc": "기운이 없을수록 작은 계획이 먼저", "who": "내담자"}, {"slug": "sleep-diary", "title": "수면 일기", "desc": "2주만 적어도 내 잠의 모양이 보여요", "who": "내담자"}, {"slug": "mse", "title": "정신상태검사(MSE) 기록지", "desc": "외래·병동에서 빠짐없이 적는 체크 양식", "who": "전공의"}, {"slug": "first-visit", "title": "초진 병력 청취 양식", "desc": "초진 면담에서 놓치기 쉬운 것들", "who": "전공의"}, {"slug": "supervision", "title": "정신치료 지도감독 준비 노트", "desc": "가져갈 회기를 고르고 질문을 정리", "who": "전공의·상담사"}];
 const WRITABLE = ['free', 'neru', 'qna', 'meds', 'student', 'doctor', 'resident', 'expert', 'idea'];
 
 const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -203,7 +205,7 @@ function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav,
   // 메뉴 묶음 — [이름, [[키, 주소, 이름, 한 줄 설명], …]]
   const MENU = [
     ['커뮤니티', [['free', '/blog?board=free', '수다방', '오늘 있었던 일, 아무 말'], ['neru', '/blog?board=neru', '우렁이 자랑방', '내가 키운 우렁이 자랑'], ['qna', '/blog?board=qna', '고민 Q&amp;A', '상담사가 답해요'], ['meds', '/blog?board=meds', '약 이야기', '복용 경험과 궁금증']]],
-    ['읽을거리', [['column', '/blog?board=column', '상담사 칼럼', '전문가가 쓰는 마음 돌봄 글'], ['videos', '/blog/videos', '추천 영상', '운영팀이 고른 영상']]],
+    ['읽을거리', [['column', '/blog?board=column', '상담사 칼럼', '전문가가 쓰는 마음 돌봄 글'], ['videos', '/blog/videos', '추천 영상', '운영팀이 고른 영상'], ['library', '/blog/library', '자료실', '상담기록지·안전계획서 등 양식']]],
     ['찾기', [['clinics', '/blog/clinics', '정신건강의학과', '내 주변 병·의원'], ['centers', '/blog/centers', '심리상담소', '제휴 상담소'], ['support', '/blog?tag=' + encodeURIComponent('지원 제도'), '나라 지원 제도', '상담 바우처·정신건강복지센터·상담 전화']]],
     ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['doctor', '/blog?board=doctor', '의사 라운지', '인증된 의사만'], ['resident', '/blog?board=resident', '전공의 라운지', '인증된 전공의·전문의만'], ['expert', '/blog?board=expert', '상담사 라운지', '인증된 상담사만'], ['verify', '/blog/verify', '전문가 인증', '면허·자격 확인 신청']]],
     ['더보기', [['idea', '/blog?board=idea', '기능 제안', '바라는 기능·오류 신고'], ['notice', '/blog?board=notice', '공지', '소식과 이용 규칙'], ['install', '/blog/install', '앱 설치', '휴대폰·PC'], ['about', c.about, '앱 소개', '마인드 인사이드는'], ['join', '/blog/join', '상담사·상담소 가입', '입점·제휴 신청']]]
@@ -368,7 +370,8 @@ export async function handleBlog(request, env, ctx, path) {
     if (path === '/blog/sitemap.xml') {
       const rows = (await db.prepare(`SELECT p.id, p.updated, p.created, p.hospital_id, p.author_id, p.board ${FROM} WHERE ${PUB} ORDER BY p.created DESC LIMIT 5000`).all()).results || [];
       const hosps = [...new Set(rows.filter(r => r.hospital_id !== 'community').map(r => r.hospital_id))], authors = [...new Set(rows.map(r => r.author_id).filter(Boolean))];
-      return xml(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>${site}/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n<url><loc>${site}/about/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>\n<url><loc>${site}/blog/join/counselor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/join/clinic</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/videos</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/clinics</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/install</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+      return xml(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n<url><loc>${site}/</loc><changefreq>hourly</changefreq><priority>1.0</priority></url>\n<url><loc>${site}/about/</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>\n<url><loc>${site}/blog/join/counselor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/join/clinic</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/library</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+<url><loc>${site}/blog/videos</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/clinics</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n<url><loc>${site}/blog/install</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
 <url><loc>${site}/blog/centers</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`
         + Object.keys(BOARD).map(b => `<url><loc>${site}/blog?board=${b}</loc><changefreq>daily</changefreq><priority>0.7</priority></url>\n`).join('')
         + authors.map(a => `<url><loc>${site}/blog/a/${esc(a)}</loc><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`).join('')
@@ -528,6 +531,16 @@ export async function handleBlog(request, env, ctx, path) {
             <button class="btn lg" id="vf-send" style="width:100%">인증 신청하기</button>
             <p class="m" style="margin:.9rem 0 0">상담사 앱·상담소 콘솔에 카카오·네이버·구글 로그인을 연결했다면 신청 없이 자동으로 인증돼요.</p>
           </form></div>` }), 200, 0);
+    }
+
+    // ── 자료실 ── 상담사·전공의·내담자가 바로 내려받아 쓰는 양식. 용량이 작은 PDF 만 둔다.
+    if (path === '/blog/library') {
+      const groups = [['상담사', '상담사가 쓰는 양식'], ['상담사·내담자', '함께 쓰는 양식'], ['전공의', '전공의 수련 양식'], ['전공의·상담사', '지도감독'], ['내담자', '스스로 써 보는 기록지']];
+      return html(page(c, { title: `자료실 — 상담기록지·안전계획서·생각 기록지 양식 | ${BRAND}`, desc: '접수면접 기록지, 회기 기록지(SOAP), 상담 동의서, 안전 계획서, 사례개념화, 정신상태검사(MSE), 생각 기록지, 수면 일기 — 바로 내려받아 쓰는 무료 양식(PDF).', path: '/blog/library', nav: 'library',
+        body: `<div class="bhead"><div><h1>자료실</h1><p>바로 내려받아 인쇄해 쓰는 양식이에요. 모두 무료이고, 기관 사정에 맞게 고쳐 써도 돼요.</p></div></div>
+          ${groups.map(([who, label]) => { const items = LIBRARY.filter(x => x.who === who); return items.length ? `<h2 style="font-size:1.05rem;margin:1.2rem 0 .6rem">${label}</h2><div class="boards">${items.map(x => `<div class="card"><h2>${esc(x.title)}</h2><p class="m" style="font-size:.88rem;margin:0 0 .8rem">${esc(x.desc)}</p><a class="btn" href="${site}/files/${x.slug}.pdf" download>PDF 내려받기</a> <a class="btn ghost" href="${site}/files/${x.slug}.pdf" target="_blank" rel="noopener">미리 보기</a></div>`).join('')}</div>` : ''; }).join('')}
+          <div class="card" style="margin-top:1rem"><h2>자료를 나누고 싶다면</h2><p class="m" style="font-size:.9rem;margin:0 0 .7rem">직접 만든 양식이나 정리 자료가 있다면 전문가 라운지에 글로 올려 주세요. 좋은 자료는 운영팀이 다듬어 자료실에 함께 올릴게요.</p><a class="btn ghost" href="/blog?board=expert">상담사 라운지</a> <a class="btn ghost" href="/blog?board=doctor">의사 라운지</a></div>
+          <p class="m">예시 양식이에요. 기관 규정과 관련 법령에 맞게 고쳐 쓰고, 개인정보가 적힌 뒤에는 안전하게 보관·폐기해 주세요.</p>` }), 200, 300);
     }
 
     // ── 추천 영상 ── 운영팀이 고른 정신건강 유튜브(앱의 '우렁이의 추천'과 같은 목록 — feed 표). 영상은 유튜브에서 열린다.
