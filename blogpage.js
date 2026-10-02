@@ -299,7 +299,7 @@ function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav,
     `<div class="dd${items.some(i => i[0] === nav) ? ' cur' : ''}"><button type="button" aria-haspopup="true">${g}<i></i></button><div class="menu">${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}><b>${i[2]}</b><span>${i[3]}</span></a>`).join('')}</div></div>`).join('');
   const sheetHtml = MENU.map(([g, items]) => `<div class="mg"><h4>${g}</h4>${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}>${i[2]}</a>`).join('')}</div>`).join('');
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(url)}">${noindex ? '<meta name="robots" content="noindex,follow">' : ''}
+<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(url)}">${c.gv ? `<meta name="google-site-verification" content="${c.gv}">` : ''}${noindex ? '<meta name="robots" content="noindex,follow">' : ''}
 <meta property="og:type" content="${type || 'website'}"><meta property="og:site_name" content="${BRAND}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(ogImage || c.site + '/icon.png')}"><meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}"><link rel="alternate" type="application/rss+xml" title="${BRAND} 커뮤니티" href="${c.site}/blog/rss.xml"><link rel="icon" href="/icon.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&display=swap">
@@ -518,7 +518,9 @@ export async function handleBlog(request, env, ctx, path) {
   if (path !== '/blog' && !path.startsWith('/blog/')) return null;
   const site = siteOf(env);
   // 이 요청이 온 사이트의 길 — 홈페이지(mindinside.kr)에서는 첫 화면이 '/', 앱 도메인에서는 '/blog'
-  const c = { site, home: isKr ? '/' : '/blog', about: isKr ? '/about/' : site + '/about/' };
+  const c = { site, home: isKr ? '/' : '/blog', about: isKr ? '/about/' : site + '/about/',
+    // 구글 서치콘솔 소유 확인 — wrangler.toml [vars] GOOGLE_SITE_VERIFICATION 에 코드만 넣으면 모든 쪽에 붙는다
+    gv: String(env.GOOGLE_SITE_VERIFICATION || '').replace(/[^A-Za-z0-9_-]/g, '') };
   const db = env.DB;
   if (!db) return notFound(c);
   // 보는 사람 — 비공개 라운지에서만 확인한다(쿠키 mi_s = 로그인 세션)

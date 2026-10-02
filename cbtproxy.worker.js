@@ -549,6 +549,8 @@ const credOf = async (request) => {
 export default {
   scheduled: (event, env, ctx) => APP.scheduled(event, env, ctx),
   async fetch(request, env, ctx) {
+    // http 로 들어온 사이트 주소는 https 로 넘긴다 — 검색엔진이 같은 글을 두 주소로 보지 않게
+    if (request.method === 'GET' && request.url.startsWith('http://') && /^http:\/\/(www\.)?mindinside(\.kr|app\.com)\//.test(request.url)) return Response.redirect('https://' + request.url.slice(7), 301);
     if (request.method === 'OPTIONS' || !env.DB) return APP.fetch(request, env, ctx);
     const pth = new URL(request.url).pathname.replace(/^\/api/, '');
     if (!AUTHY.test(pth)) return APP.fetch(request, env, ctx);
