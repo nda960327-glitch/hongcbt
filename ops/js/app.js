@@ -265,9 +265,9 @@ const TITLES = {
   counselors: ['상담사 관리', '코드 발급 · 푸시 점검 · 정지 · 삭제'],
   clients: ['이용자 현황', '기기별 활동 흔적 (계정 없음)'],
   settle: ['정산', '확인 완료된 상담의 지급 처리'],
-  payments: ['결제 내역', '느루 캐시 충전 · 승인 실패 감시'],
+  payments: ['결제 내역', '우렁이 캐시 충전 · 승인 실패 감시'],
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
-  feed: ['추천 콘텐츠', '홈 "느루의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
+  feed: ['추천 콘텐츠', '홈 "우렁이의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
   hospitals: ['상담소 관리', '담당 상담소 등록 · 상담소 코드 발급 · 연결 내담자 수'],
   community: ['커뮤니티', '상담소가 올린 글 · 부적절한 글 숨기기'],
@@ -437,7 +437,7 @@ function feedForm(it) {
       <label class="muted">제목 <span style="font-weight: 400;">(영상은 비워두면 유튜브에서 가져옵니다)</span>
         <input id="fd-title" type="text" maxlength="120" value="${esc(it.title || '')}"></label>
       <label class="muted">출처·채널·저자 <input id="fd-author" type="text" maxlength="80" value="${esc(it.author || '')}"></label>
-      <label class="muted">느루 한마디 <span style="font-weight: 400;">(카드에 따옴표로 붙습니다. "잠들기 전 불안이 올라올 때 보면 좋아요" 처럼)</span>
+      <label class="muted">우렁이 한마디 <span style="font-weight: 400;">(카드에 따옴표로 붙습니다. "잠들기 전 불안이 올라올 때 보면 좋아요" 처럼)</span>
         <input id="fd-note" type="text" maxlength="200" value="${esc(it.note || '')}"></label>
       <div class="muted" style="margin: 0.4rem 0 0.2rem;">태그 (고민과 맞는 사람에게 먼저 보입니다)</div>
       <div class="row wrap" style="gap: 0.35rem 0.8rem; margin-bottom: 0.5rem;">
@@ -487,7 +487,7 @@ function viewFeed() {
     </div>`;
   };
   return `
-    <div class="sec-title">홈 "느루의 추천"
+    <div class="sec-title">홈 "우렁이의 추천"
       <span class="right"><button class="btn sm" data-act="feed-new">＋ 새 콘텐츠</button></span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
       올리면 앱 홈에 카드로 뜹니다. 유튜브는 링크만 넣어도 제목·채널·썸네일이 채워져요.

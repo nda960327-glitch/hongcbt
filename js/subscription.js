@@ -1,7 +1,7 @@
 // ============================================================================
 //  구독 — 7일 무료 체험(대화 무제한) 후: 구독(무제한 + 보이스톡). 체험이 끝나면 대화는 잠긴다.
 //  · 가격 미정: 아래 PRICE 숫자 하나만 바꾸면 앱 전체(문구·결제)에 반영된다.
-//  · 결제는 느루 캐시로 처리 (플레이스토어 구독 연동 지점은 subscribe() 하나)
+//  · 결제는 우렁이 캐시로 처리 (플레이스토어 구독 연동 지점은 subscribe() 하나)
 //  · 챗봇: 체험·구독 중 무제한. 체험 뒤 무료 횟수는 없다 (2026-09 결정 — 횟수 제한 대신 기간 제한)
 //  · 보이스톡(AI 전화): 체험·구독 전용
 // ============================================================================
@@ -39,13 +39,13 @@ window.Subscription = {
       if (d <= 3) msg = `구독이 ${d}일 후 만료돼요. 마이페이지에서 연장할 수 있어요`;
     } else if (this.hasAccess()) {
       const d = this.trialDaysLeft();
-      if (d <= 2) msg = `무료 체험이 ${d}일 남았어요. 이후에는 구독해야 느루와 대화할 수 있어요`;
+      if (d <= 2) msg = `무료 체험이 ${d}일 남았어요. 이후에는 구독해야 우렁이와 대화할 수 있어요`;
     }
     if (msg) {
       window.Storage._safeSet('cbt_sub_nudged', today);
       setTimeout(() => {
         if (window.App && window.App.showRecordToast) window.App.showRecordToast('⏳ ' + msg);
-        if (window.App && window.App.notify) window.App.notify('느루', msg);
+        if (window.App && window.App.notify) window.App.notify('우렁이', msg);
       }, 2500);
     }
   },
@@ -115,7 +115,7 @@ window.Subscription = {
       const n = this.todayTurns();
       // 아주 많이 쓴 날 — 막지는 않되 한 번은 알린다
       if (n === this.SOFT_DAILY && window.App && window.App.showRecordToast) {
-        window.App.showRecordToast('오늘 이야기 많이 나눴네요. 느루는 계속 여기 있어요');
+        window.App.showRecordToast('오늘 이야기 많이 나눴네요. 우렁이는 계속 여기 있어요');
       }
       if (n >= this.HARD_DAILY) {
         window.UI && window.UI.alert({
@@ -158,7 +158,7 @@ window.Subscription = {
     window.Storage._safeSet('cbt_sub_until', base + (year ? 365 : 30) * 86400000);
     const m = document.getElementById('sub-paywall-modal');
     if (m) m.classList.add('hidden');
- window.UI.alert(`구독이 시작되었습니다! \n이용 기한: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n느루와의 대화가 계속됩니다.`);
+ window.UI.alert(`구독이 시작되었습니다! \n이용 기한: ${new Date(this.subUntil()).toLocaleDateString('ko-KR')}\n우렁이와의 대화가 계속됩니다.`);
     this.renderCard();
     this.renderBadge();
   },
@@ -176,7 +176,7 @@ window.Subscription = {
     if (title && desc) {
       if (kind === 'call') {
         title.textContent = '보이스톡은 구독 전용이에요';
-        desc.innerHTML = '느루와 목소리로 나누는 통화는<br>구독하면 열려요. (통화 중 30초당 150캐시가 사용돼요)';
+        desc.innerHTML = '우렁이와 목소리로 나누는 통화는<br>구독하면 열려요. (통화 중 30초당 150캐시가 사용돼요)';
       } else {
         title.textContent = '일주일 무료 체험이 끝났어요';
         desc.innerHTML = '그동안 나눈 기록과 기억은 그대로 남아 있어요.<br>구독하면 무제한 대화와 보이스톡(30초당 150캐시)이 다시 열립니다.';

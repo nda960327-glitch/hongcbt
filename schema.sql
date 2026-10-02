@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS call_queue (
   PRIMARY KEY (counselor_id, client_id)
 );
 
--- 느루의 추천 — 운영자가 올리는 정신건강 영상·글과 이용자의 반응 (feed.js)
+-- 우렁이의 추천 — 운영자가 올리는 정신건강 영상·글과 이용자의 반응 (feed.js)
 CREATE TABLE IF NOT EXISTS feed (
   id         TEXT PRIMARY KEY,
   type       TEXT NOT NULL DEFAULT 'youtube',  -- youtube | article
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS feed (
   author     TEXT,
   body       TEXT,                              -- 글 본문 (article)
   tags       TEXT,                              -- '불안,수면' 처럼 쉼표 구분
-  note       TEXT,                              -- 느루 한마디
+  note       TEXT,                              -- 우렁이 한마디
   published  INTEGER NOT NULL DEFAULT 1,
   pinned     INTEGER NOT NULL DEFAULT 0,
   created    INTEGER NOT NULL,

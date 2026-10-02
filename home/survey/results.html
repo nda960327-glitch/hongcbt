@@ -71,10 +71,10 @@
     <section class="card full"><h2>요금 — 챗봇 사용료로 괜찮은 한 달 금액</h2><div class="price" id="price"></div></section>
     <div class="grid2">
       <section class="card"><h2>예정 가격 5,500원은</h2><div id="now"></div><h2 style="margin-top:1.1rem;">끌리는 방식</h2><div id="plan"></div></section>
-      <section class="card"><h2>전화 상담 40분 적정가</h2><div id="counsel"></div><h2 style="margin-top:1.1rem;">느루 vs 우렁의사</h2><div id="cmpPick"></div></section>
+      <section class="card"><h2>전화 상담 40분 적정가</h2><div id="counsel"></div><h2 style="margin-top:1.1rem;">우렁이 vs 우렁의사</h2><div id="cmpPick"></div></section>
     </div>
     <section class="card full likert"><h2>기능별 도움 정도 <span class="muted" style="font-size:.8rem;font-weight:500;">평균 (1 전혀 도움 안 됨 ~ 5 많이 도움) · 써 본 사람 비율</span></h2><div id="feat"></div></section>
-    <section class="card full likert"><h2>느루와의 대화 <span class="muted" style="font-size:.8rem;font-weight:500;">평균 (1 전혀 아니다 ~ 5 매우 그렇다)</span></h2><div id="likert"></div></section>
+    <section class="card full likert"><h2>우렁이와의 대화 <span class="muted" style="font-size:.8rem;font-weight:500;">평균 (1 전혀 아니다 ~ 5 매우 그렇다)</span></h2><div id="likert"></div></section>
     <section class="card full"><h2>돈을 내고 쓰고 싶어지려면 (자유 답)</h2><div class="quotes" id="payfor"></div></section>
     <div class="grid2">
       <section class="card"><h2>연령대</h2><div id="age"></div><h2 style="margin-top:1.1rem;">사용 빈도</h2><div id="freq"></div></section>
@@ -84,7 +84,7 @@
       <section class="card"><h2>좋았던 점</h2><div class="quotes" id="good"></div></section>
       <section class="card"><h2>고쳐 달라는 점</h2><div class="quotes" id="fix"></div></section>
     </div>
-    <section class="card full"><h2>느루·우렁의사를 고른 이유</h2><div class="quotes" id="cmpWhy"></div></section>
+    <section class="card full"><h2>우렁이·우렁의사를 고른 이유</h2><div class="quotes" id="cmpWhy"></div></section>
   </div>
 </main>
 <script>
@@ -169,14 +169,14 @@
     bars('now', 'now', ['싸다', '적당하다', '조금 비싸다', '너무 비싸다']);
     bars('plan', 'plan', ['월 구독', '1년 구독', '무료 기능만 사용', '제미나이 등 기존 AI 사용']);
     bars('counsel', 'counsel', ['4만 원', '5만 원', '6만 원', '7만 원']);
-    bars('cmpPick', 'cmpPick', ['느루', '우렁의사', '비슷해요', '한쪽만 써 봤어요']);
-    var FE = [['f_all', '앱 전반'], ['f_neuru', '느루 (우렁의사)'], ['f_haru', '햇님'], ['f_dalnim', '달님'], ['f_sonamu', '소나무·솔숲 명상'], ['f_checkin', '체크인·오늘의 할 일'], ['f_thought', '사고 기록'], ['f_calm', '호흡·마음 안정'], ['f_diary', '하루 정리·일기'], ['f_test', '자가검사'], ['f_feed', '추천 영상'], ['f_snail', '달팽이 키우기'], ['f_letter', '주간 편지']];
+    bars('cmpPick', 'cmpPick', ['우렁이', '우렁의사', '비슷해요', '한쪽만 써 봤어요']);
+    var FE = [['f_all', '앱 전반'], ['f_neuru', '우렁이 (우렁의사)'], ['f_haru', '햇님'], ['f_dalnim', '달님'], ['f_sonamu', '소나무·솔숲 명상'], ['f_checkin', '체크인·오늘의 할 일'], ['f_thought', '사고 기록'], ['f_calm', '호흡·마음 안정'], ['f_diary', '하루 정리·일기'], ['f_test', '자가검사'], ['f_feed', '추천 영상'], ['f_snail', '달팽이 키우기'], ['f_letter', '주간 편지']];
     $('feat').innerHTML = FE.map(function (x) {
       var ans = ROWS.filter(function (a) { return a[x[0]] !== undefined; }), used = ans.filter(function (a) { return typeof a[x[0]] === 'number'; });
       var m = used.length ? used.reduce(function (t, a) { return t + a[x[0]]; }, 0) / used.length : null;
       return '<div class="row"><span class="lab">' + esc(x[1]) + '</span><div class="track"><i style="width:' + (m ? (m - 1) / 4 * 100 : 0) + '%"></i></div><span class="v">' + (m ? m.toFixed(1) : '—') + ' · ' + (ans.length ? Math.round(used.length / ans.length * 100) : 0) + '%</span></div>';
     }).join('');
-    var L = [['a1', '느루가 마음을 알아줌'], ['a2', '도움 되는 질문'], ['a3', '말투가 자연스러움 (거꾸로 계산)', true], ['a4', '폰에만 저장이라 안심']];
+    var L = [['a1', '우렁이가 마음을 알아줌'], ['a2', '도움 되는 질문'], ['a3', '말투가 자연스러움 (거꾸로 계산)', true], ['a4', '폰에만 저장이라 안심']];
     $('likert').innerHTML = L.map(function (x) { var r = mean(x[0], x[2]); var w = r ? (r.m - 1) / 4 * 100 : 0;
       return '<div class="row"><span class="lab">' + esc(x[1]) + '</span><div class="track"><i style="width:' + w + '%"></i></div><span class="v">' + (r ? r.m.toFixed(1) : '—') + '</span></div>'; }).join('');
     quotes('payfor', 'payfor');

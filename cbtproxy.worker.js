@@ -301,7 +301,7 @@ const APP = {
 
     // 상담사 마켓(D1)은 GET 도 받는다. 여기서 처리되지 않으면 null 이 와서
     //  아래 AI 경로로 흘러간다 — 두 기능이 한 Worker 를 쓰되 서로 모르게.
-    // 느루의 추천(영상·글) — 마켓과 같은 D1 을 쓰되 모듈은 따로
+    // 우렁이의 추천(영상·글) — 마켓과 같은 D1 을 쓰되 모듈은 따로
     // 이용자 설문(mindinside.kr/survey) — 익명 답 저장 · 운영자만 결과 조회
     if (path.startsWith("/survey")) {
       const r = await handleSurvey(request, env, cors, path);

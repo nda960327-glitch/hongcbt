@@ -11,7 +11,7 @@
 //   · /blog/centers · /blog/h/<상담소 id>   제휴 상담소 찾기 · 상담소 페이지(소개 + 글)
 //   · /blog/img/<글 id>/<n>.jpg · /blog/av/<상담사 id>.jpg       사진 (DB 에는 data: 로 들어 있다)
 //   · /blog/sitemap.xml · /blog/rss.xml   검색엔진용
-//  게시판(posts.board): 없음=상담사 칼럼 · free=수다방 · neru=느루 자랑방 · qna=고민 Q&A · meds=약 이야기 · student=심리학도 라운지 · resident=전공의 라운지 · expert=전문가 라운지 · idea=기능 제안 · notice=공지 (community.js 와 같은 규칙)
+//  게시판(posts.board): 없음=상담사 칼럼 · free=수다방 · neru=우렁이 자랑방 · qna=고민 Q&A · meds=약 이야기 · student=심리학도 라운지 · resident=전공의 라운지 · expert=전문가 라운지 · idea=기능 제안 · notice=공지 (community.js 와 같은 규칙)
 //  발행된(published=1) · 숨기지 않은(hidden=0) · 운영 중인 상담소(active=1)의 글만 내보낸다.
 //  글이 발행되면 IndexNow 로 네이버·빙에 바로 알린다(pingIndexNow — community.js 가 부른다).
 //  웹에서 누른 공감·댓글·글은 앱과 같은 표에 들어간다. 앱 도메인에서 열리면 앱의 기기 식별(cbt_client_id)을 그대로 쓴다 — 앱과 웹이 한 사람.
@@ -28,7 +28,7 @@ const BOARD = {
   column: { name: '상담사 칼럼', desc: '심리상담사와 상담소가 직접 쓰는 마음 돌봄 이야기' },
   free: { name: '수다방', desc: '오늘 있었던 일, 웃긴 이야기, AI 상담사와 나눈 대화까지 — 편하게 떠들어요' },
   qna: { name: '고민 Q&A', desc: '고민을 올리면 다른 분들과 상담사가 답해요' },
-  neru: { name: '느루 자랑방', desc: '내가 키운 느루, 느루와 나눈 대화, 오늘의 기록 — 캡처해서 마음껏 자랑해요' },
+  neru: { name: '우렁이 자랑방', desc: '내가 키운 우렁이, 우렁이와 나눈 대화, 오늘의 기록 — 캡처해서 마음껏 자랑해요' },
   meds: { name: '약 이야기', desc: '복용 경험과 궁금증을 나눠요. 약을 바꾸거나 끊는 결정은 주치의와 — 특정 약을 권하거나 용량을 알려주는 글은 가려져요' },
   student: { name: '심리학도 라운지', desc: '심리·상담을 공부하는 대학생·대학원생의 공부, 수련, 진로 이야기' },
   resident: { name: '전공의 라운지', desc: '정신건강의학과 전공의·수련의의 수련 생활, 공부, 진로 이야기' },
@@ -81,8 +81,15 @@ a{color:#3d7659;text-decoration:none}a:hover{text-decoration:underline}button{fo
 .top{background:rgba(255,255,255,.86);backdrop-filter:saturate(1.4) blur(14px);-webkit-backdrop-filter:saturate(1.4) blur(14px);border-bottom:1px solid rgba(120,96,66,.12);position:sticky;top:0;z-index:20}
 .top .in{max-width:1080px;margin:0 auto;padding:.65rem 1rem;display:flex;align-items:center;gap:.9rem}
 .brand{font-weight:900;font-size:1.05rem;color:#2f2923;white-space:nowrap}.brand b{color:#4f8a6b}.brand:hover{text-decoration:none}
-.top nav{display:flex;gap:.1rem;flex:1;overflow-x:auto;scrollbar-width:none}.top nav::-webkit-scrollbar{display:none}
-.top nav a{padding:.4rem .55rem;border-radius:999px;font-weight:700;font-size:.87rem;color:#6b5f50;white-space:nowrap}.top nav a.on,.top nav a:hover{background:#eef6f0;color:#2f6b4c;text-decoration:none}
+.top nav{display:flex;gap:.15rem;flex:1;align-items:center}
+.top nav>a,.dd>button{padding:.45rem .8rem;border:0;background:none;display:inline-flex;align-items:center;gap:.3rem;border-radius:999px;font-weight:700;font-size:.9rem;color:#5a4f43;white-space:nowrap}.top nav>a.on,.top nav>a:hover,.dd:hover>button,.dd.open>button,.dd.cur>button{background:#eef6f0;color:#2f6b4c;text-decoration:none}
+.dd{position:relative}.dd>button i{width:.4rem;height:.4rem;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translateY(-2px);opacity:.6}
+.menu{display:none;position:absolute;left:0;top:100%;min-width:230px;background:#fff;border:1px solid rgba(120,96,66,.14);border-radius:16px;padding:.4rem;box-shadow:0 18px 40px -16px rgba(60,45,25,.28);z-index:30}.dd:hover .menu,.dd.open .menu,.dd:focus-within .menu{display:block}
+.menu a{display:block;padding:.55rem .75rem;border-radius:11px;color:#2f2923}.menu a:hover,.menu a.on{background:#f3f8f4;text-decoration:none}.menu b{display:block;font-size:.92rem}.menu span{display:block;font-size:.76rem;color:#8a7b68}
+.burger{display:none;border:0;background:#f3efe7;width:40px;height:40px;border-radius:12px;align-items:center;justify-content:center}.burger i,.burger i::before,.burger i::after{display:block;width:18px;height:2px;background:#2f2923;border-radius:2px;position:relative}.burger i::before,.burger i::after{content:"";position:absolute;left:0}.burger i::before{top:-6px}.burger i::after{top:6px}
+.msheet{max-width:1080px;margin:0 auto;padding:.4rem 1rem 1rem;display:flex;flex-direction:column;gap:.2rem;max-height:calc(100vh - 60px);overflow-y:auto}.msheet h4{margin:.8rem 0 .2rem;font-size:.76rem;color:#8a7b68}.msheet .mg{display:flex;flex-wrap:wrap;gap:.35rem}.msheet .mg h4{flex:1 1 100%}.msheet .mg a,.mhome{padding:.5rem .9rem;border-radius:999px;background:#f6f1e8;color:#2f2923;font-weight:700;font-size:.9rem}.msheet a.on{background:#2f2923;color:#fff}.mhome{align-self:flex-start;margin-top:.4rem}
+@media(max-width:860px){.top nav{display:none}.burger{display:inline-flex}.top .in{justify-content:space-between}.brand{flex:1}}
+.top nav a.legacy{padding:.4rem .55rem;border-radius:999px;font-weight:700;font-size:.87rem;color:#6b5f50;white-space:nowrap}.top nav a.on,.top nav a:hover{background:#eef6f0;color:#2f6b4c;text-decoration:none}
 .btn{display:inline-block;background:#4f8a6b;color:#fff!important;font-weight:800;font-size:.85rem;padding:.55rem 1rem;border-radius:999px;border:0;white-space:nowrap;transition:transform .12s ease,background .12s ease}.btn:hover{text-decoration:none;background:#437a5d}.btn:active{transform:scale(.97)}
 .btn.ghost{background:#fff;color:#2f2923!important;border:1.5px solid rgba(120,96,66,.18)}.btn.ghost:hover{background:#faf6ef}.btn.lg{font-size:.95rem;padding:.75rem 1.3rem}.btn:disabled{opacity:.6}
 .wrap{max-width:1080px;margin:0 auto;padding:1rem}.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:1.1rem;align-items:start}
@@ -132,7 +139,7 @@ figure{margin:.4rem 0 1.2rem}figure img{display:block;width:100%;height:auto;bor
 .thumbs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem}.thumbs div{position:relative;width:76px;height:76px}.thumbs img{width:100%;height:100%;object-fit:cover;border-radius:12px}.thumbs button{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:0;background:#2f2923;color:#fff;font-size:.8rem;line-height:1}
 .cover{border-radius:26px;padding:1.9rem 1.6rem;margin-bottom:1rem;display:flex;gap:1.1rem;align-items:center;flex-wrap:wrap;background:radial-gradient(120% 140% at 0% 0%,#e3f1e8,#f7f3ec);border:1px solid rgba(120,96,66,.1)}.cover h1{margin:0;font-size:1.6rem}.cover p{margin:.2rem 0 0;color:#6b5f50}.stats{display:flex;gap:1.2rem;margin-top:.6rem;font-size:.85rem;color:#6b5f50}.stats b{color:#2f2923;font-size:1.05rem;margin-right:.2rem}
 .facts{margin:.6rem 0 0;font-size:.88rem;color:#6b5f50}.facts b{color:#2f2923;margin-right:.4rem}
-.bhead{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}.bhead h1{margin:0;font-size:1.35rem}.bhead p{margin:0;color:#6b5f50;font-size:.9rem}.bhead div{flex:1;min-width:200px}
+.bhead{display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem}.bhead h1{margin:0;font-size:1.35rem}.bhead p{margin:0;color:#6b5f50;font-size:.9rem}.bhead>div{flex:1 1 320px;min-width:0}.bhead>a,.bhead>button{flex:0 0 auto}
 footer{max-width:1080px;margin:0 auto;padding:.5rem 1rem 2.5rem;color:#8a7b68;font-size:.78rem;line-height:1.9}
 #toast{position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);background:#2f2923;color:#fff;padding:.6rem 1rem;border-radius:999px;font-size:.85rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;max-width:92vw}#toast.on{opacity:1}
 #say{position:fixed;inset:0;z-index:60;background:rgba(30,25,20,.45);display:flex;align-items:center;justify-content:center;padding:1rem}#say>div{background:#fff;border-radius:22px;padding:1.4rem 1.3rem;max-width:420px;width:100%;box-shadow:0 30px 60px -20px rgba(0,0,0,.4)}#say h3{margin:0 0 .5rem;font-size:1.1rem}#say p{margin:0 0 1rem;color:#4a4037;font-size:.95rem;white-space:pre-wrap}#say .row{display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap}
@@ -171,6 +178,8 @@ W.needLogin=function(){if(W.session())return false;
  location.href='/blog/login?next='+encodeURIComponent(location.pathname+location.search);return true};
 W.post=function(p,b){b.session=W.session();return W.me().then(function(m){b.clientId=m.id;b.clientKey=m.key;return fetch(W.API+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().then(function(j){j._s=r.status;return j},function(){return{_s:r.status}})})})};
 var emb=window.self!==window.top;if(emb)document.documentElement.classList.add('embed');
+document.addEventListener('click',function(e){var b=e.target.closest('[data-menu]');if(b){var s=document.getElementById('msheet');s.hidden=!s.hidden;return}
+ var d=e.target.closest('.dd>button');[].forEach.call(document.querySelectorAll('.dd.open'),function(x){if(!d||x!==d.parentNode)x.classList.remove('open')});if(d)d.parentNode.classList.toggle('open')});
 (function(){var a=document.getElementById('acct');if(!a)return;var u=W.session()?W.user():null;
  a.innerHTML=W.session()?'<a class="btn ghost" href="/blog/me">'+W.esc((u&&u.nickname)||'내 정보')+'</a>':'<a class="btn ghost" href="/blog/login?next='+encodeURIComponent(location.pathname+location.search)+'">로그인</a>'})();
 // 앱 안에 띄워졌을 때: 앱으로 가는 링크(상담 예약 등)는 새 화면을 열지 않고 앱에게 알린다
@@ -180,14 +189,25 @@ document.addEventListener('click',function(e){var a=e.target.closest('a[href]');
 
 function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav, script }) {
   const url = c.site + path;
-  const N = (k, href, label) => `<a href="${href}"${nav === k ? ' class="on"' : ''}>${label}</a>`;
+  // 메뉴 묶음 — [이름, [[키, 주소, 이름, 한 줄 설명], …]]
+  const MENU = [
+    ['커뮤니티', [['free', '/blog?board=free', '수다방', '오늘 있었던 일, 아무 말'], ['neru', '/blog?board=neru', '우렁이 자랑방', '내가 키운 우렁이 자랑'], ['qna', '/blog?board=qna', '고민 Q&amp;A', '상담사가 답해요'], ['meds', '/blog?board=meds', '약 이야기', '복용 경험과 궁금증']]],
+    ['읽을거리', [['column', '/blog?board=column', '상담사 칼럼', '전문가가 쓰는 마음 돌봄 글'], ['videos', '/blog/videos', '추천 영상', '운영팀이 고른 영상']]],
+    ['찾기', [['clinics', '/blog/clinics', '정신건강의학과', '내 주변 병·의원'], ['centers', '/blog/centers', '심리상담소', '제휴 상담소']]],
+    ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['resident', '/blog?board=resident', '전공의', '수련 이야기'], ['expert', '/blog?board=expert', '전문가', '의사·상담사·임상심리사']]],
+    ['더보기', [['idea', '/blog?board=idea', '기능 제안', '바라는 기능·오류 신고'], ['notice', '/blog?board=notice', '공지', '소식과 이용 규칙'], ['install', '/blog/install', '앱 설치', '휴대폰·PC'], ['about', c.about, '앱 소개', '마인드 인사이드는'], ['join', '/blog/join', '상담사·상담소 가입', '입점·제휴 신청']]]
+  ];
+  const navHtml = `<a href="${c.home}"${nav === 'home' ? ' class="on"' : ''}>홈</a>` + MENU.map(([g, items]) =>
+    `<div class="dd${items.some(i => i[0] === nav) ? ' cur' : ''}"><button type="button" aria-haspopup="true">${g}<i></i></button><div class="menu">${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}><b>${i[2]}</b><span>${i[3]}</span></a>`).join('')}</div></div>`).join('');
+  const sheetHtml = MENU.map(([g, items]) => `<div class="mg"><h4>${g}</h4>${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}>${i[2]}</a>`).join('')}</div>`).join('');
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(url)}">${noindex ? '<meta name="robots" content="noindex,follow">' : ''}
 <meta property="og:type" content="${type || 'website'}"><meta property="og:site_name" content="${BRAND}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(ogImage || c.site + '/icon.png')}"><meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}"><link rel="alternate" type="application/rss+xml" title="${BRAND} 커뮤니티" href="${c.site}/blog/rss.xml"><link rel="icon" href="/icon.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&display=swap">
 ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>` : ''}<style>${CSS}</style></head><body>
-<header class="top"><div class="in"><a class="brand" href="${c.home}"><b>마인드</b> 인사이드</a><nav>${N('home', c.home, '홈')}${N('column', '/blog?board=column', '칼럼')}${N('free', '/blog?board=free', '수다방')}${N('neru', '/blog?board=neru', '느루 자랑')}${N('qna', '/blog?board=qna', '고민 Q&amp;A')}${N('meds', '/blog?board=meds', '약 이야기')}${N('videos', '/blog/videos', '추천 영상')}${N('clinics', '/blog/clinics', '병원 찾기')}${N('centers', '/blog/centers', '상담소 찾기')}${N('student', '/blog?board=student', '심리학도')}${N('resident', '/blog?board=resident', '전공의')}${N('expert', '/blog?board=expert', '전문가')}${N('idea', '/blog?board=idea', '기능 제안')}${N('notice', '/blog?board=notice', '공지')}<a href="${c.about}">앱 소개</a></nav><span id="acct"></span><a class="btn app" href="${APP}/">앱 열기</a></div></header>
+<header class="top"><div class="in"><a class="brand" href="${c.home}"><b>마인드</b> 인사이드</a><nav>${navHtml}</nav><span id="acct"></span><a class="btn app" href="${APP}/">앱 열기</a><button type="button" class="burger" aria-label="메뉴" data-menu><i></i></button></div>
+<div class="msheet" id="msheet" hidden><a class="mhome" href="${c.home}">커뮤니티 홈</a>${sheetHtml}<a class="btn" href="${APP}/" style="margin-top:.6rem;text-align:center">앱 열기</a></div></header>
 <div class="wrap">${body}</div>
 <footer><a href="${c.about}">${BRAND} 앱 소개</a> · <a href="/blog/install">앱 설치</a> · <a href="/blog/login">로그인·회원가입</a> · <a href="/blog/join/counselor">상담사 입점</a> · <a href="/blog/join/clinic">상담소 제휴</a> · <a href="/blog/po_notice_rules">커뮤니티 이용 규칙</a> · <a href="${APP}/terms.html">이용약관</a> · <a href="${APP}/privacy.html">개인정보처리방침</a> · <a href="/blog/rss.xml">RSS</a><br>
 이곳의 글과 댓글은 전문 상담이나 진료를 대신하지 않아요. 위기 상황에는 자살예방상담전화 109 · 정신건강 위기상담 1577-0199 (24시간)<br>${BIZ}</footer><div id="toast"></div>${COMMON_JS}${script || ''}</body></html>`;
@@ -221,7 +241,7 @@ const stockOf = id => STOCK + (hashOf(id) % 11) + '.jpg';
 const cover = (r, cls) => `<img class="${cls}" src="${r.has_img ? `/blog/img/${esc(r.id)}/0.jpg` : stockOf(r.id)}" alt="" loading="lazy">`;
 const feedHtml = (rows, withLab) => `<ul class="feed">${rows.map(r => `<li><a class="row" href="/blog/${esc(r.id)}"><div style="flex:1;min-width:0">${whoHtml(r)}<h3>${withLab ? labOf(r) + ' ' : ''}${esc(r.title)}${r.comments ? `<span class="cnt">[${r.comments}]</span>` : ''}</h3><p>${esc(plain(r.body).slice(0, 150))}</p>${meta(r)}</div>${cover(r, 'th')}</a></li>`).join('')}</ul>`;
 const listHtml = rows => `<ul class="list">${rows.map(r => `<li><a href="/blog/${esc(r.id)}">${esc(r.title)}</a>${r.comments ? `<span class="cnt">[${r.comments}]</span>` : ''}<span class="m">${r.likes ? '공감 ' + r.likes + ' · ' : ''}${ago(r.created)}</span></li>`).join('')}</ul>`;
-const appCard = c => `<div class="card appcard side"><h2>마인드 인사이드 앱</h2><p>AI 상담사 느루와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅으로 상담할 수 있어요.</p><a class="btn" href="${APP}/">앱 열기</a> <a class="btn ghost" href="${c.about}">앱 소개 보기</a></div>`;
+const appCard = c => `<div class="card appcard side"><h2>마인드 인사이드 앱</h2><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 때 심리상담사와 전화·채팅으로 상담할 수 있어요.</p><a class="btn" href="${APP}/">앱 열기</a> <a class="btn ghost" href="${c.about}">앱 소개 보기</a></div>`;
 const writeCard = `<div class="card"><h2>이야기를 들려주세요</h2><p class="m" style="font-size:.86rem;margin:0 0 .7rem">카카오·네이버·구글로 가입하면 바로 쓸 수 있어요.</p><a class="btn" href="/blog/write?board=free">수다방 글쓰기</a> <a class="btn ghost" href="/blog/write?board=qna">고민 올리기</a></div>`;
 const notFound = c => html(page(c, { title: '글을 찾을 수 없어요 — ' + BRAND, desc: '', path: '/blog', noindex: true, body: `<div class="card"><h2>이 글은 지금 볼 수 없어요</h2><p class="m">지워졌거나 가려진 글이에요.</p><p><a class="btn" href="${c.home}">커뮤니티 첫 화면으로</a></p></div>` }), 404, 30);
 const profOf = h => { let p = {}; try { p = h && h.profile ? JSON.parse(h.profile) : {}; } catch (e) {} return p || {}; };
@@ -441,7 +461,7 @@ export async function handleBlog(request, env, ctx, path) {
           </form></div>` }), 200, 300);
     }
 
-    // ── 추천 영상 ── 운영팀이 고른 정신건강 유튜브(앱의 '느루의 추천'과 같은 목록 — feed 표). 영상은 유튜브에서 열린다.
+    // ── 추천 영상 ── 운영팀이 고른 정신건강 유튜브(앱의 '우렁이의 추천'과 같은 목록 — feed 표). 영상은 유튜브에서 열린다.
     if (path === '/blog/videos') {
       const tg = (url.searchParams.get('tag') || '').slice(0, 20);
       let rows = [];
@@ -593,14 +613,14 @@ export async function handleBlog(request, env, ctx, path) {
       const boardCard = (b, rows, emptyMsg) => `<div class="card"><h2><span class="lab ${b}">${BOARD[b].name}</span> <a class="all" href="/blog?board=${b}">더 보기</a></h2>${rows.length ? listHtml(rows) : `<p class="m" style="margin:.3rem 0 .6rem">${emptyMsg}</p><a class="btn ghost" href="/blog/write?board=${b}">첫 글 쓰기</a>`}</div>`;
       return html(page(c, { title: `${BRAND} — 마음 이야기가 모이는 커뮤니티`, desc: '심리상담사가 쓰는 마음 돌봄 칼럼, 누구나 떠드는 수다방, 상담사가 답하는 고민 Q&A, 심리학도 라운지. 불안·우울·수면·관계 고민을 함께 나눠요.', path: c.home === '/' ? '/' : '/blog', nav: 'home',
         jsonld: { '@context': 'https://schema.org', '@type': 'WebSite', name: BRAND, url: site + '/', potentialAction: { '@type': 'SearchAction', target: site + '/blog?q={search_term_string}', 'query-input': 'required name=search_term_string' }, publisher: { '@type': 'Organization', name: BRAND, url: site + '/' } },
-        body: `<div class="hero"><div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 느루와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${noNotice.length}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">설치 방법</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
+        body: `<div class="hero"><div class="sp"><span class="new">마인드 인사이드 앱 출시</span><h1>혼자 버티지 않게, 마음 이야기가 모이는 곳</h1><p>AI 상담사 우렁이와 매일 마음을 돌보고, 필요할 땐 심리상담사와 전화·채팅으로. 지금 글 ${noNotice.length}편과 댓글 ${totalC}개가 오가고 있어요.</p></div><div class="cta"><a class="btn lg" href="${APP}/">앱 무료로 시작하기</a><a class="btn lg line" href="/blog/install">설치 방법</a><a class="btn lg line" href="${c.about}">앱 소개</a></div></div>
           <form class="search" action="/blog" method="get"><input name="q" placeholder="고민을 검색해 보세요 — 불면, 번아웃, 관계…" aria-label="검색"><button class="btn">검색</button></form>
           <div class="grid"><div>
             ${notices.length ? `<div class="card" style="padding:.7rem 1.25rem">${notices.map(n => `<div class="notice"><span class="lab notice">공지</span><a href="/blog/${esc(n.id)}">${esc(n.title)}</a></div>`).join('')}</div>` : ''}
             <div class="card"><h2>지금 인기 글 <a class="all" href="/blog?sort=hot">더 보기</a></h2>
               ${hotRows[0] ? `<a class="feat" href="/blog/${esc(hotRows[0].id)}">${cover(hotRows[0], 'cv')}<div><span class="lab gold">가장 많이 읽는 글</span><h3>${esc(hotRows[0].title)}</h3><p>${esc(plain(hotRows[0].body).slice(0, 160))}</p>${whoHtml(hotRows[0])}${meta(hotRows[0])}</div></a>
               <ol class="rank" start="2" style="counter-reset:r 1">${hotRows.slice(1).map(r => `<li><div><a href="/blog/${esc(r.id)}">${esc(r.title)}${r.comments ? `<span class="cnt">[${r.comments}]</span>` : ''}</a><span class="m">${labOf(r)} ${esc(nameOf(r))} · 조회 ${r.views || 0} · 공감 ${r.likes || 0}</span></div></li>`).join('')}</ol>` : '<p class="m">아직 글이 없어요.</p>'}</div>
-            <div class="boards">${boardCard('free', of('free').slice(0, 6), '아직 조용해요. 오늘 있었던 일을 들려주세요.')}${boardCard('neru', of('neru').slice(0, 6), '내가 키운 느루를 자랑해 주세요.')}</div>
+            <div class="boards">${boardCard('free', of('free').slice(0, 6), '아직 조용해요. 오늘 있었던 일을 들려주세요.')}${boardCard('neru', of('neru').slice(0, 6), '내가 키운 우렁이를 자랑해 주세요.')}</div>
             <div class="boards">${boardCard('qna', of('qna').slice(0, 6), '고민을 올리면 상담사가 답해요.')}${boardCard('meds', of('meds').slice(0, 6), '약에 대한 경험과 궁금증을 나눠요.')}</div>
             <div class="card"><h2><span class="lab column">상담사 칼럼</span> <a class="all" href="/blog?board=column">더 보기</a></h2>${of('column').length ? feedHtml(of('column').slice(0, 8)) : '<p class="m">아직 올라온 글이 없어요.</p>'}</div>
             ${vids.length ? `<div class="card"><h2>추천 영상 <a class="all" href="/blog/videos">더 보기</a></h2><div class="vgrid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.7rem">${vids.map(v => `<a class="vcard" style="box-shadow:none;padding:.4rem .4rem .6rem" href="https://www.youtube.com/watch?v=${esc(v.video_id)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${esc(v.video_id)}/mqdefault.jpg" alt="" loading="lazy"><b>${esc(v.title)}</b><span class="m">${esc(v.author || '')}</span></a>`).join('')}</div></div>` : ''}
@@ -654,7 +674,7 @@ export async function handleBlog(request, env, ctx, path) {
             ${isCol && r.author_id ? `<a class="btn ghost" href="/blog/a/${esc(r.author_id)}">블로그</a>` : ''}</div>
           ${bd === 'column' && !imgs.length ? `<figure><img src="${stockOf(id)}" alt="" style="aspect-ratio:16/9;object-fit:cover"></figure>` : ''}${bodyHtml(r.body, id, imgs.length, r.title)}
           <div class="acts"><button class="act" data-a="like">♥ 공감 ${(likes && likes.n) || 0}</button><button class="act" data-a="share">공유</button>${bd === 'notice' ? '' : `<button class="act sub" data-a="report">신고</button><button class="act sub" data-a="del" hidden>내 글 지우기</button>`}</div></article>
-          ${isCol ? `<div class="card appcard" style="margin-top:1rem"><h2>이 글을 쓴 ${r.author_name ? '상담사' : '상담소'}와 이야기해 보고 싶다면</h2><p>마인드 인사이드 앱에서 전화·채팅으로 바로 상담을 예약할 수 있어요.</p><a class="btn" href="${APP}/${r.author_id ? '?counselor=' + esc(r.author_id) : ''}">상담 알아보기</a></div>` : bd === 'qna' ? `<div class="card appcard" style="margin-top:1rem"><h2>혼자 고민하기 벅차다면</h2><p>앱에서 AI 상담사 느루와 바로 이야기하거나, 심리상담사에게 전화·채팅 상담을 받을 수 있어요.</p><a class="btn" href="${APP}/">앱에서 상담하기</a></div>` : ''}
+          ${isCol ? `<div class="card appcard" style="margin-top:1rem"><h2>이 글을 쓴 ${r.author_name ? '상담사' : '상담소'}와 이야기해 보고 싶다면</h2><p>마인드 인사이드 앱에서 전화·채팅으로 바로 상담을 예약할 수 있어요.</p><a class="btn" href="${APP}/${r.author_id ? '?counselor=' + esc(r.author_id) : ''}">상담 알아보기</a></div>` : bd === 'qna' ? `<div class="card appcard" style="margin-top:1rem"><h2>혼자 고민하기 벅차다면</h2><p>앱에서 AI 상담사 우렁이와 바로 이야기하거나, 심리상담사에게 전화·채팅 상담을 받을 수 있어요.</p><a class="btn" href="${APP}/">앱에서 상담하기</a></div>` : ''}
           <section class="cm"><div class="sec"><h2>${bd === 'qna' ? '답변·댓글' : '댓글'} <span id="cm-n">${shown}</span></h2></div>
             <div id="cm-list">${roots.length ? roots.map(x => cHtml(x, '') + kids.filter(k => k.parent_id === x.id).map(k => cHtml(k, 'r')).join('')).join('') : '<p class="m">첫 댓글을 남겨보세요. 따뜻한 한마디면 충분해요.</p>'}</div>
             <div class="form"><button id="cm-to" class="tag" data-a="noreply" hidden style="border:0"></button><input id="cm-name" maxlength="20" placeholder="별명 (비워 두면 가입한 이름)"><textarea id="cm-text" maxlength="500" placeholder="${bd === 'qna' ? '비슷한 경험이나 도움이 될 말을 남겨주세요' : '댓글을 남겨보세요'}"></textarea>

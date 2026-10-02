@@ -103,7 +103,7 @@ window.Payout = {
         ${row(this.LABEL.pg, s.pg, b.pg)}
         ${s.platform > 0 ? row(this.LABEL.platform, Math.round(b.platform / sample * 1000) / 10, b.platform) : ''}
         <p style="margin: 0.55rem 0 0; font-size: 0.71rem; line-height: 1.6; color: var(--text-muted);">
-          ${s.platform > 0 ? '' : `느루는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
+          ${s.platform > 0 ? '' : `우렁이는 상담료에서 <b style="color: var(--text-primary);">한 푼도 가져가지 않아요.</b>
           ${this.won(b.pg)}은 카드사·PG 로 나가는 실비입니다.<br>`}
           상담사 몫은 상담료 ${this.won(s.tierAt)}까지 ${s.counselor}%, 넘는 부분은 ${s.counselorOver}%예요.<br>
           상담 완료 ${this.SETTLE_DAYS}일 뒤 등록한 계좌로 입금돼요.

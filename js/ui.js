@@ -13,7 +13,7 @@
 //    { title, body, html }            — html 은 우리가 만든 마크업만
 //    { tone: 'info'|'success'|'warning'|'danger' }  — 위쪽 동그란 아이콘 색·모양
 //    { danger: true }                 — tone:'danger' + 확인 버튼이 빨강
-//    { icon, sticker }                — 아이콘 이름(Icons) / 느루 스티커
+//    { icon, sticker }                — 아이콘 이름(Icons) / 우렁이 스티커
 //    { okLabel, cancelLabel, price, priceLabel }
 //    prompt: { value, placeholder, multiline, maxLength, inputType }
 //

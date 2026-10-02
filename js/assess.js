@@ -592,7 +592,7 @@ window.Assess = {
         ${m.bars.map(bar).join('')}
         <p style="margin: 0.5rem 0 0; font-size: 0.7rem; color: var(--text-muted);">
           ${canGen ? '충분한 데이터예요. 정밀 분석이 가능합니다.'
-                   : `아직 ${m.total}%예요. 리포트는 <b>${this.MIN_TOTAL}% 이상</b>일 때만 만들어요 — 얕은 데이터로 만든 리포트는 당신을 오해하게 하니까요.<br>표준 자가검진(필수)을 하고, 느루와 대화하고, 매일 체크인·기록을 쌓으면 채워집니다.`}
+                   : `아직 ${m.total}%예요. 리포트는 <b>${this.MIN_TOTAL}% 이상</b>일 때만 만들어요 — 얕은 데이터로 만든 리포트는 당신을 오해하게 하니까요.<br>표준 자가검진(필수)을 하고, 우렁이와 대화하고, 매일 체크인·기록을 쌓으면 채워집니다.`}
         </p>
       </div>
 
@@ -644,7 +644,7 @@ window.Assess = {
           </div>
         </div>
         <p style="margin: 0.6rem 0 0.75rem; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
-          점수만으로는 보이지 않는 것까지 — 느루가 최근 대화의 결을 함께 읽고
+          점수만으로는 보이지 않는 것까지 — 우렁이가 최근 대화의 결을 함께 읽고
           <b style="color: var(--text-primary);">지금 마음 상태와 다음 한 걸음</b>을 정리해드려요.
           상담사에게 그대로 보낼 수도 있어요.</p>
         <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 0.92rem; ${canGen ? '' : 'opacity: 0.45;'}" onclick="window.Assess.generate()">

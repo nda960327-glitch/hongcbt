@@ -1,5 +1,5 @@
 // ============================================================================
-//  상담 예약 — 마인드카페식 달력 + 시간대 선택 + 느루캐시 결제
+//  상담 예약 — 마인드카페식 달력 + 시간대 선택 + 우렁이캐시 결제
 //  입점 상담사(서버 명부)는 상담사가 프로 앱에서 정한 '예약 가능 시간·휴무일'과
 //  이미 찬 시각을 서버(/api/slots)에서 받아 그린다. 서버가 같은 규칙으로 한 번 더 막는다.
 //  서버 명부에 없는 기본(데모) 상담사만 결정적 해시로 만든 데모 스케줄을 쓴다.
@@ -359,7 +359,7 @@ window.Booking = {
       return;
     }
 
-    // 느루 캐시로 결제 (잔액 부족 시 충전 유도)
+    // 우렁이 캐시로 결제 (잔액 부족 시 충전 유도)
     if (window.Wallet && !window.Wallet.spend(counselor.price, `${counselor.name} 상담 예약`, { serverTracked: true })) {
       if (window.Sfx) window.Sfx.hit('denied');
       window.UI.alert(`잔액이 부족해요.\n상담료 ${counselor.price.toLocaleString()}캐시 / 보유 ${window.Wallet.balance().toLocaleString()}캐시\n\n마이페이지에서 캐시를 충전해주세요.`);

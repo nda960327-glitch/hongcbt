@@ -176,7 +176,7 @@ window.Hospital = {
       <input id="hosp-name" type="text" maxlength="40" value="${this._esc(name)}" placeholder="이름 (상담소에서 쓰는 이름)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.6rem;">
       <input id="hosp-birth" type="text" inputmode="numeric" maxlength="10" placeholder="생년월일 (선택, 예: 1995-03-27)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.7rem;">
       <div class="feed-ov__note"><span>연결하면 담당 상담소의 선생님이 <b>상담사가 남긴 상담 요약·계획·숙제</b>를 볼 수 있고, 선생님이 남긴 피드백이 이 앱으로 옵니다.
-        느루와 나눈 <b>대화 내용은 상담소로 가지 않아요.</b> 언제든 연결을 해제할 수 있어요.</span></div>
+        우렁이와 나눈 <b>대화 내용은 상담소로 가지 않아요.</b> 언제든 연결을 해제할 수 있어요.</span></div>
       <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0 0.7rem; font-size: 0.86rem; line-height: 1.5; color: var(--text-primary);">
         <input id="hosp-weekly" type="checkbox" checked style="margin-top: 0.2rem; width: 18px; height: 18px; accent-color: var(--accent-primary);">
         <span><b>주간 상태 요약도 공유할게요</b><br><span style="color: var(--text-secondary);">주 1회, 기분 체크인 평균·횟수·미션 수 같은 <b>숫자 몇 개만</b> 올라가요. 일기·대화 내용은 포함되지 않아요. 나중에 마이페이지에서 끌 수 있어요.</span></span>
@@ -253,7 +253,7 @@ window.Hospital = {
       <div class="feed-ov__bar"><span class="feed-tag">${esc(lk.hospital.name)}</span><button class="feed-ov__x" data-hosp-close>닫기</button></div>
       <h3>소장 피드백</h3>${fbHtml}
       <h3 style="margin-top: 1rem;">상담소와 공유된 상담 기록</h3>
-      <p class="feed-ov__author">상담사가 남긴 요약이에요. 느루와 나눈 대화는 여기 포함되지 않아요.</p>${noteHtml}`);
+      <p class="feed-ov__author">상담사가 남긴 요약이에요. 우렁이와 나눈 대화는 여기 포함되지 않아요.</p>${noteHtml}`);
     // 열어봤으면 읽음 처리
     const unread = rec.feedback.filter(f => !f.readP).map(f => f.id);
     if (unread.length) {

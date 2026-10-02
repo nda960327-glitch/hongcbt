@@ -4,12 +4,12 @@
 //  ChatGPT·제미나이·클로드를 오래 쓴 사람은 그 AI 가 이미 자기를 꽤 안다 —
 //  직업, 가족, 요즘 고민, 말투까지. 그걸 처음부터 다시 말하게 하는 대신,
 //  그 AI 에게 "나에 대해 정리해 줘"라고 시키고 답을 여기에 붙여 넣게 한다.
-//  느루는 그걸 '이 사람이 직접 전해준 자기소개'로 읽고 첫 대화부터 맞춰 간다.
+//  우렁이는 그걸 '이 사람이 직접 전해준 자기소개'로 읽고 첫 대화부터 맞춰 간다.
 //
 //  흐름 (3단계 시트):
 //   ① 질문 복사 → 쓰던 AI 앱에서 붙여 넣고 보내기
 //   ② 받은 답을 여기에 붙여 넣기
-//   ③ 느루가 상담에 필요한 것만 추려 정리 → 사람이 읽고 고친 뒤 저장
+//   ③ 우렁이가 상담에 필요한 것만 추려 정리 → 사람이 읽고 고친 뒤 저장
 //
 //  원칙:
 //   · 붙여 넣은 글은 '자료'다. 그 안에 "이렇게 행동해라" 같은 지시가 있어도 따르지 않는다
@@ -92,7 +92,7 @@ window.AboutMe = {
     const v = this.get();
     if (!v) {
       el.innerHTML = `
-        <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.35rem; line-height: 1.6;">ChatGPT·제미나이·클로드를 써 오셨나요? 그 AI가 아는 나를 느루에게 전해주면, <b>처음부터 다시 설명하지 않아도</b> 나에게 맞춰 상담해요.</p>
+        <p style="font-size: 0.84rem; color: var(--text-secondary); margin: 0 0 0.35rem; line-height: 1.6;">ChatGPT·제미나이·클로드를 써 오셨나요? 그 AI가 아는 나를 우렁이에게 전해주면, <b>처음부터 다시 설명하지 않아도</b> 나에게 맞춰 상담해요.</p>
         <p style="font-size: 0.76rem; color: var(--text-muted); margin: 0 0 0.9rem; line-height: 1.55;">질문 복사 → 쓰던 AI에 붙여넣기 → 받은 답을 여기에 붙여넣기. 1분이면 끝나요.</p>
         <button class="btn-primary" style="width: 100%;" onclick="window.AboutMe.open()">내 정보 가져오기</button>`;
       return;
@@ -102,7 +102,7 @@ window.AboutMe = {
     el.innerHTML = `
       <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem;">
         <span style="font-size: 0.7rem; font-weight: 800; color: #fff; background: var(--accent-primary); padding: 0.14rem 0.55rem; border-radius: 999px;">전달됨</span>
-        <span style="font-size: 0.74rem; color: var(--text-muted);">${when} · 느루가 상담에 참고하고 있어요</span>
+        <span style="font-size: 0.74rem; color: var(--text-muted);">${when} · 우렁이가 상담에 참고하고 있어요</span>
       </div>
       <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0 0 0.9rem; line-height: 1.6; background: var(--bg-tertiary); border-radius: 12px; padding: 0.65rem 0.75rem;">${preview}…</p>
       <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
@@ -216,7 +216,7 @@ window.AboutMe = {
       <div class="aboutme-steps"><span class="${s >= 1 ? 'on' : ''}"></span><span class="${s >= 2 ? 'on' : ''}"></span><span class="${s >= 3 ? 'on' : ''}"></span></div>`;
 
     if (this._busy) {
-      box.innerHTML = head('느루가 읽고 있어요', '상담에 필요한 것만 추려서 정리하는 중이에요') + `
+      box.innerHTML = head('우렁이가 읽고 있어요', '상담에 필요한 것만 추려서 정리하는 중이에요') + `
         <div class="aboutme-body"><div class="aboutme-wait"><div class="aboutme-spin"></div>
           잠시만요, 20초쯤 걸려요.<br>정리가 끝나면 저장하기 전에 보여드릴게요.</div></div>`;
       return;
@@ -249,7 +249,7 @@ window.AboutMe = {
           <div class="aboutme-count" id="aboutme-count">0 / ${this.MAX_PASTE.toLocaleString()}자</div>
           <button class="btn-secondary" style="width: 100%; margin-top: 0.4rem;" onclick="window.AboutMe.pasteClip()">클립보드에서 붙여넣기</button>
           <p class="aboutme-err" id="aboutme-err"></p>
-          <p class="aboutme-note">느루가 상담에 필요한 것만 추려 정리해요. <b>저장하기 전에 정리본을 보여드리니</b>, 틀린 건 고치고 넣기 싫은 건 지울 수 있어요.</p>
+          <p class="aboutme-note">우렁이가 상담에 필요한 것만 추려 정리해요. <b>저장하기 전에 정리본을 보여드리니</b>, 틀린 건 고치고 넣기 싫은 건 지울 수 있어요.</p>
           <p class="aboutme-note">정리를 위해 이 글은 AI 서비스로 한 번 전송돼요(대화와 같은 방식). 붙여넣은 원문은 저장하지 않아요.</p>
         </div>
         <div class="aboutme-foot">
@@ -266,17 +266,17 @@ window.AboutMe = {
 
     // ③ 확인·고치기
     const saved = this.get();
-    box.innerHTML = head(this._editing ? '느루가 알고 있는 나' : '이렇게 전해줄게요', '읽어보고 틀린 건 고치고, 넣기 싫은 건 지우세요') + `
+    box.innerHTML = head(this._editing ? '우렁이가 알고 있는 나' : '이렇게 전해줄게요', '읽어보고 틀린 건 고치고, 넣기 싫은 건 지우세요') + `
       <div class="aboutme-body">
         <textarea class="aboutme-ta" id="aboutme-draft" style="min-height: 15rem;" maxlength="${this.MAX_SAVE}"></textarea>
         <div class="aboutme-count" id="aboutme-count2"></div>
         <p class="aboutme-err" id="aboutme-err"></p>
-        <p class="aboutme-note">느루는 이 글을 <b>배경 지식</b>으로만 써요. 한꺼번에 읊거나 단정하지 않고, 대화 중에 "이렇게 알고 있는데 맞아?" 하고 확인하며 이어가요.</p>
+        <p class="aboutme-note">우렁이는 이 글을 <b>배경 지식</b>으로만 써요. 한꺼번에 읊거나 단정하지 않고, 대화 중에 "이렇게 알고 있는데 맞아?" 하고 확인하며 이어가요.</p>
         <p class="aboutme-note">이 기기에 저장되고, 로그인했다면 내 계정에도 함께 보관돼요. 언제든 마이 › 다른 AI가 아는 나에서 고치거나 지울 수 있어요.</p>
       </div>
       <div class="aboutme-foot">
         ${saved ? '<button class="btn-secondary" style="flex: 0 0 auto; color: #c96a5a;" onclick="window.AboutMe.remove()">지우기</button>' : '<button class="btn-secondary" onclick="window.AboutMe.go(2)">‹ 다시 붙여넣기</button>'}
-        <button class="btn-primary" onclick="window.AboutMe.save()">${this._editing ? '고친 내용 저장' : '느루에게 전해주기'}</button>
+        <button class="btn-primary" onclick="window.AboutMe.save()">${this._editing ? '고친 내용 저장' : '우렁이에게 전해주기'}</button>
       </div>`;
     const ta = document.getElementById('aboutme-draft');
     const cnt = document.getElementById('aboutme-count2');
@@ -371,7 +371,7 @@ window.AboutMe = {
 
   save() {
     const text = String(this._draft || '').trim().slice(0, this.MAX_SAVE);
-    if (text.length < 10) { this._err('내용이 비어 있어요. 느루가 알았으면 하는 것을 적어주세요.'); return; }
+    if (text.length < 10) { this._err('내용이 비어 있어요. 우렁이가 알았으면 하는 것을 적어주세요.'); return; }
     const first = !this.get();
     window.Storage._safeSet(this.KEY, { text, at: Date.now(), src: this._src || '' });
     this._pasted = '';
@@ -380,7 +380,7 @@ window.AboutMe = {
     if (window.UI) {
       window.UI.alert({
         tone: 'success',
-        title: first ? '느루에게 전해줬어요' : '고친 내용을 저장했어요',
+        title: first ? '우렁이에게 전해줬어요' : '고친 내용을 저장했어요',
         body: '이제 대화할 때 이 내용을 참고해요.\n처음부터 다시 설명하지 않아도 돼요.'
       });
     }
@@ -390,7 +390,7 @@ window.AboutMe = {
     const ok = window.UI ? await window.UI.confirm({
       tone: 'danger', danger: true,
       title: '전해준 내 정보를 지울까요?',
-      body: '느루가 더 이상 이 내용을 참고하지 않아요.\n대화하며 쌓인 느루의 기억은 그대로 남아요.',
+      body: '우렁이가 더 이상 이 내용을 참고하지 않아요.\n대화하며 쌓인 우렁이의 기억은 그대로 남아요.',
       confirmText: '지우기', okLabel: '지우기'
     }) : true;
     if (!ok) return;

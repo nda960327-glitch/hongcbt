@@ -126,7 +126,7 @@ window.Clinics = {
       </div>`;
     if (st === 'idle') el.innerHTML = prompt('내 주변 정신건강의학과 찾기', '가까운 순으로 보여드려요. 위치는 검색에만 쓰고 저장하지 않아요.');
     else if (st === 'locating') el.innerHTML = prompt('내 위치를 확인하고 있어요…', '잠깐만요. 오래 걸리면 지역 이름으로 찾아도 돼요.');
-    else if (st === 'loading') el.innerHTML = `<div class="glass-card clinic-prompt"><div class="clinic-prompt__txt"><b>가까운 병원을 찾는 중…</b><span>느루가 지도를 펼치고 있어요. 느적느적.</span></div></div>`;
+    else if (st === 'loading') el.innerHTML = `<div class="glass-card clinic-prompt"><div class="clinic-prompt__txt"><b>가까운 병원을 찾는 중…</b><span>우렁이가 지도를 펼치고 있어요. 느적느적.</span></div></div>`;
     else if (st === 'denied') el.innerHTML = prompt('위치를 쓸 수 없어요', '설정에서 위치 권한을 켜거나, 동네·역 이름으로 찾아보세요.', true);
     else if (st === 'notfound') el.innerHTML = prompt('그 이름의 장소를 못 찾았어요', '"수원 영통", "강남구 역삼동" 처럼 동네 이름으로 넣어보세요. 역 이름은 아직 안 돼요.');
     else if (st === 'error') el.innerHTML = prompt('지금은 불러오지 못했어요', '잠시 후 다시 시도해주세요.');

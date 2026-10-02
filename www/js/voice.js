@@ -1,5 +1,5 @@
 ﻿// ============================================================================
-//  느루 음성 대화 (Voice STT + TTS)
+//  우렁이 음성 대화 (Voice STT + TTS)
 //  - STT: Web Speech API (SpeechRecognition / webkitSpeechRecognition)
 //  - TTS: Web Speech API (SpeechSynthesisUtterance)
 //  - 각 페르소나별 목소리 톤(Pitch) & 속도(Rate) 적용

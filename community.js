@@ -15,7 +15,7 @@
 //           GET  /community/author?id=&clientId=             상담사 블로그(프로필 + 글 + 합계)
 //           POST /community/comment/like {cid, clientId, clientKey}   댓글 공감 토글 — 공감 많은 댓글이 '베스트 댓글'
 //           GET  /community/best                        요즘 공감 많이 받은 댓글(글 제목과 함께)
-//    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · neru=느루 자랑방 · qna=고민 Q&A · meds=약 이야기 · idea=기능 제안·오류 신고 · notice=공지
+//    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · neru=우렁이 자랑방 · qna=고민 Q&A · meds=약 이야기 · idea=기능 제안·오류 신고 · notice=공지
 //      이용자 글은 상담소 자리에 시스템 상담소 'community' 를 넣어 같은 표를 쓴다 — 좋아요·댓글·답글·검색·공개 페이지가 그대로 붙는다.
 //           GET  /community?board=column|free|qna|idea|notice
 //           POST /community/write {clientId, clientKey, board, title, body, tags, images, thumb, name}   이용자 글쓰기(하루 5개)

@@ -1,6 +1,6 @@
 // ============================================================================
 //  온보딩 — 첫 실행 3화면: 환영·별명 → 요즘 마음 고르기 → AI 상담사 추천
-//  선택한 고민은 장기기억의 시드가 되어 첫 대화부터 느루가 알고 시작한다.
+//  선택한 고민은 장기기억의 시드가 되어 첫 대화부터 우렁이가 알고 시작한다.
 // ============================================================================
 window.Onboard = {
   CONCERNS: [
@@ -22,7 +22,7 @@ window.Onboard = {
     S._safeSet('cbt_name_asked', true);
     const v = await window.UI.prompt({
       title: '뭐라고 불러드릴까요?',
-      body: '느루가 대화할 때 이름을 불러드릴게요. 별명도 좋아요.',
+      body: '우렁이가 대화할 때 이름을 불러드릴게요. 별명도 좋아요.',
       placeholder: '별명이나 이름', okLabel: '이렇게 불러줘', cancelLabel: '나중에'
     });
     const name = String(v || '').trim().slice(0, 12);
@@ -65,13 +65,13 @@ window.Onboard = {
       this._wrap(`
  <span style="line-height: 0; display: inline-block;">${window.Stickers ? window.Stickers.svg('joy', 120) :''}</span>
         <h2 style="margin: 0.8rem 0 0.4rem; font-size: 1.35rem;">만나서 반가워요!</h2>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin: 0 0 1.3rem;">저는 당신의 마음 주치의, <b>느루</b>예요.<br>뭐라고 불러드리면 될까요?</p>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin: 0 0 1.3rem;">저는 당신의 마음 주치의, <b>우렁이</b>예요.<br>뭐라고 불러드리면 될까요?</p>
         <input id="ob-name" maxlength="12" placeholder="별명이나 이름" style="width: 100%; box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.95rem; text-align: center;">
         <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
  <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 </p>`);
       const input = document.getElementById('ob-name');
       setTimeout(() => input.focus(), 200);
-      // 이름은 꼭 받는다 — 비워 두고 넘어가면 느루가 끝까지 이름을 못 부른다 (2026-09-28 팀 피드백)
+      // 이름은 꼭 받는다 — 비워 두고 넘어가면 우렁이가 끝까지 이름을 못 부른다 (2026-09-28 팀 피드백)
       document.getElementById('ob-next').addEventListener('click', () => {
         d.name = input.value.trim();
         if (!d.name) {
@@ -136,7 +136,7 @@ window.Onboard = {
 
 
     } else if (n === 3) {
-      // 고민 → 상담사 투표: 최다 득표 페르소나 추천 (기본 느루)
+      // 고민 → 상담사 투표: 최다 득표 페르소나 추천 (기본 우렁이)
       const votes = {};
       d.concerns.forEach(id => {
         const c = this.CONCERNS.find(x => x.id === id);
@@ -160,7 +160,7 @@ window.Onboard = {
       const finish = (openChooser) => {
         window.Storage._safeSet('cbt_onboard_done', true);
         window.Storage._safeSet('cbt_user_concerns', d.concerns);
-        // 첫 대화부터 느루가 알고 시작하도록 장기기억 시드
+        // 첫 대화부터 우렁이가 알고 시작하도록 장기기억 시드
         if (labels.length) {
           const seed = `[온보딩] ${d.name ? `이름/별명: ${d.name}. ` : ''}요즘 고민: ${labels.join(', ')}. (첫 대화에서 자연스럽게, 부담스럽지 않게 물어봐줄 것)`;
           const prev = window.Storage.getUserMemory() || '';
