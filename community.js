@@ -32,7 +32,9 @@
 //    상담소 GET  /hospital/inquiries?hsession=   POST /hospital/inquiries/reply {hsession, id, text}
 //           GET  /community/library   공개된 회원 자료 · POST /community/library/upload {session, title, desc, who, file(PDF data URL ≤300KB)}  인증된 전문가만, 운영자 승인 뒤 공개
 //           POST /community/write 에 id 를 주면 내 글 고치기(제목·본문) · POST /community/save {session, id} 담아 두기 토글 · GET /community/saved?session=
-//           GET  /community/notifs?session=                    새 소식(내 글의 댓글·내 댓글의 답글·쪽지 답장, 30일)
+//           GET  /community/notifs?session=&clientId=&clientKey=   새 소식(내 글의 댓글·내 댓글의 답글·쪽지 답장·내 글의 공감·담아 둔 글의 새 댓글·새 공지, 30일)
+//                 앱이 clientId 를 같이 주면 계정↔기기를 적어 둔다(user_clients) — 댓글·답글이 달릴 때 그 기기로 푸시를 보낸다(push_prefs 의 community 로 끈다)
+//           POST /community/liked {session, clientId, clientKey}   내가(이 기기에서) 공감한 글
 //           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
 //           GET  /community/role?session=                     내 인증 상태
@@ -63,6 +65,7 @@
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 import { resolveHospital } from './hospital.js';
 import { pingIndexNow } from './blogpage.js';
+import { notifyClient } from './push.js';
 import { resolveUser } from './oauth.js';
 import { PRIVATE, PRIVATE_SQL, ROLE_NAME, isPrivate, canSee, rolesOf } from './roles.js';
 import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY, resolveCounselor } from './auth.js';
@@ -409,8 +412,34 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     b.forEach(x => { seen.add(x.id); items.push({ kind: 'reply', id: x.id, postId: x.post_id, title: x.title, name: x.name || '익명', text: cut(x.text), ts: x.ts }); });
     a.forEach(x => { if (!seen.has(x.id)) items.push({ kind: 'comment', id: x.id, postId: x.post_id, title: x.title, name: x.name || '익명', text: cut(x.text), ts: x.ts }); });
     q3.forEach(x => items.push({ kind: 'inquiry', id: x.id, hospitalId: x.hospital_id, title: x.name, name: x.name, text: cut(x.reply), ts: x.reply_ts }));
+    // 내 글이 받은 공감 — 글마다 한 줄로 모은다(누가 눌렀는지는 알리지 않는다)
+    const lk = await all('SELECT p.id, p.title, COUNT(*) n, MAX(l.ts) ts FROM post_likes l JOIN posts p ON p.id = l.post_id WHERE p.client_id = ? AND l.client_id != ? AND p.hidden = 0 AND l.ts > ? GROUP BY p.id ORDER BY ts DESC LIMIT 10', u.key, u.key, since);
+    lk.forEach(x => items.push({ kind: 'like', id: 'lk_' + x.id, postId: x.id, title: x.title, name: '', text: '공감 ' + x.n + '개를 받았어요', ts: x.ts }));
+    // 담아 둔 글에 새로 달린 댓글 (담은 뒤의 것만 · 비공개 라운지는 뺀다)
+    const sv = await all('SELECT c.id, c.post_id, c.name, c.text, c.ts, p.title, p.board FROM post_saves s JOIN post_comments c ON c.post_id = s.post_id AND c.ts > s.ts JOIN posts p ON p.id = c.post_id WHERE s.user_id = ? AND c.client_id != ? AND p.client_id != ? AND c.hidden = 0 AND p.hidden = 0 AND c.ts > ? ORDER BY c.ts DESC LIMIT 20', u.id, u.key, u.key, since);
+    sv.forEach(x => { if (!seen.has(x.id) && !isPrivate(x.board)) { seen.add(x.id); items.push({ kind: 'saved', id: x.id, postId: x.post_id, title: x.title, name: x.name || '익명', text: cut(x.text), ts: x.ts }); } });
+    // 새 공지
+    const nt = await all("SELECT id, title, created FROM posts WHERE board = 'notice' AND published = 1 AND hidden = 0 AND created > ? ORDER BY created DESC LIMIT 3", since);
+    nt.forEach(x => items.push({ kind: 'notice', id: 'nt_' + x.id, postId: x.id, title: x.title, name: '운영팀', text: x.title, ts: x.created }));
+    // 앱이 기기 번호를 같이 주면 적어 둔다 — 댓글이 달릴 때 이 기기로 푸시를 보내려고
+    const dev = s(q('clientId'), 64).replace(/[^\w-]/g, '');
+    if (dev && await verifyClient(env, dev, s(q('clientKey'), 64)) !== 'deny') {
+      try { await db.prepare('INSERT INTO user_clients (user_id, client_id, updated) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET client_id = excluded.client_id, updated = excluded.updated').bind(u.id, dev, nowMs()).run(); } catch (e) { if (!noTable(e)) throw e; }
+    }
     items.sort((x, y) => y.ts - x.ts);
-    return json({ items: items.slice(0, 40) }, 200, cors);
+    return json({ items: items.slice(0, 50) }, 200, cors);
+  }
+
+  // 내가 공감한 글
+  //  공감은 로그인 없이 기기(clientId)로 누른다 — 그래서 이 목록도 기기 기준이다(다른 기기에서 누른 것은 안 보인다)
+  if ((path === '/community/liked') && method === 'POST') {
+    const u = await userOf();
+    if (!u) return json({ items: [], login: true }, 200, cors);
+    const dev = cleanId(body.clientId);
+    if (!dev || await verifyClient(env, dev, s(body.clientKey, 64)) === 'deny') return json({ items: [] }, 200, cors);
+    u.roles = await rolesOf(db, u.id);
+    const rows = (await db.prepare('SELECT p.id, p.title, p.board, l.ts FROM post_likes l JOIN posts p ON p.id = l.post_id WHERE l.client_id = ? AND p.published = 1 AND p.hidden = 0 ORDER BY l.ts DESC LIMIT 100').bind(dev).all()).results || [];
+    return json({ items: rows.filter(r => canSee(r.board, u.roles)).map(r => ({ id: r.id, title: r.title, board: r.board || 'column', ts: r.ts })) }, 200, cors);
   }
 
   // 내 우렁이 방 사진 — 앱이 방이 바뀔 때 올린다. 커뮤니티 옆칸과 내 정보에 보인다.
@@ -574,6 +603,23 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const c = { id: rid('cm'), post_id: id, client_id: cid, name, text, ts: nowMs(), hidden: 0, by_hospital: 0, parent_id: parent };
     await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,0,?)')
       .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts, parent || null).run();
+    // 글쓴이와 윗댓글 쓴 사람의 앱으로 알린다 — 본문은 싣지 않는다(잠금 화면에 남의 글이 뜨지 않게). 실패해도 댓글은 그대로 올라간다.
+    const pushJob = (async () => {
+      try {
+        const owner = await db.prepare('SELECT client_id, title FROM posts WHERE id = ?').bind(id).first();
+        const up = parent ? await db.prepare('SELECT client_id FROM post_comments WHERE id = ?').bind(parent).first() : null;
+        const sent = new Set();
+        const go = async (key, title) => {
+          if (!key || key === cid || !/^acc:/.test(key) || sent.has(key)) return;
+          sent.add(key);
+          const d = await db.prepare('SELECT client_id FROM user_clients WHERE user_id = ?').bind(key.slice(4)).first();
+          if (d && d.client_id) await notifyClient(env, d.client_id, { kind: 'notice', type: 'community', title, body: s((owner && owner.title) || '', 40), act: 'cmpost:' + id, ttl: 86400 });
+        };
+        if (up) await go(up.client_id, '내 댓글에 답글이 달렸어요');
+        if (owner) await go(owner.client_id, '내 글에 댓글이 달렸어요');
+      } catch (e) {}
+    })();
+    if (ctx && ctx.waitUntil) ctx.waitUntil(pushJob);
     return json({ ok: true, comment: rowComment(c) }, 200, cors);
   }
 

@@ -457,7 +457,7 @@ export async function handlePush(request, env, cors, path, body, url) {
   }
 
   if (path === '/push/prefs' && method === 'POST') {
-    const ALLOWED = ['chat', 'booking', 'remind'];
+    const ALLOWED = ['chat', 'booking', 'remind', 'community'];
     const muted = (Array.isArray(body.muted) ? body.muted : [])
       .map(x => String(x)).filter(x => ALLOWED.indexOf(x) !== -1);
     let owner = '';

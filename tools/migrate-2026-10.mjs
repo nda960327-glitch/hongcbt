@@ -83,6 +83,7 @@ const STEPS = [
   ['상담소 쪽지 표', 'CREATE TABLE IF NOT EXISTS hospital_inquiries (id TEXT PRIMARY KEY, hospital_id TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, reply TEXT, reply_ts INTEGER)'],
   ['상담소 쪽지 색인', 'CREATE INDEX IF NOT EXISTS idx_inq_h ON hospital_inquiries (hospital_id, ts)'],
   ['상담소 쪽지 색인(회원)', 'CREATE INDEX IF NOT EXISTS idx_inq_u ON hospital_inquiries (user_id, ts)'],
+  ['계정↔앱 기기 표(커뮤니티 푸시)', 'CREATE TABLE IF NOT EXISTS user_clients (user_id TEXT PRIMARY KEY, client_id TEXT NOT NULL, updated INTEGER NOT NULL DEFAULT 0)'],
   ['내 우렁이 방 사진 표', 'CREATE TABLE IF NOT EXISTS user_pets (user_id TEXT PRIMARY KEY, photo TEXT, level INTEGER NOT NULL DEFAULT 1, updated INTEGER NOT NULL DEFAULT 0)'],
   ['커뮤니티 프로필 표', 'CREATE TABLE IF NOT EXISTS user_profiles (user_id TEXT PRIMARY KEY, nick TEXT, photo TEXT, updated INTEGER NOT NULL DEFAULT 0)'],
   // 느루 → 우렁이 (2026-10-02) — 이미 들어간 커뮤니티 글·댓글의 이름

@@ -46,13 +46,15 @@ window.Community = {
       const now = Date.now();
       if (now - (this._nfAt || 0) < 600000) return;
       this._nfAt = now;
-      const d = await window.Api.json('/api/community/notifs?session=' + encodeURIComponent(session));
+      // 기기 번호를 같이 보낸다 — 서버가 계정과 기기를 이어 두어야 댓글·답글 푸시를 보낼 수 있다
+      const d = await window.Api.json('/api/community/notifs?session=' + encodeURIComponent(session) + '&clientId=' + encodeURIComponent(this._cid()) + (window.App && window.App.clientKey ? '&clientKey=' + encodeURIComponent(window.App.clientKey() || '') : ''));
       const items = (d && Array.isArray(d.items)) ? d.items : [];
       // 처음 확인할 때는 지난 것을 한꺼번에 쏟지 않는다 — 지금부터의 소식만
       const seen = Number(window.Storage._safeGet('cbt_cm_nf_seen', 0)) || 0;
       window.Storage._safeSet('cbt_cm_nf_seen', now);
       if (!seen) return;
-      const K = { comment: '내 글에 댓글이 달렸어요', reply: '내 댓글에 답글이 달렸어요', inquiry: '상담소에서 답장이 왔어요' };
+      const K = { comment: '내 글에 댓글이 달렸어요', reply: '내 댓글에 답글이 달렸어요', inquiry: '상담소에서 답장이 왔어요', like: '내 글이 공감을 받았어요', saved: '담아 둔 글에 새 댓글이 달렸어요', notice: '새 공지가 올라왔어요' };
+      if (window.App && window.App._notifOn && !window.App._notifOn('community')) return;
       items.filter(x => x.ts > seen).slice(0, 5).reverse().forEach(x => {
         window.Inbox.add(K[x.kind] || '커뮤니티 새 소식', (x.name ? x.name + ': ' : '') + (x.text || ''), x.kind === 'inquiry' ? 'cmme' : 'cmpost:' + x.postId);
       });

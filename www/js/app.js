@@ -2930,7 +2930,7 @@ ${memory || '(없음)'}`;
 
   // ── 설정 › 알림 설정 ────────────────────────────────────────────────
   //  종류별 스위치 (index.html 의 #notif-<종류> 체크박스와 짝)
-  NOTIF_KINDS: ['chat', 'booking', 'remind', 'letter', 'checkin'],
+  NOTIF_KINDS: ['chat', 'booking', 'remind', 'community', 'letter', 'checkin'],
 
   _isIOS() {
     const ua = navigator.userAgent || '';
@@ -3046,7 +3046,7 @@ ${memory || '(없음)'}`;
     this._notifPrefT = setTimeout(() => {
       try {
         if (!window.Api || !window.Api.post) return;
-        const muted = ['chat', 'booking', 'remind'].filter(k => !this._notifOn(k));
+        const muted = ['chat', 'booking', 'remind', 'community'].filter(k => !this._notifOn(k));
         window.Api.post('/api/push/prefs', { clientId: this.clientId(), muted }).catch(() => {});
       } catch (e) {}
     }, 600);
