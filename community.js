@@ -15,6 +15,7 @@
 //           GET  /community/author?id=&clientId=             상담사 블로그(프로필 + 글 + 합계)
 //           POST /community/comment/like {cid, clientId, clientKey}   댓글 공감 토글 — 공감 많은 댓글이 '베스트 댓글'
 //           GET  /community/best                        요즘 공감 많이 받은 댓글(글 제목과 함께)
+//           GET  /community/recent                      방금 올라온 글·댓글(모든 공개 게시판)
 //    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · neru=우렁이 자랑방 · qna=고민 Q&A · meds=약 이야기 · idea=기능 제안·오류 신고 · notice=공지
 //      이용자 글은 상담소 자리에 시스템 상담소 'community' 를 넣어 같은 표를 쓴다 — 좋아요·댓글·답글·검색·공개 페이지가 그대로 붙는다.
 //           GET  /community?board=column|free|qna|idea|notice
@@ -780,6 +781,19 @@ export async function handleCommunity(request, env, cors, path, ctx) {
   }
 
   // 베스트 댓글 — 최근 30일에 공감을 많이 받은 댓글. 커뮤니티 첫 화면에 글 제목과 함께 보여준다.
+  // 방금 올라온 글·댓글 — 모든 공개 게시판에서(비공개 라운지·가려진 것 제외)
+  if (path === '/community/recent' && method === 'GET') {
+    let posts = [], comments = [];
+    try { posts = (await db.prepare(`SELECT id, title, author_name, board, created, (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = posts.id AND c.hidden = 0) AS n FROM posts
+      WHERE published = 1 AND hidden = 0 AND created <= ? AND (board IS NULL OR board NOT IN ${PRIVATE_SQL}) AND id NOT LIKE 'po_day_%' ORDER BY created DESC LIMIT 12`).bind(nowMs()).all()).results || []; } catch (e) {}
+    try { comments = (await db.prepare(`SELECT c.id, c.post_id, c.name, c.text, c.ts, p.title, p.board FROM post_comments c JOIN posts p ON p.id = c.post_id
+      WHERE c.hidden = 0 AND c.ts <= ? AND p.published = 1 AND p.hidden = 0 AND (p.board IS NULL OR p.board NOT IN ${PRIVATE_SQL}) ORDER BY c.ts DESC LIMIT 12`).bind(nowMs()).all()).results || []; } catch (e) {}
+    return json({
+      posts: posts.map(r => ({ id: r.id, title: r.title, name: r.author_name || '', board: r.board || 'column', ts: r.created, comments: r.n || 0 })),
+      comments: comments.map(r => ({ id: r.id, postId: r.post_id, name: r.name || '익명', text: plainOf(r.text).slice(0, 70), title: r.title || '', board: r.board || 'column', ts: r.ts }))
+    }, 200, { ...cors, 'Cache-Control': 'public, max-age=20' });
+  }
+
   if (path === '/community/best' && method === 'GET') {
     let rows = [];
     try {
