@@ -349,7 +349,7 @@ ${transcript}
     const el = (Date.now() - j.t0) / 1000;
     const wait = 6 + j.chars / 2500;                 // 첫 글자가 오기까지 걸릴 것으로 보는 시간(초)
     if (!j.first) return Math.min(18, Math.round(18 * (1 - Math.exp(-el / wait))));
-    return Math.min(96, 18 + Math.round(78 * Math.min(1, j.got / 4400)));
+    return Math.min(96, 18 + Math.round(78 * Math.min(1, j.got / 8500)));
   },
   _renderProgress() {
     const b = this._body(); if (!b) return;
