@@ -1,6 +1,8 @@
 name = "cbt-proxy"
 main = "cbtproxy.worker.js"
 compatibility_date = "2024-11-01"
+# routes 를 적으면 workers.dev 주소가 기본으로 꺼진다 — 앱 전체가 cbt-proxy.hongcbt.workers.dev 를 부르므로 반드시 켜 둔다.
+workers_dev = true
 
 # 비밀값은 파일에 두지 말고 반드시 secret 으로 넣으세요:
 #   wrangler secret put OPENAI_API_KEY
