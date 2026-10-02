@@ -88,7 +88,9 @@ const STEPS = [
 ];
 
 // 커뮤니티 첫 글(편집팀 칼럼 + 사진, 게시판 여는 글) — 길어서 따로 둔 파일. INSERT OR IGNORE 라 몇 번 돌려도 한 번만 들어간다.
-try { STEPS.push(...JSON.parse(readFileSync(new URL('./seed-community.json', import.meta.url), 'utf8'))); } catch (e) {}
+//  한 줄씩 돌리면 글이 늘수록 너무 오래 걸린다(한 번에 3초) — 이 글들은 서로 순서만 지키면 되므로 12개씩 묶어 한 번에 넣는다.
+let SEED = [];
+try { SEED = JSON.parse(readFileSync(new URL('./seed-community.json', import.meta.url), 'utf8')); } catch (e) {}
 
 // 시험용: node tools/migrate-2026-10.mjs --local [wrangler 추가 인자…] 로 로컬 DB 에 먼저 돌려볼 수 있다
 const extra = process.argv.slice(2);
@@ -107,6 +109,18 @@ for (const [name, sql] of STEPS) {
     if (/duplicate column/i.test(out)) { console.log('  이미 있음 ' + name); continue; }
     bad++;
     console.log('  실패   ' + name + '\n         ' + (out.match(/ERROR.*|error.*/i) || [out.slice(0, 200)])[0]);
+  }
+}
+for (let i = 0; i < SEED.length; i += 12) {
+  const part = SEED.slice(i, i + 12);
+  try {
+    writeFileSync(SQL_FILE, part.map(s => s[1] + ';').join('\n') + '\n');
+    execSync(`npx wrangler d1 execute hongcbt ${target.join(' ')} --file="${SQL_FILE}"`, { stdio: 'pipe', encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    console.log(`  완료   커뮤니티 글 ${i + 1}~${i + part.length}`);
+  } catch (e) {
+    bad++;
+    const out = String((e.stdout || '') + (e.stderr || ''));
+    console.log(`  실패   커뮤니티 글 ${i + 1}~${i + part.length} (${part[0][0]} …)\n         ` + (out.match(/ERROR.*|error.*/i) || [out.slice(0, 200)])[0]);
   }
 }
 try { unlinkSync(SQL_FILE); } catch (e) {}
