@@ -515,7 +515,7 @@ ${transcript}
     }
     j.state = 'done';
     this._res = res; this._tab = 'ally';
-    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0; this._askLog = [];
+    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0; this._askLog = []; this._stuckLog = []; this._stuckSel = [];
     this._savePattern(); this._decided = null;
     try { this._saveLog(); } catch (e) {}
     this._deepState = 'running'; this._deepRun(j);
@@ -899,6 +899,33 @@ ${transcript}
           <b style="flex: 0 0 auto; width: 1.3rem; height: 1.3rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #fff; background: #d98a4a;">!</b>
           <div style="font-size: 0.8rem; line-height: 1.6; color: var(--text-primary);">한쪽이 넣은 이 대화만 보고 AI 가 내린 결론이라 <b>틀릴 수 있어요.</b> 전학·이별·신고 같은 큰 결정은 믿을 만한 사람이나 전문가와 한 번 더 확인하고 움직이세요. ${r.limit ? esc(r.limit) : ''}</div>
         </div>
+        ${(() => {
+          const au2 = r.audit || {}, hard = r.danger || au2.verdict === 'danger' || au2.verdict === 'concern' || lv.should === 'yes' || lv.should === 'consider';
+          const log = this._stuckLog || [];
+          const sel = this._stuckSel || [];
+          const chip = x => { const on = sel.includes(x); return `<button type="button" data-b="${esc(x)}" onclick="window.TalkCheck._stuckPick(this.dataset.b)" style="all: unset; cursor: pointer; padding: 0.34rem 0.75rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); border: 1.5px solid ${on ? A : 'var(--glass-border)'}; background: ${on ? `color-mix(in srgb, ${A} 12%, transparent)` : 'var(--bg-primary)'};">${esc(x)}</button>`; };
+          const round = (x, i) => `
+            <div style="margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px dashed var(--glass-border);">
+              <div style="font-size: 0.8rem; font-weight: 700; color: ${A}; margin-bottom: 0.4rem;">${esc(x.q)}</div>
+              ${x.hear ? `<p style="margin: 0 0 0.6rem; font-size: 0.93rem; line-height: 1.7; color: var(--text-primary);">${esc(x.hear)}</p>` : ''}
+              ${(x.items || []).map(it => `<div style="margin-bottom: 0.6rem; border: 1px solid var(--glass-border); border-radius: 14px; overflow: hidden;">
+                <div style="padding: 0.5rem 0.75rem; font-size: 0.86rem; font-weight: 800; color: var(--text-primary); background: var(--bg-tertiary);">${esc(it.barrier || '')}</div>
+                ${[['맞는 부분', it.real, '#3d7659'], ['나를 묶는 방식', it.trap, '#d98a4a'], ['이번 주 가장 작은 한 걸음', it.step, A]].map(y => y[1] ? `<div style="padding: 0.5rem 0.75rem; border-top: 1px dashed var(--glass-border);"><div style="font-size: 0.68rem; font-weight: 800; color: ${y[2]}; margin-bottom: 0.1rem;">${y[0]}</div><div style="font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(y[1])}</div></div>` : '').join('')}
+              </div>`).join('')}
+              ${this._list(x.prep).length ? `<div style="font-size: 0.72rem; font-weight: 800; color: ${A}; margin: 0.5rem 0 0.3rem;">아직 떠나지 않아도, 지금 해 둘 수 있는 것</div>${bullets(x.prep)}` : ''}
+              ${x.say ? `<p style="margin: 0.4rem 0 0; font-size: 0.93rem; line-height: 1.7; color: var(--text-primary);">${esc(x.say)}</p>` : ''}
+              ${(x.ask && i === log.length - 1) ? `<div style="margin-top: 0.6rem; padding: 0.6rem 0.75rem; border-radius: 12px; background: color-mix(in srgb, ${A} 9%, transparent); font-size: 0.92rem; font-weight: 700; line-height: 1.6; color: var(--text-primary);">${esc(x.ask)}</div>` : ''}
+            </div>`;
+          return `<div style="${card} border: 2px solid ${hard ? '#d98a4a' : 'var(--glass-border)'};">
+            ${h(hard ? '잘못된 줄 알면서도, 못 빠져나오는 까닭이 있나요' : '정한 대로 하기 어렵게 막는 것이 있나요', hard ? '#d98a4a' : A)}
+            <p style="margin: 0 0 0.6rem; font-size: 0.86rem; line-height: 1.65; color: var(--text-secondary);">${hard ? '아는 것과 움직이는 것은 달라요. 못 떠나는 데는 대개 진짜 이유가 있어요 — 약해서가 아니에요.' : '결정은 했는데 몸이 안 움직일 때가 있어요.'} 해당하는 걸 모두 골라 주세요.</p>
+            ${log.length ? '' : `<div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.5rem;">${this.STUCK.map(chip).join('')}</div>`}
+            ${log.map(round).join('')}
+            <textarea id="tc-stuck" rows="2" maxlength="500" placeholder="${log.length ? '답하거나, 더 하고 싶은 말을 적어 주세요' : '고르기 어렵거나 다른 까닭이 있으면 그대로 적어 주세요'}" style="${this._field} line-height: 1.55; resize: vertical; background: var(--bg-primary); margin-top: ${log.length ? '0.7rem' : '0'};"></textarea>
+            <button type="button" class="btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="window.TalkCheck._stuck(this)">${log.length ? '이어서 이야기하기' : '이 까닭들, 같이 풀어 보기'}</button>
+            ${log.length >= 2 ? `<button type="button" class="btn-secondary" style="width: 100%; margin-top: 0.4rem; font-size: 0.82rem;" onclick="window.TalkCheck._stuckToChat()">여기서 나눈 걸 들고 상담사와 이어가기 ›</button>` : ''}
+          </div>`;
+        })()}
         <div style="${card}">
           ${h('대화에 안 담긴 사정이 있나요')}
           <p style="margin: 0 0 0.5rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">현실은 대화 한 토막보다 복잡해요. 전부터 있던 일, 말로 한 것, 이 사람과의 사이를 적어 주면 그것까지 넣어 다시 봐 드려요. 궁금한 걸 물어도 돼요.</p>
@@ -1022,6 +1049,79 @@ ${q}
     if (!a) { btn.disabled = false; btn.textContent = '이것까지 넣어 다시 보기'; if (window.App && window.App.showRecordToast) window.App.showRecordToast('지금은 답하지 못했어요. 다시 눌러 주세요'); return; }
     this._askLog = (this._askLog || []).concat([{ q, a }]).slice(-6);
     const b = this._body(); const y = b ? b.scrollTop : 0; this._renderResult(); if (b) b.scrollTop = y;
+  },
+  // ── 못 빠져나오는 까닭 ─────────────────────────────────────────────
+  STUCK: ['돈·살 곳이 걸려서', '혼자가 될까 봐', '그래도 좋았던 때가 있어서', '바뀔 거라는 희망이 남아서', '내가 떠나면 상대가 무너질까 봐', '보복이 무서워서', '어쩌면 내 탓인 것 같아서', '가족·주변이 말려서', '아이·가족 때문에', '어디서부터 해야 할지 몰라서', '너무 지쳐서 힘이 없어서', '전에도 떠나려다 돌아갔어서'],
+  _stuckPick(b) {
+    const a = this._stuckSel || (this._stuckSel = []); const i = a.indexOf(b);
+    if (i >= 0) a.splice(i, 1); else if (a.length < 6) a.push(b);
+    const body = this._body(); const y = body ? body.scrollTop : 0; const keep = (document.getElementById('tc-stuck') || {}).value || '';
+    this._renderResult(); if (body) body.scrollTop = y; const ta = document.getElementById('tc-stuck'); if (ta) ta.value = keep;
+  },
+  async _stuck(btn) {
+    const ta = document.getElementById('tc-stuck'); const txt = (ta && ta.value || '').trim();
+    const sel = this._stuckSel || []; const log = this._stuckLog || (this._stuckLog = []);
+    if (!log.length && !sel.length && !txt) { if (window.App && window.App.showRecordToast) window.App.showRecordToast('해당하는 걸 고르거나 적어 주세요'); return; }
+    if (log.length && !txt) return;
+    if (window.LLM && window.LLM.CRISIS_RE && window.LLM.CRISIS_RE.test(txt)) { this.close(); const inp = document.getElementById('chat-input'); if (inp && window.App) { window.App.switchTab('chat', true); inp.value = txt; window.App.sendMessage(); } return; }
+    btn.disabled = true; btn.textContent = '듣고 있어요…';
+    const r = this._res || {}, au = r.audit || {}, pl = r.plan || {}, j = this._job || {};
+    const first = !log.length;
+    const q = first ? [sel.join(', '), txt].filter(Boolean).join(' / ') : txt;
+    const prev = log.map(x => `사용자: ${x.q} → 상담: ${x.hear || ''} ${(x.items || []).map(i => i.barrier + ': ' + i.step).join('; ')} ${x.say || ''} (물은 것: ${x.ask || ''})`).join(' | ');
+    const base = `당신은 해로운 관계·환경에서 벗어나지 못하는 사람을 돕는 상담 전문가입니다. 사용자("나")는 다툰 대화를 분석했고 아래 결론을 받았습니다.
+
+[대화 요약] ${r.one || ''}
+[평가] ${au.verdict || ''} — ${au.verdictWhy || ''}
+[결론] ${pl.headline || ''} / 떠나는 것: ${(pl.leave || {}).should || ''} / 권한 선택지: ${r.pick || ''}${this._decided ? ' / 사용자가 정한 것: ' + this._decided.name : ''}
+[사용자가 앞서 답한 것] ${j.prompt ? (j.prompt.match(/\[사용자가 답한 것\] ([^\n]*)/) || [])[1] || '' : ''}
+`;
+    const prompt = first ? base + `
+[사용자가 고른 '못 빠져나오는 까닭'] ${q}
+
+아래 JSON 으로만 답하세요(설명 없이). 한국어 존댓말, 쉬운 말, 한 문장 45자 안팎.
+{
+ "hear": "먼저 알아주는 말 두 문장 — 이 까닭들이 약해서나 어리석어서가 아니라, 그런 자리에 있는 사람 누구에게나 생기는 것임을. 해로운 관계에서 잘해 줄 때와 아프게 할 때가 번갈아 오면 더 끊기 어려워진다는 점이 해당하면 쉬운 말로 짚는다",
+ "items": [{"barrier": "사용자가 고르거나 적은 까닭 하나", "real": "그 까닭에서 실제로 맞는 부분 한 문장(가볍게 넘기지 않는다)", "trap": "그 까닭이 나를 묶어 두는 방식 한 문장 — 생각의 함정이 있으면 짚는다(예: '바뀔 거라는 희망'은 말이 아니라 지난 행동으로 따져 봐야 한다)", "step": "이 까닭을 조금 느슨하게 만드는, 이번 주 안에 할 수 있는 가장 작은 한 걸음. 누구에게 무엇을, 구체적으로"}],
+ "prep": ["지금 당장 떠나지 않아도 해 둘 수 있는 준비 2~3개 — 나중에 움직일 수 있게 길을 열어 두는 것(따로 모으는 돈, 믿을 사람 한 명, 증거, 지낼 곳 알아보기, 상담 전화 등)"],
+ "ask": "가장 큰 까닭 하나를 더 깊이 알기 위한 질문 한 문장 — 예·아니오로 끝나지 않게"
+}
+규칙:
+- 사용자가 고른 까닭마다 items 를 하나씩(최대 5개). 떠나라고 다그치지 않는다 — 준비가 안 된 사람을 밀면 더 붙는다. 그렇다고 "그럴 수 있어요"로 끝내지도 않는다. 까닭마다 반드시 실제로 할 수 있는 한 걸음을 준다.
+- 돈·살 곳: 주거·긴급 지원을 물어볼 수 있는 곳(여성긴급전화 1366, 주민센터·복지 상담 129, 청소년은 1388·청소년쉼터)을 알린다. 보복이 무섭다: 떠나는 순간이 가장 위험할 수 있으니 혼자 통보하지 말고 안전 계획(알릴 사람, 갈 곳, 112, 1366)을 먼저 세우게 한다. 내 탓 같다: 대화에서 드러난 근거로 무엇이 내 몫이 아닌지 짚는다. 직장: 1350. 학교: 117, 보호자·교사.
+- 평가가 흔한 다툼(ordinary)·내 해석이 앞섬(myread)이면 '떠나기'가 아니라 '정한 것을 실행하기 어려운 까닭'으로 보고 같은 형식으로 돕는다.
+- 사람에게 꼬리표·진단명을 붙이지 않는다.` : base + `
+[지금까지 주고받은 것] ${prev}
+[사용자의 이번 답] ${q}
+
+아래 JSON 으로만 답하세요. 한국어 존댓말, 쉬운 말, 한 문장 45자 안팎.
+{
+ "hear": "이번 답에서 들은 것을 한두 문장으로 — 사용자의 말을 짚어서",
+ "say": "그 답을 듣고 주는 피드백 세네 문장. 새로 드러난 것이 무엇인지, 그것이 무엇을 바꾸는지, 지금 할 수 있는 가장 작은 한 걸음(누구에게·언제·무엇을). 앞에서 한 말을 되풀이하지 않는다",
+ "prep": ["덧붙일 준비가 있으면 0~2개"],
+ "ask": "아직 풀리지 않은 것이 있으면 다음 질문 한 문장. 충분히 이야기했으면 빈 문자열"
+}
+규칙: 다그치지 않되 얼버무리지 않는다. 사용자가 스스로 한 말 속에서 이미 알고 있는 답을 찾아 돌려준다("방금 '무섭다'고 하셨어요 — 편한 사이라면 나오지 않을 말이에요"). 위험(폭력·협박·스토킹)이 드러나면 안전 계획과 112·1366 을 먼저 말한다.`;
+    let d = null;
+    try {
+      const res = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: first ? 1800 : 900 }, 120000);
+      if (res && res.ok) { const jj = await res.json(); const raw = ((jj.choices && jj.choices[0] && jj.choices[0].message.content) || ''); const s = raw.indexOf('{'), e = raw.lastIndexOf('}'); if (s >= 0 && e > s) d = JSON.parse(raw.slice(s, e + 1)); }
+    } catch (e) { d = null; }
+    if (!d) { btn.disabled = false; btn.textContent = first ? '이 까닭들, 같이 풀어 보기' : '이어서 이야기하기'; if (window.App && window.App.showRecordToast) window.App.showRecordToast('지금은 답하지 못했어요. 다시 눌러 주세요'); return; }
+    log.push({ q, hear: d.hear || '', items: Array.isArray(d.items) ? d.items.slice(0, 5) : [], prep: d.prep || [], say: d.say || '', ask: d.ask || '' });
+    this._stuckLog = log.slice(-6);
+    const body = this._body(); const y = body ? body.scrollTop : 0; this._renderResult(); if (body) body.scrollTop = y;
+  },
+  // 여기서 나눈 것을 들고 상담사에게
+  _stuckToChat() {
+    const r = this._res || {}, log = this._stuckLog || [];
+    const msg = `[대화 분석에서 이어서] ${String(this._nick || '').trim() || '어떤 사람'}와(과)의 일을 분석했어요.\n· 결론: ${(r.plan || {}).headline || r.one || ''}\n· 못 움직이는 까닭: ${(log[0] || {}).q || ''}\n· 마지막으로 한 말: ${(log[log.length - 1] || {}).q || ''}\n알면서도 못 움직이는 이 마음을 같이 이야기하고 싶어요.`;
+    const who = ((r.deep || {}).talkTo || {}).who || 'woorung-ds';
+    this.close();
+    if (!window.App || !window.Personas) return;
+    try { window.Personas.setActive(who === 'haru' || who === 'dalnim' ? 'woorung-ds' : who); if (window.App.updatePersonaBar) window.App.updatePersonaBar(); } catch (e) {}
+    window.App.switchTab('chat', true);
+    const inp = document.getElementById('chat-input'); if (inp) { inp.value = msg; window.App.sendMessage(); }
   },
   _deepWait(msg) {
     return this._deepState === 'fail'
