@@ -95,6 +95,11 @@ function screen(text) {
   return null;
 }
 export { screen };
+// 별명에 자격·직함을 적어 전문가인 척하지 못하게 한다 — 약·치료 이야기가 오가는 곳이라, '의사'라는 이름의 댓글은 그대로 믿기 쉽다.
+//  인증된 전문가는 글·댓글을 쓸 때 '인증 표시 달기'를 고르면 서버가 이름 뒤에 붙여 준다.
+const RE_TITLE = /인증|전문의|전공의|의사|닥터|상담사|심리사|치료사|약사|간호사|원장|소장|교수|박사|운영팀|운영자|관리자|편집팀|마인드\s?인사이드/;
+const MSG_TITLE = '별명에는 자격이나 직함을 나타내는 말을 쓸 수 없어요. 전문가라면 [전문가 인증]을 받은 뒤 글을 쓸 때 인증 표시를 달 수 있어요.';
+const PRO_SHORT = { doctor: '전문의', resident: '전공의', counselor: '상담사', clinic: '상담소' };
 
 const tagsOf = v => (Array.isArray(v) ? v : String(v || '').split(',')).map(t => s(t, 12).trim()).filter(Boolean).slice(0, TAGS_MAX);
 
@@ -263,7 +268,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (!u) return LOGIN();
     if (method === 'POST') {
       const nick = s(body.nick, NAME_MAX).trim();
-      if (nick) { const bad = screen(nick); if (bad) return json(bad, 422, cors); }
+      if (nick) { const bad = screen(nick); if (bad) return json(bad, 422, cors); if (RE_TITLE.test(nick)) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors); }
       const hasPhoto = Object.prototype.hasOwnProperty.call(body, 'photo');
       if (hasPhoto && body.photo && !jpegOk(body.photo, 40 * 1024)) return json({ error: 'bad-image' }, 400, cors);
       const cur = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
@@ -499,6 +504,8 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     } else {
       const badC = screen(text + ' ' + name);
       if (badC) return json(badC, 422, cors);
+      if (RE_TITLE.test(name)) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors);
+      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) name = s(name + ' · 인증 ' + PRO_SHORT[rs[0]], 40); }
     }
     const recent = await db.prepare('SELECT COUNT(*) n FROM post_comments WHERE client_id = ? AND ts > ?').bind(cid, nowMs() - 600000).first();
     if ((recent && recent.n) >= COMMENT_PER_10MIN) return json({ error: 'too-many' }, 429, cors);
@@ -525,6 +532,8 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     } else {
       const bad = screen(title + ' ' + text + ' ' + s(body.name, NAME_MAX));
       if (bad) return json(bad, 422, cors);
+      if (RE_TITLE.test(s(body.name, NAME_MAX))) return json({ error: 'abuse', message: MSG_TITLE }, 422, cors);
+      if (body.asPro) { const rs = await rolesOf(db, u.id); if (rs.length) roleLabel = '인증 ' + PRO_SHORT[rs[0]]; }
     }
     const images = checkImages(body.images);
     if (!images) return json({ error: 'bad-image' }, 400, cors);
