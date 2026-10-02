@@ -10,6 +10,14 @@ window.TalkCheck = {
   //  비용(2026-10 DeepSeek 기준 어림): 200개 ≈ 7원, 1,000개 ≈ 15원, 4만 자 가득 ≈ 25원. 길수록 느리고(1분 넘게) 초점이 흐려진다.
   MAX_CHARS: 40000,
   _msgs: [], _me: '', _res: null, _tab: 'neutral',
+  FULL_N: 100000,       // '전체'를 고른 표시
+  // '전체' 분석 값(캐시) — 보내는 글자 수로 어림한 DeepSeek 비용(원)의 100배, 100캐시 단위로 올림. 200개·1,000개는 무료.
+  //  어림: 한글 1자 ≈ 0.9토큰, 입력 100만 토큰 0.27달러, 출력(약 3,500토큰) 100만 토큰 1.10달러, 1달러 1,400원.
+  _fullPrice() {
+    const chars = Math.min(this.MAX_CHARS, this._msgs.reduce((a, m) => a + m.text.length + 6, 0)) + 2600;
+    const won = (chars * 0.9 * 0.27 + 3500 * 1.10) / 1e6 * 1400;
+    return Math.max(300, Math.ceil(won * 100 / 100) * 100);
+  },
 
   _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
 
@@ -104,20 +112,15 @@ window.TalkCheck = {
       <div style="display: flex; gap: 0.4rem; margin-bottom: 0.4rem;">
         <button type="button" onclick="window.TalkCheck._pickFile()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">카카오톡 내보내기 파일(.txt)</button>
         <input id="tc-file" type="file" accept=".txt" hidden onchange="window.TalkCheck._file(this)">
-        <button type="button" onclick="window.TalkCheck.close(); window.ImgText && window.ImgText.pick()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">캡처 사진</button>
       </div>
       <textarea id="tc-text" rows="6" placeholder="또는 대화를 여기에 붙여넣으세요.&#10;&#10;카카오톡: 대화방 › 메뉴 › 대화 내용 내보내기" oninput="window.TalkCheck._changed()" style="${this._field} line-height: 1.5; resize: vertical;"></textarea>
       <details style="margin: 0.5rem 0 0; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--bg-secondary);">
-        <summary style="cursor: pointer; padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 700; color: var(--accent-primary);">카카오톡 대화, 가장 쉽게 넣는 법</summary>
+        <summary style="cursor: pointer; padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 700; color: var(--accent-primary);">카카오톡 대화, 넣는 법</summary>
         <div style="padding: 0 0.8rem 0.75rem; font-size: 0.84rem; line-height: 1.75; color: var(--text-primary);">
-          <b>방법 1 · 캡처로</b> (가장 쉬워요)<br>
-          다툰 부분을 캡처하고, 위의 <b>[캡처 사진]</b>을 눌러 고르면 글자를 읽어 넣어 드려요.<br>
-          <div style="height: 0.5rem;"></div>
-          <b>방법 2 · 대화 전체를 한 번에</b><br>
           ① 카카오톡 대화방 오른쪽 위 <b>≡</b> › 아래 <b>톱니바퀴</b><br>
           ② <b>대화 내용 내보내기</b> › <b>텍스트 메시지만 저장</b><br>
           ③ 뜨는 목록에서 <b>마인드 인사이드</b>를 고르면 여기로 바로 들어와요.<br>
-          <span style="font-size: 0.76rem; color: var(--text-muted);">목록에 마인드 인사이드가 안 보이면 앱을 최신으로 업데이트해 주세요. 그 전에는 방법 1을 쓰면 돼요.</span>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">목록에 마인드 인사이드가 안 보이면 앱을 최신으로 업데이트해 주세요. PC 에서는 카카오톡 대화방 ≡ › 대화 내용 › 대화 내보내기로 저장한 파일을 위 버튼으로 고르면 돼요.</span>
         </div>
       </details>
       <div id="tc-meta" style="margin: 0.4rem 0 0.9rem; font-size: 0.76rem; color: var(--text-muted);">대화는 이 기기에서만 읽어요. 이름·전화번호·계좌는 가린 뒤 고른 구간만 분석에 쓰고, 저장하지 않아요.</div>
@@ -188,8 +191,8 @@ window.TalkCheck = {
         <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">이 중에 누가 나인가요</div>
         <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.7rem;">${names.slice(0, 8).map(nm => chip(nm, nm, nm === this._me, 'window.TalkCheck._pickMe(this.dataset.v)')).join('')}</div>
         ${this._msgs.length > 200 ? `<div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">어디까지 볼까요</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">${[[200, '마지막 200개'], [1000, '마지막 1,000개'], [100000, '전체 (최대 약 2,000개)']].map(x => chip(x[1], x[0], n === x[0], 'window.TalkCheck._pickN(+this.dataset.v)')).join('')}</div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">다툰 부분만 볼수록 정확하고 빨라요. 많이 넣으면 1분 넘게 걸릴 수 있어요.</div>` : ''}`;
+        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">${[[200, '마지막 200개'], [1000, '마지막 1,000개'], [100000, `전체 · ${this._fullPrice().toLocaleString()}캐시`]].map(x => chip(x[1], x[0], n === x[0], 'window.TalkCheck._pickN(+this.dataset.v)')).join('')}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">200개·1,000개는 무료예요. 전체(최대 약 2,000개)는 캐시가 들고 1분 넘게 걸릴 수 있어요. 다툰 부분만 볼수록 정확해요.</div>` : ''}`;
     }, 250);
   },
   _pickMe(v) { this._me = v; this._changed(); },
@@ -268,10 +271,21 @@ ${transcript}
    "me": [{"sign": "'나'의 말·행동에 붙이는 이름(같은 목록, 같은 기준)", "quote": "근거가 되는 실제 말", "level": "good | mild | concern | serious"}],
    "tone": {"other": {"score": 0, "desc": "상대방 말투를 한 구절로(예: 날이 서 있지만 선은 넘지 않음)"}, "me": {"score": 0, "desc": "'나'의 말투를 한 구절로"}},
    "together": {"good": ["이 대화에서 보인, 함께 지내기에 좋은 신호 0~3개(근거가 된 말과 함께). 없으면 빈 배열"], "hard": ["함께 지내기에 힘든 신호 0~3개(근거와 함께). 없으면 빈 배열"], "say": "이 대화 한 번만 놓고 본 한 문장 — 사람 전체를 판정하지 않는다"},
+   "path": {"kind": "distance | skill | talk | both 중 하나", "why": "그렇게 권하는 까닭 두 문장(근거가 된 말을 짚어서)", "steps": ["지금 해 볼 수 있는 구체적인 것 2~3개"]},
    "verdict": "danger | concern | ordinary | myread | unknown 중 하나",
    "verdictWhy": "그렇게 본 까닭 두 문장. 근거가 된 말을 짚어서",
    "bias": "'나'의 읽기에 쏠림이 보이면 한 문장(예: 한 번의 말을 '항상'으로 넓혀 읽음, 확인 없이 속마음을 단정함). 없으면 빈 문자열",
    "needMore": "더 확실히 알려면 무엇을 봐야 하는지 한 문장(예: 이런 일이 되풀이되는지, 다른 날의 대화)"
+ },
+ "plan": {
+   "headline": "결론 한 문장. 돌려 말하지 않는다(예: '이건 다툼이 아니라 괴롭힘입니다. 버티는 것이 답이 아닙니다.' / '이 정도는 흔한 다툼입니다. 관계를 끊을 일은 아닙니다.')",
+   "situation": "school(학교·또래) | dating(연인·배우자) | family(가족) | work(직장) | friend(친구) | other 중 하나",
+   "leave": {"should": "yes | consider | no 중 하나", "why": "떠나는 것(전학·반 바꾸기·이직·부서 이동·이별·연락 끊기·거리 두기)을 권하는지와 까닭 두 문장", "how": ["떠난다면 실제로 밟을 순서 2~4개. 한국 기준으로 구체적으로"]},
+   "now": ["오늘 할 것 2~3개. 누구에게 무엇을 어떻게 — 바로 할 수 있게 구체적으로"],
+   "week": ["이번 주 안에 할 것 1~3개"],
+   "line": "같은 일이 또 생기면 어떻게 할지 — 미리 정해 둘 선 한 문장(예: '한 번 더 물건을 던지면 그날 짐을 싸서 나온다')",
+   "evidence": ["남겨 둘 증거 0~3개(캡처·날짜 기록·목격자 등). 필요 없으면 빈 배열"],
+   "who": ["도움 받을 사람·기관과 연락처 1~4개"]
  },
  "heat": [{"who": "나 또는 상대방", "quote": "그 순간의 말을 18자 이내로 짧게 인용", "t": 0}],
  "spark": {"who": "나 또는 상대방", "quote": "대화에 불이 붙은 한마디(실제 대화에서 인용)", "why": "왜 이 말에서 달아올랐는지 한 문장", "instead": "그 말이 '나'의 말이었다면 같은 뜻을 덜 날카롭게 한 문장으로 다시 쓴 것. 상대방의 말이었다면 그 말을 들은 '나'가 불을 키우지 않고 할 수 있었던 답 한 문장"},
@@ -283,6 +297,16 @@ ${transcript}
 }
 
 규칙:
+- 분명하게 말합니다. 근거가 뚜렷하면 "가스라이팅입니다", "괴롭힘(따돌림)입니다", "이 관계는 당신을 해치고 있습니다", "떠나는 것을 진지하게 준비하세요"라고 돌려 말하지 않습니다. 사용자가 스스로를 의심하게 두는 것이 가장 해롭습니다. 반대로 근거가 없으면 "이 대화만으로는 그렇게 볼 수 없습니다", "이번에는 내 해석이 앞섰습니다"라고 똑같이 분명하게 말합니다. 두루뭉술하게 양쪽 다 조금씩 잘못이라고 얼버무리지 않습니다.
+- 다만 판정하는 것은 <말과 행동>입니다. "그 사람의 이 말은 용납될 수 없는 말입니다"라고 하지, 사람에게 욕설이나 꼬리표를 붙이지 않습니다.
+- plan(결론과 행동)은 마음을 달래는 말이 아니라 실제로 삶을 바꾸는 행동입니다.
+  · school: 따돌림·괴롭힘이면 버티라고 하지 않습니다. 부모·담임에게 알리기, 학교폭력 신고·상담 117, 캡처와 날짜 기록, 학교에 피해학생 보호조치(분리·학급 교체 등)를 요청하기, 그래도 안 되면 전학을 요청하는 길(학교·교육지원청에 문의)을 순서대로 적습니다. 청소년 상담 1388.
+  · dating: 통제·사실 부정·모욕·협박·폭력이 보이면 헤어짐을 준비하라고 분명히 권합니다. 안전하게 헤어지는 순서(주변에 먼저 알리기, 사람이 있는 곳이나 메시지로, 집·비밀번호·위치 공유 정리, 연락 차단, 찾아오면 112), 여성긴급전화 1366(24시간).
+  · work: 괴롭힘이면 날짜·말·목격자 기록, 사내 신고 창구, 고용노동부 1350, 필요하면 부서 이동·이직 준비. 흔한 업무 마찰이면 그렇다고 말하고 일로 푸는 방법을 적습니다.
+  · family: 폭력·통제면 떨어져 지낼 곳과 1366·112, 그렇지 않으면 선을 정해 말하는 법과 거리 조절.
+  · leave.should: yes = 떠나는 쪽이 나를 지킴(serious 가 있거나 concern 이 되풀이로 보임) / consider = 한 번 더 같은 일이 생기면 떠날 준비 / no = 떠날 일이 아님. no 일 때 how 는 빈 배열.
+  · 덧붙여, 사용자가 유독 크게 다치는 지점이 보이면(path 가 skill·both) now 나 week 에 그 마음을 다루는 연습 한 가지를 넣습니다 — 떠나는 것과 내 마음 다루기는 함께 갈 수 있습니다.
+  · 미성년자로 보이면 혼자 해결하게 두지 않습니다 — 믿을 수 있는 어른에게 알리는 것을 맨 앞에 둡니다.
 - audit(객관 평가)는 <사람>이 아니라 <이 대화에 나타난 말과 행동>만 평가합니다. '나'와 상대방에게 똑같은 잣대를 씁니다. 사용자가 '나'라는 이유로 봐주지 않고, 사용자가 화가 나 있다는 이유로 상대를 더 나쁘게 보지도 않습니다. 각 3~5개.
   sign 은 다음에서 고릅니다 — 해로운 쪽: 협박·위협 / 모욕·비하 / 통제(만나는 사람·돈·행동 제한) / 사실 부정(있었던 일을 없었다고 하거나 기억·판단을 의심하게 만듦 = 가스라이팅) / 죄책감 떠넘기기 / 책임 떠넘기기 / 넘겨짚기(단정) / 과장('항상·맨날') / 비꼼 / 대화 끊기·무시 / 요구만 하기. 건강한 쪽: 사과 / 인정 / 사정 설명 / 마음 묻기 / 양보 / 차분히 요청.
   level: good(건강함) · mild(흔히 있는 날 선 말) · concern(되풀이되면 해로움) · serious(한 번이어도 위험 — 협박, 폭력 암시, 스토킹, 성적 강요, 금전 갈취, 사실 부정이 여러 번).
@@ -290,6 +314,8 @@ ${transcript}
   verdict: danger(위험 신호가 뚜렷함 — serious 가 있음) / concern(걱정되는 패턴 — 상대의 concern 이 여럿) / ordinary(흔한 다툼 범위 — 양쪽 다 mild 중심) / myread(대화에 드러난 것보다 '나'의 해석이 앞서 있음) / unknown(이 대화만으로는 판단할 수 없음). 근거가 부족하면 unknown 을 고릅니다 — 억지로 판정하지 않습니다.
   tone.score 는 상대를 존중하는 말투인 정도(0 막말·비하 ~ 50 무뚝뚝하거나 날이 섬 ~ 100 예의 바르고 따뜻함). 반말·사투리·짧은 말투 자체는 감점하지 않습니다 — 내용이 상대를 깎아내리는지로 봅니다. 양쪽을 같은 기준으로 매깁니다.
   together 는 '좋은 사람/나쁜 사람' 판정이 아니라, 이 대화에서 드러난 신호만 적습니다(예: 좋은 신호 — 사정을 설명함, 먼저 연락함 / 힘든 신호 — 내 말을 끊고 단정함). 대화 한 번으로 사람을 다 알 수는 없다는 점을 say 에 담습니다.
+  path 는 크기를 보고 정합니다. distance = 상대의 말·행동이 해로워서(concern 이상이 여럿이거나 serious) 거리를 두는 편이 나를 지킴 — "네가 예민해서"로 돌리지 않습니다. skill = 상대의 말은 흔한 수준인데 '나'가 크게 다친 경우 — 사람을 끊기보다 내 마음의 예민한 지점을 다루는 연습이 도움이 됨(예민함은 잘못이 아니라 다루는 법을 배우면 되는 것이라고 말합니다). talk = 서로 오해가 커서 대화로 풀 만함. both = 상대도 날이 섰고 '나'도 크게 반응해서, 거리 조절과 내 마음 다루기를 함께.
+  예민한 사람에게 "참아라"고 하지 않고, 해로운 관계에 있는 사람에게 "네가 고쳐라"고 하지 않습니다. 애매하면 both 나 talk 을 고릅니다.
   '쓰레기', '나르시시스트', '소시오패스', '정신병' 같은 꼬리표와 진단명은 어느 쪽에도 붙이지 않습니다.
 - pairs 는 1~3개. '나'의 마음을 가장 크게 건드린 말부터. danger 가 있으면 빈 배열.
 - heat 는 대화의 흐름을 따라 6~10개. t 는 그 순간 대화의 긴장도(0 평온 ~ 100 폭발 직전). 처음·불이 붙은 곳·가장 높은 곳·끝을 꼭 넣는다.
@@ -299,8 +325,19 @@ ${transcript}
 - 대화에 없는 일을 지어내지 않습니다. 진단명이나 성격 유형(나르시시스트 등)을 붙이지 않습니다.
 - 사용자가 자책이 심해 보이면 mine.not 을 충분히, 남 탓이 심해 보이면 mine.can 을 한 가지는 꼭 적습니다.`;
 
+    // '전체'는 캐시를 받는다. 모자라면 시작하지 않는다. 분석에 실패하면 돌려준다(_exec).
+    let paid = 0, paidId = '';
+    if ((this._n || 200) >= this.FULL_N && this._msgs.length > 1000) {
+      const price = this._fullPrice(), W = window.Wallet;
+      const bal = W && W.balance ? W.balance() : 0;
+      if (!W || bal < price) return this._say(`전체 분석은 ${price.toLocaleString()}캐시가 들어요. 지금 ${bal.toLocaleString()}캐시가 있어요. 캐시를 충전하거나 '마지막 1,000개'로 해 보세요.`);
+      if (window.UI && window.UI.confirm && !(await window.UI.confirm({ title: `전체 분석 · ${price.toLocaleString()}캐시`, body: `대화 전체(최대 약 2,000개)를 한 번에 봐요. 지금 ${bal.toLocaleString()}캐시가 있어요. 분석에 실패하면 돌려 드려요.`, okLabel: '캐시 쓰고 분석하기', cancelLabel: '취소' }))) return;
+      if (!W.spend(price, '대화 분석 (전체)')) return this._say('캐시가 모자라요.');
+      paid = price; paidId = W.lastSpendId || '';
+    }
+
     // 분석은 화면과 따로 돈다 — 화면을 닫거나 다른 앱에 다녀와도 멈추지 않는다. 끝나면 알려 주고, 다시 열면 결과가 보인다.
-    this._job = { state: 'running', prompt, chars: transcript.length, t0: Date.now(), got: 0, first: 0, tries: 0, seen: false, raw: ta ? ta.value : '' };
+    this._job = { state: 'running', prompt, transcript, chars: transcript.length, t0: Date.now(), got: 0, first: 0, tries: 0, seen: false, raw: ta ? ta.value : '', paid, paidId };
     this._renderProgress();
     this._exec();
   },
@@ -312,7 +349,7 @@ ${transcript}
     const el = (Date.now() - j.t0) / 1000;
     const wait = 6 + j.chars / 2500;                 // 첫 글자가 오기까지 걸릴 것으로 보는 시간(초)
     if (!j.first) return Math.min(18, Math.round(18 * (1 - Math.exp(-el / wait))));
-    return Math.min(96, 18 + Math.round(78 * Math.min(1, j.got / 3600)));
+    return Math.min(96, 18 + Math.round(78 * Math.min(1, j.got / 4400)));
   },
   _renderProgress() {
     const b = this._body(); if (!b) return;
@@ -349,7 +386,7 @@ ${transcript}
     const j = this._job; if (!j) return;
     j.tries++;
     let raw = '';
-    const payload = { model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: j.prompt }], temperature: 0.2, max_tokens: 3800 };
+    const payload = { model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: j.prompt }], temperature: 0.2, max_tokens: 4500 };
     try {
       const base = (window.LLM.BACKEND_URL || '').replace(/\/+$/, '');
       if (!base || !window.ReadableStream) throw new Error('nostream');
@@ -384,6 +421,7 @@ ${transcript}
     if (!res || !Array.isArray(res.timeline)) {
       if (j.tries < 2) { j.t0 = Date.now(); j.got = 0; j.first = 0; return this._exec(); }      // 한 번은 조용히 다시
       j.state = 'fail';
+      if (j.paid && window.Wallet && window.Wallet.refund) { try { window.Wallet.refund(j.paid, '대화 분석 실패 — 돌려 드림', { voidSpend: j.paidId }); } catch (e) {} j.paid = 0; }
       if (document.getElementById('talkcheck-ov')) {
         this._renderInput();
         const ta2 = document.getElementById('tc-text'); if (ta2) { ta2.value = j.raw || ''; this._changed(); }
@@ -393,7 +431,7 @@ ${transcript}
     }
     j.state = 'done';
     this._res = res; this._tab = 'ally';
-    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0;
+    this._score1 = null; this._heatSel = null; this._tryText = ''; this._tryHtml = ''; this._step = 0; this._askLog = [];
     this._savePattern();
     if (document.getElementById('talkcheck-ov')) { j.seen = true; this._renderResult(); }
     else {
@@ -406,7 +444,7 @@ ${transcript}
   _list(a) { return (Array.isArray(a) ? a : [a]).filter(Boolean); },
 
   // ── 결과: 다섯 걸음 ────────────────────────────────────────────────
-  STEPS: ['한눈에', '사실과 해석', '객관 평가', '네 가지 눈', '다음 한 걸음', '마음 재기'],
+  STEPS: ['한눈에', '사실과 해석', '객관 평가', '네 가지 눈', '답장', '결론과 행동'],
   _renderResult() {
     const b = this._body(), r = this._res, esc = this._esc.bind(this); if (!b || !r) return;
     const A = 'var(--accent-primary)';
@@ -613,14 +651,31 @@ ${transcript}
       body = danger + tabBar + `<p style="margin: 0 0 0.6rem; font-size: 0.84rem; color: var(--text-secondary);">${lead}</p><div style="${card}">${pane}</div>`
         + (TABS.length > 1 ? `<p style="margin: 0; font-size: 0.76rem; line-height: 1.55; color: var(--text-muted);">네 가지를 다 읽어 보세요. 한 가지 눈으로만 보면 사람을 너무 믿게 되거나, 아예 믿지 않게 돼요.</p>` : '');
     }
-    // ④ 다음 한 걸음 ──────────────────────────────────────────────
+    // ⑤ 답장 ────────────────────────────────────────────────────
     else if (step === 4) {
       const n = r.next || {};
       const draft = (label, t2) => t2 ? `<div style="${card} padding: 0.8rem 0.95rem;">
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;"><b style="flex: 1 1 auto; font-size: 0.76rem; color: ${A};">${label}</b>
           <button type="button" data-copy="${esc(t2)}" onclick="window.TalkCheck._copy(this)" style="all: unset; cursor: pointer; font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.8rem; border-radius: 999px; color: ${A}; background: color-mix(in srgb, ${A} 11%, transparent);">복사</button></div>
         <div style="font-size: 0.93rem; line-height: 1.65; color: var(--text-primary);">${esc(t2)}</div></div>` : '';
-      body = danger + (r.danger ? '' : draft('부드럽게 풀고 싶을 때', n.soft)) + draft('내 입장을 분명히 할 때', n.firm) + draft('잠시 거리를 두고 싶을 때', n.space)
+      const pa = (r.audit || {}).path || {};
+      const PK = { distance: ['#c0564f', '거리를 두는 편이 나를 지켜요', '내가 예민해서가 아니에요. 이 대화의 말과 행동은 누구에게나 상처가 돼요.'],
+        skill: ['#6f97ab', '사람을 끊기보다, 내 마음의 예민한 곳을 다뤄 봐요', '예민한 건 잘못이 아니에요. 다만 같은 말에 덜 다치는 법은 연습으로 배울 수 있어요.'],
+        talk: ['#3d7659', '대화로 풀어 볼 만해요', '서로 원한 것은 달랐지만, 오해가 커진 쪽에 가까워요.'],
+        both: ['#d98a4a', '거리도 조절하고, 내 마음도 같이 돌봐요', '상대의 말도 날이 섰고, 나도 크게 다쳤어요. 둘 다 손볼 만해요.'] };
+      const pk = PK[pa.kind];
+      const pathHtml = (pk && !r.danger) ? `<div style="${card} border-color: ${pk[0]}; background: color-mix(in srgb, ${pk[0]} 7%, var(--bg-secondary));">
+          ${h('이 관계, 어느 쪽으로 가면 좋을까', pk[0])}
+          <p style="margin: 0 0 0.3rem; font-size: 1.05rem; font-weight: 800; line-height: 1.5; color: var(--text-primary);">${pk[1]}</p>
+          <p style="margin: 0 0 0.5rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">${pk[2]}</p>
+          ${pa.why ? `<p style="margin: 0 0 0.5rem; font-size: 0.9rem; line-height: 1.7; color: var(--text-primary);">${esc(pa.why)}</p>` : ''}
+          ${bullets(pa.steps, pk[0])}
+          ${(pa.kind === 'skill' || pa.kind === 'both') ? `<div style="display: flex; gap: 0.4rem; margin-top: 0.5rem; flex-wrap: wrap;">
+            <button type="button" class="btn-secondary" style="flex: 1 1 8rem; width: auto; font-size: 0.82rem;" onclick="window.TalkCheck._toHaru()">햇님과 그 생각 살펴보기</button>
+            <button type="button" class="btn-secondary" style="flex: 1 1 8rem; width: auto; font-size: 0.82rem;" onclick="window.TalkCheck._toDal()">달님과 감정 가라앉히기</button></div>` : ''}
+          <p style="margin: 0.5rem 0 0; font-size: 0.74rem; line-height: 1.5; color: var(--text-muted);">이 대화 한 번만 보고 한 제안이에요. 틀릴 수 있어요.</p>
+        </div>` : '';
+      body = danger + pathHtml + (r.danger ? '' : draft('부드럽게 풀고 싶을 때', n.soft)) + draft('내 입장을 분명히 할 때', n.firm) + draft('잠시 거리를 두고 싶을 때', n.space)
         + (n.wait ? `<div style="${card} background: var(--bg-tertiary); box-shadow: none;">${h('답하지 않는 것도 선택이에요', 'var(--text-secondary)')}<p style="margin: 0; font-size: 0.9rem; line-height: 1.65; color: var(--text-primary);">${esc(n.wait)}</p></div>` : '')
         + (r.danger ? '' : `<div style="${card}">
             ${h('보내기 전에, 미리 보내 보기')}
@@ -630,26 +685,56 @@ ${transcript}
             <div id="tc-try-out" style="margin-top: 0.7rem;">${this._tryHtml || ''}</div>
           </div>`);
     }
-    // ⑤ 마음 다시 재기 ────────────────────────────────────────────
+    // ⑥ 결론과 행동 ────────────────────────────────────────────────
     else {
       const v = this._score1 == null ? this._score0 : this._score1;
-      body = `
+      const pl = r.plan || {}, lv = pl.leave || {};
+      const LS = { yes: ['#c0564f', '떠나는 쪽이 나를 지켜요'], consider: ['#d98a4a', '한 번 더 되풀이되면 떠날 준비를 하세요'], no: ['#3d7659', '떠날 일은 아니에요'] };
+      const ls = LS[lv.should];
+      const numbered = (a2, c) => this._list(a2).map((x, i) => `<div style="display: flex; gap: 0.55rem; margin-bottom: 0.5rem;"><span style="flex: 0 0 1.35rem; height: 1.35rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 800; color: #fff; background: ${c || A};">${i + 1}</span><span style="font-size: 0.93rem; line-height: 1.65; color: var(--text-primary);">${esc(x)}</span></div>`).join('');
+      body = danger + `
+        <div style="${card} background: linear-gradient(160deg, color-mix(in srgb, ${A} 14%, var(--bg-secondary)), var(--bg-secondary));">
+          ${h('결론')}
+          <p style="margin: 0; font-size: 1.12rem; font-weight: 800; line-height: 1.55; color: var(--text-primary);">${esc(pl.headline || (r.audit || {}).verdictWhy || r.one || '')}</p>
+        </div>
+        ${ls ? `<div style="${card} border-color: ${ls[0]}; background: color-mix(in srgb, ${ls[0]} 7%, var(--bg-secondary));">
+          ${h('이 관계·이 자리에 계속 있을까', ls[0])}
+          <p style="margin: 0 0 0.4rem; font-size: 1.05rem; font-weight: 800; line-height: 1.5; color: var(--text-primary);">${ls[1]}</p>
+          ${lv.why ? `<p style="margin: 0 0 0.6rem; font-size: 0.92rem; line-height: 1.7; color: var(--text-primary);">${esc(lv.why)}</p>` : ''}
+          ${this._list(lv.how).length ? `<div style="font-size: 0.72rem; font-weight: 800; color: ${ls[0]}; margin: 0.3rem 0 0.4rem;">떠난다면 이 순서로</div>${numbered(lv.how, ls[0])}` : ''}
+        </div>` : ''}
+        ${this._list(pl.now).length ? `<div style="${card}">${h('오늘 할 것')}${numbered(pl.now)}</div>` : ''}
+        ${this._list(pl.week).length ? `<div style="${card}">${h('이번 주 안에')}${numbered(pl.week)}</div>` : ''}
+        ${pl.line ? `<div style="${card} border-color: #d98a4a;">${h('미리 정해 둘 선', '#d98a4a')}<p style="margin: 0; font-size: 0.98rem; font-weight: 700; line-height: 1.6; color: var(--text-primary);">${esc(pl.line)}</p><p style="margin: 0.4rem 0 0; font-size: 0.78rem; line-height: 1.55; color: var(--text-muted);">선은 그 순간에 정하면 늦어요. 지금 정해 두면 그때 흔들리지 않아요.</p></div>` : ''}
+        ${this._list(pl.evidence).length ? `<div style="${card}">${h('남겨 둘 것')}${bullets(pl.evidence)}</div>` : ''}
+        ${this._list(pl.who).length ? `<div style="${card}">${h('도움 받을 곳')}${bullets(pl.who)}</div>` : ''}
+        <div style="display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.7rem 0.9rem; margin-bottom: 0.8rem; border-radius: 14px; border: 1.5px solid #d98a4a; background: color-mix(in srgb, #d98a4a 9%, var(--bg-secondary));">
+          <b style="flex: 0 0 auto; width: 1.3rem; height: 1.3rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #fff; background: #d98a4a;">!</b>
+          <div style="font-size: 0.8rem; line-height: 1.6; color: var(--text-primary);">한쪽이 넣은 이 대화만 보고 AI 가 내린 결론이라 <b>틀릴 수 있어요.</b> 전학·이별·신고 같은 큰 결정은 믿을 만한 사람이나 전문가와 한 번 더 확인하고 움직이세요. ${r.limit ? esc(r.limit) : ''}</div>
+        </div>
+        <div style="${card}">
+          ${h('대화에 안 담긴 사정이 있나요')}
+          <p style="margin: 0 0 0.5rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">현실은 대화 한 토막보다 복잡해요. 전부터 있던 일, 말로 한 것, 이 사람과의 사이를 적어 주면 그것까지 넣어 다시 봐 드려요. 궁금한 걸 물어도 돼요.</p>
+          <div id="tc-ask-log">${(this._askLog || []).map(x => `<div style="margin-bottom: 0.6rem;"><div style="font-size: 0.82rem; font-weight: 700; color: var(--accent-primary); margin-bottom: 0.15rem;">${esc(x.q)}</div><div style="font-size: 0.9rem; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap;">${esc(x.a)}</div></div>`).join('')}</div>
+          <textarea id="tc-ask" rows="3" maxlength="600" placeholder="예: 이 사람은 예전에도 약속을 세 번 어겼어요 / 제가 너무 예민한 건가요?" style="${this._field} line-height: 1.55; resize: vertical; background: var(--bg-primary);"></textarea>
+          <button type="button" class="btn-secondary" style="width: 100%; margin-top: 0.5rem;" onclick="window.TalkCheck._ask(this)">이것까지 넣어 다시 보기</button>
+        </div>
+        ${(!r.danger && r.thought) ? `<div style="${card} border-color: #d98a4a;">
+          ${h('이 일로 가장 무겁게 남은 생각', '#d98a4a')}
+          <p style="margin: 0 0 0.6rem; font-size: 1rem; font-weight: 700; line-height: 1.55; color: var(--text-primary);">"${esc(r.thought)}"</p>
+          <p style="margin: 0 0 0.75rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">행동과 별개로, 이 생각은 오래 남아 나를 깎아요. 햇님과 6단계로 직접 살펴볼 수 있어요.</p>
+          <button type="button" class="btn-primary" style="width: 100%; padding: 0.75rem; background: #d98a4a;" onclick="window.TalkCheck._toHaru()">이 생각, 햇님과 살펴보기 ›</button>
+        </div>` : ''}
+        ${this._patternHtml()}
         <div style="${card}">
           ${h('지금 마음은 몇 점인가요')}
           <div style="display: flex; align-items: center; gap: 0.7rem; margin: 0.3rem 0 0.2rem;">
             <input type="range" min="0" max="100" step="5" value="${v}" oninput="window.TalkCheck._rerate(this.value)" style="flex: 1 1 auto; accent-color: ${A};">
             <b id="tc-re-v" style="flex: 0 0 2.8rem; text-align: right; font-size: 1.3rem; color: ${A};">${v}</b>
           </div>
-          <div id="tc-re-msg" style="font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">처음에는 ${this._score0}점이었어요. 다 읽고 난 지금은 어떤가요?</div>
+          <div id="tc-re-msg" style="font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">처음에는 ${this._score0}점이었어요. 무엇을 할지 정한 지금은 어떤가요?</div>
         </div>
-        ${(!r.danger && r.thought) ? `<div style="${card} border-color: #d98a4a;">
-          ${h('지금 마음을 가장 무겁게 하는 생각', '#d98a4a')}
-          <p style="margin: 0 0 0.6rem; font-size: 1rem; font-weight: 700; line-height: 1.55; color: var(--text-primary);">"${esc(r.thought)}"</p>
-          <p style="margin: 0 0 0.75rem; font-size: 0.84rem; line-height: 1.6; color: var(--text-secondary);">이 생각이 사실인지, 햇님과 6단계로 직접 살펴볼 수 있어요. 같은 일이 또 생겨도 덜 흔들리게 돼요.</p>
-          <button type="button" class="btn-primary" style="width: 100%; padding: 0.75rem; background: #d98a4a;" onclick="window.TalkCheck._toHaru()">이 생각, 햇님과 살펴보기 ›</button>
-        </div>` : ''}
-        ${this._patternHtml()}
-        <p style="margin: 0 0 0.8rem; font-size: 0.76rem; line-height: 1.6; color: var(--text-muted);">${r.limit ? esc(r.limit) + ' ' : ''}한쪽이 넣은 대화만 보고 한 분석이에요. 대화 원문과 이 결과는 저장되지 않아요.</p>
+        <p style="margin: 0 0 0.8rem; font-size: 0.74rem; line-height: 1.6; color: var(--text-muted);">대화 원문과 이 결과는 저장되지 않아요.</p>
         <button type="button" class="btn-secondary" style="width: 100%;" onclick="window.TalkCheck.open()">다른 대화 넣기</button>`;
     }
 
@@ -720,6 +805,44 @@ ${transcript}
     const t = el.dataset.copy || '';
     const done = () => { el.textContent = '복사됨'; setTimeout(() => { if (el.isConnected) el.textContent = '복사'; }, 1500); };
     try { navigator.clipboard.writeText(t).then(done, () => {}); } catch (e) {}
+  },
+  // 덧붙인 사정·질문을 넣어 다시 본다 — 원래 대화와 첫 평가를 같이 주고, 평가가 달라지는지까지 답하게 한다
+  async _ask(btn) {
+    const ta = document.getElementById('tc-ask'); const q = (ta && ta.value || '').trim(); if (!q) return;
+    if (window.LLM && window.LLM.CRISIS_RE && window.LLM.CRISIS_RE.test(q)) { this.close(); const inp = document.getElementById('chat-input'); if (inp && window.App) { window.App.switchTab('chat', true); inp.value = q; window.App.sendMessage(); } return; }
+    btn.disabled = true; btn.textContent = '다시 보는 중…';
+    const r = this._res || {}, j = this._job || {}, au = r.audit || {};
+    const prev = (this._askLog || []).map(x => `사용자: ${x.q}
+답: ${x.a}`).join(' / ');
+    const prompt = `당신은 사람들 사이의 다툼을 풀어 보는 일을 돕는 상담 전문가입니다. 아래 대화를 이미 한 번 평가했습니다.
+
+[대화]
+${String(j.transcript || '').slice(-12000)}
+
+[첫 평가] 판정: ${au.verdict || ''} — ${au.verdictWhy || ''} / 권한 방향: ${(au.path || {}).kind || ''} / 엇갈린 곳: ${r.gap || ''}
+${prev ? `[앞서 주고받은 것] ${prev}` : ''}
+[사용자가 덧붙인 사정 또는 질문]
+${q}
+
+이것까지 넣어 다시 봅니다. 한국어 존댓말로, 짧은 문단 2~4개(문단 사이 빈 줄), 한 문장 45자 안팎으로 답하세요.
+- 덧붙인 사정이 평가를 바꾸면 무엇이 어떻게 바뀌는지 분명히 말합니다(예: 한 번이면 다툼이지만 세 번 되풀이됐다면 걱정되는 패턴). 바뀌지 않으면 왜 그대로인지 말합니다.
+- 사용자의 말은 한쪽의 기억이라는 점을 잊지 않되, 의심하는 말투로 쓰지 않습니다.
+- "제가 예민한가요?" 같은 질문에는 예·아니오로 자르지 말고, 이 대화에서 누구에게나 아플 부분과 유독 크게 다친 부분을 나눠서 답합니다.
+- 사람에게 꼬리표나 진단명을 붙이지 않습니다. 위험(폭력·협박·스토킹·통제)이 보이면 안전이 먼저라고 말하고 112·1366 을 알려 줍니다.
+- 마지막에 지금 해 볼 한 가지를 권합니다.`;
+    let a = '';
+    try { const res = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 900 }, 90000); if (res && res.ok) { const d = await res.json(); a = ((d.choices && d.choices[0] && d.choices[0].message.content) || '').trim(); } } catch (e) {}
+    if (!a) { btn.disabled = false; btn.textContent = '이것까지 넣어 다시 보기'; if (window.App && window.App.showRecordToast) window.App.showRecordToast('지금은 답하지 못했어요. 다시 눌러 주세요'); return; }
+    this._askLog = (this._askLog || []).concat([{ q, a }]).slice(-6);
+    const b = this._body(); const y = b ? b.scrollTop : 0; this._renderResult(); if (b) b.scrollTop = y;
+  },
+  _toDal() {
+    this.close();
+    if (!window.App || !window.Personas) return;
+    try { window.Personas.setActive('dalnim'); if (window.App.updatePersonaBar) window.App.updatePersonaBar(); } catch (e) {}
+    window.App.switchTab('chat', true);
+    const inp = document.getElementById('chat-input');
+    if (inp) { inp.value = '달님, 달빛 상담 시작할게요. 방금 다툰 일로 마음이 많이 올라와 있어요. 1단계부터 이끌어 주세요.'; window.App.sendMessage(); }
   },
   // 가장 걸리는 생각을 들고 햇님의 햇살 상담으로
   _toHaru() {
