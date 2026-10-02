@@ -109,6 +109,9 @@ window.Assess = {
     const S = this._S();
     const msgs = (S.getMessages && S.getMessages()) || [];
     const userMsgs = msgs.filter(m => m.role === 'user');
+    // 대화량은 '지금까지 한 말의 수'다 — 대화를 초기화해도 줄지 않는 누적 수(cbt_total_chats)와 견줘 큰 쪽을 쓴다.
+    //  (전에는 화면에 남은 말만 세서, 초기화하면 0개가 되고 충분도가 뚝 떨어졌다)
+    const talkN = Math.max(userMsgs.length, Number(S._safeGet('cbt_total_chats', 0)) || 0);
     const moods = S._safeGet('cbt_mood_log', []) || [];
     const records = (S.getThoughtRecords ? S.getThoughtRecords() : []).filter(r => !String(r.id).startsWith('rec_mock_'));
     const nights = S._safeGet('cbt_night_journal', []) || [];
@@ -124,7 +127,7 @@ window.Assess = {
 
     const qa = this.answers();
     const bars = [
-      { name: '대화량',      pct: Math.min(100, Math.round(userMsgs.length / 120 * 100)), hint: `사용자 발화 ${userMsgs.length}개 (충분: 120개)` },
+      { name: '대화량',      pct: Math.min(100, Math.round(talkN / 120 * 100)), hint: `사용자 발화 ${talkN.toLocaleString()}개 (충분: 120개)` },
       { name: '기간(꾸준함)', pct: Math.min(100, Math.round(days.size / 14 * 100)),        hint: `활동한 날 ${days.size}일 (충분: 14일)` },
       { name: '감정 기록',    pct: Math.min(100, Math.round(moods.length / 20 * 100)),      hint: `기분 체크인 ${moods.length}회 (충분: 20회)` },
       { name: '깊은 기록',    pct: Math.min(100, Math.round((records.length + nights.length) / 8 * 100)), hint: `사고기록 ${records.length} + 하루정리 ${nights.length} (충분: 8개)` },
@@ -152,7 +155,7 @@ window.Assess = {
     if (days.size > 0 && userMsgs.length / Math.max(1, days.size) > 60) flags.push('하루 발화량이 비정상적으로 많음');
     const reliability = flags.length >= 2 ? 'low' : flags.length === 1 ? 'mid' : 'high';
 
-    return { userMsgs: userMsgs.length, spanDays, activeDays: days.size, moods: moods.length,
+    return { userMsgs: talkN, spanDays, activeDays: days.size, moods: moods.length,
              records: records.length, nights: nights.length, avgLen, bars, total, flags, reliability, qa };
   },
 
