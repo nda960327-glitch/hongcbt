@@ -154,9 +154,11 @@ const avaColor = name => 'c' + (String(name || '').split('').reduce((a, c) => a 
 const initial = name => esc(String(name || '?').trim().slice(0, 1) || '?');
 
 // 상담사 앱 주소 — 승인 안내문에 넣는다. 규칙은 여기 한 곳에만 둔다.
+//  운영자 콘솔을 neurumind-ops.pages.dev 로 열면 '그 주소/pro/index.html' 이 안내문에 들어갔는데, 거기엔 상담사 앱이 없다
+//  (상담사에게 없는 페이지를 보냈다, 2026-10-02). 내 컴퓨터에서 시험할 때만 옆 폴더를 쓰고, 그 밖에는 언제나 정식 주소다.
 function proAppUrl() {
-  if (/(mindinsideapp\.com|neurumind\.com)$/i.test(location.hostname)) return 'https://pro.mindinsideapp.com';
-  return location.origin + location.pathname.replace(/ops\/.*$/, '') + 'pro/index.html';
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return location.origin + location.pathname.replace(/ops\/.*$/, '') + 'pro/index.html';
+  return 'https://pro.mindinsideapp.com';
 }
 
 function copy(text, okMsg) {

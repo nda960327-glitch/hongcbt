@@ -1305,6 +1305,7 @@ function renderHome() {
           ${foldProfile()}
           ${foldSlots()}
           ${foldPrefs()}
+          ${typeof blogFoldHtml === 'function' ? blogFoldHtml() : ''}
           ${fold('sn', '회기 기록', D.pending.length
             ? `<b style="color:var(--warn);">기록 안 남긴 상담 ${D.pending.length}건</b>`
             : (D.notes.length ? `${D.notes.length}건 · 모두 기록됨` : '아직 없음'), snHomeHtml())}
@@ -3764,6 +3765,8 @@ function openSettings() {
     ${ME ? row('data-act="go-fold" data-tab="money" data-key="payout"', '<path d="M3 7h18v12H3z"/><path d="M3 11h18"/>',
         viaHosp ? '정산' : '정산 계좌', viaHosp ? '소속 상담소가 지급해요' : payOk ? `${esc(ME.payout.bank)} ${esc(ME.payout.masked)}` : '등록해야 정산을 받을 수 있어요',
         viaHosp || payOk ? '' : '<span class="chip new">필요</span>') : ''}
+    ${ME && ME.hospitalId && typeof blogFoldHtml === 'function' ? row('data-act="blog-open"', '<path d="M5 4h10l4 4v12H5z"/><path d="M9 12h6M9 16h6M9 8h3"/>',
+        '블로그 글쓰기', `${esc(ME.hospital || '상담소')} 소식에 글 올리기`) : ''}
     ${row('data-act="qr-edit"', '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/>', '빠른 답장', `저장된 문장 ${QR.length}개`)}
     ${isStandalone() ? '' : row('data-act="install"', '<path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/>', '앱으로 설치하기', '홈 화면에서 바로 열 수 있어요')}
     <button class="menurow" data-act="logout" style="margin-top:0.6rem; color:var(--danger);">

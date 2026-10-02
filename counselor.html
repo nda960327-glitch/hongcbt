@@ -25,9 +25,9 @@
     //  끊어버리면 상담사가 로그인할 방법을 잃으므로 문을 열어둔 채 넘긴다.
     (function () {
       var h = location.hostname;
-      var to = /(^|\.)neurumind\.com$/.test(h) ? 'https://pro.neurumind.com/'
-             : /\.pages\.dev$/.test(h)         ? 'https://neurumind-pro.pages.dev/'
-             : './pro/index.html';
+      var to = /^(localhost|127\.0\.0\.1)$/.test(h) ? './pro/index.html'
+             : /\.pages\.dev$/.test(h)             ? 'https://neurumind-pro.pages.dev/'
+             : 'https://pro.mindinsideapp.com/';
       to += location.search + location.hash;   // 매직링크 토큰(?t=…)을 잃지 않는다
       document.getElementById('go').href = to;
       setTimeout(function () { location.replace(to); }, 1200);

@@ -1629,6 +1629,7 @@ window.App = {
     const h = location.hostname;
     if (/(^|\.)(mindinsideapp\.com|neurumind\.com)$/.test(h)) return 'https://pro.mindinsideapp.com/';
     if (/\.pages\.dev$/.test(h)) return 'https://neurumind-pro.pages.dev/';
+    if (!/^(localhost|127\.0\.0\.1)$/.test(h)) return 'https://pro.mindinsideapp.com/';   // 그 밖의 주소에는 /pro/ 가 없다
     return location.origin + location.pathname.replace(/[^/]*$/, '') + 'pro/index.html';
   },
 

@@ -12,14 +12,14 @@ VIEWS.community = {
     const list = DATA.posts;
     return `
       <div class="vhead">
-        <p class="muted grow">공개한 글은 이용자 앱 홈 <b>커뮤니티</b>와 상담소 페이지에 바로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요.</p>
+        <p class="muted grow">공개한 글은 이용자 앱 홈 <b>커뮤니티</b>와 상담소 페이지에 바로 보여요. 개인 상담 내용이나 특정 내담자 이야기는 쓰지 마세요. 소속 상담사도 상담사 앱에서 글을 쓸 수 있고, 그 글도 여기서 고치거나 지울 수 있어요.</p>
         <button class="btn sm" data-act="post-new">＋ 새 글</button>
       </div>
       ${list.length ? `<div class="tblwrap"><table class="tbl"><thead><tr><th></th><th>제목</th><th>상태</th><th>고정</th><th class="r">좋아요</th><th class="r">댓글</th><th class="t">작성일</th><th class="acts"></th></tr></thead><tbody>
         ${list.map(it => `
           <tr class="${it.hidden ? 'dim' : ''}">
             <td>${it.thumb ? `<img class="thumb" src="${esc(it.thumb)}" alt="">` : '<div class="thumb"></div>'}</td>
-            <td><b>${esc(it.title)}</b><div class="muted ell" style="max-width:360px;">${esc(it.excerpt || '')}</div>${it.tags && it.tags.length ? `<div class="muted">#${it.tags.map(esc).join(' #')}</div>` : ''}</td>
+            <td><b>${esc(it.title)}</b>${it.author ? ` <span class="chip off">${esc(it.author)} 상담사</span>` : ''}<div class="muted ell" style="max-width:360px;">${esc(it.excerpt || '')}</div>${it.tags && it.tags.length ? `<div class="muted">#${it.tags.map(esc).join(' #')}</div>` : ''}</td>
             <td>${it.hidden ? '<span class="chip bad">운영팀 숨김</span>' : it.published ? '<span class="chip ok">공개</span>' : '<span class="chip off">초안</span>'}</td>
             <td>${it.pinned ? '<span class="chip gold">상단 고정</span>' : ''}</td>
             <td class="r num">${it.likes || 0}</td><td class="r num">${it.comments || 0}</td>

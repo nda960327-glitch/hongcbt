@@ -1,6 +1,7 @@
 // 상담소 소식 — 제휴 상담소가 블로그처럼 글을 올리고, 이용자는 좋아요·댓글만 단다.
 //
-//  · 글은 상담소(소장 앱, hsession/hcode 인증)만 쓴다. 이용자는 글을 쓸 수 없다.
+//  · 글은 상담소(소장 앱, hsession/hcode 인증)와 그 상담소에 <소속이 확인된> 상담사(상담사 앱)가 쓴다. 이용자는 글을 쓸 수 없다.
+//    상담사가 쓴 글은 posts.author_id/author_name 에 글쓴이가 남고, 상담사는 자기 글만 고치고 지운다. 소장은 상담소 글 전부를 관리한다.
 //  · 이용자 반응은 좋아요(기기당 1개)와 댓글. clientKey 로 본인 확인. 댓글은 본인이 지울 수 있고,
 //    상담소는 자기 글의 댓글을 숨길 수 있다. 운영자는 글·댓글 모두 숨길 수 있다.
 //  · 상담소 페이지(프로필: 소개·전화·주소·홈페이지·운영시간)는 hospitals 표의 profile 칸(JSON)에 둔다.
@@ -20,16 +21,20 @@
 //           GET  /hospital/comments?hsession=&id=     내 글의 댓글(숨긴 것 포함)
 //           POST /hospital/comments/hide {hsession, cid, hidden}
 //           POST /hospital/profile {hsession, profile: {intro, tel, addr, url, hours}}
+//    상담사 GET  /pro/posts?session=|code=           내가 쓴 글(초안 포함) + 소속 상담소
+//           POST /pro/posts/save {session|code, post: {id?, title, body, tags, published, images, thumb}}
+//           POST /pro/posts/delete {session|code, id}
 //    운영자 GET  /admin/community?code=   전체 글   POST /admin/community/hide {code, id, hidden}
 //           POST /admin/community/comment/hide {code, cid, hidden}
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 import { resolveHospital } from './hospital.js';
-import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY } from './auth.js';
+import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY, resolveCounselor } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
 const PAGE = 20;
 const TITLE_MAX = 80, BODY_MAX = 6000, COMMENT_MAX = 500, NAME_MAX = 20, TAGS_MAX = 5;
 const COMMENT_PER_10MIN = 6;         // 기기당 댓글 도배 방지
+const AUTHOR_PER_DAY = 5;            // 상담사 한 사람이 하루에 새로 올릴 수 있는 글 수
 const POST_PER_DAY = 20;             // 상담소당 하루 글 수(실수로 스크립트가 돌아도 표가 터지지 않게)
 
 // 전화번호·이메일·카톡 아이디 같은 연락처를 가린다 (chat 과 같은 규칙, 댓글은 공개 글이라 더 엄격)
@@ -64,6 +69,7 @@ function checkImages(list) {
 
 const rowPost = (r, mine) => ({
   id: r.id, hospitalId: r.hospital_id, hospital: r.hospital_name || '', dept: r.hospital_dept || '',
+  author: r.author_name || '', authorId: r.author_id || '',
   title: r.title, body: r.body || '', excerpt: plainOf(r.body).slice(0, 120), thumb: r.thumb || '', images: r.images === undefined ? undefined : parseImages(r.images),
   tags: String(r.tags || '').split(',').filter(Boolean),
   published: !!r.published, pinned: !!r.pinned, hidden: !!r.hidden,
@@ -75,14 +81,14 @@ const rowComment = c => ({
   ts: c.ts, hidden: !!c.hidden, byHospital: !!c.by_hospital
 });
 
-const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb';
+const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb, p.author_id, p.author_name';
 const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospital_dept,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likes,
   (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id AND c.hidden = 0) AS comments
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
 
 export async function handleCommunity(request, env, cors, path) {
-  if (!/^\/(community|hospital\/(posts|comments|profile)|admin\/community|admin\/hospital-apps)/.test(path)) return null;
+  if (!/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|admin\/community|admin\/hospital-apps)/.test(path)) return null;
   const db = env.DB;
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
 
@@ -301,6 +307,66 @@ export async function handleCommunity(request, env, cors, path) {
       if (prof.url && !/^https?:\/\//i.test(prof.url)) prof.url = 'https://' + prof.url;
       await db.prepare('UPDATE hospitals SET profile = ? WHERE id = ?').bind(JSON.stringify(prof), h.id).run();
       return json({ ok: true, profile: prof }, 200, cors);
+    }
+    return null;
+  }
+
+  // ══════════════ 소속 상담사 (상담사 앱) ══════════════
+  //  소속이 확인된(hospital_ok) 상담사만 쓴다 — 상담소 이름을 걸고 나가는 글이라, 소장이 받아들인 사람이어야 한다.
+  if (path.startsWith('/pro/posts')) {
+    const me = await resolveCounselor(db, { session: s(body.session || q('session'), 128), code: s(body.code || q('code'), 64) });
+    if (!me) return json({ error: 'bad-code' }, 403, cors);
+    let c = null;
+    try { c = await db.prepare('SELECT hospital_id, hospital_ok FROM counselors WHERE id = ?').bind(me.id).first(); } catch (e) {}
+    const h = c && c.hospital_id && c.hospital_ok
+      ? await db.prepare('SELECT id, name FROM hospitals WHERE id = ? AND active = 1').bind(c.hospital_id).first() : null;
+    const MINE = LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images');
+
+    if (path === '/pro/posts' && method === 'GET') {
+      if (!h) return json({ ok: true, canWrite: false, pending: !!(c && c.hospital_id && !c.hospital_ok), items: [] }, 200, cors);
+      const rows = (await db.prepare(MINE + ' WHERE p.hospital_id = ? AND p.author_id = ? ORDER BY p.created DESC LIMIT 100').bind(h.id, me.id).all()).results || [];
+      return json({ ok: true, canWrite: true, hospital: { id: h.id, name: h.name }, items: rows.map(r => rowPost(r, false)) }, 200, cors);
+    }
+    if (!h) return json({ error: 'no-hospital' }, 403, cors);
+
+    if (path === '/pro/posts/save' && method === 'POST') {
+      const it = body.post || {};
+      const title = s(it.title, TITLE_MAX).trim(), text = s(it.body, BODY_MAX).trim();
+      if (!title || !text) return json({ error: 'missing' }, 400, cors);
+      const tags = tagsOf(it.tags).join(',');
+      const published = it.published ? 1 : 0;
+      const images = checkImages(it.images);
+      if (!images) return json({ error: 'bad-image' }, 400, cors);
+      const thumb = jpegOk(it.thumb, THUMB_BYTES) ? it.thumb : '';
+      const imagesJson = images.length ? JSON.stringify(images) : null;
+      let id = cleanId(it.id);
+      if (id) {
+        const own = await db.prepare('SELECT id FROM posts WHERE id = ? AND hospital_id = ? AND author_id = ?').bind(id, h.id, me.id).first();
+        if (!own) return json({ error: 'not-found' }, 404, cors);
+        // 상단 고정(pinned)은 소장이 정한다 — 여기서는 건드리지 않는다
+        await db.prepare('UPDATE posts SET title = ?, body = ?, tags = ?, published = ?, updated = ?, images = ?, thumb = ? WHERE id = ?')
+          .bind(title, text, tags, published, nowMs(), imagesJson, thumb, id).run();
+      } else {
+        const day = nowMs() - 86400000;
+        const mineN = await db.prepare('SELECT COUNT(*) n FROM posts WHERE author_id = ? AND created > ?').bind(me.id, day).first();
+        const hospN = await db.prepare('SELECT COUNT(*) n FROM posts WHERE hospital_id = ? AND created > ?').bind(h.id, day).first();
+        if ((mineN && mineN.n) >= AUTHOR_PER_DAY || (hospN && hospN.n) >= POST_PER_DAY) return json({ error: 'too-many' }, 429, cors);
+        id = rid('po');
+        await db.prepare('INSERT INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, images, thumb, author_id, author_name) VALUES (?,?,?,?,?,?,0,0,?,?,?,?,?,?)')
+          .bind(id, h.id, title, text, tags, published, nowMs(), nowMs(), imagesJson, thumb, me.id, s(me.name, 40)).run();
+      }
+      const r = await db.prepare(MINE + ' WHERE p.id = ?').bind(id).first();
+      return json({ ok: true, post: rowPost(r, false) }, 200, cors);
+    }
+
+    if (path === '/pro/posts/delete' && method === 'POST') {
+      const id = cleanId(body.id);
+      const r = await db.prepare('DELETE FROM posts WHERE id = ? AND hospital_id = ? AND author_id = ?').bind(id, h.id, me.id).run();
+      if (r.meta && r.meta.changes) await db.batch([
+        db.prepare('DELETE FROM post_likes WHERE post_id = ?').bind(id),
+        db.prepare('DELETE FROM post_comments WHERE post_id = ?').bind(id)
+      ]);
+      return json({ ok: true, deleted: !!(r.meta && r.meta.changes) }, 200, cors);
     }
     return null;
   }

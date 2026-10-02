@@ -57,6 +57,10 @@ const STEPS = [
   // 상담사·상담소장의 소셜 로그인 — 소셜 계정을 상담사·상담소 계정에 이어 둔 표 (oauth.js /oauth/staff/*)
   ['직원 소셜 로그인 연결 표', 'CREATE TABLE IF NOT EXISTS staff_links (user_id TEXT NOT NULL, role TEXT NOT NULL, ref_id TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (user_id, role))'],
   ['직원 소셜 로그인 색인', 'CREATE INDEX IF NOT EXISTS idx_staff_links_ref ON staff_links(role, ref_id)'],
+  // 소속 상담사가 쓴 상담소 글 — 글쓴이 (community.js /pro/posts)
+  ['글 글쓴이', 'ALTER TABLE posts ADD COLUMN author_id TEXT'],
+  ['글 글쓴이 이름', 'ALTER TABLE posts ADD COLUMN author_name TEXT'],
+  ['글 글쓴이 색인', 'CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id, created)'],
   ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
 

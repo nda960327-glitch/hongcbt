@@ -11,6 +11,7 @@ const SHELL = [
   './manifest.json',
   './js/rtccall.js',
   './js/app.js',
+  './js/blog.js',
   './icon-192.png',
   './icon-96.png'
 ];

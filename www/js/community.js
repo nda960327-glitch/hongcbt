@@ -84,7 +84,7 @@ window.Community = {
     const esc = this._esc;
     const inner = `
       ${it.thumb ? `<span class="cm-card__thumb"><img src="${esc(it.thumb)}" alt="" loading="lazy"></span>` : ''}
-      <span class="cm-card__hosp">${esc(it.hospital)}${it.pinned ? ' <em>고정</em>' : ''}</span>
+      <span class="cm-card__hosp">${esc(it.hospital)}${it.author ? ' · ' + esc(it.author) + ' 상담사' : ''}${it.pinned ? ' <em>고정</em>' : ''}</span>
       <span class="cm-card__t">${esc(it.title)}</span>
       <span class="cm-card__ex">${esc(it.excerpt || '')}</span>
       <span class="cm-card__meta">
@@ -174,7 +174,7 @@ window.Community = {
       <article class="cm-post">
         <button class="cm-post__hosp" data-cm-hosp="${esc(p.hospitalId)}">${esc(p.hospital)}${p.dept ? ` <span>· ${esc(p.dept)}</span>` : ''} <i>상담소 페이지 ›</i></button>
         <h3>${esc(p.title)}</h3>
-        <p class="cm-post__date">${this._md(p.created)}${p.updated && p.updated - p.created > 60000 ? ' · 수정됨' : ''}</p>
+        <p class="cm-post__date">${p.author ? esc(p.author) + ' 상담사 · ' : ''}${this._md(p.created)}${p.updated && p.updated - p.created > 60000 ? ' · 수정됨' : ''}</p>
         ${(p.tags || []).length ? `<div class="cm-post__tags">${p.tags.map(t => `<span class="feed-tag">${esc(t)}</span>`).join('')}</div>` : ''}
         <div class="feed-ov__body">${this._body(p.body, p.images)}</div>
         <div class="cm-post__act">
