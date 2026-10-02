@@ -64,7 +64,36 @@ function blogRowHtml(it) {
         <strong class="ell" style="display:block; font-size:0.88rem;">${esc(it.title)}</strong>
         <span class="muted ell" style="display:block;">${esc(it.excerpt || '')}</span>
         <span class="muted" style="font-size:0.72rem;">${new Date(it.created).toLocaleDateString('ko-KR')} · 좋아요 ${it.likes || 0} · 댓글 ${it.comments || 0}</span>
-      </span>${st}</button>`;
+      </span>${st}</button>
+    ${it.comments ? `<button class="btn ghost sm" data-act="blog-cm" data-id="${esc(it.id)}" style="margin:-0.1rem 0 0.6rem;">댓글 ${it.comments}개 보기 · 답글 달기</button>` : ''}`;
+}
+
+// ── 내 글의 댓글 — 읽고, 상담사 이름으로 답글 달고, 곤란한 댓글은 숨긴다 ──
+const BLOG_CM = { id: '', list: null };
+async function openBlogComments(id) {
+  BLOG_CM.id = id; BLOG_CM.list = null; renderBlogComments();
+  const d = await getJson('/api/pro/posts/comments?id=' + encodeURIComponent(id) + '&' + authQS());
+  if (BLOG_CM.id !== id) return;
+  BLOG_CM.list = d && Array.isArray(d.comments) ? d.comments : [];
+  renderBlogComments(true);
+}
+function renderBlogComments(keep) {
+  const it = (BLOG.items || []).find(x => x.id === BLOG_CM.id) || {};
+  const cm = BLOG_CM.list;
+  const row = c => `
+    <div class="card" style="margin-bottom:0.45rem; padding:0.65rem 0.8rem; ${c.parentId ? 'margin-left:1rem;' : ''} ${c.hidden ? 'opacity:0.55;' : ''} ${c.byHospital ? 'border-color: var(--accent);' : ''}">
+      <div class="row" style="gap:0.4rem;"><b style="font-size:0.84rem;">${esc(c.name)}</b>${c.byHospital ? '<span class="chip ok">상담소</span>' : ''}${c.hidden ? '<span class="chip off">숨김</span>' : ''}<span class="muted grow" style="text-align:right; font-size:0.72rem;">${new Date(c.ts).toLocaleDateString('ko-KR')}</span></div>
+      <p style="margin:0.3rem 0 0; font-size:0.88rem; white-space:pre-wrap; word-break:break-word;">${esc(String(c.text).replace(/\[스티커:[^\]]*\]/g, '').trim() || '(스티커)')}</p>
+      ${c.byHospital ? '' : `<div class="row" style="gap:0.35rem; justify-content:flex-end; margin-top:0.35rem;">
+        <button class="btn ghost sm" data-act="blog-cm-hide" data-cid="${esc(c.id)}" data-hidden="${c.hidden ? 0 : 1}">${c.hidden ? '다시 보이기' : '숨기기'}</button>
+        <button class="btn ghost sm" data-act="blog-cm-to" data-cid="${esc(c.parentId || c.id)}" data-n="${esc(c.name)}">답글</button></div>`}
+    </div>`;
+  const roots = (cm || []).filter(c => !c.parentId);
+  const html = cm === null ? '<p class="muted">불러오는 중…</p>' : !cm.length ? '<p class="muted" style="text-align:center;">아직 댓글이 없어요.</p>'
+    : roots.map(r => row(r) + cm.filter(c => c.parentId === r.id).map(row).join('')).join('');
+  sheet(`<p class="muted" style="margin-bottom:0.6rem;">답글은 <b>${esc(ME.name || '')} 상담사</b> 이름으로 모두에게 보여요. 진단·처방처럼 들릴 말은 피하고, 급해 보이면 109 를 함께 알려 주세요.</p>${html}`,
+    { title: '댓글', sub: esc(it.title || ''), keepScroll: !!keep, kind: 'blog-cm',
+      foot: `<div style="flex:1; min-width:0;"><p id="bcm-to" class="muted" style="margin:0 0 0.25rem; font-size:0.74rem;" hidden></p><textarea id="bcm-text" rows="2" maxlength="500" placeholder="답글 쓰기" style="width:100%;"></textarea></div><button class="btn" data-act="blog-cm-send" style="width:auto; flex:0 0 auto; align-self:flex-end;">보내기</button>` });
 }
 
 // ── 본문 표기 → 화면 (이용자 앱과 같은 규칙) ──
@@ -268,6 +297,26 @@ Object.assign(ACT, {
   'blog-open': () => { closeSheet(); goFold('home', 'blog'); },
   'blog-new': () => openBlogEditor(''),
   'blog-edit': (el) => openBlogEditor(el.dataset.id),
+  'blog-cm': (el) => openBlogComments(el.dataset.id),
+  'blog-cm-to': (el) => { BLOG_CM.to = el.dataset.cid; const p = $('bcm-to'); if (p) { p.textContent = el.dataset.n + ' 님에게 답글'; p.hidden = false; } const ta = $('bcm-text'); if (ta) ta.focus(); },
+  'blog-cm-hide': async (el) => {
+    const hidden = el.dataset.hidden === '1';
+    const r = await postJson('/api/pro/posts/comments/hide', authBody({ cid: el.dataset.cid, hidden }));
+    if (!r || !r.ok) { toast('처리하지 못했어요'); return; }
+    const c = (BLOG_CM.list || []).find(x => x.id === el.dataset.cid); if (c) c.hidden = hidden;
+    renderBlogComments(true);
+  },
+  'blog-cm-send': async (el) => {
+    const ta = $('bcm-text'); const text = ta ? ta.value.trim() : '';
+    if (!text) { if (ta) ta.focus(); return; }
+    el.disabled = true;
+    const r = await postJson('/api/pro/posts/reply', authBody({ id: BLOG_CM.id, text, parentId: BLOG_CM.to || '' }));
+    el.disabled = false;
+    if (!r || !r.ok) { toast('답글을 남기지 못했어요. 잠시 뒤 다시 해주세요'); return; }
+    BLOG_CM.to = ''; BLOG_CM.list = (BLOG_CM.list || []).concat([r.comment]);
+    const it = (BLOG.items || []).find(x => x.id === BLOG_CM.id); if (it) it.comments = (it.comments || 0) + 1;
+    renderBlogComments(true); toast('답글을 남겼어요');
+  },
   'blog-seed': (el) => {
     const s = BLOG_SEEDS[+el.dataset.i]; if (!s) return;
     Object.assign(BLOG.d, { title: s.title, body: s.body, tags: s.tags.slice() });
