@@ -1087,8 +1087,8 @@ setInterval(() => {
 
 // 다음 상담 = 확정된 예약 중 가장 가까운 것. 시작한 지 30분이 안 지났으면 '지금 하는 중'이다.
 function nextBooking() {
-  const from = Date.now() - 30 * 60000;
-  return D.bookings.filter(b => b.status === 'confirmed' && b.whenTs > from).sort((a, b) => a.whenTs - b.whenTs)[0] || null;
+  const now = Date.now();
+  return D.bookings.filter(b => b.status === 'confirmed' && b.whenTs > now - bkMin(b) * 60000).sort((a, b) => a.whenTs - b.whenTs)[0] || null;
 }
 const clientKeyOf = x => x.clientId || ('n:' + x.clientName);
 const CHEV = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
@@ -1102,7 +1102,7 @@ function nextCardHtml() {
   const day = isToday(b.whenTs) ? '오늘' : `${wd.getMonth() + 1}월 ${wd.getDate()}일 (${DAYNM[wd.getDay()]})`;
   return `<div class="card nextcard ${live ? 'now' : ''}">
       <div class="row"><span class="chip ${live ? 'new' : 'ok'}">${live ? '지금 상담 시간' : '다음 상담'}</span>
-        <span class="muted grow" style="text-align:right;">${day} ${hhmm(b.whenTs)} · 30분</span></div>
+        <span class="muted grow" style="text-align:right;">${day} ${hhmm(b.whenTs)} · ${bkMin(b)}분</span></div>
       <button class="rowbtn" style="border:none; padding:0.7rem 0 0;" data-act="client-open" data-key="${esc(clientKeyOf(b))}" aria-label="${esc(b.clientName)} 님 기록 보기">
         ${avatar(b.clientName)}
         <span class="grow"><strong style="font-size:0.98rem;">${esc(b.clientName)} 님</strong>
@@ -1232,7 +1232,7 @@ function renderHome() {
     const soon = b.status === 'confirmed' && Math.abs(b.whenTs - now) < 3600000;
     const past = b.whenTs <= now;
     return `<button class="rowbtn" data-act="client-open" data-key="${esc(clientKeyOf(b))}">
-        <span class="bktime ${soon ? 'hot' : ''}"><b>${hhmm(b.whenTs)}</b><span>30분</span></span>
+        <span class="bktime ${soon ? 'hot' : ''}"><b>${hhmm(b.whenTs)}</b><span>${bkMin(b)}분</span></span>
         <span class="grow">
           <span class="row" style="gap:0.4rem;"><strong style="font-size:0.9rem;">${esc(b.clientName)} 님</strong>
             ${soon ? '<span class="chip new">곧 시작</span>'
@@ -1983,7 +1983,7 @@ function bookingCard(b) {
         <div class="grow">
           <div class="row" style="gap:0.4rem;">
             <button class="linkname grow" data-act="client-open" data-key="${esc(clientKeyOf(b))}" style="font-size:0.94rem;${dead ? 'text-decoration:line-through;' : ''}"
-              aria-label="${esc(b.clientName)} 님 기록 보기">${esc(b.clientName)} 님${dead ? '' : ' · 30분'}</button>
+              aria-label="${esc(b.clientName)} 님 기록 보기">${esc(b.clientName)} 님${dead ? '' : ' · ' + bkMin(b) + '분'}</button>
             ${badge}
           </div>
           <p class="muted" style="margin-top:0.3rem;">${esc(b.time)}<br>${won(b.price)}캐시${dead ? '' : ` · 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>`}${b.status === 'late_cancel' ? ` · 취소 수수료 내 몫 <b style="color:var(--accent)">${won(b.payout ? b.payout.counselor : 0)}캐시</b>` : ''}</p>
@@ -2449,7 +2449,8 @@ function openMoneyHelp() {
 // ── 내 정보 · 시간표 · 계좌 (기존 기능 전부 유지) ──────────────────────
 // 화면을 다시 그리기 전에 지금 칸에 적혀 있는 값을 ME 로 옮긴다.
 //  (태그 칩 하나 지웠다고 방금 고쳐 쓴 소개글이 날아가면 아무도 안 고친다)
-const PROFILE_KEYS = ['hospital', 'hospitalId', 'addr', 'addrDetail', 'tel', 'license', 'intro', 'price', 'callRate', 'tags', 'photo'];
+const PROFILE_KEYS = ['hospital', 'hospitalId', 'addr', 'addrDetail', 'tel', 'license', 'intro', 'price', 'sessionMin', 'callRate', 'tags', 'photo'];
+const bkMin = b => (b && b.sessionMin === 40) ? 40 : 30;   // 그 예약의 상담 시간(분)
 function syncProfileForm() {
   if (!ME || !$('pf-hospital')) return;
   const g = id => ($(id) || {}).value || '';
@@ -2460,6 +2461,7 @@ function syncProfileForm() {
   ME.addrDetail = g('pf-addr2');
   ME.license = g('pf-license'); ME.intro = g('pf-intro');
   ME.price = parseInt(g('pf-price'), 10) || 0;
+  ME.sessionMin = g('pf-sessmin') === '40' ? 40 : 30;
   ME.callRate = parseInt(g('pf-callrate'), 10) || 0;
   // 사진은 칸이 아니라 ME.photo 에 직접 들어간다 — 여기서 건드리지 않는다
 }
@@ -2700,7 +2702,13 @@ function foldProfile() {
     ${telBlock}
     ${addrBlock}
     ${f('pf-license', '자격', ME.license, '예: 임상심리전문가 1급')}
-    ${f('pf-price', '예약 상담료 · 30분 (원)', ME.price, '40000', 'number')}
+    <label><span>예약 상담 1회 시간</span>
+      <select id="pf-sessmin">
+        <option value="30" ${ME.sessionMin === 40 ? '' : 'selected'}>30분</option>
+        <option value="40" ${ME.sessionMin === 40 ? 'selected' : ''}>40분</option>
+      </select>
+      <span class="muted" style="margin-top:0.2rem;">내담자에게 이 시간으로 안내되고, 예약도 이 간격으로 잡혀요. 이미 잡힌 예약은 예약할 때의 시간 그대로예요.</span></label>
+    ${f('pf-price', '예약 상담료 · 1회 (원)', ME.price, '40000', 'number', '위에서 고른 시간(30분 또는 40분) 1회 금액이에요.')}
     ${f('pf-callrate', '바로상담 요율 (30초당 캐시)', ME.callRate, '500', 'number',
         '0 이면 바로상담 요금이 붙지 않아요. 30초마다 이 금액이 차감됩니다.')}
     <label><span>전문 분야 (최대 6개)</span>
@@ -4396,7 +4404,7 @@ const ACT = {
     const r = await postJson('/api/me', authBody({
       hospital: ME.hospital, hospitalId: ME.hospitalId || '', addr: ME.addr, addrDetail: ME.addrDetail || '',
       tel: ME.tel, license: ME.license,
-      intro: ME.intro, price: ME.price, callRate: ME.callRate, tags: ME.tags || [],
+      intro: ME.intro, price: ME.price, sessionMin: ME.sessionMin === 40 ? 40 : 30, callRate: ME.callRate, tags: ME.tags || [],
       // 사진은 항상 보낸다. '안 보냄'은 서버에서 '그대로 두기'로 해석되므로,
       //  [사진 삭제]를 누른 뒤 저장했을 때 지워지려면 빈 문자열이 가야 한다.
       photo: ME.photo || ''

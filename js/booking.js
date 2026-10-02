@@ -13,7 +13,14 @@ window.Booking = {
   _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 
-  SESSION_MS: 30 * 60000,        // 예약 상담 30분 정액 (서버 SESSION_MS 와 같다)
+  SESSION_MS: 30 * 60000,        // 예약 상담 기본 30분 정액. 상담사가 40분을 골랐으면 sessionMin() 이 40 을 준다
+  // 이 상담사의 1회 상담 시간(분) — 서버 일정(/api/slots)이 먼저, 없으면 명부 값, 그것도 없으면 30
+  sessionMin(counselorId) {
+    const sc = this._sched && this._sched[counselorId];
+    if (sc && sc.sessionMin) return sc.sessionMin === 40 ? 40 : 30;
+    const c = window.Marketplace && window.Marketplace.getCounselor ? window.Marketplace.getCounselor(counselorId) : null;
+    return c && c.sessionMin === 40 ? 40 : 30;
+  },
   currentCounselorId: null,
   calYear: 0,
   calMonth: 0, // 0-11
@@ -80,7 +87,7 @@ window.Booking = {
     } catch (e) { d = null; }
     const s = d
       ? { at: Date.now(), found: d.found !== false, configured: !!d.configured,
-          slots: d.slots || {}, offdays: d.offdays || [], taken: Array.isArray(d.taken) ? d.taken : [] }
+          slots: d.slots || {}, offdays: d.offdays || [], taken: Array.isArray(d.taken) ? d.taken : [], sessionMin: d.sessionMin === 40 ? 40 : 30 }
       : { at: Date.now(), error: true };
     this._sched[counselorId] = s;
     // 그 사이 모달이 같은 상담사로 열려 있으면 다시 그린다
@@ -137,7 +144,7 @@ window.Booking = {
     return slots.filter(t => {
       const ts = this.kstTs(dateStr, t);
       if (!Number.isFinite(ts) || ts < cut) return false;
-      return !busy.some(x => Math.abs(x - ts) < this.SESSION_MS);
+      return !busy.some(x => Math.abs(x - ts) < this.sessionMin(counselorId) * 60000);
     }).sort();
   },
 
@@ -160,12 +167,12 @@ window.Booking = {
           <strong style="font-size: 1.02rem; color: var(--text-primary);">${this._esc(counselor.name)}</strong>
           <div style="color: var(--text-muted); font-size: 0.78rem;">${this._esc(counselor.hospital)}</div>
         </div>
-        <strong style="color: var(--accent-primary); white-space: nowrap;">30분 · ${counselor.price.toLocaleString()}캐시</strong>
+        <strong style="color: var(--accent-primary); white-space: nowrap;">${this.sessionMin(counselorId)}분 · ${counselor.price.toLocaleString()}캐시</strong>
       </div>
       <div style="margin-top: 0.65rem; padding-top: 0.6rem; border-top: 1px dashed var(--glass-border); font-size: 0.78rem; color: var(--text-secondary); line-height: 1.7;">
         <b style="color: var(--text-primary);">예약 후 이렇게 진행돼요</b><br>
-        · 예약 상담은 <b>30분 정액제</b>예요 — 통화 중 30초당 과금이 <b>전혀 없습니다</b>. (쓴 만큼 과금되는 건 예약 없이 거는 '바로상담'만!)<br>
-        · 1회기 상담 시간은 <b>30분</b>입니다. 시간은 모두 <b>한국 시각</b>이에요.<br>
+        · 예약 상담은 <b>${this.sessionMin(counselorId)}분 정액제</b>예요 — 통화 중 30초당 과금이 <b>전혀 없습니다</b>. (쓴 만큼 과금되는 건 예약 없이 거는 '바로상담'만!)<br>
+        · 1회기 상담 시간은 <b>${this.sessionMin(counselorId)}분</b>입니다. 시간은 모두 <b>한국 시각</b>이에요.<br>
         · 예약이 확정되면 <b>알림</b>으로 알려드려요.<br>
         · 예약 시간이 되면 <b>마이페이지 › 나의 상담 내역</b>의 [전화 상담] 버튼으로 상담사님과 바로 연결됩니다.<br>
         · 상담 전 나누고 싶은 이야기는 [채팅]으로 미리 남겨둘 수 있어요.<br>

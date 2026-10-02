@@ -49,6 +49,12 @@ const rid = p => {
 // ── 예약 공통 ──────────────────────────────────────────────────────────
 //  예약 상담은 30분 정액이다(화면 안내와 같다). 두 예약이 30분 안에 붙어 있으면 겹친 것으로 본다.
 const SESSION_MS = 30 * 60000;
+// 상담사가 고른 1회 상담 시간(분). 30 또는 40 만 있다. 칸이 없는 옛 DB·안 고른 상담사는 30.
+const sessMin = v => Number(v) === 40 ? 40 : 30;
+async function sessionMinOf(db, counselorId) {
+  try { const r = await db.prepare('SELECT session_min FROM counselors WHERE id = ?').bind(counselorId).first(); return sessMin(r && r.session_min); }
+  catch (e) { return 30; }
+}
 //  상담사 일정을 막는 상태 — 확정·완료·이의 접수는 그 시간을 이미 쓴 것이다.
 const BK_BUSY = "('confirmed','done','disputed')";
 //  정산 가능한 예약: ① 완료 + 내담자 확인(또는 72시간 자동 확정 도래) + 회기 기록
@@ -762,8 +768,12 @@ export async function handleMarket(request, env, cors, path, ctx) {
         `SELECT ${COLS} FROM counselors WHERE active = 1 ORDER BY created DESC`
       ).all();
     }
+    // 40분 상담을 고른 상담사 (칸이 없는 옛 DB 면 아무도 없다)
+    const s40 = new Set();
+    try { ((await db.prepare('SELECT id FROM counselors WHERE session_min = 40').all()).results || []).forEach(x => s40.add(x.id)); } catch (e) {}
     return json({
       items: (r.results || []).map(c => ({
+        sessionMin: s40.has(c.id) ? 40 : 30,
         id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hosp_id || '',
         // 도로명 + 상세(층·호)를 여기서 합친다. 나눠 두는 건 지오코딩 때문이지
         //  사람에게 보여줄 때까지 나눠 놓을 이유는 없다.
@@ -1030,6 +1040,8 @@ export async function handleMarket(request, env, cors, path, ctx) {
     //  예약이 끼어들면 둘 다 통과했다(이중 예약). D1 은 쓰기가 한 줄로 서므로, 조건을 INSERT 의
     //  WHERE 에 넣으면 '검사 → 쓰기'가 쪼개지지 않는다. 겹침·미결 예약 수·잔액을 모두 여기서 다시 본다.
     //  (마지막 방어선: 스키마의 부분 UNIQUE 인덱스 uq_bk_slot 이 같은 상담사·같은 시각을 한 번 더 막는다)
+    const bkMin = await sessionMinOf(db, counselorId);
+    BK.slotMs = bkMin * 60000;
     const lo = wantTs - BK.slotMs, hi = wantTs + BK.slotMs;
     let cond = `NOT EXISTS (SELECT 1 FROM bookings WHERE counselor_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?)
       AND NOT EXISTS (SELECT 1 FROM bookings WHERE client_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?)
@@ -1095,8 +1107,10 @@ export async function handleMarket(request, env, cors, path, ctx) {
     try { await db.prepare('INSERT INTO rate_hits (key, ts) VALUES (?,?)').bind('bkip:' + bkIp, nowMs()).run(); } catch (e) {}
     // 상담사에게 새 예약을 알린다 (앱이 꺼져 있어도)
     bookingNotice(ctx, env, 'counselor', counselorId, '새 상담 예약',
-      `${s(body.clientName) || '내담자'} 님이 ${kstLabel(wantTs)} 상담(30분)을 예약했어요.`);
-    return json({ ok: true, id, price, channel: ch.channel }, 200, cors);
+      `${s(body.clientName) || '내담자'} 님이 ${kstLabel(wantTs)} 상담(${bkMin}분)을 예약했어요.`);
+    // 예약할 때의 상담 시간을 예약에 남긴다 — 상담사가 나중에 시간을 바꿔도 이 예약은 그대로
+    try { await db.prepare('UPDATE bookings SET session_min = ? WHERE id = ?').bind(bkMin, id).run(); } catch (e) {}
+    return json({ ok: true, id, price, channel: ch.channel, sessionMin: bkMin }, 200, cors);
   }
 
   // ── 취소(내담자) ────────────────────────────────────────────────────
@@ -2031,7 +2045,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
           c = await db.prepare(`SELECT ${COLS} FROM counselors WHERE id = ?`).bind(me.id).first();
         }
       }
-      return json({ ok: true, me: rowProfile(c) }, 200, cors);
+      return json({ ok: true, me: Object.assign(rowProfile(c), { sessionMin: await sessionMinOf(db, me.id) }) }, 200, cors);
     }
 
     if (method === 'POST') {
@@ -2061,6 +2075,7 @@ export async function handleMarket(request, env, cors, path, ctx) {
       if (has('intro'))    put('intro', s(body.intro, 600));
       if (has('license'))  put('license', s(body.license, 80));
       if (has('price'))    put('price', Math.max(0, Math.min(1000000, num(body.price))));
+      if (has('sessionMin')) put('session_min', sessMin(body.sessionMin));
       if (has('callRate')) put('call_rate', Math.max(0, Math.min(100000, num(body.callRate))));
       // 옛 앱은 tel, 새 앱은 phone 으로 부를 수 있다 — 둘 다 같은 칸이다
       if (has('tel') || has('phone')) put('tel', telClean(has('tel') ? body.tel : body.phone));
@@ -2187,14 +2202,14 @@ export async function handleMarket(request, env, cors, path, ctx) {
       const r = await db.prepare(
         `SELECT when_ts FROM bookings WHERE counselor_id = ? AND status IN ${BK_BUSY} AND when_ts > ? AND when_ts < ?
           ORDER BY when_ts ASC LIMIT 1000`
-      ).bind(cid, t - SESSION_MS, t + 61 * 86400000).all();
+      ).bind(cid, t - 40 * 60000, t + 61 * 86400000).all();
       taken = (r.results || []).map(x => x.when_ts);
     } catch (e) {}
     return json({
       found: true, slots, offdays: safeJson(c.offdays, []), price: c.price || 0, taken,
       // 요일별 시간을 한 칸이라도 저장했는가 — 아니면 서버는 시각을 따지지 않는다(/bookings 참고)
       configured: Object.keys(slots || {}).some(d => Array.isArray(slots[d]) && slots[d].length),
-      sessionMin: SESSION_MS / 60000, tz: 'Asia/Seoul'
+      sessionMin: await sessionMinOf(db, cid), tz: 'Asia/Seoul'
     }, 200, cors);
   }
 
@@ -3072,7 +3087,7 @@ function rowProfile(c) {
 const rowBooking = r => ({
   id: r.id, counselorId: r.counselor_id, name: r.counselor_name,
   clientId: r.client_id, clientName: r.client_name,
-  whenTs: r.when_ts, time: r.time_label, price: r.price, status: r.status,
+  whenTs: r.when_ts, time: r.time_label, price: r.price, status: r.status, sessionMin: sessMin(r.session_min),
   // 상담 이후 흐름 — 화면이 '지금 누가 무엇을 할 차례인지' 판단하는 근거
   doneAt: r.done_at || 0, confirmAt: r.confirm_at || 0, autoAt: r.auto_at || 0,
   settledAt: r.settled_at || 0,

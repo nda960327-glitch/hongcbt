@@ -211,3 +211,5 @@ CREATE INDEX IF NOT EXISTS idx_hospapps_status ON hospital_apps(status, ts);
 -- 이용자 설문 (survey.js) — 익명. 답만 JSON 으로, IP·기기 ID 는 저장하지 않는다
 CREATE TABLE IF NOT EXISTS survey_responses (id TEXT PRIMARY KEY, ts INTEGER NOT NULL, ver INTEGER NOT NULL, data TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_survey_ts ON survey_responses(ts);
+
+-- 상담 시간 30·40분(2026-10): ALTER TABLE counselors ADD COLUMN session_min INTEGER; ALTER TABLE bookings ADD COLUMN session_min INTEGER; (없으면 30)

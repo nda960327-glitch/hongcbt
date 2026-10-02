@@ -270,7 +270,7 @@
         </div>
         <div class="cc2-duo" onclick="event.stopPropagation()">
           <button class="cc2-book" onclick="window.Booking.openModal('${c.id}')">
-            <b>${window.Icons ? window.Icons.svg('booking', { size: 14 }) : ''} 예약 상담</b><span>30분 ${c.price.toLocaleString()}원</span>
+            <b>${window.Icons ? window.Icons.svg('booking', { size: 14 }) : ''} 예약 상담</b><span>${c.sessionMin === 40 ? 40 : 30}분 ${c.price.toLocaleString()}원</span>
           </button>
           ${st === 'avail'
             ? `<button class="cc2-live" onclick="window.App.startInstantChat('${c.id}')"><b>${window.Icons ? window.Icons.svg('bolt', { size: 14 }) : ''} 바로상담</b><span>채팅방으로 바로 연결</span></button>`
@@ -543,7 +543,7 @@
     } catch (e) {}
     this._server = d.items.map(c => ({
       id: c.id, name: c.name, hospital: c.hospital || '', hospitalId: c.hospitalId || '', addr: c.addr || '',
-      tags: c.tags || [], price: c.price || 40000,
+      tags: c.tags || [], price: c.price || 40000, sessionMin: c.sessionMin === 40 ? 40 : 30,
       callRate: c.callRate || this.callRateFor({ price: c.price }),
       // 얼굴과 좌표. 전에는 이 둘을 안 받아서, 서버 상담사는 전부 그림 아바타에
       //  '내 위치에서 null km' 였다 — 좌표가 undefined 라 calcDistance 가
@@ -648,7 +648,7 @@
       
       <div style="position: sticky; bottom: -1rem; background: var(--bg-primary); padding: 1rem 0; border-top: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; margin: 0 -1rem -1rem -1rem;">
         <div style="padding-left: 1rem;">
-          <span style="font-size: 0.85rem; color: var(--text-muted); display: block;">30분 상담료</span>
+          <span style="font-size: 0.85rem; color: var(--text-muted); display: block;">${counselor.sessionMin === 40 ? 40 : 30}분 상담료</span>
           <span style="font-weight: bold; font-size: 1.2rem; color: var(--text-primary);">${counselor.price.toLocaleString()}원</span>
         </div>
         <div style="padding-right: 1rem;">
