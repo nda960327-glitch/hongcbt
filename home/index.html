@@ -1,5 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>마인드 인사이드</title><meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="0; url=/about/"><link rel="canonical" href="https://mindinside.kr/">
-</head><body><p><a href="/about/">마인드 인사이드 앱 소개로 이동</a></p></body></html>
+<title>마인드 인사이드</title><meta name="robots" content="noindex"><link rel="canonical" href="https://mindinside.kr/">
+<!-- 첫 화면(/)은 Worker 가 커뮤니티를 그린다(blogpage.js). 주소 뒤에 ?utm=… 같은 꼬리가 붙으면 Worker 길에 안 걸려 이 파일이 대신 열린다 —
+     그때는 같은 커뮤니티 화면인 /blog 로 꼬리를 그대로 들고 넘어간다. -->
+<script>location.replace('/blog' + location.search + location.hash);</script>
+</head><body><noscript><p><a href="/blog">마인드 인사이드 커뮤니티로 이동</a> · <a href="/about/">앱 소개</a></p></noscript></body></html>
