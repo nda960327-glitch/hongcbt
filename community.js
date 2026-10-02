@@ -101,7 +101,7 @@ function profileOf(h) {
 const hospPublic = h => h ? { id: h.id, name: h.name, dept: h.dept || '', doctor: h.doctor || '', profile: profileOf(h) } : null;
 
 // 화면 표기 기호를 뗀 순수 글 — 목록 발췌문과 검색용
-const plainOf = b => String(b || '')
+const plainOf = b => String(b || '').replace(/\[스티커:[^\]]*\]/g, '')
   .replace(/\[img:\d+\]/g, '').replace(/\{(red|orange|green|blue|purple|gray)\|([^{}]*)\}/g, '$2')
   .replace(/\*\*/g, '').replace(/^#{1,2}\s+/gm, '').replace(/\s+/g, ' ').trim();
 const parseImages = v => { try { const a = JSON.parse(v || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string').slice(0, IMG_MAX) : []; } catch (e) { return []; } };

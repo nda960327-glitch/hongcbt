@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v287';
+﻿const CACHE_NAME = 'cbt-app-v288';
 const ASSETS = [
   './',
   './index.html',
