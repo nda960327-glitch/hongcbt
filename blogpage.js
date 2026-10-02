@@ -36,8 +36,8 @@ const BOARD = {
   neru: { name: '우렁이 자랑방', desc: '내가 키운 우렁이, 우렁이와 나눈 대화, 오늘의 기록 — 캡처해서 마음껏 자랑해요' },
   meds: { name: '약 이야기', desc: '복용 경험과 궁금증을 나눠요. 약을 바꾸거나 끊는 결정은 주치의와 — 특정 약을 권하거나 용량을 알려주는 글은 가려져요' },
   student: { name: '심리학도 라운지', desc: '심리·상담을 공부하는 대학생·대학원생의 공부, 수련, 진로 이야기' },
-  doctor: { name: '의사 라운지', desc: '인증된 정신건강의학과 전문의·전공의만 보는 곳 — 진료의 고민, 소진, 동료에게만 할 수 있는 이야기' },
-  resident: { name: '전공의 라운지', desc: '인증된 전공의·전문의만 보는 곳 — 수련 생활, 공부, 진로' },
+  doctor: { name: '의사 라운지', desc: '인증된 전문가(의사·상담사·상담소)만 보는 곳 — 진료의 고민, 소진, 동료에게만 할 수 있는 이야기' },
+  resident: { name: '전공의 라운지', desc: '인증된 전문가(의사·상담사·상담소)만 보는 곳 — 수련 생활, 공부, 진로' },
   expert: { name: '상담사 라운지', desc: '인증된 심리상담사·임상심리사·상담소만 보는 곳 — 현장 이야기, 수입과 일자리, 사례 고민(개인정보 없이)' },
   idea: { name: '기능 제안', desc: '앱에 바라는 기능, 불편한 점, 오류 신고 — 공감이 많은 제안부터 살펴봐요' },
   notice: { name: '공지', desc: '운영팀이 알리는 소식과 커뮤니티 규칙' }
@@ -292,7 +292,7 @@ function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav,
     ['커뮤니티', [['free', '/blog?board=free', '수다방', '오늘 있었던 일, 아무 말'], ['neru', '/blog?board=neru', '우렁이 자랑방', '내가 키운 우렁이 자랑'], ['qna', '/blog?board=qna', '고민 Q&amp;A', '상담사가 답해요'], ['meds', '/blog?board=meds', '약 이야기', '복용 경험과 궁금증']]],
     ['읽을거리', [['kb', '/blog/kb', '마음건강 백과', '우울·불안·조울증·조현병… 질환별 안내'], ['medinfo', '/blog/medinfo', '약 정보', '항우울제·항불안제·수면제… 약별 안내'], ['column', '/blog?board=column', '상담사 칼럼', '전문가가 쓰는 마음 돌봄 글'], ['videos', '/blog/videos', '추천 영상', '운영팀이 고른 영상'], ['library', '/blog/library', '자료실', '상담기록지·안전계획서 등 양식']]],
     ['찾기', [['clinics', '/blog/clinics', '정신건강의학과', '내 주변 병·의원'], ['counselors', '/blog/counselors', '심리상담사', '전화·채팅으로 만나는 상담사'], ['centers', '/blog/centers', '심리상담소', '제휴 상담소'], ['support', '/blog?tag=' + encodeURIComponent('지원 제도'), '나라 지원 제도', '상담 바우처·정신건강복지센터·상담 전화']]],
-    ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['doctor', '/blog?board=doctor', '의사 라운지', '인증된 의사만'], ['resident', '/blog?board=resident', '전공의 라운지', '인증된 전공의·전문의만'], ['expert', '/blog?board=expert', '상담사 라운지', '인증된 상담사만'], ['verify', '/blog/verify', '전문가 인증', '면허·자격 확인 신청']]],
+    ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['doctor', '/blog?board=doctor', '의사 라운지', '인증된 전문가만'], ['resident', '/blog?board=resident', '전공의 라운지', '인증된 전문가만'], ['expert', '/blog?board=expert', '상담사 라운지', '인증된 상담사만'], ['verify', '/blog/verify', '전문가 인증', '면허·자격 확인 신청']]],
     ['더보기', [['idea', '/blog?board=idea', '기능 제안', '바라는 기능·오류 신고'], ['notice', '/blog?board=notice', '공지', '소식과 이용 규칙'], ['install', '/blog/install', '앱 설치', '휴대폰·PC'], ['about', c.about, '앱 소개', '마인드 인사이드는'], ['join', '/blog/join', '상담사·상담소 가입', '입점·제휴 신청']]]
   ];
   const navHtml = `<a href="${c.home}"${nav === 'home' ? ' class="on"' : ''}>홈</a>` + MENU.map(([g, items]) =>
