@@ -1156,9 +1156,15 @@ ${about}
       if (n < total) {
         const nx = workDef.steps[n];
         this._workNext = { cur: n + 1, total, label: nx.t };
-        turnDirective = `[이번 턴 — 실습 진행] 사용자가 방금 ${n}단계(${workDef.steps[n - 1].t}) 실습 카드를 적어 보냈습니다. 이번 답장에서: (1) 적은 내용에서 잘한 점 한 가지를 사용자의 말을 인용해 구체적으로 짚습니다. (2) 더 정확해질 점이 있으면 한 가지만 짧게 알려 줍니다(없으면 생략). (3) 이 단계에서 방금 한 일이 왜 도움이 되는지 원리를 한 문장으로 가르칩니다. (4) 이어서 다음 단계 "${n + 1}단계 ${nx.t}"를 엽니다 — 무엇을 왜 하는지 한두 문장. 답장 첫 줄은 반드시 "[${n + 1}/${total}] ${nx.t}"로 시작합니다. 앱이 다음 단계의 실습 카드를 답장 아래에 붙이므로, 카드에 있는 질문을 글로 다시 묻지 말고 "아래 카드에 직접 적어 보세요"로 마칩니다. 말풍선은 2~3개.`;
+        turnDirective = `[이번 턴 — 실습 진행] 사용자가 방금 ${n}단계(${workDef.steps[n - 1].t}) 실습 카드를 적어 보냈습니다.
+먼저 판정합니다 — 적은 내용이 이 단계가 요구하는 것과 맞지 않으면(빈 답, 장난, 다른 단계의 답, 남을 욕하거나 탓하는 문장을 '균형 잡힌 생각'·'증거'라고 낸 것, 또 다른 극단으로 간 생각) 칭찬하지 않습니다. 감정은 한 문장으로 받아 주되, 왜 이 단계의 답이 되기 어려운지 한 문장으로 알려 주고, 어떻게 고치면 되는지 예를 하나 들어 다시 적어 보게 합니다. 이 경우 답장 맨 앞에 [다시] 라고 쓰고, 다음 단계로 넘어가지 않습니다.
+맞게 적었다면: 말풍선 ① 잘한 점 한 가지(사용자의 낱말을 짚어서) ② 방금 한 일이 왜 도움이 되는지 원리 한 문장 ③ 다음 단계 "${n + 1}단계 ${nx.t}"에서 무엇을 하는지 한 문장 + "아래 카드에 적어 보세요". 답장 첫 줄은 "[${n + 1}/${total}] ${nx.t}"로 시작합니다. 카드에 있는 질문을 글로 다시 묻지 않습니다.
+형식(꼭 지킬 것): 말풍선 2~3개, ||| 로 나눕니다. 말풍선 하나에 한 문장(길어도 두 문장), 한 문장은 40자 안팎. 한 덩어리로 길게 쓰지 않습니다. 사용자의 말을 인용할 때는 핵심 낱말만 짧게 — 욕설·비하 표현은 그대로 옮기지 않습니다.`;
       } else {
-        turnDirective = `[이번 턴 — 실습 마무리] 사용자가 마지막 ${n}단계 실습 카드를 적어 보냈습니다. 단계 표시는 붙이지 않습니다. (1) 처음 점수와 지금 점수의 변화를 짚습니다. (2) 오늘 사용자가 스스로 해낸 것을 사용자의 말을 인용해 한두 문장으로 정리합니다. (3) 이 과정이 왜 통하는지 원리를 한 문장으로, (4) 다음에 혼자서 할 때 기억할 한 가지를 알려 줍니다. 앱이 여섯 단계를 한 장으로 모은 '돌아보기 카드'를 답장 아래에 붙이므로 요약 카드를 따로 만들지 않습니다.`;
+        turnDirective = `[이번 턴 — 실습 마무리] 사용자가 마지막 ${n}단계 실습 카드를 적어 보냈습니다. 단계 표시는 붙이지 않습니다.
+먼저 판정합니다 — 적은 내용이 이 단계가 요구하는 것과 맞지 않으면(빈 답, 장난, 다른 단계의 답, 남을 욕하거나 탓하는 문장을 '균형 잡힌 생각'·'증거'라고 낸 것, 또 다른 극단으로 간 생각) 칭찬하지 않습니다. 감정은 한 문장으로 받아 주되, 왜 이 단계의 답이 되기 어려운지 한 문장으로 알려 주고, 어떻게 고치면 되는지 예를 하나 들어 다시 적어 보게 합니다. 이 경우 답장 맨 앞에 [다시] 라고 쓰고, 다음 단계로 넘어가지 않습니다.
+맞게 적었다면: 말풍선 ① 처음 점수와 지금 점수의 변화 한 문장 ② 오늘 스스로 해낸 것 한 문장 ③ 다음에 혼자 할 때 기억할 한 가지 한 문장. 앱이 여섯 단계를 한 장으로 모은 '돌아보기 카드'를 붙이므로 내용을 다시 늘어놓지 않습니다.
+형식(꼭 지킬 것): 말풍선 2~3개, ||| 로 나눕니다. 말풍선 하나에 한 문장(길어도 두 문장), 한 문장은 40자 안팎. 한 덩어리로 길게 쓰지 않습니다. 사용자의 말을 인용할 때는 핵심 낱말만 짧게 — 욕설·비하 표현은 그대로 옮기지 않습니다.`;
       }
     }
 
@@ -1406,7 +1412,28 @@ ${about}
         const wp = window.Personas.getActive().id;
         const stepItem = items.find(it => it.step) || null;
         const sentWork = String(userText || '').match(/^\[실습 (\d)\/(\d)/);
-        if (sentWork && sentWork[1] === sentWork[2] && window.WorkCards.DEFS[wp]) {
+        // [다시] — 상담사가 '이 단계를 다시 해 보자'고 판정한 답장. 넘어가지 않고 같은 단계의 카드를 다시 붙인다.
+        const redo = !!sentWork && /\[다시\]/.test(botText);
+        items.forEach(it => { if (it.text) it.text = it.text.replace(/\s*\[다시\]\s*/g, ' ').trim(); });
+        // 실습 턴의 답장은 짧은 말풍선으로 — 모델이 한 덩어리로 길게 쓰면 문장 단위로 나눈다(말풍선 하나에 두 문장·70자까지)
+        if (sentWork && window.WorkCards.DEFS[wp]) {
+          const out = [];
+          items.forEach(it => {
+            if (!it.text || it.text.length <= 70) { out.push(it); return; }
+            const sents = (it.text.match(/[^.!?…]+[.!?…]*["'”’)]*\s*/g) || [it.text]).map(s => s.trim()).filter(Boolean);
+            let cur = '', cnt = 0, first = true;
+            const flush = () => { if (cur) { out.push({ text: cur, step: first ? it.step : null }); first = false; cur = ''; cnt = 0; } };
+            sents.forEach(s => { if (cur && (cnt >= 2 || (cur + ' ' + s).length > 70)) flush(); cur = cur ? cur + ' ' + s : s; cnt++; });
+            flush();
+          });
+          items.length = 0; out.forEach(x => items.push(x));
+        }
+        if (redo && window.WorkCards.has(wp, +sentWork[1])) {
+          const n = +sentWork[1], d = window.WorkCards.DEFS[wp]; let put = false;
+          items.forEach(it => { if (it.text !== undefined) { it.step = put ? null : { cur: n, total: d.total, label: d.steps[n - 1].t }; put = true; } });
+          this._lastWork = wp + ':' + n;
+          items.push({ viz: { type: '실습', args: [wp, n] } });
+        } else if (sentWork && sentWork[1] === sentWork[2] && window.WorkCards.DEFS[wp]) {
           items.forEach(it => { if (it.step) it.step = null; });
           items.push({ viz: { type: '실습요약', args: [wp] } });
           this._lastWork = '';
