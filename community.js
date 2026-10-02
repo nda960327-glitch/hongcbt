@@ -30,6 +30,7 @@
 //           GET  /community/profile?session= · POST /community/profile {session, nick, photo}   커뮤니티 프로필(별명·사진 160px JPEG)
 //           POST /community/inquiry {session, hospitalId, text}   상담소에 쪽지(회원 → 상담소만. 회원끼리는 없다) · GET /community/inquiries?session=  내가 보낸 쪽지와 답장
 //    상담소 GET  /hospital/inquiries?hsession=   POST /hospital/inquiries/reply {hsession, id, text}
+//           GET  /community/notifs?session=                    새 소식(내 글의 댓글·내 댓글의 답글·쪽지 답장, 30일)
 //           POST /community/pet {session, photo, level}       내 우렁이 방 사진(640px JPEG) — /blog/upet/<id>.jpg 로 나간다
 //    비공개 라운지(roles.js): doctor·resident(의사끼리) · expert(상담사끼리) 는 인증된 사람만 읽고 쓴다. 목록·검색·공개 페이지·사이트맵에 나가지 않는다.
 //           GET  /community/role?session=                     내 인증 상태
@@ -298,6 +299,24 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     let rows = [];
     try { rows = (await db.prepare('SELECT i.id, i.hospital_id, i.text, i.ts, i.reply, i.reply_ts, h.name AS hospital FROM hospital_inquiries i JOIN hospitals h ON h.id = i.hospital_id WHERE i.user_id = ? ORDER BY i.ts DESC LIMIT 50').bind(u.id).all()).results || []; } catch (e) { if (!noTable(e)) throw e; }
     return json({ items: rows.map(r => ({ id: r.id, hospitalId: r.hospital_id, hospital: r.hospital, text: r.text, ts: r.ts, reply: r.reply || '', replyTs: r.reply_ts || 0 })) }, 200, cors);
+  }
+
+  // 새 소식 — 내 글에 달린 댓글 · 내 댓글에 달린 답글 · 상담소의 쪽지 답장 (최근 30일)
+  if (path === '/community/notifs' && method === 'GET') {
+    const u = await userOf();
+    if (!u) return json({ items: [], login: true }, 200, cors);
+    const since = nowMs() - 30 * 86400000;
+    const all = async (sql, ...a) => { try { return (await db.prepare(sql).bind(...a).all()).results || []; } catch (e) { if (noTable(e)) return []; throw e; } };
+    const a = await all('SELECT c.id, c.post_id, c.name, c.text, c.ts, p.title FROM post_comments c JOIN posts p ON p.id = c.post_id WHERE p.client_id = ? AND c.client_id != ? AND c.hidden = 0 AND p.hidden = 0 AND c.ts > ? ORDER BY c.ts DESC LIMIT 30', u.key, u.key, since);
+    const b = await all('SELECT c.id, c.post_id, c.name, c.text, c.ts, p.title FROM post_comments c JOIN post_comments m ON m.id = c.parent_id JOIN posts p ON p.id = c.post_id WHERE m.client_id = ? AND c.client_id != ? AND c.hidden = 0 AND p.hidden = 0 AND c.ts > ? ORDER BY c.ts DESC LIMIT 30', u.key, u.key, since);
+    const q3 = await all("SELECT i.id, i.hospital_id, i.reply, i.reply_ts, h.name FROM hospital_inquiries i JOIN hospitals h ON h.id = i.hospital_id WHERE i.user_id = ? AND i.reply IS NOT NULL AND i.reply != '' AND i.reply_ts > ? ORDER BY i.reply_ts DESC LIMIT 10", u.id, since);
+    const seen = new Set(), items = [];
+    const cut = t => plainOf(t).slice(0, 80);
+    b.forEach(x => { seen.add(x.id); items.push({ kind: 'reply', id: x.id, postId: x.post_id, title: x.title, name: x.name || '익명', text: cut(x.text), ts: x.ts }); });
+    a.forEach(x => { if (!seen.has(x.id)) items.push({ kind: 'comment', id: x.id, postId: x.post_id, title: x.title, name: x.name || '익명', text: cut(x.text), ts: x.ts }); });
+    q3.forEach(x => items.push({ kind: 'inquiry', id: x.id, hospitalId: x.hospital_id, title: x.name, name: x.name, text: cut(x.reply), ts: x.reply_ts }));
+    items.sort((x, y) => y.ts - x.ts);
+    return json({ items: items.slice(0, 40) }, 200, cors);
   }
 
   // 내 우렁이 방 사진 — 앱이 방이 바뀔 때 올린다. 커뮤니티 옆칸과 내 정보에 보인다.

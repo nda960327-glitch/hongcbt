@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 const src = fs.readFileSync(process.argv[2], 'utf8');
-for (const name of ['INQ_JS','CLINICS_JS','ME_JS','ME2_JS','VERIFY_JS','LOGIN_JS','JOIN_JS','CENTERS_JS']) {
+for (const name of ['NF_JS','KB_JS','INQ_JS','CLINICS_JS','ME_JS','ME2_JS','VERIFY_JS','LOGIN_JS','JOIN_JS','CENTERS_JS']) {
   const i = src.indexOf('const ' + name + ' = "'); if (i < 0) { console.log('?', name); continue; }
   const j = src.indexOf('</script>";', i);
   const s = JSON.parse(src.slice(i + ('const ' + name + ' = ').length, j + '</script>"'.length));
