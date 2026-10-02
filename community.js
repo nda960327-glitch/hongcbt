@@ -15,7 +15,7 @@
 //           GET  /community/author?id=&clientId=             상담사 블로그(프로필 + 글 + 합계)
 //           POST /community/comment/like {cid, clientId, clientKey}   댓글 공감 토글 — 공감 많은 댓글이 '베스트 댓글'
 //           GET  /community/best                        요즘 공감 많이 받은 댓글(글 제목과 함께)
-//    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · qna=고민 Q&A · idea=기능 제안·오류 신고 · notice=공지
+//    게시판(posts.board): 없음=상담사 칼럼(상담소·상담사가 쓴 글) · free=수다방 · neru=느루 자랑방 · qna=고민 Q&A · meds=약 이야기 · idea=기능 제안·오류 신고 · notice=공지
 //      이용자 글은 상담소 자리에 시스템 상담소 'community' 를 넣어 같은 표를 쓴다 — 좋아요·댓글·답글·검색·공개 페이지가 그대로 붙는다.
 //           GET  /community?board=column|free|qna|idea|notice
 //           POST /community/write {clientId, clientKey, board, title, body, tags, images, thumb, name}   이용자 글쓰기(하루 5개)
@@ -26,6 +26,8 @@
 //    회원제(2026-10): 이용자 글과 댓글은 로그인한 사람만 쓴다 — 요청에 session(카카오·네이버·구글 로그인 세션, 앱 계정과 같은 것)을 싣는다.
 //      글·댓글의 주인은 계정('acc:<user id>')으로 적는다 → 앱에서 쓴 글을 홈페이지에서도 내 글로 알아본다. 공감·신고는 로그인 없이도 된다(기기 식별).
 //           GET  /community?mine=1&session=      내가 쓴 글
+//           GET  /community/mycomments?session=  내가 쓴 댓글(글 제목과 함께)
+//           GET  /community/profile?session= · POST /community/profile {session, nick, photo}   커뮤니티 프로필(별명·사진 160px JPEG)
 //    이용자가 쓰는 글·댓글은 올리기 전에 screen() 이 거른다 — 욕설·비하 / 자살·자해 언급 / 밖에서 따로 만나자는 말.
 //      이곳이 '같이 죽을 사람을 찾는 곳'이 되는 것을 무엇보다 먼저 막는다: 자살·자해를 말하는 글은 공개하지 않고, 그 자리에서 109 와 앱의 상담을 안내한다.
 //      이용자끼리 1:1 로 연락하는 기능(쪽지)은 같은 이유로 만들지 않는다. 연락처·오픈채팅 주소도 올릴 수 없다.
@@ -57,7 +59,7 @@ const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).sli
 const PAGE = 20;
 const TITLE_MAX = 80, BODY_MAX = 6000, COMMENT_MAX = 500, NAME_MAX = 20, TAGS_MAX = 5;
 const COMMENT_PER_10MIN = 6;         // 기기당 댓글 도배 방지
-const BOARDS = ['free', 'qna', 'student', 'resident', 'expert', 'idea'];            // 이용자가 쓸 수 있는 게시판
+const BOARDS = ['free', 'neru', 'qna', 'meds', 'student', 'resident', 'expert', 'idea'];            // 이용자가 쓸 수 있는 게시판
 const SYS_HOSP = 'community';                       // 이용자 글·공지가 속하는 시스템 상담소 (hospitals 표의 한 줄 — 마이그레이션이 넣는다)
 const USER_PER_DAY = 5, USER_TITLE_MAX = 60, USER_BODY_MAX = 3000, REPORT_HIDE = 3;
 const AUTHOR_PER_DAY = 5;            // 상담사 한 사람이 하루에 새로 올릴 수 있는 글 수
@@ -149,7 +151,13 @@ export async function handleCommunity(request, env, cors, path, ctx) {
   const cleanId = v => s(v, 64).replace(/[^\w-]/g, '');
   const noTable = e => /no such table/i.test(String(e && e.message || e));
   // 로그인한 사람 — 글·댓글의 주인 표시('acc:<id>')와 기본 별명
-  const userOf = async () => { const u = await resolveUser(db, s(body.session || q('session'), 128)).catch(() => null); return u ? { key: 'acc:' + u.id, nick: s(u.nickname, NAME_MAX).trim() } : null; };
+  //  별명은 커뮤니티 프로필(user_profiles.nick)이 먼저, 없으면 가입할 때 받은 이름.
+  const userOf = async () => {
+    const u = await resolveUser(db, s(body.session || q('session'), 128)).catch(() => null);
+    if (!u) return null;
+    let pf = null; try { pf = await db.prepare('SELECT nick FROM user_profiles WHERE user_id = ?').bind(u.id).first(); } catch (e) {}
+    return { id: u.id, key: 'acc:' + u.id, nick: s((pf && pf.nick) || u.nickname, NAME_MAX).trim(), provider: u.provider, email: u.email || '' };
+  };
   const LOGIN = () => json({ error: 'login', message: '로그인한 뒤에 쓸 수 있어요' }, 401, cors);
 
   // 내 좋아요 — 목록에 표시할 때만 쓴다. 키가 틀려도 목록은 준다(좋아요 표시만 빠진다).
@@ -203,6 +211,31 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (more) rows.pop();
     const likes = await myLikes(cid, rows.map(r => r.id));
     return json({ items: rows.map(r => rowPost(r, likes.has(r.id), meU ? meU.key : cid)), next: more && !hot ? rows[rows.length - 1].created : 0, nextOffset: more && hot ? offset + PAGE : 0 }, 200, cors);
+  }
+
+  if (path === '/community/profile') {
+    const u = await userOf();
+    if (!u) return LOGIN();
+    if (method === 'POST') {
+      const nick = s(body.nick, NAME_MAX).trim();
+      if (nick) { const bad = screen(nick); if (bad) return json(bad, 422, cors); }
+      const hasPhoto = Object.prototype.hasOwnProperty.call(body, 'photo');
+      if (hasPhoto && body.photo && !jpegOk(body.photo, 40 * 1024)) return json({ error: 'bad-image' }, 400, cors);
+      const cur = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
+      await db.prepare('INSERT INTO user_profiles (user_id, nick, photo, updated) VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET nick = excluded.nick, photo = excluded.photo, updated = excluded.updated')
+        .bind(u.id, nick || (cur && cur.nick) || '', hasPhoto ? (body.photo || '') : ((cur && cur.photo) || ''), nowMs()).run();
+    }
+    const pf = await db.prepare('SELECT nick, photo FROM user_profiles WHERE user_id = ?').bind(u.id).first();
+    return json({ ok: true, profile: { id: u.id, nick: (pf && pf.nick) || u.nick || '', hasPhoto: !!(pf && pf.photo), provider: u.provider, email: u.email } }, 200, cors);
+  }
+
+  if (path === '/community/mycomments' && method === 'GET') {
+    const u = await userOf();
+    if (!u) return json({ items: [], login: true }, 200, cors);
+    const rows = (await db.prepare(`SELECT c.id, c.post_id, c.text, c.ts, p.title,
+        (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes
+      FROM post_comments c JOIN posts p ON p.id = c.post_id WHERE c.client_id = ? AND c.hidden = 0 AND p.hidden = 0 AND p.published = 1 ORDER BY c.ts DESC LIMIT 100`).bind(u.key).all()).results || [];
+    return json({ items: rows.map(r => ({ id: r.id, postId: r.post_id, title: r.title, text: r.text, ts: r.ts, likes: r.likes || 0 })) }, 200, cors);
   }
 
   if (path === '/community/tags' && method === 'GET') {
@@ -386,7 +419,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     const n = await db.prepare('SELECT COUNT(*) n FROM post_reports WHERE target = ? AND target_id = ?').bind(target, id).first();
     if (n && n.n >= REPORT_HIDE) {
       if (target === 'comment') await db.prepare('UPDATE post_comments SET hidden = 1 WHERE id = ? AND by_hospital = 0').bind(id).run();
-      else await db.prepare("UPDATE posts SET hidden = 1 WHERE id = ? AND board IN ('free','qna','student','resident','expert','idea')").bind(id).run();
+      else await db.prepare("UPDATE posts SET hidden = 1 WHERE id = ? AND board IN ('free','neru','qna','meds','student','resident','expert','idea')").bind(id).run();
     }
     return json({ ok: true }, 200, cors);
   }
@@ -524,7 +557,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
     if (!me) return json({ error: 'bad-code' }, 403, cors);
     const id = cleanId(body.id), text = maskContact(s(body.text, 1000)).trim();
     if (!id || !text) return json({ error: 'missing' }, 400, cors);
-    const p = await db.prepare("SELECT id FROM posts WHERE id = ? AND published = 1 AND hidden = 0 AND board IN ('free','qna','student','resident','expert','idea')").bind(id).first();
+    const p = await db.prepare("SELECT id FROM posts WHERE id = ? AND published = 1 AND hidden = 0 AND board IN ('free','neru','qna','meds','student','resident','expert','idea')").bind(id).first();
     if (!p) return json({ error: 'not-found' }, 404, cors);
     const parent = await rootOf(id, cleanId(body.parentId));
     if (parent === null) return json({ error: 'not-found' }, 404, cors);

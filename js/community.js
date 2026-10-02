@@ -18,7 +18,9 @@ window.Community = {
   _esc: s => String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 
-  BOARD_NAME: { free: '수다방', qna: '고민 Q&A', student: '심리학도 라운지', idea: '기능 제안', notice: '공지' },
+  // 사진이 없는 글에 보여주는 기본 사진(홈페이지와 같은 11장, 글 id 로 고른다) — 카드 높이가 들쭉날쭉하지 않게
+  _stock(id) { return 'https://mindinside.kr/img/stock/' + (String(id).split('').reduce((n, ch) => n + ch.charCodeAt(0), 0) % 11) + '.jpg'; },
+  BOARD_NAME: { neru: '느루 자랑방', meds: '약 이야기', resident: '전공의 라운지', expert: '전문가 라운지', free: '수다방', qna: '고민 Q&A', student: '심리학도 라운지', idea: '기능 제안', notice: '공지' },
 
   init() {
     const c = window.Storage._safeGet('cbt_cm_cache', null);
@@ -120,7 +122,7 @@ window.Community = {
   _card(it, row) {
     const esc = this._esc;
     const inner = `
-      ${it.thumb ? `<span class="cm-card__thumb"><img src="${esc(it.thumb)}" alt="" loading="lazy"></span>` : ''}
+      <span class="cm-card__thumb"><img src="${esc(it.thumb || this._stock(it.id))}" alt="" loading="lazy"></span>
       <span class="cm-card__hosp">${this.BOARD_NAME[it.board] ? esc(this.BOARD_NAME[it.board]) + (it.author ? ' · ' + esc(it.author) : '') : esc(it.hospital) + (it.author ? ' · ' + esc(it.author) + (it.hospitalId === 'community' ? '' : ' 상담사') : '')}${it.pinned ? ' <em>고정</em>' : ''}</span>
       <span class="cm-card__t">${esc(it.title)}</span>
       <span class="cm-card__ex">${esc(it.excerpt || '')}</span>
