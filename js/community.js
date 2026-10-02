@@ -33,6 +33,30 @@ window.Community = {
       if (post) setTimeout(() => this.open(post), 600);
       else if (co) setTimeout(() => this._toCounselor(co), 900);
     } catch (e) {}
+    // 커뮤니티 새 소식(내 글의 댓글·답글·상담소 답장)을 앱 알림함에 — 켤 때 한 번, 돌아올 때 10분에 한 번
+    setTimeout(() => this.checkNotifs(), 4000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.checkNotifs(); });
+  },
+
+  async checkNotifs() {
+    try {
+      const A = window.Account;
+      const session = A && A._session ? A._session() : '';
+      if (!session || !window.Inbox || !window.Api) return;
+      const now = Date.now();
+      if (now - (this._nfAt || 0) < 600000) return;
+      this._nfAt = now;
+      const d = await window.Api.json('/api/community/notifs?session=' + encodeURIComponent(session));
+      const items = (d && Array.isArray(d.items)) ? d.items : [];
+      // 처음 확인할 때는 지난 것을 한꺼번에 쏟지 않는다 — 지금부터의 소식만
+      const seen = Number(window.Storage._safeGet('cbt_cm_nf_seen', 0)) || 0;
+      window.Storage._safeSet('cbt_cm_nf_seen', now);
+      if (!seen) return;
+      const K = { comment: '내 글에 댓글이 달렸어요', reply: '내 댓글에 답글이 달렸어요', inquiry: '상담소에서 답장이 왔어요' };
+      items.filter(x => x.ts > seen).slice(0, 5).reverse().forEach(x => {
+        window.Inbox.add(K[x.kind] || '커뮤니티 새 소식', (x.name ? x.name + ': ' : '') + (x.text || ''), x.kind === 'inquiry' ? 'cmme' : 'cmpost:' + x.postId);
+      });
+    } catch (e) {}
   },
 
   // 웹 커뮤니티 화면을 앱 안에 띄운다. 앱 도메인이면 같은 출처(/blog) — 식별이 이어진다. 그 밖(미리보기 주소 등)에서는 홈페이지 것을 띄운다.

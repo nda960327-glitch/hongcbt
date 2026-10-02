@@ -189,6 +189,13 @@ window.Inbox = {
         }
         return;
       }
+      // 커뮤니티 글로 — 'cmpost:글id' (내 글에 달린 댓글·답글 알림)
+      if (act.indexOf('cmpost:') === 0) {
+        const pid = act.slice(7).replace(/[^\w-]/g, '');
+        if (pid && window.Community && window.Community.open) window.Community.open(pid);
+        return;
+      }
+      if (act === 'cmme') { if (window.Community && window.Community._web) window.Community._web('/blog/me'); return; }
       switch (act) {
         case 'home':
           if (window.App) window.App.switchTab('home');
