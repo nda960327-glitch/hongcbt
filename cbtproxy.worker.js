@@ -268,7 +268,7 @@ const APP = {
 
     // 상담소 블로그의 공개 웹 페이지(검색엔진용 HTML) — mindinsideapp.com/blog… 가 이 Worker 로 온다 (wrangler.toml routes)
     if (path === "/blog" || path.startsWith("/blog/") || (path === "/" && /(^|\.)mindinside\.kr$/.test(new URL(request.url).hostname))) {
-      const r = await handleBlog(request, env, ctx, path);
+      const r = await cachedBlog(request, env, ctx, path);
       if (r) return r;
     }
 
@@ -545,6 +545,30 @@ const credOf = async (request) => {
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
 };
+
+// 커뮤니티 공개 쪽은 엣지에 15분 담아 둔다 — 검색 로봇이 글 천 개를 한꺼번에 읽으면 D1 무료 한도(하루 읽기 500만 행)를 넘겨
+//  서비스 전체가 멈춘다(2026-10-03 실제로 멈췄다). 로그인 쿠키가 있는 요청(비공개 라운지)과 개인 화면은 담지 않는다.
+//  DB 가 막혀 글을 못 찾은 것(404)은 '없는 글'이 아니라 '잠시 안 됨'(503)으로 알린다 — 검색엔진이 글을 지우지 않게.
+async function cachedBlog(request, env, ctx, path) {
+  const url = new URL(request.url);
+  const ok = request.method === 'GET' && url.protocol === 'https:' && !/mi_s=/.test(request.headers.get('cookie') || '') && !/^\/blog\/(me|write|verify|login|join|saved)(\/|$)/.test(path);
+  const key = ok ? new Request(url.origin + url.pathname + url.search, { method: 'GET' }) : null;
+  if (key) { try { const hit = await caches.default.match(key); if (hit) return hit; } catch (e) {} }
+  const r = await handleBlog(request, env, ctx, path);
+  if (r && r.status === 404 && env.DB) {
+    try { await env.DB.prepare('SELECT 1 x FROM posts LIMIT 1').first(); }
+    catch (e) { return new Response('<!doctype html><meta charset="utf-8"><title>잠시 점검 중</title><p style="font-family:sans-serif;padding:2rem">잠시 점검 중이에요. 조금 뒤에 다시 열어 주세요.</p>', { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Retry-After': '3600', 'Cache-Control': 'no-store' } }); }
+  }
+  if (key && r && r.status === 200) {
+    try {
+      const c = new Response(r.body, r);
+      c.headers.set('Cache-Control', 'public, max-age=60, s-maxage=900');
+      ctx.waitUntil(caches.default.put(key, c.clone()));
+      return c;
+    } catch (e) {}
+  }
+  return r;
+}
 
 // 최고관리자의 운영자 콘솔 — code 자리에 'su_<로그인 세션>' 이 오면, 그 세션이 최고관리자(user_roles.role='super')일 때만 진짜 운영자 코드로 바꿔 넣는다.
 //  GET 은 ?code=su_…, POST 는 ?su=1 을 붙이고 본문의 code 에 싣는다(모든 POST 본문을 읽지 않으려고 표시를 받는다).
