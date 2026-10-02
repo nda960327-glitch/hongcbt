@@ -11,11 +11,16 @@
 //   · /blog/centers · /blog/h/<상담소 id>   제휴 상담소 찾기 · 상담소 페이지(소개 + 글)
 //   · /blog/img/<글 id>/<n>.jpg · /blog/av/<상담사 id>.jpg       사진 (DB 에는 data: 로 들어 있다)
 //   · /blog/sitemap.xml · /blog/rss.xml   검색엔진용
-//  게시판(posts.board): 없음=상담사 칼럼 · free=수다방 · neru=우렁이 자랑방 · qna=고민 Q&A · meds=약 이야기 · student=심리학도 라운지 · resident=전공의 라운지 · expert=전문가 라운지 · idea=기능 제안 · notice=공지 (community.js 와 같은 규칙)
+//  게시판(posts.board): 없음=상담사 칼럼 · free=수다방 · neru=우렁이 자랑방 · qna=고민 Q&A · meds=약 이야기 · student=심리학도 라운지 · doctor=의사 라운지(비공개) · resident=전공의 라운지(비공개) · expert=상담사 라운지(비공개) · idea=기능 제안 · notice=공지 (community.js 와 같은 규칙)
 //  발행된(published=1) · 숨기지 않은(hidden=0) · 운영 중인 상담소(active=1)의 글만 내보낸다.
 //  글이 발행되면 IndexNow 로 네이버·빙에 바로 알린다(pingIndexNow — community.js 가 부른다).
 //  웹에서 누른 공감·댓글·글은 앱과 같은 표에 들어간다. 앱 도메인에서 열리면 앱의 기기 식별(cbt_client_id)을 그대로 쓴다 — 앱과 웹이 한 사람.
+//  비공개 라운지(doctor·resident·expert — roles.js)는 인증된 전문가에게만 그린다: 로그인 세션을 쿠키(mi_s)로도 받아 서버가 확인하고,
+//   그 응답은 저장하지 않게(no-store) 내보낸다. 목록·검색·사이트맵·RSS 에는 절대 나가지 않는다(PUB).
 //  이용자끼리 1:1 로 연락하는 길(쪽지)은 일부러 두지 않는다 — 위기에 놓인 사람들이 서로를 따로 불러내는 통로가 되면 안 된다.
+import { resolveUser } from './oauth.js';
+import { PRIVATE, PRIVATE_SQL, ROLE_NAME, isPrivate, canSee, rolesOf } from './roles.js';
+
 const BRAND = '마인드 인사이드';
 const APP = 'https://mindinsideapp.com';
 const API = 'https://cbt-proxy.hongcbt.workers.dev';
@@ -31,12 +36,13 @@ const BOARD = {
   neru: { name: '우렁이 자랑방', desc: '내가 키운 우렁이, 우렁이와 나눈 대화, 오늘의 기록 — 캡처해서 마음껏 자랑해요' },
   meds: { name: '약 이야기', desc: '복용 경험과 궁금증을 나눠요. 약을 바꾸거나 끊는 결정은 주치의와 — 특정 약을 권하거나 용량을 알려주는 글은 가려져요' },
   student: { name: '심리학도 라운지', desc: '심리·상담을 공부하는 대학생·대학원생의 공부, 수련, 진로 이야기' },
-  resident: { name: '전공의 라운지', desc: '정신건강의학과 전공의·수련의의 수련 생활, 공부, 진로 이야기' },
-  expert: { name: '전문가 라운지', desc: '정신건강의학과 의사·심리상담사·임상심리사가 현장 이야기와 사례 고민(개인정보 없이)을 나누는 곳' },
+  doctor: { name: '의사 라운지', desc: '인증된 정신건강의학과 전문의·전공의만 보는 곳 — 진료의 고민, 소진, 동료에게만 할 수 있는 이야기' },
+  resident: { name: '전공의 라운지', desc: '인증된 전공의·전문의만 보는 곳 — 수련 생활, 공부, 진로' },
+  expert: { name: '상담사 라운지', desc: '인증된 심리상담사·임상심리사·상담소만 보는 곳 — 현장 이야기, 수입과 일자리, 사례 고민(개인정보 없이)' },
   idea: { name: '기능 제안', desc: '앱에 바라는 기능, 불편한 점, 오류 신고 — 공감이 많은 제안부터 살펴봐요' },
   notice: { name: '공지', desc: '운영팀이 알리는 소식과 커뮤니티 규칙' }
 };
-const WRITABLE = ['free', 'neru', 'qna', 'meds', 'student', 'resident', 'expert', 'idea'];
+const WRITABLE = ['free', 'neru', 'qna', 'meds', 'student', 'doctor', 'resident', 'expert', 'idea'];
 
 const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const plain = b => String(b || '').replace(/\[img:\d+\]/g, '').replace(/\{(red|orange|green|blue|purple|gray)\|([^{}]*)\}/g, '$2')
@@ -104,7 +110,7 @@ a{color:#3d7659;text-decoration:none}a:hover{text-decoration:underline}button{fo
 .card,article.post,.form,.cm .c{background:#fff;border:1px solid rgba(120,96,66,.12);box-shadow:0 1px 2px rgba(60,45,25,.04),0 8px 24px -12px rgba(60,45,25,.10)}
 .card{border-radius:20px;padding:1.15rem 1.25rem;margin-bottom:1rem}.card>h2,.sec>h2{margin:0 0 .6rem;font-size:1.05rem;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:.4rem}.card>h2 a.all,.sec>h2 a.all{margin-left:auto;font-size:.78rem;font-weight:700;color:#8a7b68}
 .notice{display:flex;gap:.6rem;align-items:center;padding:.45rem 0;border-top:1px solid rgba(120,96,66,.1);font-size:.92rem}.notice:first-of-type{border-top:0}.notice a{color:#2f2923;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lab{display:inline-block;flex-shrink:0;font-weight:800;font-size:.72rem;padding:.12rem .6rem;border-radius:999px;background:#eef6f0;color:#2f6b4c}.lab.gold{background:#fdecc4;color:#9a6b00}.lab.free{background:#e8effb;color:#2d64a8}.lab.qna{background:#f3e9fb;color:#7a4fb0}.lab.neru{background:#fff1d6;color:#a8690a}.lab.meds{background:#e7f3e2;color:#3f7a2a}.lab.student{background:#e0f3f0;color:#1f7a70}.lab.resident{background:#fbe9ec;color:#a8324a}.lab.expert{background:#e6ecf5;color:#33507d}.lab.idea{background:#fdeee0;color:#b5651d}.lab.notice{background:#2f2923;color:#fff}
+.lab{display:inline-block;flex-shrink:0;font-weight:800;font-size:.72rem;padding:.12rem .6rem;border-radius:999px;background:#eef6f0;color:#2f6b4c}.lab.gold{background:#fdecc4;color:#9a6b00}.lab.free{background:#e8effb;color:#2d64a8}.lab.qna{background:#f3e9fb;color:#7a4fb0}.lab.neru{background:#fff1d6;color:#a8690a}.lab.meds{background:#e7f3e2;color:#3f7a2a}.lab.student{background:#e0f3f0;color:#1f7a70}.lab.doctor{background:#e9e6f7;color:#4b3f99}.lab.resident{background:#fbe9ec;color:#a8324a}.lab.expert{background:#e6ecf5;color:#33507d}.lab.idea{background:#fdeee0;color:#b5651d}.lab.notice{background:#2f2923;color:#fff}
 .rank{list-style:none;margin:0;padding:0;counter-reset:r}.rank li{counter-increment:r;display:flex;gap:.7rem;align-items:flex-start;padding:.65rem 0;border-top:1px solid rgba(120,96,66,.1)}.rank li:first-child{border-top:0}
 .rank li::before{content:counter(r);flex:0 0 1.6rem;height:1.6rem;border-radius:9px;background:#f6f1e8;color:#8a7b68;font-weight:900;font-size:.85rem;display:flex;align-items:center;justify-content:center}.rank li:nth-child(-n+3)::before{background:#4f8a6b;color:#fff}.rank[start] li:nth-child(3)::before{background:#f6f1e8;color:#8a7b68}
 .rank a{color:#2f2923;font-weight:700;line-height:1.45;display:block}.m{color:#8a7b68;font-size:.76rem;font-weight:500}.cnt{color:#c9463d;font-weight:800;font-size:.8rem;margin-left:.25rem}
@@ -150,6 +156,7 @@ footer{max-width:1080px;margin:0 auto;padding:.5rem 1rem 2.5rem;color:#8a7b68;fo
 .steps{counter-reset:s;list-style:none;margin:0;padding:0}.steps li{counter-increment:s;position:relative;padding:.35rem 0 .35rem 2rem;font-size:.92rem}.steps li::before{content:counter(s);position:absolute;left:0;top:.4rem;width:1.4rem;height:1.4rem;border-radius:50%;background:#4f8a6b;color:#fff;font-weight:800;font-size:.78rem;display:flex;align-items:center;justify-content:center}
 .jcard{display:flex;flex-direction:column;gap:.3rem;color:#2f2923}.jcard:hover{text-decoration:none;border-color:#4f8a6b}.jcard h2{margin:.4rem 0 0}.jcard p{margin:0 0 .8rem;color:#6b5f50;font-size:.9rem;flex:1}.jcard .btn{align-self:flex-start}.jcard .lab{align-self:flex-start}
 .jform h3{margin:1.4rem 0 .7rem;font-size:1rem;padding-bottom:.4rem;border-bottom:1px solid rgba(120,96,66,.12)}.jform h3:first-child{margin-top:0}.fl{display:block;margin-bottom:.8rem}.fl>span{display:block;font-size:.82rem;font-weight:700;color:#4a4037;margin-bottom:.3rem}.fl em{display:block;font-style:normal;font-size:.76rem;color:#8a7b68;margin-top:-.25rem}.fl input,.fl select,.fl textarea{margin-bottom:.4rem}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.6rem;margin-bottom:.4rem}.kpis div{background:#f7f3ec;border-radius:14px;padding:.7rem .8rem}.kpis b{display:block;font-size:1.15rem}.kpis span{font-size:.76rem;color:#8a7b68}.dash h3{margin:1rem 0 .3rem;font-size:.92rem}.moods{display:flex;gap:.4rem;flex-wrap:wrap}.moods span{background:#eef6f0;color:#2f6b4c;font-weight:700;font-size:.8rem;padding:.2rem .6rem;border-radius:999px}
 .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}.vcard{display:flex;flex-direction:column;gap:.25rem;color:#2f2923;background:#fff;border:1px solid rgba(120,96,66,.12);border-radius:18px;padding:.6rem .6rem .8rem;box-shadow:0 1px 2px rgba(60,45,25,.04),0 8px 24px -12px rgba(60,45,25,.10)}.vcard:hover{text-decoration:none}.vcard:hover b{color:#2f6b4c}.vcard img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;background:#eee}.vcard b{font-size:.93rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:.2rem}.vnote{font-size:.8rem;color:#6b5f50;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .lgs{display:flex;flex-direction:column;gap:.6rem}.lg{border:0;border-radius:14px;padding:.9rem 1rem;font-weight:800;font-size:1rem;width:100%}.lg-kakao{background:#fee500;color:#191600}.lg-naver{background:#03c75a;color:#fff}.lg-google{background:#fff;color:#2f2923;border:1.5px solid rgba(120,96,66,.2)}
 #acct .btn{padding:.42rem .85rem;max-width:9rem;overflow:hidden;text-overflow:ellipsis}.embed .top .btn.app,.embed footer,.embed .hero,.embed .appcard.side{display:none}.embed .top{position:static}.embed .wrap{padding-top:.6rem}`;
@@ -173,7 +180,9 @@ W.me=function(){var id=W.ls('mi_cid');if(!id){id='u_'+Date.now().toString(36)+Ma
 var SK=inApp?'cbt_account_session':'mi_session',UK=inApp?'cbt_account_user':'mi_user';
 W.session=function(){try{return localStorage.getItem(SK)||''}catch(e){return''}};
 W.user=function(){try{return JSON.parse(localStorage.getItem(UK)||'null')}catch(e){return null}};
-W.setAuth=function(s,u){try{if(s){localStorage.setItem(SK,s);localStorage.setItem(UK,JSON.stringify(u||null))}else{localStorage.removeItem(SK);localStorage.removeItem(UK)}}catch(e){}};
+W.cookie=function(s){document.cookie='mi_s='+(s||'')+';path=/;SameSite=Lax;Secure;max-age='+(s?2592000:0)};
+W.setAuth=function(s,u){try{if(s){localStorage.setItem(SK,s);localStorage.setItem(UK,JSON.stringify(u||null))}else{localStorage.removeItem(SK);localStorage.removeItem(UK)}}catch(e){}W.cookie(s)};
+(function(){var s=W.session(),has=(document.cookie.match(/(?:^|; )mi_s=([^;]*)/)||[])[1]||'';if(s!==has){W.cookie(s);if(document.documentElement.getAttribute('data-gate')&&s)location.reload()}})();
 W.needLogin=function(){if(W.session())return false;
  if(emb&&inApp){try{window.parent.postMessage({mi:'login'},'*')}catch(x){}W.toast('앱의 마이 탭에서 로그인한 뒤 쓸 수 있어요');return true}
  location.href='/blog/login?next='+encodeURIComponent(location.pathname+location.search);return true};
@@ -195,7 +204,7 @@ function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav,
     ['커뮤니티', [['free', '/blog?board=free', '수다방', '오늘 있었던 일, 아무 말'], ['neru', '/blog?board=neru', '우렁이 자랑방', '내가 키운 우렁이 자랑'], ['qna', '/blog?board=qna', '고민 Q&amp;A', '상담사가 답해요'], ['meds', '/blog?board=meds', '약 이야기', '복용 경험과 궁금증']]],
     ['읽을거리', [['column', '/blog?board=column', '상담사 칼럼', '전문가가 쓰는 마음 돌봄 글'], ['videos', '/blog/videos', '추천 영상', '운영팀이 고른 영상']]],
     ['찾기', [['clinics', '/blog/clinics', '정신건강의학과', '내 주변 병·의원'], ['centers', '/blog/centers', '심리상담소', '제휴 상담소']]],
-    ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['resident', '/blog?board=resident', '전공의', '수련 이야기'], ['expert', '/blog?board=expert', '전문가', '의사·상담사·임상심리사']]],
+    ['라운지', [['student', '/blog?board=student', '심리학도', '대학생·대학원생'], ['doctor', '/blog?board=doctor', '의사 라운지', '인증된 의사만'], ['resident', '/blog?board=resident', '전공의 라운지', '인증된 전공의·전문의만'], ['expert', '/blog?board=expert', '상담사 라운지', '인증된 상담사만'], ['verify', '/blog/verify', '전문가 인증', '면허·자격 확인 신청']]],
     ['더보기', [['idea', '/blog?board=idea', '기능 제안', '바라는 기능·오류 신고'], ['notice', '/blog?board=notice', '공지', '소식과 이용 규칙'], ['install', '/blog/install', '앱 설치', '휴대폰·PC'], ['about', c.about, '앱 소개', '마인드 인사이드는'], ['join', '/blog/join', '상담사·상담소 가입', '입점·제휴 신청']]]
   ];
   const navHtml = `<a href="${c.home}"${nav === 'home' ? ' class="on"' : ''}>홈</a>` + MENU.map(([g, items]) =>
@@ -213,10 +222,12 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(
 <footer><a href="${c.about}">${BRAND} 앱 소개</a> · <a href="/blog/install">앱 설치</a> · <a href="/blog/login">로그인·회원가입</a> · <a href="/blog/join/counselor">상담사 입점</a> · <a href="/blog/join/clinic">상담소 제휴</a> · <a href="/blog/po_notice_rules">커뮤니티 이용 규칙</a> · <a href="${APP}/terms.html">이용약관</a> · <a href="${APP}/privacy.html">개인정보처리방침</a> · <a href="/blog/rss.xml">RSS</a><br>
 이곳의 글과 댓글은 전문 상담이나 진료를 대신하지 않아요. 위기 상황에는 자살예방상담전화 109 · 정신건강 위기상담 1577-0199 (24시간)<br>${BIZ}</footer><div id="toast"></div>${COMMON_JS}${script || ''}</body></html>`;
 }
+const htmlPrivate = (s, status) => new Response(s, { status: status || 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex' } });
 const html = (s, status, maxAge) => new Response(s, { status: status || 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': `public, max-age=${maxAge == null ? 60 : maxAge}` } });
 const xml = (s, type) => new Response(s, { headers: { 'Content-Type': (type || 'application/xml') + '; charset=utf-8', 'Cache-Control': 'public, max-age=600' } });
 
-const PUB = 'p.published = 1 AND p.hidden = 0 AND h.active = 1';
+const LIVE = 'p.published = 1 AND p.hidden = 0 AND h.active = 1';
+const PUB = LIVE + ` AND (p.board IS NULL OR p.board NOT IN ${PRIVATE_SQL})`;   // 공개 페이지·사이트맵·RSS 는 늘 이 조건
 const FROM = 'FROM posts p JOIN hospitals h ON h.id = p.hospital_id';
 const COLS = `p.client_id, p.id, p.title, substr(p.body, 1, 500) AS body, p.tags, p.created, p.updated, p.author_id, p.author_name, p.hospital_id, p.board, p.pinned, h.name AS hospital_name, COALESCE(p.views, 0) AS views,
   (p.images IS NOT NULL AND p.images != '') AS has_img,
@@ -280,6 +291,8 @@ $('#cm-name').value=W.ls('mi_name')||((W.user()||{}).nickname||'');if(!W.session
 const CENTERS_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)},cards=[].slice.call(document.querySelectorAll('[data-ct]')),region='',near=null;\nfunction dist(a,b,c,d){var R=6371,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)*Math.sin(y/2);return 2*R*Math.asin(Math.sqrt(h))}\nfunction draw(){var k=$('#ct-q').value.trim().toLowerCase(),n=0;\n cards.forEach(function(c){var ok=(!k||c.getAttribute('data-ct').toLowerCase().indexOf(k)>=0)&&(!region||c.getAttribute('data-rg')===region);c.hidden=!ok;if(ok)n++;\n  var d=c.querySelector('[data-km]');if(near&&c.getAttribute('data-lat')){var km=dist(near[0],near[1],+c.getAttribute('data-lat'),+c.getAttribute('data-lng'));c._km=km;d.textContent=(km<1?Math.round(km*1000)+'m':km.toFixed(1)+'km')+' 거리';d.hidden=false}else{c._km=1e9;d.hidden=true}});\n if(near){var box=$('#ct-list');cards.slice().sort(function(a,b){return a._km-b._km}).forEach(function(c){box.appendChild(c)})}\n $('#ct-n').textContent=n+'곳';$('#ct-empty').hidden=n>0}\n$('#ct-q').addEventListener('input',draw);\n$('#ct-rg').addEventListener('click',function(e){var b=e.target.closest('[data-r]');if(!b)return;region=b.getAttribute('data-r');[].forEach.call(this.querySelectorAll('[data-r]'),function(x){x.classList.toggle('on',x===b)});draw()});\n$('#ct-near').addEventListener('click',function(){var b=this;if(!navigator.geolocation){W.toast('이 브라우저에서는 위치를 쓸 수 없어요');return}b.textContent='위치 확인 중…';\n navigator.geolocation.getCurrentPosition(function(p){near=[p.coords.latitude,p.coords.longitude];b.textContent='가까운 순으로 보는 중';b.classList.add('on');draw()},function(){b.textContent='내 위치에서 가까운 순';W.toast('위치를 확인하지 못했어요. 브라우저의 위치 권한을 확인해 주세요')},{timeout:8000,maximumAge:600000})});\ndraw();\n})();</script>";
 const CLINICS_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)};\nfunction km(m){return m<1000?Math.round(m)+'m':(m/1000).toFixed(1)+'km'}\nfunction show(d){var it=(d&&d.items)||[];if(d&&d.error==='not-found'){$('#cl-list').innerHTML='<div class=\"card\"><p class=\"m\">그 지역을 찾지 못했어요. \"강남구\", \"수원 영통\"처럼 적어 보세요.</p></div>';return}\n $('#cl-n').textContent=it.length?(d.center&&d.center.label?d.center.label+' 근처 ':'내 위치 근처 ')+it.length+'곳':'';\n $('#cl-list').innerHTML=it.length?it.map(function(c){var a=c.roadAddr||c.addr;return '<div class=\"card\"><h2>'+W.esc(c.name)+'<span class=\"lab gold\" style=\"margin-left:auto\">'+km(c.dist)+'</span></h2><p class=\"m\" style=\"font-size:.84rem;margin:0 0 .3rem\">'+W.esc(c.kind)+(c.partner?' · 앱 연동 병원':'')+'</p>'+(a?'<p class=\"facts\"><b>주소</b>'+W.esc(a)+'</p>':'')+(c.tel?'<p class=\"facts\"><b>전화</b><a href=\"tel:'+W.esc(c.tel.replace(/[^0-9+]/g,''))+'\">'+W.esc(c.tel)+'</a></p>':'')+'<p style=\"margin:.7rem 0 0\"><a class=\"btn ghost\" target=\"_blank\" rel=\"noopener\" href=\"https://map.naver.com/p/search/'+encodeURIComponent(c.name+' '+(a||''))+'\">지도에서 보기</a></p></div>'}).join(''):'<div class=\"card\"><p class=\"m\">근처에서 찾지 못했어요. 지역 이름으로 다시 찾아보세요.</p></div>'}\nfunction load(qs){$('#cl-list').innerHTML='<div class=\"card\"><p class=\"m\">찾는 중…</p></div>';fetch(W.API+'/clinics/near?'+qs+'&radius=10000&limit=60').then(function(r){return r.json()}).then(show).catch(function(){$('#cl-list').innerHTML='<div class=\"card\"><p class=\"m\">불러오지 못했어요. 잠시 뒤 다시 해주세요.</p></div>'})}\n$('#cl-near').addEventListener('click',function(){if(!navigator.geolocation){W.toast('이 브라우저에서는 위치를 쓸 수 없어요');return}var b=this;b.disabled=true;\n navigator.geolocation.getCurrentPosition(function(p){b.disabled=false;load('lat='+p.coords.latitude+'&lng='+p.coords.longitude)},function(){b.disabled=false;W.toast('위치를 확인하지 못했어요. 지역 이름으로 찾아보세요')},{timeout:8000,maximumAge:600000})});\n$('#cl-form').addEventListener('submit',function(e){e.preventDefault();var v=$('#cl-q').value.trim();if(v)load('q='+encodeURIComponent(v))});\n})();</script>";
 const JOIN_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)},F=$('#jf'),mode=F.getAttribute('data-mode'),pics={};\nfunction v(id){var e=$('#'+id);return e?e.value.trim():''}\nfunction shrink(file,px,budget,square,cb){var im=new Image();im.onload=function(){var w=im.naturalWidth,h=im.naturalHeight,cv=document.createElement('canvas'),cx=cv.getContext('2d');\n  var sides=[px,Math.round(px*.8),Math.round(px*.6),Math.round(px*.45)];\n  for(var i=0;i<sides.length;i++){if(square){var s=Math.min(w,h);cv.width=cv.height=Math.min(sides[i],s);cx.drawImage(im,(w-s)/2,(h-s)/2,s,s,0,0,cv.width,cv.height)}else{var sc=Math.min(1,sides[i]/Math.max(w,h));cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);cx.drawImage(im,0,0,cv.width,cv.height)}\n   for(var q=.8;q>=.4;q-=.1){var u=cv.toDataURL('image/jpeg',q);if(u.length<=budget){cb(u);return}}}cb(null)};im.onerror=function(){cb(null)};im.src=URL.createObjectURL(file)}\n[].forEach.call(document.querySelectorAll('[data-pic]'),function(b){var k=b.getAttribute('data-pic'),inp=document.createElement('input');inp.type='file';inp.accept='image/*';\n b.addEventListener('click',function(){inp.click()});\n inp.addEventListener('change',function(){var f=inp.files&&inp.files[0];inp.value='';if(!f)return;var spec={photo:[256,150000,true],licensePhoto:[1000,340000,false],doc:[1000,195000,false]}[k];W.toast('사진을 줄이는 중…');\n  shrink(f,spec[0],spec[1],spec[2],function(u){if(!u){W.toast('이 사진은 쓸 수 없어요. 다른 사진으로 해주세요');return}pics[k]=u;b.textContent='다시 고르기';var pv=$('#pv-'+k);pv.src=u;pv.hidden=false;W.toast('사진을 넣었어요')})})});\nif(mode==='counselor'){fetch(W.API+'/community/hospitals').then(function(r){return r.json()}).then(function(d){var s=$('#j-hosp');(d.items||[]).forEach(function(h){var o=document.createElement('option');o.value=h.id;o.textContent=h.name+(h.addr?' — '+h.addr:'');s.appendChild(o)})}).catch(function(){});\n $('#j-hosp').addEventListener('change',function(){$('#solo').hidden=!!this.value})}\nfunction err(m,id){W.toast(m);var e=id&&$('#'+id);if(e)e.focus()}\nF.addEventListener('submit',function(e){e.preventDefault();var b=$('#j-send');\n if(!$('#j-ok').checked){err('안내 사항에 동의해 주세요');return}\n var body,path;\n if(mode==='counselor'){\n  if(!v('j-name')){err('이름을 적어주세요','j-name');return}if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(v('j-email'))){err('이메일을 확인해 주세요','j-email');return}\n  if(!v('j-license')){err('자격을 적어주세요','j-license');return}if(!pics.licensePhoto){err('자격증 사진을 넣어주세요');return}\n  var hosp=v('j-hosp');if(!hosp&&(!v('j-bank')||!v('j-bankno')||!v('j-holder'))){err('정산 계좌를 모두 적어주세요','j-bank');return}\n  body={name:v('j-name'),email:v('j-email'),tel:v('j-tel'),license:v('j-license'),career:v('j-career'),price:Number(v('j-price'))||0,intro:v('j-intro'),tags:v('j-tags').split(',').map(function(x){return x.trim()}).filter(Boolean).slice(0,3),\n   hospitalId:hosp,hospital:hosp?'':v('j-place'),addr:hosp?'':v('j-addr'),bank:v('j-bank'),bankNo:v('j-bankno'),bankHolder:v('j-holder'),photo:pics.photo||'',licensePhoto:pics.licensePhoto};path='/apply'}\n else{\n  if(!v('j-name')){err('상담소 이름을 적어주세요','j-name');return}if(!v('j-doctor')){err('대표자 이름을 적어주세요','j-doctor');return}\n  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]{2,}$/.test(v('j-email'))){err('이메일을 확인해 주세요','j-email');return}\n  if(v('j-bizno').replace(/[^0-9]/g,'').length!==10){err('사업자등록번호 10자리를 확인해 주세요','j-bizno');return}if(!pics.doc){err('사업자등록증 사진을 넣어주세요');return}\n  body={name:v('j-name'),doctor:v('j-doctor'),email:v('j-email'),tel:v('j-tel'),addr:v('j-addr'),bizno:v('j-bizno'),dept:v('j-dept'),intro:v('j-intro'),hours:v('j-hours'),url:v('j-url'),doc:pics.doc};path='/community/hospital-apply'}\n b.disabled=true;b.textContent='보내는 중…';\n W.post(path,body).then(function(j){if(j.ok||j.id){$('#jf').hidden=true;$('#j-done').hidden=false;window.scrollTo(0,0)}else{b.disabled=false;b.textContent='신청하기';W.say('신청을 접수하지 못했어요',(typeof j.error==='string'&&/[가-힣]/.test(j.error)?j.error:j.message)||'입력한 내용을 확인하고 다시 시도해 주세요.')}}).catch(function(){b.disabled=false;b.textContent='신청하기';W.toast('보내지 못했어요. 잠시 뒤 다시 시도해 주세요')})});\n})();</script>";
+const ME2_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)};if(!W.session())return;\nfunction won(n){return (Number(n)||0).toLocaleString('ko-KR')}\nfunction day(ts){var d=new Date(Number(ts));return isNaN(d)?'':(d.getMonth()+1)+'월 '+d.getDate()+'일'}\nfetch(W.API+'/sync?session='+encodeURIComponent(W.session())).then(function(r){return r.json()}).then(function(d){\n var it=(d&&d.items)||{},val=function(k,f){try{var x=it[k]&&it[k].v;if(x==null)return f;return typeof x==='string'?JSON.parse(x):x}catch(e){return f}};\n var has=Object.keys(it).length>0;\n if(!has){$('#me-dash').innerHTML='<p class=\"m\">앱에 이 계정으로 로그인하면 캐시·예약·기록이 여기에도 보여요.</p>';return}\n var cash=val('cbt_cash',0),hist=val('cbt_cash_history',[])||[],bk=(val('cbt_bookings',[])||[]).filter(function(b){return b&&b.status!=='cancelled'}),sub=Number(val('cbt_sub_until',0))||0;\n var days=val('cbt_active_days',[]),chats=val('cbt_total_chats',0),mood=(val('cbt_mood_log',[])||[]).slice(-7);\n var nDays=Array.isArray(days)?days.length:(Number(days)||0);\n var ST={confirmed:'확정',pending:'대기',done:'완료',noshow:'불참',declined:'거절',late_cancel:'취소',refunded:'환불',disputed:'확인 중'};\n var h='<div class=\"kpis\"><div><b>'+won(cash)+'</b><span>캐시</span></div><div><b>'+nDays+'</b><span>함께한 날</span></div><div><b>'+won(chats)+'</b><span>우렁이와 대화</span></div><div><b>'+(sub>Date.now()?day(sub)+'까지':'없음')+'</b><span>구독</span></div></div>';\n if(mood.length)h+='<h3>최근 기분</h3><div class=\"moods\">'+mood.map(function(m){return '<span title=\"'+day(m.ts)+'\">'+W.esc(m.emo||'')+'</span>'}).join('')+'</div>';\n h+='<h3>상담 예약</h3>'+(bk.length?'<ul class=\"list\">'+bk.slice(0,8).map(function(b){return '<li><a>'+W.esc(b.name||b.counselorName||'상담')+'</a><span class=\"m\">'+W.esc(b.timeLabel||b.when||day(b.whenTs||b.ts))+' · '+(ST[b.status]||W.esc(b.status||''))+(b.price?' · '+won(b.price)+'원':'')+'</span></li>'}).join('')+'</ul>':'<p class=\"m\">예약한 상담이 없어요.</p>');\n h+='<h3>캐시 내역</h3>'+(hist.length?'<ul class=\"list\">'+hist.slice(0,8).map(function(x){return '<li><a>'+W.esc(x.desc||'')+'</a><span class=\"m\">'+(x.amount>0&&x.type!=='spend'?'+':'')+won(x.amount)+' · '+day(x.ts)+'</span></li>'}).join('')+'</ul>':'<p class=\"m\">아직 내역이 없어요.</p>');\n $('#me-dash').innerHTML=h+'<p class=\"m\" style=\"margin-top:.8rem\">앱에서 마지막으로 동기화한 내용이에요. 예약하거나 충전하려면 앱에서 해주세요.</p>';\n}).catch(function(){$('#me-dash').innerHTML='<p class=\"m\">불러오지 못했어요.</p>'});\n})();</script>";
+const VERIFY_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)},photo='';\nif(W.needLogin())return;\nfunction show(d){var st=$('#vf-state'),R={doctor:'정신건강의학과 전문의',resident:'전공의',counselor:'상담사',clinic:'상담소'};\n if(d.roles&&d.roles.length){st.innerHTML='<b>인증된 계정이에요</b> — '+d.roles.map(function(r){return R[r]||r}).join(', ')+'<br><span class=\"m\">전문가 라운지를 볼 수 있어요.</span>';st.hidden=false;$('#vf').hidden=true;return}\n if(d.request&&d.request.status==='pending'){st.innerHTML='<b>심사 중이에요</b> — '+(R[d.request.role]||'')+'<br><span class=\"m\">보통 1~2일 안에 확인해요. 승인되면 다시 로그인하지 않아도 바로 열려요.</span>';st.hidden=false;$('#vf').hidden=true;return}\n if(d.request&&d.request.status==='rejected'){st.innerHTML='<b>이번에는 확인하지 못했어요.</b>'+(d.request.reason?'<br>'+W.esc(d.request.reason):'')+'<br><span class=\"m\">사진을 다시 준비해 신청할 수 있어요.</span>';st.hidden=false}}\nfetch(W.API+'/community/role?session='+encodeURIComponent(W.session())).then(function(r){return r.json()}).then(function(d){if(d&&d.ok)show(d)});\n$('#vf-pick').addEventListener('click',function(){$('#vf-file').click()});\n$('#vf-file').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(!f)return;var im=new Image();\n im.onload=function(){var w=im.naturalWidth,h=im.naturalHeight,cv=document.createElement('canvas'),cx=cv.getContext('2d'),S=[1000,800,600];\n  for(var i=0;i<S.length;i++){var sc=Math.min(1,S[i]/Math.max(w,h));cv.width=Math.round(w*sc);cv.height=Math.round(h*sc);cx.drawImage(im,0,0,cv.width,cv.height);for(var q=.8;q>=.4;q-=.1){var u=cv.toDataURL('image/jpeg',q);if(u.length<=340000){photo=u;$('#vf-pv').src=u;$('#vf-pv').hidden=false;return}}}W.toast('이 사진은 쓸 수 없어요')};\n im.onerror=function(){W.toast('이 사진은 쓸 수 없어요')};im.src=URL.createObjectURL(f)});\n$('#vf').addEventListener('submit',function(e){e.preventDefault();var b=$('#vf-send'),role=(document.querySelector('input[name=role]:checked')||{}).value,name=$('#vf-name').value.trim();\n if(!role){W.toast('역할을 골라주세요');return}if(!name){W.toast('이름을 적어주세요');return}if(!photo){W.toast('면허·자격증 사진을 넣어주세요');return}\n b.disabled=true;W.post('/community/role/request',{role:role,name:name,org:$('#vf-org').value.trim(),licenseNo:$('#vf-lic').value.trim(),photo:photo}).then(function(j){b.disabled=false;if(j.ok){show({request:{status:'pending',role:role}})}else if(!W.refused(j))W.say('신청하지 못했어요',j.message||'잠시 뒤 다시 시도해 주세요')}).catch(function(){b.disabled=false;W.toast('보내지 못했어요')})});\n})();</script>";
 const LOGIN_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)},q=new URLSearchParams(location.search),auth=q.get('auth'),cn=q.get('cn');\nfunction ss(k,v){try{if(v===undefined)return sessionStorage.getItem(k)||'';sessionStorage.setItem(k,v)}catch(e){return''}}\nvar nx=q.get('next');if(nx&&/^\\/(blog|$)/.test(nx)&&nx.indexOf('//')<0)ss('mi_next',nx);\nfunction done(){var n=ss('mi_next')||'/blog/me';ss('mi_next','');location.replace(/^\\/blog\\/login/.test(n)?'/blog/me':n)}\nfunction fail(m){$('#lg-msg').textContent=m;$('#lg-box').hidden=false}\nif(auth){$('#lg-box').hidden=true;$('#lg-msg').textContent='로그인하는 중…';\n if(!cn||cn!==ss('mi_cn')){fail('이 브라우저에서 시작한 로그인이 아니에요. 다시 로그인해 주세요.')}\n else fetch(W.API+'/oauth/exchange',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:auth})}).then(function(r){return r.json()}).then(function(j){if(j&&j.ok){W.setAuth(j.session,j.user);ss('mi_cn','');done()}else fail('로그인이 만료됐어요. 다시 시도해 주세요.')}).catch(function(){fail('로그인하지 못했어요. 잠시 뒤 다시 시도해 주세요.')})}\nelse if(W.session()){done()}\nvar NAME={kakao:'카카오로 시작하기',naver:'네이버로 시작하기',google:'Google로 시작하기'};\nfetch(W.API+'/oauth/providers').then(function(r){return r.json()}).then(function(d){var it=(d&&d.items)||[];\n $('#lg-btns').innerHTML=it.map(function(p){return '<button class=\"lg lg-'+p.key+'\" data-p=\"'+p.key+'\">'+(NAME[p.key]||p.name)+'</button>'}).join('')||'<p class=\"m\">지금은 로그인을 쓸 수 없어요.</p>'}).catch(function(){$('#lg-btns').innerHTML='<p class=\"m\">로그인 서버에 연결하지 못했어요.</p>'});\n$('#lg-btns').addEventListener('click',function(e){var b=e.target.closest('[data-p]');if(!b)return;var c=Date.now().toString(36)+Math.random().toString(36).slice(2,12);ss('mi_cn',c);\n location.href=W.API+'/api/oauth/'+b.getAttribute('data-p')+'/start?back='+encodeURIComponent(location.origin+'/blog/login')+'&cn='+c});\n})();</script>";
 const ME_JS = "<script>(function(){\nvar W=window.MI,$=function(s){return document.querySelector(s)},photo;\nif(W.needLogin())return;\nvar S=encodeURIComponent(W.session()),P={kakao:'카카오',naver:'네이버',google:'Google'};\nfunction ago(ts){var m=Math.floor((Date.now()-ts)/60000);if(m<60)return Math.max(1,m)+'분 전';if(m<1440)return Math.floor(m/60)+'시간 전';var d=new Date(ts);return (d.getMonth()+1)+'월 '+d.getDate()+'일'}\nfunction head(pf){$('#me-name').textContent=(pf.nick||'회원')+' 님';$('#me-sub').textContent=[P[pf.provider]||'',pf.email||''].filter(Boolean).join(' · ');$('#pf-nick').value=pf.nick||'';\n $('#me-av').innerHTML=pf.hasPhoto?'<img class=\"av lg\" src=\"/blog/uav/'+W.esc(pf.id)+'.jpg?t='+Date.now()+'\" alt=\"\">':'<span class=\"av lg\">'+W.esc(String(pf.nick||'회').slice(0,1))+'</span>';\n var u=W.user()||{};u.nickname=pf.nick||u.nickname;W.setAuth(W.session(),u);W.ls('mi_name',pf.nick||'')}\nfetch(W.API+'/community/profile?session='+S).then(function(r){return r.json()}).then(function(d){if(d&&d.ok)head(d.profile);else if(d&&d.error==='login'){W.setAuth('');W.needLogin()}});\nfetch(W.API+'/community?mine=1&session='+S).then(function(r){return r.json()}).then(function(d){var it=(d&&d.items)||[];\n $('#me-n').textContent=it.length;$('#me-posts').innerHTML=it.length?'<ul class=\"list\">'+it.map(function(p){return '<li><a href=\"/blog/'+W.esc(p.id)+'\">'+W.esc(p.title)+'</a>'+(p.comments?'<span class=\"cnt\">['+p.comments+']</span>':'')+'<span class=\"m\">공감 '+(p.likes||0)+' · 조회 '+(p.views||0)+'</span></li>'}).join('')+'</ul>':'<p class=\"m\">아직 쓴 글이 없어요.</p>'});\nfetch(W.API+'/community/mycomments?session='+S).then(function(r){return r.json()}).then(function(d){var it=(d&&d.items)||[];\n $('#me-cn').textContent=it.length;$('#me-cms').innerHTML=it.length?'<ul class=\"best\">'+it.map(function(c){return '<li><a href=\"/blog/'+W.esc(c.postId)+'\"><q>'+W.esc(String(c.text).slice(0,120))+'</q></a><span class=\"m\">'+W.esc(String(c.title).slice(0,30))+' · '+ago(c.ts)+(c.likes?' · 공감 '+c.likes:'')+'</span></li>'}).join('')+'</ul>':'<p class=\"m\">아직 쓴 댓글이 없어요.</p>'});\ndocument.querySelector('.tabs').addEventListener('click',function(e){var a=e.target.closest('[data-t]');if(!a)return;[].forEach.call(this.querySelectorAll('[data-t]'),function(x){x.classList.toggle('on',x===a)});$('#tab-posts').hidden=a.getAttribute('data-t')!=='posts';$('#tab-cms').hidden=a.getAttribute('data-t')!=='cms'});\n$('#pf-pick').addEventListener('click',function(){$('#pf-file').click()});\n$('#pf-file').addEventListener('change',function(){var f=this.files&&this.files[0];this.value='';if(!f)return;var im=new Image();\n im.onload=function(){var s=Math.min(im.naturalWidth,im.naturalHeight),cv=document.createElement('canvas');cv.width=cv.height=160;cv.getContext('2d').drawImage(im,(im.naturalWidth-s)/2,(im.naturalHeight-s)/2,s,s,0,0,160,160);\n  for(var q=.8;q>=.4;q-=.1){var u=cv.toDataURL('image/jpeg',q);if(u.length<=38000){photo=u;$('#me-av').innerHTML='<img class=\"av lg\" src=\"'+u+'\" alt=\"\">';W.toast('저장을 누르면 사진이 바뀌어요');return}}W.toast('이 사진은 쓸 수 없어요')};\n im.onerror=function(){W.toast('이 사진은 쓸 수 없어요')};im.src=URL.createObjectURL(f)});\n$('#pf-save').addEventListener('click',function(){var b=this,body={nick:$('#pf-nick').value.trim()};if(photo!==undefined)body.photo=photo;b.disabled=true;\n W.post('/community/profile',body).then(function(j){b.disabled=false;if(j.ok){photo=undefined;head(j.profile);W.toast('저장했어요')}else if(!W.refused(j))W.toast('저장하지 못했어요')}).catch(function(){b.disabled=false;W.toast('저장하지 못했어요')})});\n$('#me-out').addEventListener('click',function(){fetch(W.API+'/oauth/logout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session:W.session()})}).catch(function(){}).then(function(){W.setAuth('');location.href='/blog'})});\n})();</script>";
 
@@ -319,6 +332,22 @@ export async function handleBlog(request, env, ctx, path) {
   const c = { site, home: isKr ? '/' : '/blog', about: isKr ? '/about/' : site + '/about/' };
   const db = env.DB;
   if (!db) return notFound(c);
+  // 보는 사람 — 비공개 라운지에서만 확인한다(쿠키 mi_s = 로그인 세션)
+  let _viewer;
+  const viewer = async () => {
+    if (_viewer !== undefined) return _viewer;
+    const m = (request.headers.get('Cookie') || '').match(/(?:^|; )mi_s=([\w-]+)/);
+    const u = m ? await resolveUser(db, m[1]).catch(() => null) : null;
+    _viewer = u ? { id: u.id, roles: await rolesOf(db, u.id) } : null;
+    return _viewer;
+  };
+  const gatePage = (bd, logged) => htmlPrivate(page(c, { title: `${BOARD[bd].name} — ${BRAND}`, desc: '', path: '/blog?board=' + bd, noindex: true, nav: bd,
+    body: `<div style="max-width:560px;margin:2rem auto"><div class="card" style="text-align:center;padding:2rem 1.5rem"><span class="lab ${bd}">${BOARD[bd].name}</span>
+      <h1 class="serif" style="font-size:1.4rem;margin:.8rem 0 .4rem">인증된 ${PRIVATE[bd].map(r => ROLE_NAME[r]).join('·')}만 볼 수 있어요</h1>
+      <p class="m" style="font-size:.92rem;margin:0 0 1.2rem">${esc(BOARD[bd].desc)}<br>내담자와 일반 회원에게는 보이지 않고, 검색에도 나오지 않아요.</p>
+      ${logged ? '<a class="btn lg" href="/blog/verify">전문가 인증 신청하기</a>' : `<a class="btn lg" href="/blog/login?next=${encodeURIComponent('/blog?board=' + bd)}">로그인</a> <a class="btn lg ghost" href="/blog/verify">인증 안내</a>`}
+      <p class="m" style="margin:1rem 0 0">상담사 앱·상담소 콘솔에 카카오·네이버·구글 로그인을 연결했다면 같은 계정으로 로그인하는 것만으로 인증돼요.</p></div></div>`
+  }).replace('<html lang="ko">', '<html lang="ko" data-gate="1">'), 403);
   try {
     if (path === '/blog/sitemap.xml') {
       const rows = (await db.prepare(`SELECT p.id, p.updated, p.created, p.hospital_id, p.author_id, p.board ${FROM} WHERE ${PUB} ORDER BY p.created DESC LIMIT 5000`).all()).results || [];
@@ -338,7 +367,8 @@ export async function handleBlog(request, env, ctx, path) {
     }
     const img = path.match(/^\/blog\/img\/([\w-]+)\/(\d)\.jpg$/);
     if (img) {
-      const r = await db.prepare(`SELECT p.images ${FROM} WHERE p.id = ? AND ${PUB}`).bind(img[1]).first();
+      const r = await db.prepare(`SELECT p.images, p.board ${FROM} WHERE p.id = ? AND ${LIVE}`).bind(img[1]).first();
+      if (r && isPrivate(r.board)) { const v = await viewer(); if (!v || !canSee(r.board, v.roles)) return new Response('forbidden', { status: 403 }); const res = jpeg(images(r.images)[+img[2]]); res.headers.set('Cache-Control', 'private, no-store'); return res; }
       return jpeg(r ? images(r.images)[+img[2]] : null);
     }
     const uav = path.match(/^\/blog\/uav\/([\w-]+)\.jpg$/);
@@ -360,7 +390,7 @@ export async function handleBlog(request, env, ctx, path) {
       return html(page(c, { title: `글쓰기 — ${BRAND} 커뮤니티`, desc: '커뮤니티에 글을 남겨보세요.', path: '/blog/write', noindex: true, script: WRITE_JS,
         body: `<div class="bhead"><div><h1>글쓰기</h1><p>카카오·네이버·구글로 가입하면 바로 쓸 수 있어요.</p></div></div>
           <div class="grid"><div><div class="form" style="margin-top:0;padding:1.2rem">
-            <div class="pick">${WRITABLE.map(b => `<label><input type="radio" name="board" value="${b}"${b === b0 ? ' checked' : ''}><span>${BOARD[b].name}</span></label>`).join('')}</div>
+            <div class="pick">${WRITABLE.filter(b => !isPrivate(b) || b === b0).map(b => `<label><input type="radio" name="board" value="${b}"${b === b0 ? ' checked' : ''}><span>${BOARD[b].name}${isPrivate(b) ? ' (비공개)' : ''}</span></label>`).join('')}</div>
             <input id="w-name" maxlength="20" placeholder="별명 (비워 두면 가입한 이름)">
             <input id="w-title" maxlength="60" placeholder="제목">
             <textarea id="w-body" maxlength="3000" style="min-height:14rem" placeholder="편하게 적어주세요.&#10;&#10;오늘 있었던 일, 웃긴 이야기, AI 상담사와 나눈 대화, 요즘 고민, 앱에 바라는 점 — 무엇이든 좋아요."></textarea>
@@ -369,7 +399,7 @@ export async function handleBlog(request, env, ctx, path) {
             <label class="ck"><input type="checkbox" id="w-ok"><span><a href="/blog/po_notice_rules" target="_blank">커뮤니티 이용 규칙</a>을 읽었고, 개인정보(실명·연락처·다른 사람의 대화)를 올리지 않을게요.</span></label>
             <div class="row"><span>욕설과 연락처는 올릴 수 없어요. 모두에게 공개되는 글이에요.</span><button class="btn lg" id="w-send">올리기</button></div>
           </div></div><aside>
-            <div class="card"><h2>어디에 쓸까요</h2>${WRITABLE.map(b => `<p style="margin:.4rem 0;font-size:.88rem"><span class="lab ${b}">${BOARD[b].name}</span><br><span class="m">${BOARD[b].desc}</span></p>`).join('')}</div>
+            <div class="card"><h2>어디에 쓸까요</h2>${WRITABLE.filter(b => !isPrivate(b)).map(b => `<p style="margin:.4rem 0;font-size:.88rem"><span class="lab ${b}">${BOARD[b].name}</span><br><span class="m">${BOARD[b].desc}</span></p>`).join('')}</div>
             <div class="crisis"><b>지금 많이 힘드신가요?</b><br>글을 쓰기 전에 먼저 연락해 주세요. 자살예방상담전화 <b>109</b> · 정신건강 위기상담 <b>1577-0199</b> — 24시간 받습니다.</div>
           </aside></div>` }), 200, 300);
     }
@@ -396,16 +426,17 @@ export async function handleBlog(request, env, ctx, path) {
         </div></div>` }), 200, 0);
     }
     if (path === '/blog/me') {
-      return html(page(c, { title: `내 정보 — ${BRAND}`, desc: '내 정보와 내가 쓴 글', path: '/blog/me', noindex: true, script: ME_JS,
+      return html(page(c, { title: `내 정보 — ${BRAND}`, desc: '내 정보와 내가 쓴 글', path: '/blog/me', noindex: true, script: ME_JS + ME2_JS,
         body: `<div class="cover"><span id="me-av"><span class="av lg"></span></span><div style="flex:1;min-width:200px"><h1 id="me-name">내 정보</h1><p id="me-sub"></p></div><button class="btn ghost" id="me-out">로그아웃</button></div>
           <div class="grid"><div>
             <div class="tabs"><a class="on" data-t="posts" href="javascript:void(0)">내가 쓴 글 <span id="me-n"></span></a><a data-t="cms" href="javascript:void(0)">내 댓글 <span id="me-cn"></span></a></div>
             <div class="card" id="tab-posts"><div id="me-posts"><p class="m">불러오는 중…</p></div></div>
             <div class="card" id="tab-cms" hidden><div id="me-cms"><p class="m">불러오는 중…</p></div></div>
+            <div class="card"><h2>내 현황</h2><div id="me-dash" class="dash"><p class="m">불러오는 중…</p></div></div>
           </div><aside>
             <div class="card"><h2>프로필</h2><div class="form" style="box-shadow:none;border:0;padding:0;margin:0"><input id="pf-nick" maxlength="20" placeholder="별명"><input id="pf-file" type="file" accept="image/*" hidden>
               <div class="row"><button class="btn ghost" id="pf-pick" type="button">사진 고르기</button><span>글과 댓글 옆에 보여요</span><button class="btn" id="pf-save" type="button">저장</button></div></div></div>
-            ${writeCard}<div class="card appcard"><h2>앱과 같은 계정이에요</h2><p>상담 예약, 캐시 충전·사용 내역, 상담 기록은 앱의 마이 탭에서 볼 수 있어요. 이 계정으로 앱에 로그인하면 그대로 이어져요.</p><a class="btn" href="${APP}/">앱에서 내 정보 보기</a></div></aside></div>` }), 200, 0);
+            ${writeCard}<div class="card"><h2>전문가 인증</h2><p class="m" style="font-size:.86rem;margin:0 0 .7rem">의사·전공의·상담사라면 인증하고 전문가끼리만 보는 라운지를 쓸 수 있어요.</p><a class="btn ghost" href="/blog/verify">인증 신청·확인</a></div></aside></div>` }), 200, 0);
     }
 
     // ── 상담사 입점 신청 · 상담소 제휴 신청 ── 앱과 같은 접수 창구(/apply · /community/hospital-apply)로 바로 보낸다. 운영팀이 심사한다.
@@ -462,6 +493,23 @@ export async function handleBlog(request, env, ctx, path) {
             <label class="ck"><input type="checkbox" id="j-ok"><span>적은 내용이 사실이며, <a href="${APP}/terms.html" target="_blank">이용약관</a>과 <a href="${APP}/privacy.html" target="_blank">개인정보처리방침</a>에 따라 심사와 ${co ? '정산' : '제휴 계약'}에 쓰이는 데 동의해요.</span></label>
             <button class="btn lg" id="j-send" style="width:100%">신청하기</button>
           </form></div>` }), 200, 300);
+    }
+
+    // ── 전문가 인증 신청 ── 면허·자격증 사진을 올리면 운영자가 확인해 승인한다. 사진은 심사가 끝나면 지운다.
+    if (path === '/blog/verify') {
+      return html(page(c, { title: `전문가 인증 — ${BRAND}`, desc: '정신건강의학과 의사·전공의·심리상담사 인증 신청. 인증되면 전문가끼리만 보는 비공개 라운지를 쓸 수 있어요.', path: '/blog/verify', nav: 'verify', noindex: true, script: VERIFY_JS,
+        body: `<div style="max-width:640px;margin:0 auto"><div class="bhead"><div><h1>전문가 인증</h1><p>인증되면 전문가끼리만 보는 비공개 라운지에서 이야기할 수 있어요. 내담자와 일반 회원에게는 보이지 않고 검색에도 나오지 않아요.</p></div></div>
+          <div class="card" id="vf-state" hidden></div>
+          <form class="form jform" id="vf" style="padding:1.3rem;margin-top:0" novalidate>
+            <h3>어떤 분이신가요</h3>
+            <div class="pick"><label><input type="radio" name="role" value="doctor"><span>정신건강의학과 전문의</span></label><label><input type="radio" name="role" value="resident"><span>전공의</span></label><label><input type="radio" name="role" value="counselor"><span>심리상담사·임상심리사</span></label></div>
+            <label class="fl"><span>이름 *</span><input id="vf-name" maxlength="40" autocomplete="name"></label>
+            <label class="fl"><span>소속 (병원·기관)</span><input id="vf-org" maxlength="80"></label>
+            <label class="fl"><span>면허·자격 번호</span><input id="vf-lic" maxlength="40"><em>운영팀 확인용이에요. 공개되지 않아요</em></label>
+            <div class="fl"><span>면허증·자격증·재직(수련) 증명 사진 *</span><div class="row" style="justify-content:flex-start"><button type="button" class="btn ghost" id="vf-pick">사진 고르기</button><img id="vf-pv" hidden alt="" style="height:64px;border-radius:10px"></div><input id="vf-file" type="file" accept="image/*" hidden><em>심사에만 쓰고, 승인·거절이 끝나면 바로 지워요. 주민등록번호는 가리고 올려 주세요</em></div>
+            <button class="btn lg" id="vf-send" style="width:100%">인증 신청하기</button>
+            <p class="m" style="margin:.9rem 0 0">상담사 앱·상담소 콘솔에 카카오·네이버·구글 로그인을 연결했다면 신청 없이 자동으로 인증돼요.</p>
+          </form></div>` }), 200, 0);
     }
 
     // ── 추천 영상 ── 운영팀이 고른 정신건강 유튜브(앱의 '우렁이의 추천'과 같은 목록 — feed 표). 영상은 유튜브에서 열린다.
@@ -571,7 +619,9 @@ export async function handleBlog(request, env, ctx, path) {
 
     // ── 글 목록 (게시판·인기순·최신순·태그·검색) ──
     if (path === '/blog' && (sort || tag || kw || pg || board)) {
-      const where = [PUB], args = [];
+      const priv = isPrivate(board);
+      if (priv) { const v = await viewer(); if (!v || !canSee(board, v.roles)) return gatePage(board, !!v); }
+      const where = [priv ? LIVE : PUB], args = [];
       if (board === 'column') where.push("(p.board IS NULL OR p.board = '')");
       else if (board) { where.push('p.board = ?'); args.push(board); }
       if (tag) { where.push("(',' || COALESCE(p.tags, '') || ',') LIKE ?"); args.push('%,' + tag.replace(/[%_]/g, '') + ',%'); }
@@ -584,8 +634,9 @@ export async function handleBlog(request, env, ctx, path) {
       const sub = board && !kw && !tag ? BOARD[board].desc : '';
       const qs = o => { const u = new URLSearchParams(); const all = Object.assign({ board, sort, tag, q: kw }, o); Object.keys(all).forEach(k => { if (all[k]) u.set(k, all[k]); }); const s = u.toString(); return '/blog' + (s ? '?' + s : ''); };
       const canWrite = WRITABLE.includes(board);
-      return html(page(c, { title: `${head} — ${BRAND} 커뮤니티`, desc: sub || `${BRAND} 커뮤니티의 ${head}.`, path: qs({ page: pg || '' }), noindex: !!(kw || pg), nav: board || '',
+      return (priv ? htmlPrivate : html)(page(c, { title: `${head} — ${BRAND} 커뮤니티`, desc: sub || `${BRAND} 커뮤니티의 ${head}.`, path: qs({ page: pg || '' }), noindex: !!(kw || pg || priv), nav: board || '',
         body: `<div class="bhead"><div><h1>${esc(head)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div>${canWrite ? `<a class="btn lg" href="/blog/write?board=${board}">글쓰기</a>` : ''}</div>
+          ${priv ? `<div class="crisis" style="background:#f1eefb;border-color:#d6cff1;color:#3d3380"><b>비공개 게시판이에요.</b> 인증된 ${PRIVATE[board].map(r => ROLE_NAME[r]).join('·')}만 볼 수 있고 검색에도 나오지 않아요. 여기서 본 이야기는 밖으로 옮기지 말아 주세요.</div>` : ''}
           ${board === 'meds' ? `<div class="crisis" style="background:#f3f8ef;border-color:#cfe3c4;color:#35602a"><b>경험은 나누고, 결정은 주치의와.</b> 같은 약도 사람마다 달라요. 특정 약을 권하거나 용량을 알려주는 글, 끊으라는 글은 가려져요. <a href="/blog/po_op_meds1">안내 보기</a></div>` : ''}
           <div class="tabs"><a href="${esc(qs({ sort: 'new', page: '' }))}"${hot ? '' : ' class="on"'}>최신순</a><a href="${esc(qs({ sort: 'hot', page: '' }))}"${hot ? ' class="on"' : ''}>인기순</a></div>
           <form class="search" action="/blog" method="get">${board ? `<input type="hidden" name="board" value="${board}">` : ''}<input name="q" value="${esc(kw)}" placeholder="글·태그·글쓴이 검색" aria-label="검색"><button class="btn">검색</button></form>
@@ -630,8 +681,7 @@ export async function handleBlog(request, env, ctx, path) {
             <div class="boards">${boardCard('qna', of('qna').slice(0, 6), '고민을 올리면 상담사가 답해요.')}${boardCard('meds', of('meds').slice(0, 6), '약에 대한 경험과 궁금증을 나눠요.')}</div>
             <div class="card"><h2><span class="lab column">상담사 칼럼</span> <a class="all" href="/blog?board=column">더 보기</a></h2>${of('column').length ? feedHtml(of('column').slice(0, 8)) : '<p class="m">아직 올라온 글이 없어요.</p>'}</div>
             ${vids.length ? `<div class="card"><h2>추천 영상 <a class="all" href="/blog/videos">더 보기</a></h2><div class="vgrid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.7rem">${vids.map(v => `<a class="vcard" style="box-shadow:none;padding:.4rem .4rem .6rem" href="https://www.youtube.com/watch?v=${esc(v.video_id)}" target="_blank" rel="noopener"><img src="https://i.ytimg.com/vi/${esc(v.video_id)}/mqdefault.jpg" alt="" loading="lazy"><b>${esc(v.title)}</b><span class="m">${esc(v.author || '')}</span></a>`).join('')}</div></div>` : ''}
-            <div class="boards">${boardCard('student', of('student').slice(0, 6), '심리·상담을 공부하는 분들의 이야기를 기다려요.')}${boardCard('resident', of('resident').slice(0, 6), '전공의·수련의분들의 수련 이야기를 기다려요.')}</div>
-            <div class="boards">${boardCard('expert', of('expert').slice(0, 6), '정신건강의학과 의사·상담사분들의 현장 이야기를 기다려요.')}</div>
+            <div class="boards">${boardCard('student', of('student').slice(0, 6), '심리·상담을 공부하는 분들의 이야기를 기다려요.')}<div class="card"><h2>전문가 라운지 <a class="all" href="/blog/verify">인증 신청</a></h2><p class="m" style="font-size:.86rem;margin:0 0 .6rem">인증된 전문가끼리만 보는 비공개 게시판이에요. 내담자에게 보이지 않고 검색에도 나오지 않아요.</p><div class="tags"><a href="/blog?board=doctor">의사 라운지</a><a href="/blog?board=resident">전공의 라운지</a><a href="/blog?board=expert">상담사 라운지</a></div></div></div>
             <div class="boards">${boardCard('idea', ideas, '앱에 바라는 기능이나 불편한 점을 알려주세요.')}</div>
           </div><aside>${writeCard}
             ${best.length ? `<div class="card"><h2>베스트 댓글</h2><ul class="best">${best.map(b => `<li><a href="/blog/${esc(b.post_id)}"><q>${esc(String(b.text).slice(0, 90))}</q></a><span class="m">${esc(b.name || '익명')} · 공감 ${b.likes} · ${esc(String(b.title).slice(0, 24))}</span></li>`).join('')}</ul></div>` : ''}
@@ -645,16 +695,18 @@ export async function handleBlog(request, env, ctx, path) {
     const pm = path.match(/^\/blog\/([\w-]+)$/);
     if (!pm) return notFound(c);
     const id = pm[1];
-    const r = await db.prepare(`SELECT p.*, h.name AS hospital_name, h.dept AS hospital_dept ${FROM} WHERE p.id = ? AND ${PUB}`).bind(id).first();
+    const r = await db.prepare(`SELECT p.*, h.name AS hospital_name, h.dept AS hospital_dept ${FROM} WHERE p.id = ? AND ${LIVE}`).bind(id).first();
     if (!r) return notFound(c);
     const bd = boardOf(r), isCol = bd === 'column' && !isSys(r);
+    const privPost = isPrivate(bd);
+    if (privPost) { const v = await viewer(); if (!v || !canSee(bd, v.roles)) return gatePage(bd, !!v); }
     let cm = [];
     try { cm = (await db.prepare('SELECT c.*, (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes FROM post_comments c WHERE c.post_id = ? AND c.hidden = 0 ORDER BY c.ts ASC LIMIT 300').bind(id).all()).results || []; }
     catch (e) { cm = (await db.prepare('SELECT * FROM post_comments WHERE post_id = ? AND hidden = 0 ORDER BY ts ASC LIMIT 300').bind(id).all()).results || []; }
     const likes = await db.prepare('SELECT COUNT(*) n FROM post_likes WHERE post_id = ?').bind(id).first();
     const moreRows = isCol
       ? (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${PUB} AND p.id != ? AND (p.board IS NULL OR p.board = '') AND (p.hospital_id = ? OR p.author_id = ?) ORDER BY (CASE WHEN p.author_id = ? THEN 0 ELSE 1 END), p.created DESC LIMIT 5`).bind(id, r.hospital_id, r.author_id || '-', r.author_id || '-').all()).results || []
-      : (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${PUB} AND p.id != ? AND ${bd === 'column' ? "(p.board IS NULL OR p.board = '')" : 'p.board = ?'} ORDER BY p.created DESC LIMIT 5`).bind(...(bd === 'column' ? [id] : [id, bd])).all()).results || [];
+      : (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${LIVE} AND p.id != ? AND ${bd === 'column' ? "(p.board IS NULL OR p.board = '')" : 'p.board = ?'} ORDER BY p.created DESC LIMIT 5`).bind(...(bd === 'column' ? [id] : [id, bd])).all()).results || [];
     const imgs = images(r.images);
     const text = plain(r.body);
     const tags = tagsOf(r.tags);
@@ -662,10 +714,10 @@ export async function handleBlog(request, env, ctx, path) {
     const roots = cm.filter(x => !x.parent_id), kids = cm.filter(x => x.parent_id && roots.some(y => y.id === x.parent_id));
     const cHtml = (x, cls) => `<div class="c ${cls}${x.by_hospital ? ' pro' : ''}"><div class="hd"><b>${esc(x.name || '익명')}</b>${x.by_hospital ? `<span class="badge">${/상담사$/.test(x.name || '') ? '상담사' : '상담소'}</span>` : ''}<time datetime="${iso(x.ts)}">${kdate(x.ts)}</time></div><p>${esc(x.text)}</p></div>`;
     const shown = roots.length + kids.length;
-    return html(page(c, {
-      title: `${r.title} — ${isCol ? who : BOARD[bd].name}`, desc: text.slice(0, 150), path: '/blog/' + id, type: 'article', nav: bd,
-      ogImage: imgs.length ? `${site}/blog/img/${id}/0.jpg` : bd === 'column' ? stockOf(id) : '', script: POST_JS(id),
-      jsonld: { '@context': 'https://schema.org', '@type': bd === 'column' ? 'BlogPosting' : 'DiscussionForumPosting', headline: r.title, description: text.slice(0, 150), text: text.slice(0, 3000),
+    return (privPost ? htmlPrivate : html)(page(c, {
+      title: `${r.title} — ${isCol ? who : BOARD[bd].name}`, desc: privPost ? '' : text.slice(0, 150), path: '/blog/' + id, type: 'article', nav: bd, noindex: privPost,
+      ogImage: imgs.length && !privPost ? `${site}/blog/img/${id}/0.jpg` : bd === 'column' ? stockOf(id) : '', script: POST_JS(id),
+      jsonld: privPost ? null : { '@context': 'https://schema.org', '@type': bd === 'column' ? 'BlogPosting' : 'DiscussionForumPosting', headline: r.title, description: text.slice(0, 150), text: text.slice(0, 3000),
         datePublished: iso(r.created), dateModified: iso(r.updated || r.created), mainEntityOfPage: `${site}/blog/${id}`, url: `${site}/blog/${id}`,
         author: isCol && r.author_name ? { '@type': 'Person', name: r.author_name, jobTitle: '심리상담사', url: `${site}/blog/a/${r.author_id}`, worksFor: { '@type': 'Organization', name: r.hospital_name } } : isCol ? { '@type': 'Organization', name: r.hospital_name } : { '@type': 'Person', name: who },
         publisher: { '@type': 'Organization', name: BRAND, logo: { '@type': 'ImageObject', url: site + '/icon.png' } },

@@ -564,6 +564,8 @@ async function haDoc(id) {
 // ── 상담소 소식(커뮤니티) 관리 — 상담소가 올린 글 전체. 부적절한 글은 숨긴다 (community.js) ──
 async function loadCommunity() {
   const r = await adminGet('/api/admin/community');
+  const rr = await adminGet('/api/admin/community/roles');
+  D.roleReqs = rr ? (rr.items || []) : [];
   D.community = r ? (r.items || []) : null;
   if (TAB === 'community') render();
 }
@@ -580,6 +582,15 @@ function viewCommunity() {
         글은 상담소가 직접 쓰고 고치고, 운영팀은 부적절한 글을 <b>숨기기</b>만 합니다(상담소 화면에는 '운영팀 숨김'으로 표시).<br>
         전체 ${list.length}개 · 공개 ${list.filter(x => x.published && !x.hidden).length}개 · 상담소 ${Object.keys(byHosp).length}곳</div>
     </div>
+    ${(D.roleReqs || []).length ? `<div class="card" style="margin-bottom: 0.8rem;">
+      <b style="font-size: 0.9rem;">전문가 인증 신청 ${D.roleReqs.filter(x => x.status === 'pending').length ? '<span class="chip new">' + D.roleReqs.filter(x => x.status === 'pending').length + '건 대기</span>' : ''}</b>
+      <div class="muted" style="margin: 0.2rem 0 0.5rem;">면허·자격증 사진을 확인하고 승인하면, 그 계정은 전문가끼리만 보는 비공개 라운지(의사·전공의·상담사)를 쓸 수 있습니다. 사진은 승인·거절하면 지워집니다.</div>
+      ${D.roleReqs.map(x => `<div style="border-top: 1px solid var(--line); padding: 0.6rem 0;">
+        <div class="row" style="gap: 0.5rem; flex-wrap: wrap;"><b>${esc(x.name)}</b><span class="chip ${x.status === 'approved' ? 'ok' : x.status === 'rejected' ? 'bad' : 'new'}">${esc(x.roleName)} · ${x.status === 'approved' ? '승인' : x.status === 'rejected' ? '거절' : '대기'}</span><span class="right muted">${fmtDate(x.ts)}</span></div>
+        <div class="muted">${esc([x.org, x.licenseNo ? '번호 ' + x.licenseNo : '', x.email || x.provider].filter(Boolean).join(' · '))}</div>
+        ${x.photo ? `<a href="${esc(x.photo)}" target="_blank" rel="noopener"><img src="${esc(x.photo)}" alt="면허·자격증" style="max-width: 260px; max-height: 180px; border-radius: 8px; margin-top: 0.4rem; border: 1px solid var(--line);"></a>` : ''}
+        ${x.status === 'pending' ? `<div class="row" style="justify-content: flex-end; gap: 0.4rem; margin-top: 0.4rem;"><button class="btn ghost sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="0">거절</button><button class="btn sm" data-act="role-decide" data-id="${esc(x.userId)}" data-ok="1">승인</button></div>` : ''}
+      </div>`).join('')}</div>` : ''}
     ${list.length ? list.map(it => `
       <div class="card"${it.hidden ? ' style="opacity: 0.55; border-color: rgba(207,107,96,0.35);"' : !it.published ? ' style="opacity: 0.7;"' : ''}>
         <div class="row" style="gap: 0.5rem; flex-wrap: wrap;">
@@ -2506,6 +2517,7 @@ document.addEventListener('click', e => {
   const id = el.dataset.id || '';
 
   if (act === 'goto') { go(el.dataset.tab); return; }
+  if (act === 'role-decide') { adminPost('/api/admin/community/role/decide', { userId: id, ok: el.dataset.ok === '1' }).then(() => { toast(el.dataset.ok === '1' ? '승인했어요' : '거절했어요'); loadCommunity(); }); return; }
   if (act === 'cm-hide') { adminPost('/api/admin/community/hide', { id, hidden: el.dataset.hidden === '1' }).then(() => { toast(el.dataset.hidden === '1' ? '숨겼어요' : '다시 보여요'); loadCommunity(); }); return; }
   if (act === 'install') { doInstall(); return; }
   if (act === 'refresh') {

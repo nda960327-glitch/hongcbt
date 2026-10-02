@@ -80,6 +80,10 @@ const STEPS = [
   // 느루 → 우렁이 (2026-10-02) — 이미 들어간 커뮤니티 글·댓글의 이름
   ['이름 바꾸기: 글', "UPDATE posts SET title = replace(title, '\uB290\uB8E8', '우렁이'), body = replace(body, '\uB290\uB8E8', '우렁이') WHERE hospital_id = 'community' AND (title LIKE '%\uB290\uB8E8%' OR body LIKE '%\uB290\uB8E8%')"],
   ['이름 바꾸기: 댓글', "UPDATE post_comments SET text = replace(text, '\uB290\uB8E8', '우렁이') WHERE client_id = 'sys' AND text LIKE '%\uB290\uB8E8%'"],
+  // 전문가 인증 · 비공개 라운지 (roles.js)
+  ['전문가 인증 표', "CREATE TABLE IF NOT EXISTS user_roles (user_id TEXT PRIMARY KEY, role TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending', name TEXT, org TEXT, license_no TEXT, photo TEXT, requested INTEGER NOT NULL DEFAULT 0, decided INTEGER NOT NULL DEFAULT 0, reason TEXT)"],
+  ['상담사 라운지 이름', "UPDATE posts SET title = '상담사 라운지를 열었어요 — 상담사끼리만 보는 곳', body = replace(replace(body, '정신건강의학과 의사, 심리상담사, 임상심리사분들을 위한 곳이에요.', '인증된 심리상담사·임상심리사·상담소만 볼 수 있는 곳이에요. 내담자와 일반 회원에게는 보이지 않고 검색에도 나오지 않아요.'), '- 진료와 상담이 서로 어떻게 이어지면 좋을지', '- 수입과 일자리, 상담소에서 겪은 일') WHERE id = 'po_op_exp1'"],
+  ['게시판 첫 글: 의사 라운지', "INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_op_doc1', 'community', '의사 라운지를 열었어요 — 의사끼리만 보는 곳', '# 정신건강의학과 전문의와 전공의만 볼 수 있는 곳이에요.\n\n이 게시판의 글은 인증된 의사에게만 보이고, 검색에도 나오지 않아요. 내담자와 일반 회원은 읽을 수 없어요.\n\n## 이런 이야기를 나눠요\n\n- 진료하며 겪는 어려움과 소진\n- 치료 방침에 대한 고민 (환자 정보는 빼고)\n- 수련, 개원, 진로\n- 동료에게만 할 수 있는 이야기\n\n## 약속\n\n환자를 알아볼 수 있는 정보는 적지 않아요. 이곳에서 본 이야기는 밖으로 옮기지 않아요.\n\n선생님도 지칠 수 있어요. 많이 힘든 날에는 동료에게, 그리고 필요하면 전문가의 도움을 받으세요.', '', 1, 1, 0, 1790900000017, 1790900000017, '운영팀', 'doctor')"],
   ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
 
