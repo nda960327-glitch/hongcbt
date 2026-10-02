@@ -363,8 +363,8 @@ window.Personas = {
     try { linked = window.Storage ? window.Storage._safeGet('cbt_ai_link_persona', null) : null; } catch (e) {}
     if (linked === 'woorung-ds') return this.list.filter(p => p.id !== 'woorung');
     if (linked === 'woorung') return this.list.filter(p => p.id !== 'woorung-ds');
-    // 비교용 상담사(우렁의사)는 맨 아래에 둔다
-    return this.list.filter(x => x.id !== 'woorung-ds').concat(this.list.filter(x => x.id === 'woorung-ds'));
+    // 우렁의사를 맨 위에 둔다(사장님 지시 2026-10-03)
+    return this.list.filter(x => x.id === 'woorung-ds').concat(this.list.filter(x => x.id !== 'woorung-ds'));
   },
 
   // ── 배정 링크 (A/B 비교용, 2026-09-30) ──────────────────────────────
