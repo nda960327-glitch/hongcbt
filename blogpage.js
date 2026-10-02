@@ -213,9 +213,9 @@ W.stickerPick=function(ta){var p=ta.parentNode.querySelector('.stkp');if(p){p.re
  ta.parentNode.insertBefore(p,ta.nextSibling)};
 W.toast=function(m){var t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(function(){t.classList.remove('on')},2600)};
 // 알림창 — 서버가 글을 받지 않았을 때(위기 표현·욕설 등) 이유와 도움받을 곳을 보여준다
-W.say=function(title,msg,crisis){var d=document.createElement('div');d.id='say';d.innerHTML='<div role="alertdialog" aria-modal="true"><h3>'+W.esc(title)+'</h3><p>'+W.esc(msg)+'</p><div class="row">'+(crisis?'<a class="btn ghost" href="tel:109">109 전화하기</a>':'')+'<button class="btn">확인</button></div></div>';
+W.say=function(title,msg,crisis){var d=document.createElement('div');d.id='say';d.innerHTML='<div role="alertdialog" aria-modal="true"><h3>'+W.esc(title)+'</h3><p>'+W.esc(msg)+'</p><div class="row">'+(crisis?'<a class="btn ghost" href="tel:109">109 전화하기</a><a class="btn ghost" href="'+${JSON.stringify(APP)}+'/">앱에서 이야기하기</a>':'')+'<button class="btn">확인</button></div></div>';
  d.addEventListener('click',function(e){if(e.target===d||e.target.closest('button'))d.remove()});document.body.appendChild(d)};
-W.refused=function(j){if(j.error==='login'){W.setAuth('');W.needLogin();return true}if(j.error==='crisis'){W.say('지금 많이 힘드신 것 같아요',j.message,true);return true}if(j.error==='abuse'||j.error==='contact'||j.error==='short'){W.say('이 글은 올릴 수 없어요',j.message||'');return true}return false};
+W.refused=function(j){if(j.error==='login'){W.setAuth('');W.needLogin();return true}if(j.error==='crisis'){W.say('지금 많이 힘드신 것 같아요',String(j.message||'').replace(/^지금 많이 힘드신 것 같아요[.]\s*/,''),true);return true}if(j.error==='abuse'||j.error==='contact'||j.error==='short'){W.say('이 글은 올릴 수 없어요',j.message||'');return true}return false};
 W.me=function(){var id=W.ls('mi_cid');if(!id){id='u_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);W.ls('mi_cid',id)}
  var key=W.ls('mi_ckey');if(key)return Promise.resolve({id:id,key:key});
  return fetch(W.API+'/client/claim',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:id})}).then(function(r){return r.json()}).then(function(d){if(d&&d.clientKey)W.ls('mi_ckey',d.clientKey);return{id:id,key:(d&&d.clientKey)||''}}).catch(function(){return{id:id,key:''}})};
