@@ -408,7 +408,15 @@ document.addEventListener('input', function (e) {
 // 앱 안에 띄운 웹 커뮤니티가 보내는 신호 — 앱으로 가는 링크(상담 예약·앱 열기)를 눌렀을 때
 window.addEventListener('message', function (e) {
   const d = e.data;
-  if (!d || d.mi !== 'app' || !window.Community) return;
+  if (!d || !window.Community) return;
+  if (d.mi === 'login') {   // 로그인이 필요한 일을 눌렀다 — 마이 탭의 로그인으로 데려간다
+    if (!/^https:\/\/(www\.)?mindinsideapp\.com$/.test(e.origin)) return;
+    window.Community.closeWeb();
+    if (window.App && window.App.switchTab) window.App.switchTab('mypage');
+    if (window.App && window.App.showRecordToast) window.App.showRecordToast('로그인하면 커뮤니티에 글을 쓸 수 있어요');
+    return;
+  }
+  if (d.mi !== 'app') return;
   if (!/^https:\/\/(mindinside\.kr|(www\.)?mindinsideapp\.com)$/.test(e.origin)) return;
   let co = '';
   try { co = (new URL(d.href).searchParams.get('counselor') || '').replace(/[^\w-]/g, ''); } catch (err) {}
