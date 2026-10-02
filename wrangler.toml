@@ -25,10 +25,9 @@ workers_dev = true
 #  대표 주소는 홈페이지(mindinside.kr/blog). 앱 도메인의 /blog 도 같은 글을 보여주되 canonical 은 대표 주소를 가리킨다.
 routes = [
   { pattern = "mindinside.kr/", zone_name = "mindinside.kr" },   # 첫 화면이 곧 커뮤니티 (앱 소개는 /about/ — Pages)
-  { pattern = "mindinside.kr/blog", zone_name = "mindinside.kr" },
-  { pattern = "mindinside.kr/blog/*", zone_name = "mindinside.kr" },
-  { pattern = "mindinsideapp.com/blog", zone_name = "mindinsideapp.com" },
-  { pattern = "mindinsideapp.com/blog/*", zone_name = "mindinsideapp.com" }
+  # 끝의 * 가 있어야 /blog?board=… 처럼 물음표가 붙은 주소도 이 Worker 로 온다 (없으면 Pages 로 새서 목록·검색이 안 열린다)
+  { pattern = "mindinside.kr/blog*", zone_name = "mindinside.kr" },
+  { pattern = "mindinsideapp.com/blog*", zone_name = "mindinsideapp.com" }
 ]
 
 [vars]
