@@ -329,6 +329,7 @@ window.Personas = {
     this.renderEndButton();
     if (!prog || !prog.endMsg || !window.App) return;
     const input = document.getElementById('chat-input');
+    this._closing = true;   // js/llm.js 가 이 턴에 '마무리' 지시를 붙인다(요약 카드)
     if (input) { input.value = prog.endMsg; window.App.sendMessage(); }
   },
 

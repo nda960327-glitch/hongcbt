@@ -1152,6 +1152,17 @@ ${about}
     try {
       const pr = window.Personas && window.Personas.getActive && window.Personas.getActive();
       if (pr && pr.reminder) messages.push({ role: 'system', content: pr.reminder });
+      // [오늘은 여기까지] 버튼을 누른 턴 — 더 묻지 않고 지금 닫는다(요약 카드 필수). 한 번 쓰고 지운다.
+      if (window.Personas && window.Personas._closing) {
+        window.Personas._closing = false;
+        messages.push({ role: 'system', content: `[지금은 마무리하는 턴입니다]
+사용자가 [오늘은 여기까지] 버튼을 눌렀습니다. 이번 답장에서는 새로운 질문을 하지 않습니다("더 꺼내고 싶은 게 있으세요?"도 묻지 않습니다). 다음 순서로 닫으세요.
+1) 오늘 꺼내 준 것에 대한 고마움과, 오늘 들은 마음을 한두 문장으로 따뜻하게.
+2) 반드시 요약 카드 한 장: [그림:요약카드|오늘 꺼내 놓은 마음|감정: (오늘 나온 감정 이름 한두 개);"(사용자가 직접 한 말 가운데 마음에 남는 것, 사용자의 표현 그대로 짧게)";놓고 가는 것: (사용자가 놓겠다고 한 것이 있으면 그 말 그대로, 없으면 '오늘은 꺼내 놓은 것만으로 충분해요')]
+   카드에는 조언·해석·숙제를 넣지 않습니다. 사용자가 하지 않은 말을 지어내지 않습니다.
+3) 문을 닫는 한마디: "오늘 내려놓은 것들은 제가 갖고 있을게요. 편히 쉬세요." 같은 말.
+단, 방금 대화에 자·타해 위험 신호가 있었다면 닫기 전에 안전(109, 곁에 있는 사람)을 먼저 확인합니다.` });
+      }
     } catch (e) {}
     // 맨 끝에 둔다 — 긴 시스템 지침 한가운데 있으면 모델이 흘려보낸다(2026-10 시험에서 실제로 그랬다)
     if (turnDirective) messages.push({ role: 'system', content: turnDirective });
