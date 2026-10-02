@@ -75,22 +75,22 @@ const KB = {
     title: '마음건강 백과 — 우울증·불안·조울증·조현병 등 질환별 안내',
     lead: '우울증, 불안, 조울증, 조현병, 강박, 트라우마… 세계 주요 기관의 자료를 쉬운 말로 옮겼어요. 병은 의지 문제가 아니고, 대부분 치료받으며 나아질 수 있어요.',
     ph: '병 이름이나 증상으로 찾기 — 예: 조현병, 공황, 불면, 조울증',
-    order: ['우울', '양극성장애', '불안', '강박', '트라우마', '조현병·정신증', '신체 증상', '수면', '섭식', '중독', '성격', 'ADHD·발달·아동청소년', '노년', '치료·돌봄 안내', '지원 제도'],
+    order: ['우울', '양극성장애', '불안', '강박', '트라우마', '조현병·정신증', '신체 증상', '수면', '섭식', '중독', '성격', 'ADHD·발달·아동청소년', '노년', '자기돌봄', '일상 고민', '치료·돌봄 안내', '지원 제도'],
     map: { '산후우울': '우울', '청소년 우울': 'ADHD·발달·아동청소년', '노인 우울': '노년', '공황': '불안', '사회불안': '불안', '조현병': '조현병·정신증', '성인 ADHD': 'ADHD·발달·아동청소년', '아동·청소년': 'ADHD·발달·아동청소년',
       '불면증': '수면', '섭식장애': '섭식', '경계선 성격장애': '성격', '알코올 사용장애': '중독', '가족': '치료·돌봄 안내', '심리치료': '치료·돌봄 안내', '첫 진료': '치료·돌봄 안내', '재발 예방': '치료·돌봄 안내', '행동활성화': '치료·돌봄 안내', '약 이야기': '치료·돌봄 안내', '양극성': '양극성장애', '조울증': '양극성장애' },
     desc: { '우울': '기운이 없고 아무것도 하기 싫은 날이 길어질 때', '양극성장애': '조울증 — 기분이 크게 오르내리는 병', '불안': '공황, 걱정, 사람 앞에서의 두려움', '강박': '멈추고 싶은데 멈춰지지 않는 생각과 행동',
       '트라우마': '큰 일을 겪은 뒤 남은 상처', '조현병·정신증': '환청·망상이 나타나는 병. 귀신 들림이 아니라 치료받는 병이에요', '신체 증상': '몸은 아픈데 검사는 정상일 때', '수면': '잠들지 못하는 밤',
       '섭식': '먹는 일이 괴로워질 때', '중독': '술, 도박, 게임을 멈추기 어려울 때', '성격': '감정과 관계가 늘 힘든 이유', 'ADHD·발달·아동청소년': '아이와 청소년, 그리고 어른의 ADHD', '노년': '부모님의 마음 건강',
-      '치료·돌봄 안내': '처음 병원에 갈 때, 가족이 할 수 있는 일', '지원 제도': '나라에서 받을 수 있는 도움' },
+      '자기돌봄': '누워서도, 5분 안에 해 볼 수 있는 마음 돌봄 기술', '일상 고민': '취업, 직장, 이별, 육아, 간병 — 병은 아니어도 많이 지칠 때', '치료·돌봄 안내': '처음 병원에 갈 때, 가족이 할 수 있는 일', '지원 제도': '나라에서 받을 수 있는 도움' },
     foot: '이곳의 글은 일반 정보예요. 진단과 치료는 정신건강의학과 전문의, 상담은 자격을 갖춘 상담사와 함께해 주세요.' },
   med: { tag: '약 정보', nav: 'medinfo', path: '/blog/medinfo', h1: '약 정보',
     title: '정신과 약 정보 — 항우울제·항불안제·수면제·기분조절제·항정신병약 쉽게 알아보기',
     lead: '처방받은 약이 어떤 약인지, 어디에 도움이 되는지, 무엇을 조심해야 하는지 쉬운 말로 정리했어요. 약 이름이나 성분 이름으로 찾아보세요.',
     ph: '약 이름으로 찾기 — 예: 자낙스, 렉사프로, 프리스틱, 아빌리파이',
-    order: ['약 기초지식', '항우울제', '항불안제', '수면제', '기분조절제', '항정신병약', 'ADHD 약'],
+    order: ['약 기초지식', '항우울제', '항불안제', '수면제', '기분조절제', '항정신병약', 'ADHD 약', '그 밖의 약'],
     map: {},
     desc: { '약 기초지식': '약을 먹기 전에, 먹는 동안 가장 많이 묻는 것들', '항우울제': '우울·불안·강박 등에 쓰는 약. 효과가 나기까지 몇 주가 걸려요', '항불안제': '불안과 긴장을 가라앉히는 약',
-      '수면제': '잠들기 어렵거나 자주 깰 때 쓰는 약', '기분조절제': '양극성장애(조울증)에서 기분의 큰 오르내림을 줄이는 약', '항정신병약': '환청·망상, 조증, 심한 우울에 쓰는 약. 조현병에만 쓰는 약이 아니에요', 'ADHD 약': '집중과 충동 조절을 돕는 약' },
+      '수면제': '잠들기 어렵거나 자주 깰 때 쓰는 약', '기분조절제': '양극성장애(조울증)에서 기분의 큰 오르내림을 줄이는 약', '항정신병약': '환청·망상, 조증, 심한 우울에 쓰는 약. 조현병에만 쓰는 약이 아니에요', 'ADHD 약': '집중과 충동 조절을 돕는 약', '그 밖의 약': '치매, 술·담배를 줄이는 데 쓰는 약' },
     foot: '약은 사람마다 다르게 듣고, 용량과 기간은 의사가 정해요. 이 글만 보고 약을 시작하거나 끊거나 바꾸지 말고, 궁금한 점은 주치의·약사에게 물어봐 주세요. 약을 먹고 있는 다른 분들의 경험은 [약 이야기] 게시판에서 나눌 수 있어요.' }
 };
 
@@ -840,7 +840,11 @@ export async function handleBlog(request, env, ctx, path) {
     try { cm = (await db.prepare('SELECT c.*, (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes FROM post_comments c WHERE c.post_id = ? AND c.hidden = 0 ORDER BY c.ts ASC LIMIT 300').bind(id).all()).results || []; }
     catch (e) { cm = (await db.prepare('SELECT * FROM post_comments WHERE post_id = ? AND hidden = 0 ORDER BY ts ASC LIMIT 300').bind(id).all()).results || []; }
     const likes = await db.prepare('SELECT COUNT(*) n FROM post_likes WHERE post_id = ?').bind(id).first();
-    const moreRows = isCol
+    const kbOf = isSys(r) && bd === 'column' ? (tagsOf(r.tags).includes(KB.med.tag) ? KB.med : tagsOf(r.tags).includes(KB.kb.tag) ? KB.kb : null) : null;
+    const kbCat = kbOf ? (tagsOf(r.tags).find(x => x !== kbOf.tag) || '') : '';
+    const moreRows = kbOf
+      ? (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${PUB} AND p.id != ? AND p.hospital_id = 'community' AND (',' || p.tags || ',') LIKE ? AND (',' || p.tags || ',') LIKE ? ORDER BY p.title LIMIT 14`).bind(id, '%,' + kbOf.tag + ',%', '%,' + kbCat + ',%').all()).results || []
+      : isCol
       ? (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${PUB} AND p.id != ? AND (p.board IS NULL OR p.board = '') AND (p.hospital_id = ? OR p.author_id = ?) ORDER BY (CASE WHEN p.author_id = ? THEN 0 ELSE 1 END), p.created DESC LIMIT 5`).bind(id, r.hospital_id, r.author_id || '-', r.author_id || '-').all()).results || []
       : (await db.prepare(`SELECT ${COLS} ${FROM} WHERE ${LIVE} AND p.id != ? AND ${bd === 'column' ? "(p.board IS NULL OR p.board = '')" : 'p.board = ?'} ORDER BY p.created DESC LIMIT 5`).bind(...(bd === 'column' ? [id] : [id, bd])).all()).results || [];
     const imgs = images(r.images);
@@ -861,7 +865,7 @@ export async function handleBlog(request, env, ctx, path) {
         interactionStatistic: { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: (likes && likes.n) || 0 },
         comment: roots.slice(0, 30).map(x => ({ '@type': 'Comment', text: x.text, dateCreated: iso(x.ts), author: { '@type': 'Person', name: x.name || '익명' } })) },
       body: `<div class="grid"><div><article class="post">
-          <div><a href="/blog?board=${bd}">${labOf(r)}</a> ${tags.map(t => `<a class="tag" href="/blog?tag=${encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}</div>
+          <div>${kbOf ? `<a href="${kbOf.path}"><span class="lab column">${kbOf.h1}</span></a>` : `<a href="/blog?board=${bd}">${labOf(r)}</a>`} ${tags.filter(t => !kbOf || t !== kbOf.tag).map(t => `<a class="tag" href="${kbOf ? kbOf.path + '?q=' + encodeURIComponent(t) : '/blog?tag=' + encodeURIComponent(t)}">#${esc(t)}</a>`).join('')}</div>
           <h1>${esc(r.title)}</h1>
           <div class="byline">${isCol ? avatar(r.author_id, who, 'md') : avatarU(r.client_id, who, 'md')}<div style="flex:1"><b>${isCol && r.author_id ? `<a href="/blog/a/${esc(r.author_id)}">${esc(who)}</a>` : esc(who)}</b>
             <span class="m">${isCol ? `<a href="/blog/h/${esc(r.hospital_id)}">${esc(r.hospital_name)}</a> · ` : ''}<time datetime="${iso(r.created)}">${kdate(r.created)}</time>${r.updated && r.updated - r.created > 60000 ? ' · 수정됨' : ''} · 조회 ${r.views || 0}</span></div>
@@ -873,7 +877,7 @@ export async function handleBlog(request, env, ctx, path) {
             <div id="cm-list">${roots.length ? roots.map(x => cHtml(x, '') + kids.filter(k => k.parent_id === x.id).map(k => cHtml(k, 'r')).join('')).join('') : '<p class="m">첫 댓글을 남겨보세요. 따뜻한 한마디면 충분해요.</p>'}</div>
             <div class="form"><button id="cm-to" class="tag" data-a="noreply" hidden style="border:0"></button><input id="cm-name" maxlength="20" placeholder="별명 (비워 두면 가입한 이름)"><textarea id="cm-text" maxlength="500" placeholder="${bd === 'qna' ? '비슷한 경험이나 도움이 될 말을 남겨주세요' : '댓글을 남겨보세요'}"></textarea>
               <div class="row"><span>욕설과 연락처는 올릴 수 없어요. 모두에게 보이는 공개 댓글이에요.</span><button class="btn ghost" data-a="stk" type="button">스티커</button><button class="btn" data-a="send">올리기</button></div></div></section>
-        </div><aside>${moreRows.length ? `<div class="card"><h2>${isCol ? '이어서 읽기' : BOARD[bd].name + '의 다른 글'}</h2>${listHtml(moreRows)}</div>` : ''}${isCol ? '' : writeCard}${appCard(c)}</aside></div>` }));
+        </div><aside>${moreRows.length ? `<div class="card"><h2>${kbOf ? esc(kbCat) + ' — 함께 보면 좋은 글' : isCol ? '이어서 읽기' : BOARD[bd].name + '의 다른 글'}</h2>${kbOf ? `<ul class="list">${moreRows.map(x => `<li><a href="/blog/${esc(x.id)}">${esc(x.title)}</a></li>`).join('')}</ul><a class="btn ghost" style="margin-top:.7rem" href="${kbOf.path}">${kbOf.h1} 전체 보기</a>` : listHtml(moreRows)}</div>` : ''}${isCol ? '' : writeCard}${appCard(c)}</aside></div>` }));
   } catch (e) {
     // 표나 칸이 아직 없는 배포에서도 앱 전체가 죽지 않게
     return notFound(c);
