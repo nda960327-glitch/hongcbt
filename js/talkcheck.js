@@ -75,7 +75,7 @@ window.TalkCheck = {
     ov.style.cssText = 'position: fixed; inset: 0; z-index: 1250; background: var(--bg-primary); display: flex; flex-direction: column;';
     ov.innerHTML = `
       <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; padding: 0.8rem 1rem; border-bottom: 1px solid var(--glass-border); background: var(--bg-secondary);">
-        <b style="flex: 1 1 auto; font-size: 1rem; color: var(--text-primary);">대화 분석</b>
+        <b style="flex: 1 1 auto; font-size: 1.05rem; line-height: 1.6; color: var(--text-primary, #2f2923);">대화 분석</b>
         <button type="button" onclick="window.TalkCheck.close()" style="all: unset; cursor: pointer; padding: 0.4rem 0.8rem; border-radius: 999px; font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); background: var(--bg-tertiary);">닫기</button>
       </div>
       <div id="tc-body" style="flex: 1 1 auto; overflow-y: auto; padding: 1rem; max-width: 640px; width: 100%; margin: 0 auto; box-sizing: border-box;"></div>`;
@@ -94,8 +94,8 @@ window.TalkCheck = {
 
       <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">1. 대화 넣기</div>
       <div style="display: flex; gap: 0.4rem; margin-bottom: 0.4rem;">
-        <button type="button" onclick="document.getElementById('tc-file').click()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">카카오톡 내보내기 파일(.txt)</button>
-        <input id="tc-file" type="file" accept=".txt,text/plain" hidden onchange="window.TalkCheck._file(this)">
+        <button type="button" onclick="window.TalkCheck._pickFile()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">카카오톡 내보내기 파일(.txt)</button>
+        <input id="tc-file" type="file" accept=".txt" hidden onchange="window.TalkCheck._file(this)">
         <button type="button" onclick="window.TalkCheck.close(); window.ImgText && window.ImgText.pick()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">캡처 사진</button>
       </div>
       <textarea id="tc-text" rows="6" placeholder="또는 대화를 여기에 붙여넣으세요.&#10;&#10;카카오톡: 대화방 › 메뉴 › 대화 내용 내보내기" oninput="window.TalkCheck._changed()" style="${this._field} line-height: 1.5; resize: vertical;"></textarea>
@@ -118,9 +118,25 @@ window.TalkCheck = {
       <p style="margin: 0.7rem 0 0; font-size: 0.72rem; line-height: 1.5; color: var(--text-muted);">한쪽이 넣은 대화만 보고 하는 분석이에요. 상대의 속마음까지 알 수는 없어요.</p>`;
   },
 
+  // 파일 고르기 — 고르는 창에 .txt 파일만 보이게 한다(PC 크롬·엣지는 '모든 파일' 선택지도 뺀다). 안 되는 기기는 기본 창으로.
+  async _pickFile() {
+    if (window.showOpenFilePicker) {
+      try {
+        const [h] = await window.showOpenFilePicker({ multiple: false, excludeAcceptAllOption: true,
+          types: [{ description: '카카오톡 대화 (.txt)', accept: { 'text/plain': ['.txt'] } }] });
+        if (h) this._readFile(await h.getFile());
+        return;
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const i = document.getElementById('tc-file'); if (i) i.click();
+  },
   _file(inp) {
     const f = inp.files && inp.files[0]; inp.value = '';
     if (!f) return;
+    this._readFile(f);
+  },
+  _readFile(f) {
+    if (!/\.txt$/i.test(f.name || '') && f.type !== 'text/plain') { this._say('.txt 파일만 넣을 수 있어요. 카카오톡 › 대화 내용 내보내기로 만든 파일을 골라 주세요.'); return; }
     if (f.size > 3 * 1024 * 1024) { this._say('파일이 너무 커요. 다툰 부분만 복사해서 붙여넣어 주세요.'); return; }
     const rd = new FileReader();
     rd.onload = () => { const ta = document.getElementById('tc-text'); if (ta) { ta.value = String(rd.result || ''); this._changed(); } };

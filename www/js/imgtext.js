@@ -15,7 +15,8 @@ window.ImgText = {
     let inp = document.getElementById('imgtext-file');
     if (!inp) {
       inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true; inp.id = 'imgtext-file'; inp.hidden = true;
+      // 사진 형식만 적는다 — 폰에서 '카메라·파일' 고르는 창을 거치지 않고 갤러리(사진 고르기)가 바로 열리게
+      inp.type = 'file'; inp.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif'; inp.multiple = true; inp.id = 'imgtext-file'; inp.hidden = true;
       inp.addEventListener('change', () => { const fs = [...(inp.files || [])]; inp.value = ''; if (fs.length) this.read(fs); });
       document.body.appendChild(inp);
     }
