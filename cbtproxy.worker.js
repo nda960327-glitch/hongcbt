@@ -34,6 +34,7 @@ import { handleFeed } from "./feed.js";
 import { handleSurvey } from "./survey.js";
 import { handleHospital } from "./hospital.js";
 import { handleCommunity } from "./community.js";
+import { handleBlog } from "./blogpage.js";
 import { handleClinics } from "./clinics.js";
 import { resolveCounselor } from "./auth.js";
 import { verifyClient } from "./market.js";
@@ -265,6 +266,12 @@ const APP = {
 
     const path = new URL(request.url).pathname.replace(/^\/api/, "").replace(/\/+$/, "") || "/";
 
+    // 상담소 블로그의 공개 웹 페이지(검색엔진용 HTML) — mindinsideapp.com/blog… 가 이 Worker 로 온다 (wrangler.toml routes)
+    if (path === "/blog" || path.startsWith("/blog/")) {
+      const r = await handleBlog(request, env, ctx, path);
+      if (r) return r;
+    }
+
     // ── 실시간 웹소켓 (/ws?ch=cl:<clientId> | c:<counselorId>) ──────────
     //  받는 쪽이 8~15초 폴링을 기다리던 것을, 저장 즉시 밀어주는 것으로 바꾼다.
     //  상담사 채널은 자격증명으로 본인 확인 — 채널 이름만 알면 남의 대화를
@@ -386,7 +393,7 @@ const APP = {
     }
     // 상담소 소식(커뮤니티) — 상담소 글·좋아요·댓글·상담소 페이지. /hospital/posts… 는 hospital.js 보다 먼저 본다.
     if (/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|admin\/community|admin\/hospital-apps)/.test(path)) {
-      const r = await handleCommunity(request, env, cors, path);
+      const r = await handleCommunity(request, env, cors, path, ctx);
       if (r) return r;
     }
     // 상담소(소장) 연동 — 내담자 연결·회기 기록·소장 피드백

@@ -61,6 +61,10 @@ const STEPS = [
   ['글 글쓴이', 'ALTER TABLE posts ADD COLUMN author_id TEXT'],
   ['글 글쓴이 이름', 'ALTER TABLE posts ADD COLUMN author_name TEXT'],
   ['글 글쓴이 색인', 'CREATE INDEX IF NOT EXISTS idx_posts_author ON posts(author_id, created)'],
+  // 커뮤니티 고도화 — 조회수 · 답글(대댓글)
+  ['글 조회수', 'ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0'],
+  ['댓글의 윗댓글', 'ALTER TABLE post_comments ADD COLUMN parent_id TEXT'],
+  ['댓글 공감 표', 'CREATE TABLE IF NOT EXISTS post_comment_likes (comment_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (comment_id, client_id))'],
   ['캐시 사용 장부 색인', 'CREATE INDEX IF NOT EXISTS idx_cash_spends_client ON cash_spends(client_id, voided_at)'],
 ];
 

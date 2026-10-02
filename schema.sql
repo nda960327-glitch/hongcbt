@@ -164,11 +164,13 @@ CREATE INDEX IF NOT EXISTS idx_posts_hosp ON posts(hospital_id, created);
 CREATE TABLE IF NOT EXISTS post_likes (post_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (post_id, client_id));
 CREATE TABLE IF NOT EXISTS post_comments (id TEXT PRIMARY KEY, post_id TEXT NOT NULL, client_id TEXT NOT NULL, name TEXT, text TEXT NOT NULL, ts INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, by_hospital INTEGER NOT NULL DEFAULT 0);
 CREATE INDEX IF NOT EXISTS idx_pc_post ON post_comments(post_id, ts);
+CREATE TABLE IF NOT EXISTS post_comment_likes (comment_id TEXT NOT NULL, client_id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (comment_id, client_id));
 -- 상담소 페이지 프로필(소개·전화·주소·홈페이지·운영시간) — JSON 한 칸
 -- ALTER TABLE hospitals ADD COLUMN profile TEXT;
 
 -- 글 사진: images = JSON 배열(data:image/jpeg, 긴 변 640px·각 100KB 이하·4장까지), thumb = 첫 사진 240px 미리보기
 -- ALTER TABLE posts ADD COLUMN images TEXT; ALTER TABLE posts ADD COLUMN thumb TEXT;
+-- 조회수·답글(2026-10): ALTER TABLE posts ADD COLUMN views INTEGER NOT NULL DEFAULT 0; ALTER TABLE post_comments ADD COLUMN parent_id TEXT;
 -- 소속 상담사가 쓴 글의 글쓴이(2026-10): ALTER TABLE posts ADD COLUMN author_id TEXT; ALTER TABLE posts ADD COLUMN author_name TEXT;
 
 -- 상담사 소속 상담소 (hospitals.id). 있으면 그 상담사의 상담은 모두 상담소 채널로 정산하고 계좌를 받지 않는다

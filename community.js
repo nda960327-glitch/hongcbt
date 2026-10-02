@@ -10,6 +10,13 @@
 //  본문 표기(앱·소장 앱이 같은 규칙으로 그린다): **굵게** · '# ' 큰 글씨 · '## ' 제목 · {red|글}(색: red orange green blue purple gray) · [img:0] 사진
 //  경로 (앱은 /api/… 로 부르고 Worker 가 /api 를 뗀다)
 //    공개   GET  /community?clientId=&cursor=&hospital=      글 목록(발행된 것만) + 내 좋아요
+//                 &sort=hot(인기순, offset 으로 넘김) &tag= &q=(제목·본문 검색) &author= &authors=a,b &hospitals=x,y(구독) &ids=p1,p2(저장한 글)
+//           GET  /community/tags                             요즘 많이 쓰인 태그
+//           GET  /community/author?id=&clientId=             상담사 블로그(프로필 + 글 + 합계)
+//           POST /community/comment/like {cid, clientId, clientKey}   댓글 공감 토글 — 공감 많은 댓글이 '베스트 댓글'
+//           GET  /community/best                        요즘 공감 많이 받은 댓글(글 제목과 함께)
+//    댓글은 한 단계 답글(parentId)까지. 답글의 답글은 같은 댓글 아래에 붙는다.
+//    같은 글이 검색엔진용 HTML 로도 나간다 — blogpage.js (/blog/…)
 //           GET  /community/post?id=&clientId=               글 하나 + 댓글
 //           GET  /community/hospital?id=                     상담소 페이지(프로필 + 글 목록)
 //    이용자 POST /community/like    {id, clientId, clientKey}            토글
@@ -28,6 +35,7 @@
 //           POST /admin/community/comment/hide {code, cid, hidden}
 import { json, isAdmin, verifyClient, s, nowMs } from './market.js';
 import { resolveHospital } from './hospital.js';
+import { pingIndexNow } from './blogpage.js';
 import { sendHtml, mailWrap, sendApplicationToOps, OPS_REPLY, resolveCounselor } from './auth.js';
 
 const rid = p => p + '_' + nowMs().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -73,23 +81,31 @@ const rowPost = (r, mine) => ({
   title: r.title, body: r.body || '', excerpt: plainOf(r.body).slice(0, 120), thumb: r.thumb || '', images: r.images === undefined ? undefined : parseImages(r.images),
   tags: String(r.tags || '').split(',').filter(Boolean),
   published: !!r.published, pinned: !!r.pinned, hidden: !!r.hidden,
-  likes: r.likes || 0, comments: r.comments || 0, mine: !!mine,
+  likes: r.likes || 0, comments: r.comments || 0, views: r.views || 0, mine: !!mine,
   created: r.created, updated: r.updated || r.created
 });
 const rowComment = c => ({
   id: c.id, postId: c.post_id, clientId: c.client_id, name: c.name || '익명', text: c.text,
-  ts: c.ts, hidden: !!c.hidden, byHospital: !!c.by_hospital
+  ts: c.ts, hidden: !!c.hidden, byHospital: !!c.by_hospital, parentId: c.parent_id || '', likes: c.likes || 0, mine: !!c.mine
 });
 
-const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb, p.author_id, p.author_name';
+// 댓글 + 공감 수
+const CM_SQL = 'SELECT c.*, (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes FROM post_comments c';
+const LIST_COLS = 'p.id, p.hospital_id, p.title, p.body, p.tags, p.published, p.pinned, p.hidden, p.created, p.updated, p.thumb, p.author_id, p.author_name, p.views';
 const LIST_SQL = `SELECT ${LIST_COLS}, h.name AS hospital_name, h.dept AS hospital_dept,
   (SELECT COUNT(*) FROM post_likes l WHERE l.post_id = p.id) AS likes,
   (SELECT COUNT(*) FROM post_comments c WHERE c.post_id = p.id AND c.hidden = 0) AS comments
   FROM posts p JOIN hospitals h ON h.id = p.hospital_id`;
 
-export async function handleCommunity(request, env, cors, path) {
+export async function handleCommunity(request, env, cors, path, ctx) {
   if (!/^\/(community|hospital\/(posts|comments|profile)|pro\/posts|admin\/community|admin\/hospital-apps)/.test(path)) return null;
   const db = env.DB;
+  // 답글이 붙을 댓글 — 답글의 답글은 맨 위 댓글 아래로 모은다(한 단계만). 없는 댓글이면 null.
+  const rootOf = async (postId, parentId) => {
+    if (!parentId) return '';
+    const p = await db.prepare('SELECT id, parent_id FROM post_comments WHERE id = ? AND post_id = ? AND hidden = 0').bind(parentId, postId).first();
+    return p ? (p.parent_id || p.id) : null;
+  };
   if (!db) return json({ error: 'db-not-bound' }, 503, cors);
 
   const url = new URL(request.url);
@@ -113,17 +129,60 @@ export async function handleCommunity(request, env, cors, path) {
     const cid = cleanId(q('clientId'));
     const cursor = Number(q('cursor')) || 0;
     const hosp = cleanId(q('hospital'));
+    const hot = q('sort') === 'hot';
+    const offset = Math.max(0, Math.min(2000, Number(q('offset')) || 0));
+    const listOf = v => s(v, 1400).split(',').map(cleanId).filter(Boolean).slice(0, 40);
+    const authors = listOf(q('authors')), hosps = listOf(q('hospitals')), ids = listOf(q('ids'));
+    const author = cleanId(q('author'));
+    const tag = s(q('tag'), 12).trim(), kw = s(q('q'), 40).trim();
+    const where = ['p.published = 1', 'p.hidden = 0', 'h.active = 1'], args = [];
+    const inList = (col, arr) => `${col} IN (${arr.map(() => '?').join(',')})`;
+    if (hosp) { where.push('p.hospital_id = ?'); args.push(hosp); }
+    if (author) { where.push('p.author_id = ?'); args.push(author); }
+    if (ids.length) { where.push(inList('p.id', ids)); args.push(...ids); }
+    if (authors.length || hosps.length) {   // 구독 — 구독한 상담사의 글이거나 구독한 상담소의 글
+      const or = [];
+      if (authors.length) { or.push(inList('p.author_id', authors)); args.push(...authors); }
+      if (hosps.length) { or.push(inList('p.hospital_id', hosps)); args.push(...hosps); }
+      where.push('(' + or.join(' OR ') + ')');
+    }
+    if (tag) { where.push("(',' || COALESCE(p.tags, '') || ',') LIKE ?"); args.push('%,' + tag.replace(/[%_]/g, '') + ',%'); }
+    if (kw) { const like = '%' + kw.replace(/[%_]/g, '') + '%'; where.push('(p.title LIKE ? OR p.body LIKE ? OR p.tags LIKE ? OR p.author_name LIKE ? OR h.name LIKE ?)'); args.push(like, like, like, like, like); }
+    if (cursor && !hot) { where.push('p.created < ?'); args.push(cursor); }
+    // 인기순: 좋아요·댓글·조회에 새 글 가산점(일주일 안의 글이 위로). 숫자가 바뀌는 순서라 offset 으로 넘긴다.
+    const order = hot ? `(likes * 3 + comments * 4 + COALESCE(p.views, 0) * 0.3 + CASE WHEN p.created > ${nowMs() - 7 * 86400000} THEN 6 ELSE 0 END) DESC, p.created DESC`
+      : (hosp ? 'p.pinned DESC, ' : '') + 'p.created DESC';
     let rows = [];
     try {
-      rows = (await db.prepare(LIST_SQL + ` WHERE p.published = 1 AND p.hidden = 0 AND h.active = 1
-        ${hosp ? 'AND p.hospital_id = ?' : ''} ${cursor ? 'AND p.created < ?' : ''}
-        ORDER BY ${hosp ? 'p.pinned DESC, ' : ''}p.created DESC LIMIT ?`)
-        .bind(...[hosp, cursor].filter(Boolean), PAGE + 1).all()).results || [];
+      rows = (await db.prepare(LIST_SQL + ` WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ? ${hot ? 'OFFSET ?' : ''}`)
+        .bind(...args, PAGE + 1, ...(hot ? [offset] : [])).all()).results || [];
     } catch (e) { if (noTable(e)) return json({ items: [], next: 0, missing: true }, 200, cors); throw e; }
     const more = rows.length > PAGE;
     if (more) rows.pop();
     const likes = await myLikes(cid, rows.map(r => r.id));
-    return json({ items: rows.map(r => rowPost(r, likes.has(r.id))), next: more ? rows[rows.length - 1].created : 0 }, 200, cors);
+    return json({ items: rows.map(r => rowPost(r, likes.has(r.id))), next: more && !hot ? rows[rows.length - 1].created : 0, nextOffset: more && hot ? offset + PAGE : 0 }, 200, cors);
+  }
+
+  if (path === '/community/tags' && method === 'GET') {
+    let rows = [];
+    try { rows = (await db.prepare("SELECT p.tags FROM posts p JOIN hospitals h ON h.id = p.hospital_id WHERE p.published = 1 AND p.hidden = 0 AND h.active = 1 AND p.tags != '' ORDER BY p.created DESC LIMIT 300").all()).results || []; } catch (e) {}
+    const n = {};
+    rows.forEach(r => String(r.tags || '').split(',').filter(Boolean).forEach(t => { n[t] = (n[t] || 0) + 1; }));
+    return json({ tags: Object.keys(n).sort((a, b) => n[b] - n[a]).slice(0, 14).map(t => ({ tag: t, n: n[t] })) }, 200, cors);
+  }
+
+  // 상담사 블로그 — 글쓴이 한 사람의 소개와 글. 소속이 확인된 운영 중인 상담사만.
+  if (path === '/community/author' && method === 'GET') {
+    const id = cleanId(q('id')), cid = cleanId(q('clientId'));
+    let a = null;
+    try { a = await db.prepare('SELECT id, name, hospital, hospital_id, hospital_ok, intro, tags, license, photo FROM counselors WHERE id = ? AND active = 1').bind(id).first(); } catch (e) {}
+    if (!a) return json({ error: 'not-found' }, 404, cors);
+    const rows = (await db.prepare(LIST_SQL + ' WHERE p.author_id = ? AND p.published = 1 AND p.hidden = 0 AND h.active = 1 ORDER BY p.created DESC LIMIT 60').bind(id).all()).results || [];
+    const likes = await myLikes(cid, rows.map(r => r.id));
+    let tags = []; try { tags = JSON.parse(a.tags || '[]'); } catch (e) {}
+    return json({ ok: true, author: { id: a.id, name: a.name, hospital: a.hospital || '', hospitalId: a.hospital_ok ? (a.hospital_id || '') : '', intro: a.intro || '', tags: Array.isArray(tags) ? tags.slice(0, 8) : [], license: a.license || '', photo: a.photo || '' },
+      totals: { posts: rows.length, likes: rows.reduce((x, r) => x + (r.likes || 0), 0), views: rows.reduce((x, r) => x + (r.views || 0), 0) },
+      items: rows.map(r => rowPost(r, likes.has(r.id))) }, 200, cors);
   }
 
   // ── 상담소 직접 등록 신청 (공개) ──
@@ -169,9 +228,22 @@ export async function handleCommunity(request, env, cors, path) {
     const r = await db.prepare(LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images') + ' WHERE p.id = ? AND p.published = 1 AND p.hidden = 0').bind(id).first();
     if (!r) return json({ error: 'not-found' }, 404, cors);
     const likes = await myLikes(cid, [id]);
-    const cm = (await db.prepare('SELECT * FROM post_comments WHERE post_id = ? AND hidden = 0 ORDER BY ts ASC LIMIT 200').bind(id).all()).results || [];
+    const cm = (await db.prepare(CM_SQL + ' WHERE c.post_id = ? AND c.hidden = 0 ORDER BY c.ts ASC LIMIT 300').bind(id).all()).results || [];
+    if (cid && cm.length) {
+      const mineSet = new Set(((await db.prepare('SELECT comment_id FROM post_comment_likes WHERE client_id = ? AND comment_id IN (SELECT id FROM post_comments WHERE post_id = ?)').bind(cid, id).all()).results || []).map(x => x.comment_id));
+      cm.forEach(x => { x.mine = mineSet.has(x.id); });
+    }
     const hosp = await db.prepare('SELECT * FROM hospitals WHERE id = ?').bind(r.hospital_id).first();
-    return json({ ok: true, post: rowPost(r, likes.has(id)), comments: cm.map(rowComment), hospital: hospPublic(hosp) }, 200, cors);
+    // 조회수 — 앱에서 글을 열 때마다 1. 응답을 기다리게 하지 않는다.
+    const up = db.prepare('UPDATE posts SET views = COALESCE(views, 0) + 1 WHERE id = ?').bind(id).run().catch(() => {});
+    if (ctx && ctx.waitUntil) ctx.waitUntil(up); else await up;
+    // 이어 볼 글 — 같은 글쓴이의 글 먼저, 모자라면 같은 상담소의 글
+    let more = [];
+    try {
+      more = (await db.prepare(LIST_SQL + ` WHERE p.published = 1 AND p.hidden = 0 AND h.active = 1 AND p.id != ? AND (p.hospital_id = ? OR p.author_id = ?)
+        ORDER BY (CASE WHEN p.author_id = ? THEN 0 ELSE 1 END), p.created DESC LIMIT 4`).bind(id, r.hospital_id, r.author_id || '-', r.author_id || '-').all()).results || [];
+    } catch (e) {}
+    return json({ ok: true, post: rowPost(r, likes.has(id)), comments: cm.map(rowComment), hospital: hospPublic(hosp), more: more.map(x => rowPost(x, false)) }, 200, cors);
   }
 
   if (path === '/community/hospital' && method === 'GET') {
@@ -211,10 +283,38 @@ export async function handleCommunity(request, env, cors, path) {
     if (!p) return json({ error: 'not-found' }, 404, cors);
     const recent = await db.prepare('SELECT COUNT(*) n FROM post_comments WHERE client_id = ? AND ts > ?').bind(cid, nowMs() - 600000).first();
     if ((recent && recent.n) >= COMMENT_PER_10MIN) return json({ error: 'too-many' }, 429, cors);
-    const c = { id: rid('cm'), post_id: id, client_id: cid, name, text, ts: nowMs(), hidden: 0, by_hospital: 0 };
-    await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital) VALUES (?,?,?,?,?,?,0,0)')
-      .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts).run();
+    const parent = await rootOf(id, cleanId(body.parentId));
+    if (parent === null) return json({ error: 'not-found' }, 404, cors);
+    const c = { id: rid('cm'), post_id: id, client_id: cid, name, text, ts: nowMs(), hidden: 0, by_hospital: 0, parent_id: parent };
+    await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,0,?)')
+      .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts, parent || null).run();
     return json({ ok: true, comment: rowComment(c) }, 200, cors);
+  }
+
+  if (path === '/community/comment/like' && method === 'POST') {
+    const cid = cleanId(body.clientId), cmid = cleanId(body.cid);
+    if (!cid || !cmid) return json({ error: 'missing' }, 400, cors);
+    if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
+    const cm = await db.prepare('SELECT id FROM post_comments WHERE id = ? AND hidden = 0').bind(cmid).first();
+    if (!cm) return json({ error: 'not-found' }, 404, cors);
+    const had = await db.prepare('SELECT 1 x FROM post_comment_likes WHERE comment_id = ? AND client_id = ?').bind(cmid, cid).first();
+    if (had) await db.prepare('DELETE FROM post_comment_likes WHERE comment_id = ? AND client_id = ?').bind(cmid, cid).run();
+    else await db.prepare('INSERT INTO post_comment_likes (comment_id, client_id, ts) VALUES (?,?,?)').bind(cmid, cid, nowMs()).run();
+    const n = await db.prepare('SELECT COUNT(*) n FROM post_comment_likes WHERE comment_id = ?').bind(cmid).first();
+    return json({ ok: true, likes: (n && n.n) || 0, mine: !had }, 200, cors);
+  }
+
+  // 베스트 댓글 — 최근 30일에 공감을 많이 받은 댓글. 커뮤니티 첫 화면에 글 제목과 함께 보여준다.
+  if (path === '/community/best' && method === 'GET') {
+    let rows = [];
+    try {
+      rows = (await db.prepare(`SELECT c.id, c.post_id, c.name, c.text, c.ts, c.by_hospital, p.title,
+          (SELECT COUNT(*) FROM post_comment_likes l WHERE l.comment_id = c.id) AS likes
+        FROM post_comments c JOIN posts p ON p.id = c.post_id JOIN hospitals h ON h.id = p.hospital_id
+        WHERE c.hidden = 0 AND c.ts > ? AND p.published = 1 AND p.hidden = 0 AND h.active = 1
+        ORDER BY likes DESC, c.ts DESC LIMIT 8`).bind(nowMs() - 30 * 86400000).all()).results || [];
+    } catch (e) {}
+    return json({ items: rows.filter(r => r.likes > 0).map(r => ({ id: r.id, postId: r.post_id, title: r.title, name: r.name || '익명', text: r.text, ts: r.ts, likes: r.likes, byHospital: !!r.by_hospital })) }, 200, cors);
   }
 
   if (path === '/community/comment/delete' && method === 'POST') {
@@ -222,6 +322,8 @@ export async function handleCommunity(request, env, cors, path) {
     if (!cid || !cmid) return json({ error: 'missing' }, 400, cors);
     if (await verifyClient(env, cid, s(body.clientKey, 64)) === 'deny') return json({ error: 'forbidden' }, 403, cors);
     const r = await db.prepare('DELETE FROM post_comments WHERE id = ? AND client_id = ? AND by_hospital = 0').bind(cmid, cid).run();
+    // 지운 댓글에 달린 답글도 함께 지운다 — 남겨 두면 어디에 단 말인지 알 수 없다
+    if (r.meta && r.meta.changes) { await db.prepare('DELETE FROM post_comments WHERE parent_id = ?').bind(cmid).run(); await db.prepare('DELETE FROM post_comment_likes WHERE comment_id = ?').bind(cmid).run().catch(() => {}); }
     return json({ ok: true, deleted: !!(r.meta && r.meta.changes) }, 200, cors);
   }
 
@@ -261,6 +363,7 @@ export async function handleCommunity(request, env, cors, path) {
           .bind(id, h.id, title, text, tags, published, pinned, nowMs(), nowMs(), imagesJson, thumb).run();
       }
       const r = await db.prepare(LIST_SQL.replace(LIST_COLS, LIST_COLS + ', p.images') + ' WHERE p.id = ?').bind(id).first();
+      if (published) pingIndexNow(ctx, id, env);   // 네이버·빙에 새 글 주소를 알린다
       return json({ ok: true, post: rowPost(r, false) }, 200, cors);
     }
 
@@ -278,7 +381,7 @@ export async function handleCommunity(request, env, cors, path) {
       const id = cleanId(q('id'));
       const own = await db.prepare('SELECT id FROM posts WHERE id = ? AND hospital_id = ?').bind(id, h.id).first();
       if (!own) return json({ error: 'not-found' }, 404, cors);
-      const cm = (await db.prepare('SELECT * FROM post_comments WHERE post_id = ? ORDER BY ts ASC LIMIT 300').bind(id).all()).results || [];
+      const cm = (await db.prepare(CM_SQL + ' WHERE c.post_id = ? ORDER BY c.ts ASC LIMIT 300').bind(id).all()).results || [];
       return json({ ok: true, comments: cm.map(rowComment) }, 200, cors);
     }
 
@@ -294,9 +397,11 @@ export async function handleCommunity(request, env, cors, path) {
       if (!id || !text) return json({ error: 'missing' }, 400, cors);
       const own = await db.prepare('SELECT id FROM posts WHERE id = ? AND hospital_id = ?').bind(id, h.id).first();
       if (!own) return json({ error: 'not-found' }, 404, cors);
-      const c = { id: rid('cm'), post_id: id, client_id: 'hosp:' + h.id, name: h.name, text, ts: nowMs(), hidden: 0, by_hospital: 1 };
-      await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital) VALUES (?,?,?,?,?,?,0,1)')
-        .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts).run();
+      const parent = await rootOf(id, cleanId(body.parentId));
+      if (parent === null) return json({ error: 'not-found' }, 404, cors);
+      const c = { id: rid('cm'), post_id: id, client_id: 'hosp:' + h.id, name: h.name, text, ts: nowMs(), hidden: 0, by_hospital: 1, parent_id: parent };
+      await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,1,?)')
+        .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts, parent || null).run();
       return json({ ok: true, comment: rowComment(c) }, 200, cors);
     }
 
@@ -356,7 +461,32 @@ export async function handleCommunity(request, env, cors, path) {
           .bind(id, h.id, title, text, tags, published, nowMs(), nowMs(), imagesJson, thumb, me.id, s(me.name, 40)).run();
       }
       const r = await db.prepare(MINE + ' WHERE p.id = ?').bind(id).first();
+      if (published) pingIndexNow(ctx, id, env);
       return json({ ok: true, post: rowPost(r, false) }, 200, cors);
+    }
+
+    const ownPost = pid => db.prepare('SELECT id FROM posts WHERE id = ? AND hospital_id = ? AND author_id = ?').bind(pid, h.id, me.id).first();
+    if (path === '/pro/posts/comments' && method === 'GET') {
+      const id = cleanId(q('id'));
+      if (!(await ownPost(id))) return json({ error: 'not-found' }, 404, cors);
+      const cm = (await db.prepare(CM_SQL + ' WHERE c.post_id = ? ORDER BY c.ts ASC LIMIT 300').bind(id).all()).results || [];
+      return json({ ok: true, comments: cm.map(rowComment) }, 200, cors);
+    }
+    if (path === '/pro/posts/reply' && method === 'POST') {
+      const id = cleanId(body.id), text = maskContact(s(body.text, COMMENT_MAX)).trim();
+      if (!id || !text) return json({ error: 'missing' }, 400, cors);
+      if (!(await ownPost(id))) return json({ error: 'not-found' }, 404, cors);
+      const parent = await rootOf(id, cleanId(body.parentId));
+      if (parent === null) return json({ error: 'not-found' }, 404, cors);
+      const c = { id: rid('cm'), post_id: id, client_id: 'pro:' + me.id, name: s(me.name, 20) + ' 상담사', text, ts: nowMs(), hidden: 0, by_hospital: 1, parent_id: parent };
+      await db.prepare('INSERT INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES (?,?,?,?,?,?,0,1,?)')
+        .bind(c.id, c.post_id, c.client_id, c.name, c.text, c.ts, parent || null).run();
+      return json({ ok: true, comment: rowComment(c) }, 200, cors);
+    }
+    if (path === '/pro/posts/comments/hide' && method === 'POST') {
+      const cmid = cleanId(body.cid), hidden = body.hidden ? 1 : 0;
+      await db.prepare('UPDATE post_comments SET hidden = ? WHERE id = ? AND post_id IN (SELECT id FROM posts WHERE hospital_id = ? AND author_id = ?)').bind(hidden, cmid, h.id, me.id).run();
+      return json({ ok: true }, 200, cors);
     }
 
     if (path === '/pro/posts/delete' && method === 'POST') {

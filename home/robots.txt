@@ -4,3 +4,4 @@ Disallow: /roadmap/
 Disallow: /survey/results
 
 Sitemap: https://mindinside.kr/sitemap.xml
+Sitemap: https://mindinside.kr/blog/sitemap.xml
