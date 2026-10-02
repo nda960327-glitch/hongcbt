@@ -48,6 +48,7 @@
 //    이용자 POST /community/like    {id, clientId, clientKey}            토글
 //           POST /community/comment {id, text, name, clientId, clientKey}
 //           POST /community/comment/delete {cid, clientId, clientKey}   본인 댓글
+//           POST /community/comment/edit {cid, text}   본인 댓글 고치기 — 새 글과 같은 검사를 다시 거친다
 //    상담소 GET  /hospital/posts?hsession=            내 글 전체(초안 포함) + 댓글 수
 //           POST /hospital/posts/save {hsession, post: {id?, title, body, tags, published, pinned}}
 //           POST /hospital/posts/delete {hsession, id}
@@ -674,6 +675,20 @@ export async function handleCommunity(request, env, cors, path, ctx) {
         ORDER BY likes DESC, c.ts DESC LIMIT 8`).bind(nowMs() - 30 * 86400000).all()).results || [];
     } catch (e) {}
     return json({ items: rows.filter(r => r.likes > 0).map(r => ({ id: r.id, postId: r.post_id, title: r.title, name: r.name || '익명', text: r.text, ts: r.ts, likes: r.likes, byHospital: !!r.by_hospital })) }, 200, cors);
+  }
+
+  if (path === '/community/comment/edit' && method === 'POST') {
+    const cmid = cleanId(body.cid);
+    const text = maskContact(s(body.text, COMMENT_MAX)).trim();
+    const u = await userOf();
+    if (!u) return LOGIN();
+    if (!cmid || !text) return json({ error: 'missing' }, 400, cors);
+    const row = await db.prepare('SELECT c.id, p.board FROM post_comments c JOIN posts p ON p.id = c.post_id WHERE c.id = ? AND c.client_id = ? AND c.by_hospital = 0 AND c.hidden = 0').bind(cmid, u.key).first();
+    if (!row) return json({ error: 'not-found' }, 404, cors);
+    // 고친 글도 새 글과 똑같이 거른다 — 올린 뒤 고쳐서 규칙을 피해 가지 못하게
+    if (!isPrivate(row.board)) { const bad = screen(text); if (bad) return json(bad, 422, cors); }
+    await db.prepare('UPDATE post_comments SET text = ? WHERE id = ? AND client_id = ?').bind(text, cmid, u.key).run();
+    return json({ ok: true, text }, 200, cors);
   }
 
   if (path === '/community/comment/delete' && method === 'POST') {

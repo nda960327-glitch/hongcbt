@@ -266,7 +266,7 @@ window.Community = {
     const mine = cid && c.clientId === cid;
     return `<div class="cm-comment${c.byHospital ? ' cm-comment--hosp' : ''}" data-cid="${esc(c.id)}">
       <div class="cm-comment__head"><b>${esc(c.name)}</b>${c.byHospital ? '<span class="cm-comment__badge">상담소</span>' : ''}<span>${this._md(c.ts)}</span>
-        ${mine ? '<button class="cm-comment__del" data-cm-del>삭제</button>' : ''}</div>
+        ${mine ? '<button class="cm-comment__del" data-cm-edit>수정</button><button class="cm-comment__del" data-cm-del style="margin-left:.6rem">삭제</button>' : ''}</div>
       <p>${esc(c.text)}</p>
     </div>`;
   },
@@ -324,6 +324,26 @@ window.Community = {
       } else if (window.App && window.App.showRecordToast) window.App.showRecordToast('지금은 올리지 못했어요');
     } catch (e) {}
     btn.disabled = false; btn.textContent = '올리기';
+  },
+
+  // 내 댓글 고치기 — 서버가 새 글과 같은 검사를 다시 한다
+  async edit(cid) {
+    const d = this._post; if (!d) return;
+    const c = (d.comments || []).find(x => x.id === cid); if (!c) return;
+    const v = await window.UI.prompt({ title: '댓글 고치기', value: c.text, multiline: true, maxLength: 500, okLabel: '저장', cancelLabel: '취소' });
+    if (v == null) return;
+    const text = String(v).trim();
+    if (!text || text === c.text) return;
+    try {
+      const r = await window.Api.post('/api/community/comment/edit', { cid, text, clientId: this._cid() });
+      const j = r ? await r.json().catch(() => null) : null;
+      if (j && j.ok) {
+        c.text = j.text;
+        const el = document.querySelector(`#cm-post [data-cid="${cid}"]`);
+        if (el) el.outerHTML = this._commentHtml(c, this._cid());
+        window.App.showRecordToast('댓글을 고쳤어요');
+      } else window.App.showRecordToast((j && j.message) || '지금은 고치지 못했어요');
+    } catch (e) {}
   },
 
   async del(cid) {
@@ -418,6 +438,8 @@ document.addEventListener('click', function (e) {
   if (e.target.closest('[data-cm-close]')) { C.close(); return; }
   if (e.target.closest('[data-cm-like]')) { C.like(); return; }
   if (e.target.closest('[data-cm-send]')) { C.send(); return; }
+  const ed = e.target.closest('[data-cm-edit]');
+  if (ed) { const row = ed.closest('[data-cid]'); if (row) C.edit(row.dataset.cid); return; }
   const del = e.target.closest('[data-cm-del]');
   if (del) { const row = del.closest('[data-cid]'); if (row) C.del(row.dataset.cid); return; }
   const hosp = e.target.closest('[data-cm-hosp]');

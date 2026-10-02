@@ -45,83 +45,83 @@
 ],
 [
 "예시 글: 1년차, 첫 당직 밤에",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_res1', 'community', '[예시] 1년차, 첫 당직 밤에 배운 것', '# 당직실 전화가 울릴 때마다 심장이 먼저 뛰던 밤이었어요.\n\n응급실에서 온 콜을 받고 내려가면서 머릿속으로 체크리스트를 세 번쯤 돌렸습니다. 막상 환자분 앞에 앉으니 준비한 질문보다 먼저 나온 말은 \"많이 놀라셨죠\"였어요.\n\n## 그날 배운 것\n\n- 평가보다 **안심이 먼저**라는 것\n- 모르면 모른다고 말하고 윗년차에게 묻는 게 환자에게 가장 안전하다는 것\n- 기록은 그 자리에서. 새벽 4시의 기억은 믿을 수 없어요\n\n다른 선생님들은 첫 당직 때 어떠셨나요?\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000100, 1790900000100, '운영팀 예시', 'resident')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_res1', 'community', '[예시] 1년차, 첫 당직 밤에 배운 것', '# 당직실 전화가 울릴 때마다 심장이 먼저 뛰던 밤이었어요.\n\n응급실에서 온 콜을 받고 내려가면서 머릿속으로 체크리스트를 세 번쯤 돌렸습니다. 막상 환자분 앞에 앉으니 준비한 질문보다 먼저 나온 말은 \"많이 놀라셨죠\"였어요.\n\n## 그날 배운 것\n\n- 평가보다 **안심이 먼저**라는 것\n- 모르면 모른다고 말하고 윗년차에게 묻는 게 환자에게 가장 안전하다는 것\n- 기록은 그 자리에서. 새벽 4시의 기억은 믿을 수 없어요\n\n다른 선생님들은 첫 당직 때 어떠셨나요?\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000100, 1790900000100, '운영팀', 'resident')"
 ],
 [
 "예시 댓글 res1-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_0', 'po_ex_res1', 'sys', '운영팀 예시', '[예시 댓글] 저는 첫 콜 받고 계단을 두 층 잘못 내려갔어요. 다들 그렇게 시작하는 것 같아요.', 1790900060100, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_0', 'po_ex_res1', 'sys', '운영팀', '[예시 댓글] 저는 첫 콜 받고 계단을 두 층 잘못 내려갔어요. 다들 그렇게 시작하는 것 같아요.', 1790900060100, 0, 0, NULL)"
 ],
 [
 "예시 댓글 res1-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_1', 'po_ex_res1', 'sys', '운영팀 예시', '[예시 댓글] \"안심이 먼저\" 적어 둡니다. 다음 주 첫 당직이에요.', 1790900120100, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_1', 'po_ex_res1', 'sys', '운영팀', '[예시 댓글] \"안심이 먼저\" 적어 둡니다. 다음 주 첫 당직이에요.', 1790900120100, 0, 0, NULL)"
 ],
 [
 "예시 댓글 res1-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_2', 'po_ex_res1', 'sys', '운영팀 예시', '[예시 댓글] 응원해요. 야식은 꼭 챙기세요!', 1790900180100, 0, 0, 'cm_ex_res1_1')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res1_2', 'po_ex_res1', 'sys', '운영팀', '[예시 댓글] 응원해요. 야식은 꼭 챙기세요!', 1790900180100, 0, 0, 'cm_ex_res1_1')"
 ],
 [
 "예시 글: 정신치료 지도감독, 다",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_res2', 'community', '[예시] 정신치료 지도감독, 다들 어떻게 준비하세요?', '# 축어록을 쓰다 보면 내가 한 말이 제일 부끄러워요.\n\n지도감독 시간에 들고 갈 회기를 고르는 기준이 궁금합니다. 저는 잘 된 회기보다 **막혔던 회기**를 가져가려고 하는데, 막상 고르려면 망설여져요.\n\n## 궁금한 것\n\n- 축어록은 전체를 쓰시나요, 핵심 10분만 쓰시나요\n- 내 감정 반응은 어디까지 적으시나요\n\n(환자 정보는 모두 빼고 이야기해요.)\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000107, 1790900000107, '운영팀 예시', 'resident')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_res2', 'community', '[예시] 정신치료 지도감독, 다들 어떻게 준비하세요?', '# 축어록을 쓰다 보면 내가 한 말이 제일 부끄러워요.\n\n지도감독 시간에 들고 갈 회기를 고르는 기준이 궁금합니다. 저는 잘 된 회기보다 **막혔던 회기**를 가져가려고 하는데, 막상 고르려면 망설여져요.\n\n## 궁금한 것\n\n- 축어록은 전체를 쓰시나요, 핵심 10분만 쓰시나요\n- 내 감정 반응은 어디까지 적으시나요\n\n(환자 정보는 모두 빼고 이야기해요.)\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000107, 1790900000107, '운영팀', 'resident')"
 ],
 [
 "예시 댓글 res2-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res2_0', 'po_ex_res2', 'sys', '운영팀 예시', '[예시 댓글] 저는 막힌 지점 앞뒤 10분만 씁니다. 전체를 쓰면 지쳐서 정작 생각을 못 하더라고요.', 1790900060107, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res2_0', 'po_ex_res2', 'sys', '운영팀', '[예시 댓글] 저는 막힌 지점 앞뒤 10분만 씁니다. 전체를 쓰면 지쳐서 정작 생각을 못 하더라고요.', 1790900060107, 0, 0, NULL)"
 ],
 [
 "예시 댓글 res2-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res2_1', 'po_ex_res2', 'sys', '운영팀 예시', '[예시 댓글] 내 감정 반응을 적는 칸을 따로 만들어 두니 지도감독이 훨씬 깊어졌어요.', 1790900120107, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_res2_1', 'po_ex_res2', 'sys', '운영팀', '[예시 댓글] 내 감정 반응을 적는 칸을 따로 만들어 두니 지도감독이 훨씬 깊어졌어요.', 1790900120107, 0, 0, NULL)"
 ],
 [
 "예시 글: 상담심리 대학원 면접,",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_stu1', 'community', '[예시] 상담심리 대학원 면접, 이런 질문 받았어요', '# 준비하시는 분들께 도움이 될까 해서 남겨요.\n\n## 받은 질문\n\n- 왜 임상이 아니라 상담인가요\n- 최근에 읽은 논문 하나를 설명해 보세요\n- 본인이 상담을 받아본 경험이 있나요\n\n## 느낀 점\n\n정답을 말하려 하기보다 **내 말로 솔직하게** 답한 질문에서 분위기가 좋았어요. 연구 계획은 주제보다 ''왜 궁금한지''를 더 물어보셨습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000114, 1790900000114, '운영팀 예시', 'student')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_stu1', 'community', '[예시] 상담심리 대학원 면접, 이런 질문 받았어요', '# 준비하시는 분들께 도움이 될까 해서 남겨요.\n\n## 받은 질문\n\n- 왜 임상이 아니라 상담인가요\n- 최근에 읽은 논문 하나를 설명해 보세요\n- 본인이 상담을 받아본 경험이 있나요\n\n## 느낀 점\n\n정답을 말하려 하기보다 **내 말로 솔직하게** 답한 질문에서 분위기가 좋았어요. 연구 계획은 주제보다 ''왜 궁금한지''를 더 물어보셨습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000114, 1790900000114, '운영팀', 'student')"
 ],
 [
 "예시 댓글 stu1-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_stu1_0', 'po_ex_stu1', 'sys', '운영팀 예시', '[예시 댓글] 논문 질문 무섭네요. 한 편은 제대로 읽고 가야겠어요.', 1790900060114, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_stu1_0', 'po_ex_stu1', 'sys', '운영팀', '[예시 댓글] 논문 질문 무섭네요. 한 편은 제대로 읽고 가야겠어요.', 1790900060114, 0, 0, NULL)"
 ],
 [
 "예시 댓글 stu1-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_stu1_1', 'po_ex_stu1', 'sys', '운영팀 예시', '[예시 댓글] 상담 받아본 경험 질문은 저도 받았어요. 솔직하게 답하는 게 맞는 것 같아요.', 1790900120114, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_stu1_1', 'po_ex_stu1', 'sys', '운영팀', '[예시 댓글] 상담 받아본 경험 질문은 저도 받았어요. 솔직하게 답하는 게 맞는 것 같아요.', 1790900120114, 0, 0, NULL)"
 ],
 [
 "예시 글: 약물치료 중인 내담자,",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_exp1', 'community', '[예시] 약물치료 중인 내담자, 상담에서 무엇을 확인하세요?', '# 진료와 상담이 따로 놀지 않게 하려면 어떻게 하시나요.\n\n내담자가 약을 먹고 있다는 걸 알면 저는 첫 회기에 세 가지를 여쭙니다.\n\n- 어디에서, 얼마나 오래 진료받고 있는지\n- 상담을 받는다는 걸 주치의가 알고 있는지\n- 약에 대해 걱정되는 점이 있는지 (있다면 주치의에게 말씀드리도록 권해요)\n\n약 자체에 대한 판단은 하지 않고, 걱정을 **진료실로 가져갈 수 있게** 돕는 데까지만 합니다. 다른 선생님들의 방식이 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000121, 1790900000121, '운영팀 예시', 'expert')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_exp1', 'community', '[예시] 약물치료 중인 내담자, 상담에서 무엇을 확인하세요?', '# 진료와 상담이 따로 놀지 않게 하려면 어떻게 하시나요.\n\n내담자가 약을 먹고 있다는 걸 알면 저는 첫 회기에 세 가지를 여쭙니다.\n\n- 어디에서, 얼마나 오래 진료받고 있는지\n- 상담을 받는다는 걸 주치의가 알고 있는지\n- 약에 대해 걱정되는 점이 있는지 (있다면 주치의에게 말씀드리도록 권해요)\n\n약 자체에 대한 판단은 하지 않고, 걱정을 **진료실로 가져갈 수 있게** 돕는 데까지만 합니다. 다른 선생님들의 방식이 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000121, 1790900000121, '운영팀', 'expert')"
 ],
 [
 "예시 댓글 exp1-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_exp1_0', 'po_ex_exp1', 'sys', '운영팀 예시', '[예시 댓글] 저도 비슷합니다. 내담자 동의를 받아 주치의께 짧은 소견을 전하기도 해요.', 1790900060121, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_exp1_0', 'po_ex_exp1', 'sys', '운영팀', '[예시 댓글] 저도 비슷합니다. 내담자 동의를 받아 주치의께 짧은 소견을 전하기도 해요.', 1790900060121, 0, 0, NULL)"
 ],
 [
 "예시 댓글 exp1-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_exp1_1', 'po_ex_exp1', 'sys', '운영팀 예시', '[예시 댓글] 수면과 식사 변화를 매 회기 가볍게 확인하고 기록해 둡니다.', 1790900120121, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_exp1_1', 'po_ex_exp1', 'sys', '운영팀', '[예시 댓글] 수면과 식사 변화를 매 회기 가볍게 확인하고 기록해 둡니다.', 1790900120121, 0, 0, NULL)"
 ],
 [
 "예시 글: 우렁이한테 \"오늘 아무것",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_free1', 'community', '[예시] 우렁이한테 \"오늘 아무것도 못 했어\" 했더니', '# 숨 쉬고 밥 먹은 것도 한 일이라고 하네요.\n\n순간 웃음이 났는데, 생각해 보니 오늘 진짜 그것만 했더라고요. 그래도 한 일 목록에 두 개는 적었습니다.\n\n다들 오늘 한 일 하나씩 적고 가요. 아주 작은 것도 좋아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000128, 1790900000128, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_free1', 'community', '[예시] 우렁이한테 \"오늘 아무것도 못 했어\" 했더니', '# 숨 쉬고 밥 먹은 것도 한 일이라고 하네요.\n\n순간 웃음이 났는데, 생각해 보니 오늘 진짜 그것만 했더라고요. 그래도 한 일 목록에 두 개는 적었습니다.\n\n다들 오늘 한 일 하나씩 적고 가요. 아주 작은 것도 좋아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000128, 1790900000128, '운영팀', 'free')"
 ],
 [
 "예시 댓글 free1-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_0', 'po_ex_free1', 'sys', '운영팀 예시', '[예시 댓글] 빨래 돌렸어요. 널지는 못했지만…', 1790900060128, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_0', 'po_ex_free1', 'sys', '운영팀', '[예시 댓글] 빨래 돌렸어요. 널지는 못했지만…', 1790900060128, 0, 0, NULL)"
 ],
 [
 "예시 댓글 free1-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_1', 'po_ex_free1', 'sys', '운영팀 예시', '[예시 댓글] 널지 못한 빨래도 반은 한 거예요!', 1790900120128, 0, 0, 'cm_ex_free1_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_1', 'po_ex_free1', 'sys', '운영팀', '[예시 댓글] 널지 못한 빨래도 반은 한 거예요!', 1790900120128, 0, 0, 'cm_ex_free1_0')"
 ],
 [
 "예시 댓글 free1-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_2', 'po_ex_free1', 'sys', '운영팀 예시', '[예시 댓글] 물 한 컵 마셨습니다. 저도 한 일로 칠게요.', 1790900180128, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_free1_2', 'po_ex_free1', 'sys', '운영팀', '[예시 댓글] 물 한 컵 마셨습니다. 저도 한 일로 칠게요.', 1790900180128, 0, 0, NULL)"
 ],
 [
 "예시 글: 상담을 받고 나면 오히",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_qna1', 'community', '[예시] 상담을 받고 나면 오히려 더 우울한 날이 있어요', '# 원래 이런 건가요?\n\n상담 세 번째인데, 끝나고 집에 오는 길에 기분이 더 가라앉는 날이 있어요. 평소에 안 꺼내던 이야기를 해서 그런 것 같기도 하고요.\n\n계속 받는 게 맞는지, 상담사님께 이런 말을 해도 되는지 궁금합니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000135, 1790900000135, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex_qna1', 'community', '[예시] 상담을 받고 나면 오히려 더 우울한 날이 있어요', '# 원래 이런 건가요?\n\n상담 세 번째인데, 끝나고 집에 오는 길에 기분이 더 가라앉는 날이 있어요. 평소에 안 꺼내던 이야기를 해서 그런 것 같기도 하고요.\n\n계속 받는 게 맞는지, 상담사님께 이런 말을 해도 되는지 궁금합니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 글이 쌓이면 내릴 예정입니다.}', '', 1, 0, 0, 1790900000135, 1790900000135, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 qna1-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_qna1_0', 'po_ex_qna1', 'sys', '운영팀 예시', '[예시 댓글] 저도 그랬어요. 5회쯤 지나니까 끝나고 나서 오히려 가벼워지는 날이 늘었어요.', 1790900060135, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_qna1_0', 'po_ex_qna1', 'sys', '운영팀', '[예시 댓글] 저도 그랬어요. 5회쯤 지나니까 끝나고 나서 오히려 가벼워지는 날이 늘었어요.', 1790900060135, 0, 0, NULL)"
 ],
 [
 "예시 댓글 qna1-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_qna1_1', 'po_ex_qna1', 'sys', '운영팀 예시', '[예시 댓글] 그 느낌을 다음 상담에서 그대로 말해 보세요. 저는 그 말을 한 뒤로 상담 속도를 같이 조절했어요.', 1790900120135, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex_qna1_1', 'po_ex_qna1', 'sys', '운영팀', '[예시 댓글] 그 느낌을 다음 상담에서 그대로 말해 보세요. 저는 그 말을 한 뒤로 상담 속도를 같이 조절했어요.', 1790900120135, 0, 0, NULL)"
 ],
 [
 "편집팀 칼럼: '조울증'은 기분이 좋",
@@ -249,379 +249,379 @@
 ],
 [
 "예시 글 2차: 오늘 빨래 개다가 든 생각",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_00', 'community', '오늘 빨래 개다가 든 생각', '# 별일 없는 하루였는데 그냥 적어 보고 싶어서 왔어요.\n\n퇴근하고 집에 오니까 건조대에 빨래가 사흘째 걸려 있더라고요. 평소 같으면 못 본 척하고 누웠을 텐데, 오늘은 이상하게 손이 가서 하나씩 갰어요.\n\n수건을 개는데 엄마가 개던 방식이랑 제가 개는 방식이 똑같다는 걸 처음 알았어요. 세 번 접고 반으로 한 번 더. 누가 가르쳐 준 적도 없는데 손이 기억하고 있었나 봐요.\n\n## 오늘의 소소한 것들\n\n- 양말 짝이 전부 맞았음 (이게 제일 놀라움)\n- 서랍이 닫힘\n- 건조대 접어서 베란다에 넣음\n\n대단한 일은 아닌데 방이 조금 넓어 보여서 기분이 괜찮아요. 다들 오늘 하루는 어땠어요? **별일 없었다**는 이야기도 저는 듣기 좋더라고요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790902000000, 1790902000000, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_00', 'community', '오늘 빨래 개다가 든 생각', '# 별일 없는 하루였는데 그냥 적어 보고 싶어서 왔어요.\n\n퇴근하고 집에 오니까 건조대에 빨래가 사흘째 걸려 있더라고요. 평소 같으면 못 본 척하고 누웠을 텐데, 오늘은 이상하게 손이 가서 하나씩 갰어요.\n\n수건을 개는데 엄마가 개던 방식이랑 제가 개는 방식이 똑같다는 걸 처음 알았어요. 세 번 접고 반으로 한 번 더. 누가 가르쳐 준 적도 없는데 손이 기억하고 있었나 봐요.\n\n## 오늘의 소소한 것들\n\n- 양말 짝이 전부 맞았음 (이게 제일 놀라움)\n- 서랍이 닫힘\n- 건조대 접어서 베란다에 넣음\n\n대단한 일은 아닌데 방이 조금 넓어 보여서 기분이 괜찮아요. 다들 오늘 하루는 어땠어요? **별일 없었다**는 이야기도 저는 듣기 좋더라고요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790902000000, 1790902000000, '운영팀', 'free')"
 ],
 [
 "예시 댓글 2차 00-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_0', 'po_ex2_00', 'sys', '운영팀 예시', '양말 짝이 다 맞는 날은 진짜 운 좋은 날이에요. 저는 늘 한 짝이 어디로 가요.', 1790902600000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_0', 'po_ex2_00', 'sys', '운영팀', '양말 짝이 다 맞는 날은 진짜 운 좋은 날이에요. 저는 늘 한 짝이 어디로 가요.', 1790902600000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 00-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_1', 'po_ex2_00', 'sys', '운영팀 예시', 'ㅋㅋ 저희 집 세탁기도 한 짝씩 먹어요. 어딘가에 양말 나라가 있나 봐요.', 1790903200000, 0, 0, 'cm_ex2_00_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_1', 'po_ex2_00', 'sys', '운영팀', 'ㅋㅋ 저희 집 세탁기도 한 짝씩 먹어요. 어딘가에 양말 나라가 있나 봐요.', 1790903200000, 0, 0, 'cm_ex2_00_0')"
 ],
 [
 "예시 댓글 2차 00-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_2', 'po_ex2_00', 'sys', '운영팀 예시', '수건 개는 방식 이야기 읽다가 괜히 마음이 따뜻해졌어요. 저도 오늘 빨래 개야겠다.', 1790903800000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_00_2', 'po_ex2_00', 'sys', '운영팀', '수건 개는 방식 이야기 읽다가 괜히 마음이 따뜻해졌어요. 저도 오늘 빨래 개야겠다.', 1790903800000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 양말 짝짝이로 출근한 사람",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_01', 'community', '양말 짝짝이로 출근한 사람 나야 나', '# 오늘 하루 종일 발목만 숨기고 다녔습니다.\n\n아침에 불도 안 켜고 서랍에서 양말을 꺼내 신었거든요. 지하철에서 앉아서 다리를 꼬는 순간 알았어요. 한쪽은 회색, 한쪽은 남색에 작은 곰돌이가 그려져 있더라고요.\n\n처음에는 얼굴이 화끈했는데, 점심쯤 되니까 그냥 웃기기만 했어요. 옆자리 동료가 먼저 발견하고는 ''오늘 콘셉트 있네요'' 하길래 저도 ''네, 한쪽은 월요일 기분이고 한쪽은 금요일 기분이에요'' 했어요.\n\n## 오늘 배운 것\n\n- 아침에 불은 켜자\n- 남들은 생각보다 내 발목에 관심이 없다\n- 들켜도 웃으면 별일 아니다\n\n예전 같았으면 하루 종일 ''사람들이 이상하게 봤겠지'' 하고 곱씹었을 텐데, 오늘은 **웃고 넘어간 내가 조금 신기**했어요. 여러분도 이런 소소한 실수담 있으면 들려주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790902937000, 1790902937000, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_01', 'community', '양말 짝짝이로 출근한 사람 나야 나', '# 오늘 하루 종일 발목만 숨기고 다녔습니다.\n\n아침에 불도 안 켜고 서랍에서 양말을 꺼내 신었거든요. 지하철에서 앉아서 다리를 꼬는 순간 알았어요. 한쪽은 회색, 한쪽은 남색에 작은 곰돌이가 그려져 있더라고요.\n\n처음에는 얼굴이 화끈했는데, 점심쯤 되니까 그냥 웃기기만 했어요. 옆자리 동료가 먼저 발견하고는 ''오늘 콘셉트 있네요'' 하길래 저도 ''네, 한쪽은 월요일 기분이고 한쪽은 금요일 기분이에요'' 했어요.\n\n## 오늘 배운 것\n\n- 아침에 불은 켜자\n- 남들은 생각보다 내 발목에 관심이 없다\n- 들켜도 웃으면 별일 아니다\n\n예전 같았으면 하루 종일 ''사람들이 이상하게 봤겠지'' 하고 곱씹었을 텐데, 오늘은 **웃고 넘어간 내가 조금 신기**했어요. 여러분도 이런 소소한 실수담 있으면 들려주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790902937000, 1790902937000, '운영팀', 'free')"
 ],
 [
 "예시 댓글 2차 01-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_01_0', 'po_ex2_01', 'sys', '운영팀 예시', '월요일 기분 금요일 기분에서 터졌어요 ㅋㅋㅋ 센스 무엇', 1790903537000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_01_0', 'po_ex2_01', 'sys', '운영팀', '월요일 기분 금요일 기분에서 터졌어요 ㅋㅋㅋ 센스 무엇', 1790903537000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 01-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_01_1', 'po_ex2_01', 'sys', '운영팀 예시', '저는 슬리퍼 신고 버스 정류장까지 간 적 있어요. 동지가 있어서 반갑네요.', 1790904137000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_01_1', 'po_ex2_01', 'sys', '운영팀', '저는 슬리퍼 신고 버스 정류장까지 간 적 있어요. 동지가 있어서 반갑네요.', 1790904137000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 오늘 드디어 설거지를 했어",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_02', 'community', '오늘 드디어 설거지를 했어요', '# 남들한테는 당연한 일인데 저한테는 오늘의 큰일이었어요.\n\n며칠째 싱크대를 못 본 척하고 있었어요. 볼 때마다 ''해야 하는데'' 하는 마음만 무거워지고, 그럴수록 더 손이 안 가더라고요.\n\n오늘은 방법을 바꿔 봤어요. 다 하려고 하지 말고 **컵 하나만** 씻자고 마음먹었어요. 컵 하나 씻고 나니까 옆에 있던 숟가락이 눈에 들어오고, 그다음에는 그릇이 들어오고. 정신 차려 보니 다 끝나 있었어요.\n\n## 해 보니 알게 된 것\n\n- 시작이 제일 무겁고 그다음은 생각보다 가볍다\n- 따뜻한 물에 손 담그고 있으면 의외로 마음이 차분해진다\n- 끝나고 마시는 물 한 잔이 맛있다\n\n내일 또 쌓이겠지만, 오늘은 깨끗한 싱크대를 한 번 더 쳐다보고 자려고요. 오늘 작은 일 하나 해낸 분들 여기 같이 적어요. 서로 손뼉 쳐 줘요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790903874000, 1790903874000, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_02', 'community', '오늘 드디어 설거지를 했어요', '# 남들한테는 당연한 일인데 저한테는 오늘의 큰일이었어요.\n\n며칠째 싱크대를 못 본 척하고 있었어요. 볼 때마다 ''해야 하는데'' 하는 마음만 무거워지고, 그럴수록 더 손이 안 가더라고요.\n\n오늘은 방법을 바꿔 봤어요. 다 하려고 하지 말고 **컵 하나만** 씻자고 마음먹었어요. 컵 하나 씻고 나니까 옆에 있던 숟가락이 눈에 들어오고, 그다음에는 그릇이 들어오고. 정신 차려 보니 다 끝나 있었어요.\n\n## 해 보니 알게 된 것\n\n- 시작이 제일 무겁고 그다음은 생각보다 가볍다\n- 따뜻한 물에 손 담그고 있으면 의외로 마음이 차분해진다\n- 끝나고 마시는 물 한 잔이 맛있다\n\n내일 또 쌓이겠지만, 오늘은 깨끗한 싱크대를 한 번 더 쳐다보고 자려고요. 오늘 작은 일 하나 해낸 분들 여기 같이 적어요. 서로 손뼉 쳐 줘요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790903874000, 1790903874000, '운영팀', 'free')"
 ],
 [
 "예시 댓글 2차 02-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_0', 'po_ex2_02', 'sys', '운영팀 예시', '컵 하나만 전법 저도 써요! 오늘은 이불 갰어요. 손뼉 짝짝.', 1790904474000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_0', 'po_ex2_02', 'sys', '운영팀', '컵 하나만 전법 저도 써요! 오늘은 이불 갰어요. 손뼉 짝짝.', 1790904474000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 02-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_1', 'po_ex2_02', 'sys', '운영팀 예시', '저는 쓰레기 버리고 왔어요. 설거지 해내신 거 진짜 잘하셨어요.', 1790905074000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_1', 'po_ex2_02', 'sys', '운영팀', '저는 쓰레기 버리고 왔어요. 설거지 해내신 거 진짜 잘하셨어요.', 1790905074000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 02-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_2', 'po_ex2_02', 'sys', '운영팀 예시', '이불까지! 우리 오늘 다 잘했네요.', 1790905674000, 0, 0, 'cm_ex2_02_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_02_2', 'po_ex2_02', 'sys', '운영팀', '이불까지! 우리 오늘 다 잘했네요.', 1790905674000, 0, 0, 'cm_ex2_02_0')"
 ],
 [
 "예시 글 2차: 비 그친 저녁에 동네 한 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_03', 'community', '비 그친 저녁에 동네 한 바퀴', '# 비가 그치고 나서 공기가 너무 좋아서 그냥 나가 봤어요.\n\n원래 저는 집에 오면 다시 나가는 걸 정말 싫어하는데, 창문을 열었더니 흙냄새랑 풀냄새가 올라오더라고요. 슬리퍼에서 운동화로 갈아 신는 데까지가 제일 오래 걸렸어요.\n\n늘 가던 길 말고 한 골목 옆으로 들어가 봤더니 처음 보는 작은 놀이터가 있었어요. 그네가 젖어 있어서 못 탔는데, 그게 좀 아쉬울 만큼 기분이 가벼웠어요.\n\n## 걷다가 본 것들\n\n- 물웅덩이에 비친 가로등\n- 담벼락 위에서 털 고르던 고양이\n- 문 닫는 빵집에서 나던 버터 냄새\n\n20분쯤 걸었을 뿐인데 머릿속에서 계속 돌아가던 생각이 조금 조용해졌어요. 운동이라고 하기에는 민망하지만 **나간 것만으로 충분**하다고 치려고요. 요즘 산책하기 좋은 시간대 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790904811000, 1790904811000, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_03', 'community', '비 그친 저녁에 동네 한 바퀴', '# 비가 그치고 나서 공기가 너무 좋아서 그냥 나가 봤어요.\n\n원래 저는 집에 오면 다시 나가는 걸 정말 싫어하는데, 창문을 열었더니 흙냄새랑 풀냄새가 올라오더라고요. 슬리퍼에서 운동화로 갈아 신는 데까지가 제일 오래 걸렸어요.\n\n늘 가던 길 말고 한 골목 옆으로 들어가 봤더니 처음 보는 작은 놀이터가 있었어요. 그네가 젖어 있어서 못 탔는데, 그게 좀 아쉬울 만큼 기분이 가벼웠어요.\n\n## 걷다가 본 것들\n\n- 물웅덩이에 비친 가로등\n- 담벼락 위에서 털 고르던 고양이\n- 문 닫는 빵집에서 나던 버터 냄새\n\n20분쯤 걸었을 뿐인데 머릿속에서 계속 돌아가던 생각이 조금 조용해졌어요. 운동이라고 하기에는 민망하지만 **나간 것만으로 충분**하다고 치려고요. 요즘 산책하기 좋은 시간대 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790904811000, 1790904811000, '운영팀', 'free')"
 ],
 [
 "예시 댓글 2차 03-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_03_0', 'po_ex2_03', 'sys', '운영팀 예시', '비 그친 뒤 흙냄새 저도 좋아해요. 저는 해 지기 직전이 제일 걷기 좋더라고요.', 1790905411000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_03_0', 'po_ex2_03', 'sys', '운영팀', '비 그친 뒤 흙냄새 저도 좋아해요. 저는 해 지기 직전이 제일 걷기 좋더라고요.', 1790905411000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 03-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_03_1', 'po_ex2_03', 'sys', '운영팀 예시', '운동화로 갈아 신는 게 제일 오래 걸린다는 말 너무 공감돼요.', 1790906011000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_03_1', 'po_ex2_03', 'sys', '운영팀', '운동화로 갈아 신는 게 제일 오래 걸린다는 말 너무 공감돼요.', 1790906011000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 지칠 때 먹는 나만의 음식",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_04', 'community', '지칠 때 먹는 나만의 음식 있어요?', '# 저는 기운 없는 날이면 꼭 계란밥을 해 먹어요.\n\n뜨거운 밥에 계란프라이 하나 올리고 간장 조금, 참기름 한 바퀴. 그게 전부예요. 어릴 때 할머니가 아플 때마다 해 주시던 건데, 지금도 그 냄새만 맡으면 어깨에 힘이 좀 빠져요.\n\n요리라고 부르기도 민망한데, 이상하게 배달 음식을 시켜 먹은 날보다 이걸 먹은 날이 마음이 덜 허해요. 내 손으로 나를 챙겼다는 느낌 때문인가 싶기도 하고요.\n\n## 제 계란밥 규칙\n\n- 노른자는 반드시 반숙\n- 김 가루가 있으면 그날은 잔칫날\n- 그릇은 제일 좋아하는 걸로\n\n다들 **지친 날 먹는 음식** 하나씩 있을 것 같아서 궁금해요. 비싸고 멋진 음식 말고, 그냥 먹으면 조금 괜찮아지는 음식이요. 댓글로 알려 주시면 하나씩 따라 해 볼게요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790905748000, 1790905748000, '운영팀 예시', 'free')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_04', 'community', '지칠 때 먹는 나만의 음식 있어요?', '# 저는 기운 없는 날이면 꼭 계란밥을 해 먹어요.\n\n뜨거운 밥에 계란프라이 하나 올리고 간장 조금, 참기름 한 바퀴. 그게 전부예요. 어릴 때 할머니가 아플 때마다 해 주시던 건데, 지금도 그 냄새만 맡으면 어깨에 힘이 좀 빠져요.\n\n요리라고 부르기도 민망한데, 이상하게 배달 음식을 시켜 먹은 날보다 이걸 먹은 날이 마음이 덜 허해요. 내 손으로 나를 챙겼다는 느낌 때문인가 싶기도 하고요.\n\n## 제 계란밥 규칙\n\n- 노른자는 반드시 반숙\n- 김 가루가 있으면 그날은 잔칫날\n- 그릇은 제일 좋아하는 걸로\n\n다들 **지친 날 먹는 음식** 하나씩 있을 것 같아서 궁금해요. 비싸고 멋진 음식 말고, 그냥 먹으면 조금 괜찮아지는 음식이요. 댓글로 알려 주시면 하나씩 따라 해 볼게요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790905748000, 1790905748000, '운영팀', 'free')"
 ],
 [
 "예시 댓글 2차 04-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_0', 'po_ex2_04', 'sys', '운영팀 예시', '저는 누룽지 끓인 거요. 김치 하나만 있으면 속이 편해져요.', 1790906348000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_0', 'po_ex2_04', 'sys', '운영팀', '저는 누룽지 끓인 거요. 김치 하나만 있으면 속이 편해져요.', 1790906348000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 04-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_1', 'po_ex2_04', 'sys', '운영팀 예시', '노른자 반숙 규칙 지지합니다. 저는 버터를 살짝 넣어요.', 1790906948000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_1', 'po_ex2_04', 'sys', '운영팀', '노른자 반숙 규칙 지지합니다. 저는 버터를 살짝 넣어요.', 1790906948000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 04-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_2', 'po_ex2_04', 'sys', '운영팀 예시', '누룽지 좋네요. 이번 주말에 해 볼게요!', 1790907548000, 0, 0, 'cm_ex2_04_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_04_2', 'po_ex2_04', 'sys', '운영팀', '누룽지 좋네요. 이번 주말에 해 볼게요!', 1790907548000, 0, 0, 'cm_ex2_04_0')"
 ],
 [
 "예시 글 2차: 우렁이 방에 드디어 창문 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_05', 'community', '우렁이 방에 드디어 창문 달았어요', '# 모은 걸로 창문이랑 작은 화분을 들였는데 방 분위기가 확 달라졌어요.\n\n처음에는 꾸미기에 별 관심이 없었어요. 체크인만 하고 나가곤 했는데, 어느 날 우렁이 방이 너무 휑해 보이더라고요. 그때부터 조금씩 모아서 하나씩 놓기 시작했어요.\n\n## 지금 우리 방 구성\n\n- 왼쪽 벽에 창문 (낮이랑 밤에 느낌이 달라서 좋아요)\n- 창가에 작은 화분 하나\n- 바닥에 동그란 러그\n- 구석에 스탠드\n\n제일 마음에 드는 건 창문이에요. 밤에 들어가면 방이 조금 어둑해지는데, 그 안에서 우렁이가 스탠드 옆에 앉아 있는 걸 보면 괜히 저도 불 끄고 일찍 자고 싶어져요.\n\n다음 목표는 책장이에요. 꾸미는 재미가 생기니까 **체크인하러 들어오는 게 덜 숙제 같아졌어요**. 다른 분들 방은 어떻게 꾸미셨는지 궁금해요. 배치 팁 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790906685000, 1790906685000, '운영팀 예시', 'neru')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_05', 'community', '우렁이 방에 드디어 창문 달았어요', '# 모은 걸로 창문이랑 작은 화분을 들였는데 방 분위기가 확 달라졌어요.\n\n처음에는 꾸미기에 별 관심이 없었어요. 체크인만 하고 나가곤 했는데, 어느 날 우렁이 방이 너무 휑해 보이더라고요. 그때부터 조금씩 모아서 하나씩 놓기 시작했어요.\n\n## 지금 우리 방 구성\n\n- 왼쪽 벽에 창문 (낮이랑 밤에 느낌이 달라서 좋아요)\n- 창가에 작은 화분 하나\n- 바닥에 동그란 러그\n- 구석에 스탠드\n\n제일 마음에 드는 건 창문이에요. 밤에 들어가면 방이 조금 어둑해지는데, 그 안에서 우렁이가 스탠드 옆에 앉아 있는 걸 보면 괜히 저도 불 끄고 일찍 자고 싶어져요.\n\n다음 목표는 책장이에요. 꾸미는 재미가 생기니까 **체크인하러 들어오는 게 덜 숙제 같아졌어요**. 다른 분들 방은 어떻게 꾸미셨는지 궁금해요. 배치 팁 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790906685000, 1790906685000, '운영팀', 'neru')"
 ],
 [
 "예시 댓글 2차 05-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_05_0', 'po_ex2_05', 'sys', '운영팀 예시', '창문 저도 제일 먼저 샀어요! 러그랑 스탠드 조합 따뜻하겠다.', 1790907285000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_05_0', 'po_ex2_05', 'sys', '운영팀', '창문 저도 제일 먼저 샀어요! 러그랑 스탠드 조합 따뜻하겠다.', 1790907285000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 05-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_05_1', 'po_ex2_05', 'sys', '운영팀 예시', '책장 놓으면 방이 꽉 차 보여서 좋아요. 화분은 책장 옆에 두는 걸 추천해요.', 1790907885000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_05_1', 'po_ex2_05', 'sys', '운영팀', '책장 놓으면 방이 꽉 차 보여서 좋아요. 화분은 책장 옆에 두는 걸 추천해요.', 1790907885000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 우렁이 레벨이 올랐어요 (",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_06', 'community', '우렁이 레벨이 올랐어요 (소소한 자랑)', '# 오늘 체크인했더니 우렁이가 한 단계 자라 있었어요.\n\n솔직히 처음 시작할 때는 며칠 하다 말 줄 알았어요. 저는 뭘 꾸준히 해 본 적이 별로 없거든요. 그런데 하루에 한 줄 적는 것 정도는 할 만하더라고요.\n\n레벨이 오르면서 우렁이 모습이 조금 달라졌는데, 그걸 보니까 ''아, 내가 그동안 여기 들어왔었구나'' 하는 게 눈에 보여서 좋았어요. 기분이 좋은 날만 온 게 아니라 **별로인 날에도 왔다**는 게 저한테는 더 크게 느껴져요.\n\n## 여기까지 오면서 한 것\n\n- 아침 기분 한 줄 적기\n- 잠들기 전에 오늘 한 일 하나 적기\n- 빼먹은 날은 그냥 넘어가기 (자책 안 하기)\n\n대단한 변화가 생긴 건 아니에요. 그래도 조금씩 쌓이는 게 있다는 걸 확인하니까 내일도 들어와 볼 마음이 생겨요. 다들 우렁이 얼마나 키우셨어요?\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790907622000, 1790907622000, '운영팀 예시', 'neru')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_06', 'community', '우렁이 레벨이 올랐어요 (소소한 자랑)', '# 오늘 체크인했더니 우렁이가 한 단계 자라 있었어요.\n\n솔직히 처음 시작할 때는 며칠 하다 말 줄 알았어요. 저는 뭘 꾸준히 해 본 적이 별로 없거든요. 그런데 하루에 한 줄 적는 것 정도는 할 만하더라고요.\n\n레벨이 오르면서 우렁이 모습이 조금 달라졌는데, 그걸 보니까 ''아, 내가 그동안 여기 들어왔었구나'' 하는 게 눈에 보여서 좋았어요. 기분이 좋은 날만 온 게 아니라 **별로인 날에도 왔다**는 게 저한테는 더 크게 느껴져요.\n\n## 여기까지 오면서 한 것\n\n- 아침 기분 한 줄 적기\n- 잠들기 전에 오늘 한 일 하나 적기\n- 빼먹은 날은 그냥 넘어가기 (자책 안 하기)\n\n대단한 변화가 생긴 건 아니에요. 그래도 조금씩 쌓이는 게 있다는 걸 확인하니까 내일도 들어와 볼 마음이 생겨요. 다들 우렁이 얼마나 키우셨어요?\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790907622000, 1790907622000, '운영팀', 'neru')"
 ],
 [
 "예시 댓글 2차 06-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_0', 'po_ex2_06', 'sys', '운영팀 예시', '축하해요! 빼먹은 날 자책 안 하기가 제일 어려운데 잘하고 계시네요.', 1790908222000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_0', 'po_ex2_06', 'sys', '운영팀', '축하해요! 빼먹은 날 자책 안 하기가 제일 어려운데 잘하고 계시네요.', 1790908222000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 06-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_1', 'po_ex2_06', 'sys', '운영팀 예시', '저는 아직 초반인데 이 글 보니까 꾸준히 해 보고 싶어졌어요.', 1790908822000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_1', 'po_ex2_06', 'sys', '운영팀', '저는 아직 초반인데 이 글 보니까 꾸준히 해 보고 싶어졌어요.', 1790908822000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 06-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_2', 'po_ex2_06', 'sys', '운영팀 예시', '감사해요. 저도 아직 가끔 자책하지만 예전보다는 덜해요 ㅎㅎ', 1790909422000, 0, 0, 'cm_ex2_06_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_06_2', 'po_ex2_06', 'sys', '운영팀', '감사해요. 저도 아직 가끔 자책하지만 예전보다는 덜해요 ㅎㅎ', 1790909422000, 0, 0, 'cm_ex2_06_0')"
 ],
 [
 "예시 글 2차: 우렁이가 해 준 말에 웃어",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_07', 'community', '우렁이가 해 준 말에 웃어 버렸어요', '# 오늘 하루 종일 아무것도 못 했다고 적었더니 예상 못 한 답이 왔어요.\n\n저는 그냥 투덜거리려고 쓴 거였어요. ''오늘은 침대에서 거의 안 나왔어, 한심해'' 이렇게요. 그랬더니 우렁이가 이러는 거예요.\n\n''껍데기 안에서 쉬는 날도 있는 거지. 나는 원래 껍데기 안에 있는 게 기본이야.''\n\n순간 피식 웃음이 났어요. 맞는 말이잖아요. 우렁이한테는 그게 기본인데 저만 그걸 한심하다고 부르고 있었네요.\n\n## 그러고 나서 한 일\n\n- 일어나서 물 한 잔 마심\n- 창문 열고 환기함\n- 다시 누움 (당당하게)\n\n뭐가 크게 해결된 건 아니지만, **쉬는 날에 붙였던 이름표를 조금 바꿀 수 있었어요**. 한심한 날이 아니라 껍데기 날. 다른 분들도 우렁이한테 들은 말 중에 기억에 남는 거 있으면 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790908559000, 1790908559000, '운영팀 예시', 'neru')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_07', 'community', '우렁이가 해 준 말에 웃어 버렸어요', '# 오늘 하루 종일 아무것도 못 했다고 적었더니 예상 못 한 답이 왔어요.\n\n저는 그냥 투덜거리려고 쓴 거였어요. ''오늘은 침대에서 거의 안 나왔어, 한심해'' 이렇게요. 그랬더니 우렁이가 이러는 거예요.\n\n''껍데기 안에서 쉬는 날도 있는 거지. 나는 원래 껍데기 안에 있는 게 기본이야.''\n\n순간 피식 웃음이 났어요. 맞는 말이잖아요. 우렁이한테는 그게 기본인데 저만 그걸 한심하다고 부르고 있었네요.\n\n## 그러고 나서 한 일\n\n- 일어나서 물 한 잔 마심\n- 창문 열고 환기함\n- 다시 누움 (당당하게)\n\n뭐가 크게 해결된 건 아니지만, **쉬는 날에 붙였던 이름표를 조금 바꿀 수 있었어요**. 한심한 날이 아니라 껍데기 날. 다른 분들도 우렁이한테 들은 말 중에 기억에 남는 거 있으면 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790908559000, 1790908559000, '운영팀', 'neru')"
 ],
 [
 "예시 댓글 2차 07-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_07_0', 'po_ex2_07', 'sys', '운영팀 예시', '껍데기 날 ㅋㅋㅋ 저도 이제부터 그렇게 부를래요.', 1790909159000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_07_0', 'po_ex2_07', 'sys', '운영팀', '껍데기 날 ㅋㅋㅋ 저도 이제부터 그렇게 부를래요.', 1790909159000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 07-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_07_1', 'po_ex2_07', 'sys', '운영팀 예시', '당당하게 다시 누움에서 웃었어요. 우리 우렁이는 어제 저한테 밥은 먹었냐고 세 번 물어봤어요.', 1790909759000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_07_1', 'po_ex2_07', 'sys', '운영팀', '당당하게 다시 누움에서 웃었어요. 우리 우렁이는 어제 저한테 밥은 먹었냐고 세 번 물어봤어요.', 1790909759000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 연속 체크인 30일 채웠어",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_08', 'community', '연속 체크인 30일 채웠어요', '# 하루도 안 빠지고 30일을 채운 건 제 인생에서 거의 처음이에요.\n\n처음 일주일은 신기해서 했고, 둘째 주는 귀찮았고, 셋째 주부터는 그냥 이 닦는 것처럼 하게 됐어요. 특별한 비결이 있는 건 아니고, 저한테 맞았던 방법 몇 가지만 적어 볼게요.\n\n## 저한테 통했던 것\n\n- **시간을 정해 두기**: 저는 저녁 양치 직후로 고정했어요\n- **짧게 쓰기**: 길게 쓰려고 하면 미루게 되더라고요. 한 줄이면 충분했어요\n- **기분이 안 좋은 날도 그대로 적기**: 좋은 말만 쓰려고 하니까 오히려 들어오기 싫어졌어요\n\n30일 동안 기록을 쭉 넘겨 보니까, 제가 생각했던 것보다 괜찮았던 날이 많더라고요. 기억 속에서는 한 달 내내 힘들었던 것 같았는데 기록은 조금 달랐어요.\n\n기록이 끊겨도 다시 시작하면 되니까 숫자에 너무 매이지는 않으려고요. 그래도 오늘은 자랑하고 싶었어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790909496000, 1790909496000, '운영팀 예시', 'neru')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_08', 'community', '연속 체크인 30일 채웠어요', '# 하루도 안 빠지고 30일을 채운 건 제 인생에서 거의 처음이에요.\n\n처음 일주일은 신기해서 했고, 둘째 주는 귀찮았고, 셋째 주부터는 그냥 이 닦는 것처럼 하게 됐어요. 특별한 비결이 있는 건 아니고, 저한테 맞았던 방법 몇 가지만 적어 볼게요.\n\n## 저한테 통했던 것\n\n- **시간을 정해 두기**: 저는 저녁 양치 직후로 고정했어요\n- **짧게 쓰기**: 길게 쓰려고 하면 미루게 되더라고요. 한 줄이면 충분했어요\n- **기분이 안 좋은 날도 그대로 적기**: 좋은 말만 쓰려고 하니까 오히려 들어오기 싫어졌어요\n\n30일 동안 기록을 쭉 넘겨 보니까, 제가 생각했던 것보다 괜찮았던 날이 많더라고요. 기억 속에서는 한 달 내내 힘들었던 것 같았는데 기록은 조금 달랐어요.\n\n기록이 끊겨도 다시 시작하면 되니까 숫자에 너무 매이지는 않으려고요. 그래도 오늘은 자랑하고 싶었어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790909496000, 1790909496000, '운영팀', 'neru')"
 ],
 [
 "예시 댓글 2차 08-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_08_0', 'po_ex2_08', 'sys', '운영팀 예시', '30일 축하드려요! 양치 직후로 고정하는 거 좋은 방법이네요. 따라 해 볼게요.', 1790910096000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_08_0', 'po_ex2_08', 'sys', '운영팀', '30일 축하드려요! 양치 직후로 고정하는 거 좋은 방법이네요. 따라 해 볼게요.', 1790910096000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 08-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_08_1', 'po_ex2_08', 'sys', '운영팀 예시', '기억이랑 기록이 다르다는 말이 와닿아요. 저도 넘겨 봐야겠어요.', 1790910696000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_08_1', 'po_ex2_08', 'sys', '운영팀', '기억이랑 기록이 다르다는 말이 와닿아요. 저도 넘겨 봐야겠어요.', 1790910696000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 상담 처음인데 비용이 걱정",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_09', 'community', '상담 처음인데 비용이 걱정돼요', '# 상담을 받아 보고 싶은데 비용이 얼마나 들지 몰라서 계속 미루고 있어요.\n\n몇 달째 마음이 무거워서 한번 받아 보자고 결심은 했어요. 그런데 검색해 보면 기관마다 금액이 다 다르고, 몇 번을 받아야 하는지도 감이 안 와서 예약 버튼 앞에서 매번 멈춰요.\n\n## 궁금한 것\n\n- 처음에 몇 회 정도 받는다고 생각하고 시작하는 게 좋을까요?\n- 비용 부담이 적은 곳을 찾는 방법이 있을까요?\n- 첫 회기에 비용 이야기를 꺼내도 실례가 아닐까요?\n\n지금 사정으로는 매주 가는 게 부담스러울 것 같아요. 그렇다고 한두 번 가고 그만두면 의미가 없을까 봐 그것도 걱정이고요.\n\n**돈 걱정 때문에 상담을 망설이는 게 저만 그런 건지**도 궁금해요. 먼저 받아 보신 분들이 처음에 어떻게 알아보셨는지, 어떤 걸 물어보면 좋았는지 경험을 나눠 주시면 큰 도움이 될 것 같아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790910433000, 1790910433000, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_09', 'community', '상담 처음인데 비용이 걱정돼요', '# 상담을 받아 보고 싶은데 비용이 얼마나 들지 몰라서 계속 미루고 있어요.\n\n몇 달째 마음이 무거워서 한번 받아 보자고 결심은 했어요. 그런데 검색해 보면 기관마다 금액이 다 다르고, 몇 번을 받아야 하는지도 감이 안 와서 예약 버튼 앞에서 매번 멈춰요.\n\n## 궁금한 것\n\n- 처음에 몇 회 정도 받는다고 생각하고 시작하는 게 좋을까요?\n- 비용 부담이 적은 곳을 찾는 방법이 있을까요?\n- 첫 회기에 비용 이야기를 꺼내도 실례가 아닐까요?\n\n지금 사정으로는 매주 가는 게 부담스러울 것 같아요. 그렇다고 한두 번 가고 그만두면 의미가 없을까 봐 그것도 걱정이고요.\n\n**돈 걱정 때문에 상담을 망설이는 게 저만 그런 건지**도 궁금해요. 먼저 받아 보신 분들이 처음에 어떻게 알아보셨는지, 어떤 걸 물어보면 좋았는지 경험을 나눠 주시면 큰 도움이 될 것 같아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790910433000, 1790910433000, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 2차 09-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_0', 'po_ex2_09', 'sys', '운영팀 예시', '저도 똑같이 망설였어요. 예약 전에 전화로 비용과 횟수를 먼저 물어봤는데 친절하게 알려 주셨어요.', 1790911033000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_0', 'po_ex2_09', 'sys', '운영팀', '저도 똑같이 망설였어요. 예약 전에 전화로 비용과 횟수를 먼저 물어봤는데 친절하게 알려 주셨어요.', 1790911033000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 09-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_1', 'po_ex2_09', 'sys', '운영팀 예시', '지역 공공 상담 기관이나 학교·직장 상담 지원이 있는지도 한번 확인해 보세요. 저는 거기서 시작했어요.', 1790911633000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_1', 'po_ex2_09', 'sys', '운영팀', '지역 공공 상담 기관이나 학교·직장 상담 지원이 있는지도 한번 확인해 보세요. 저는 거기서 시작했어요.', 1790911633000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 09-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_2', 'po_ex2_09', 'sys', '운영팀 예시', '전화로 먼저 물어봐도 되는군요. 그 생각을 못 했어요. 감사해요.', 1790912233000, 0, 0, 'cm_ex2_09_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_09_2', 'po_ex2_09', 'sys', '운영팀', '전화로 먼저 물어봐도 되는군요. 그 생각을 못 했어요. 감사해요.', 1790912233000, 0, 0, 'cm_ex2_09_0')"
 ],
 [
 "예시 글 2차: 가족에게 힘들다고 말해야 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_10', 'community', '가족에게 힘들다고 말해야 할까요', '# 요즘 많이 지쳐 있는데 가족에게 말을 꺼낼지 말지 고민이에요.\n\n부모님이랑 같이 사는데, 집에서는 늘 괜찮은 척을 해요. 걱정시키고 싶지 않은 마음이 제일 크고, 말했을 때 ''다들 그렇게 산다''는 답이 돌아올까 봐 겁도 나요.\n\n그런데 숨기는 것도 점점 힘이 들어요. 방에만 있으면 왜 그러냐고 물으시는데, 그때마다 피곤하다고만 하거든요.\n\n## 제가 고민하는 지점\n\n- 말하면 마음이 좀 가벼워질지, 오히려 더 신경 쓸 일이 늘지\n- 전부 말해야 하는지, 일부만 말해도 되는지\n- 어떤 말로 시작하면 좋을지\n\n상담을 받아 볼까 생각 중인데 그것도 **가족에게 알려야 하나** 싶고요.\n\n가족에게 이야기해 보신 분들은 어떻게 꺼내셨나요? 말하지 않기로 하신 분들 이야기도 듣고 싶어요. 정답이 있는 문제는 아닌 것 같아서, 여러 경험을 들어 보고 정하려고 해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790911370000, 1790911370000, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_10', 'community', '가족에게 힘들다고 말해야 할까요', '# 요즘 많이 지쳐 있는데 가족에게 말을 꺼낼지 말지 고민이에요.\n\n부모님이랑 같이 사는데, 집에서는 늘 괜찮은 척을 해요. 걱정시키고 싶지 않은 마음이 제일 크고, 말했을 때 ''다들 그렇게 산다''는 답이 돌아올까 봐 겁도 나요.\n\n그런데 숨기는 것도 점점 힘이 들어요. 방에만 있으면 왜 그러냐고 물으시는데, 그때마다 피곤하다고만 하거든요.\n\n## 제가 고민하는 지점\n\n- 말하면 마음이 좀 가벼워질지, 오히려 더 신경 쓸 일이 늘지\n- 전부 말해야 하는지, 일부만 말해도 되는지\n- 어떤 말로 시작하면 좋을지\n\n상담을 받아 볼까 생각 중인데 그것도 **가족에게 알려야 하나** 싶고요.\n\n가족에게 이야기해 보신 분들은 어떻게 꺼내셨나요? 말하지 않기로 하신 분들 이야기도 듣고 싶어요. 정답이 있는 문제는 아닌 것 같아서, 여러 경험을 들어 보고 정하려고 해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790911370000, 1790911370000, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 2차 10-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_10_0', 'po_ex2_10', 'sys', '운영팀 예시', '저는 전부 말하지 않고 ''요즘 좀 지쳐서 도움을 받아 보려 해'' 정도만 말했어요. 그 정도도 충분했어요.', 1790911970000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_10_0', 'po_ex2_10', 'sys', '운영팀', '저는 전부 말하지 않고 ''요즘 좀 지쳐서 도움을 받아 보려 해'' 정도만 말했어요. 그 정도도 충분했어요.', 1790911970000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 10-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_10_1', 'po_ex2_10', 'sys', '운영팀 예시', '말할지 말지는 본인이 정해도 되는 일이라고 생각해요. 상담에서 이 고민부터 다뤄 봐도 좋고요.', 1790912570000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_10_1', 'po_ex2_10', 'sys', '운영팀', '말할지 말지는 본인이 정해도 되는 일이라고 생각해요. 상담에서 이 고민부터 다뤄 봐도 좋고요.', 1790912570000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 회사 생각에 밤마다 잠이 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_11', 'community', '회사 생각에 밤마다 잠이 안 와요', '# 누우면 다음 날 회의랑 못 끝낸 일이 계속 떠올라서 잠들기가 어려워요.\n\n몸은 피곤한데 불만 끄면 머리가 깨어나요. 오늘 실수한 장면, 내일 들을 말, 답장 못 한 메일이 차례로 지나가요. 그러다 시계를 보고 ''이제 몇 시간밖에 못 자네'' 하면서 더 초조해지고요.\n\n## 지금까지 해 본 것\n\n- 자기 전에 휴대폰 멀리 두기 (며칠은 됐는데 다시 손이 가요)\n- 따뜻한 물로 씻기\n- 내일 할 일을 종이에 적어 두기 (이건 조금 도움이 됐어요)\n\n한 달 넘게 이러니까 낮에도 집중이 안 되고 예민해져서 악순환 같아요.\n\n**이 정도면 병원이나 상담을 가 봐야 하는 건지**, 아니면 조금 더 지켜봐도 되는 건지 모르겠어요. 비슷한 시기를 지나 보신 분들은 어떻게 하셨는지 궁금해요. 작은 요령이라도 좋아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790912307000, 1790912307000, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_11', 'community', '회사 생각에 밤마다 잠이 안 와요', '# 누우면 다음 날 회의랑 못 끝낸 일이 계속 떠올라서 잠들기가 어려워요.\n\n몸은 피곤한데 불만 끄면 머리가 깨어나요. 오늘 실수한 장면, 내일 들을 말, 답장 못 한 메일이 차례로 지나가요. 그러다 시계를 보고 ''이제 몇 시간밖에 못 자네'' 하면서 더 초조해지고요.\n\n## 지금까지 해 본 것\n\n- 자기 전에 휴대폰 멀리 두기 (며칠은 됐는데 다시 손이 가요)\n- 따뜻한 물로 씻기\n- 내일 할 일을 종이에 적어 두기 (이건 조금 도움이 됐어요)\n\n한 달 넘게 이러니까 낮에도 집중이 안 되고 예민해져서 악순환 같아요.\n\n**이 정도면 병원이나 상담을 가 봐야 하는 건지**, 아니면 조금 더 지켜봐도 되는 건지 모르겠어요. 비슷한 시기를 지나 보신 분들은 어떻게 하셨는지 궁금해요. 작은 요령이라도 좋아요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790912307000, 1790912307000, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 2차 11-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_11_0', 'po_ex2_11', 'sys', '운영팀 예시', '저도 비슷했는데 한 달 넘게 이어져서 진료를 받았어요. 가 보니 생각보다 별일 아닌 듯 편하게 물어봐 주셨어요.', 1790912907000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_11_0', 'po_ex2_11', 'sys', '운영팀', '저도 비슷했는데 한 달 넘게 이어져서 진료를 받았어요. 가 보니 생각보다 별일 아닌 듯 편하게 물어봐 주셨어요.', 1790912907000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 11-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_11_1', 'po_ex2_11', 'sys', '운영팀 예시', '잠이 안 오면 억지로 누워 있지 않고 잠깐 일어나 있는 게 저한테는 도움이 됐어요. 오래 이어지면 전문가와 상의해 보세요.', 1790913507000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_11_1', 'po_ex2_11', 'sys', '운영팀', '잠이 안 오면 억지로 누워 있지 않고 잠깐 일어나 있는 게 저한테는 도움이 됐어요. 오래 이어지면 전문가와 상의해 보세요.', 1790913507000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 상담사 선생님과 안 맞는 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_12', 'community', '상담사 선생님과 안 맞는 것 같아요', '# 상담을 네 번 받았는데 갈 때마다 마음이 조금 불편해요.\n\n선생님이 나쁜 분은 아니에요. 다만 제가 말을 하면 금방 정리해서 돌려주시는데, 그게 제 마음보다 조금 빠르게 느껴져요. 아직 다 말하지 못했는데 다음으로 넘어가는 기분이랄까요.\n\n그래서 요즘은 가기 전에 ''오늘은 무슨 말을 해야 하지'' 하고 준비를 하게 돼요. 편하려고 가는 건데 숙제처럼 됐어요.\n\n## 헷갈리는 것\n\n- 원래 초반에는 이런 어색함이 있는 건지\n- 이런 느낌을 선생님께 직접 말해도 되는지\n- 바꾸고 싶다고 하면 실례가 되는지\n\n제가 너무 예민한 건가 싶기도 하고, 다른 분으로 바꾸면 또 처음부터 다 설명해야 하니까 엄두가 안 나기도 해요.\n\n**안 맞는다고 느꼈을 때 어떻게 하셨는지** 경험이 궁금해요. 말씀드려 보신 분, 바꿔 보신 분 이야기 다 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790913244000, 1790913244000, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_12', 'community', '상담사 선생님과 안 맞는 것 같아요', '# 상담을 네 번 받았는데 갈 때마다 마음이 조금 불편해요.\n\n선생님이 나쁜 분은 아니에요. 다만 제가 말을 하면 금방 정리해서 돌려주시는데, 그게 제 마음보다 조금 빠르게 느껴져요. 아직 다 말하지 못했는데 다음으로 넘어가는 기분이랄까요.\n\n그래서 요즘은 가기 전에 ''오늘은 무슨 말을 해야 하지'' 하고 준비를 하게 돼요. 편하려고 가는 건데 숙제처럼 됐어요.\n\n## 헷갈리는 것\n\n- 원래 초반에는 이런 어색함이 있는 건지\n- 이런 느낌을 선생님께 직접 말해도 되는지\n- 바꾸고 싶다고 하면 실례가 되는지\n\n제가 너무 예민한 건가 싶기도 하고, 다른 분으로 바꾸면 또 처음부터 다 설명해야 하니까 엄두가 안 나기도 해요.\n\n**안 맞는다고 느꼈을 때 어떻게 하셨는지** 경험이 궁금해요. 말씀드려 보신 분, 바꿔 보신 분 이야기 다 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790913244000, 1790913244000, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 2차 12-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_12_0', 'po_ex2_12', 'sys', '운영팀 예시', '저는 ''조금 천천히 가고 싶다''고 말씀드렸더니 속도를 맞춰 주셨어요. 말해도 되는 이야기더라고요.', 1790913844000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_12_0', 'po_ex2_12', 'sys', '운영팀', '저는 ''조금 천천히 가고 싶다''고 말씀드렸더니 속도를 맞춰 주셨어요. 말해도 되는 이야기더라고요.', 1790913844000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 12-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_12_2', 'po_ex2_12', 'sys', '운영팀 예시', '두 분 다 감사해요. 다음 시간에 용기 내서 말해 볼게요.', 1790915044000, 0, 0, 'cm_ex2_12_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_12_2', 'po_ex2_12', 'sys', '운영팀', '두 분 다 감사해요. 다음 시간에 용기 내서 말해 볼게요.', 1790915044000, 0, 0, 'cm_ex2_12_0')"
 ],
 [
 "예시 글 2차: 병원이랑 상담, 어디를 먼",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_13', 'community', '병원이랑 상담, 어디를 먼저 가야 해요?', '# 도움을 받아야겠다고 마음먹었는데 어디부터 가야 할지 모르겠어요.\n\n두 달쯤 전부터 의욕이 없고 잠도 들쭉날쭉해요. 일은 겨우 하고 있는데 퇴근하면 아무것도 못 하겠어요. 검색해 보니 정신건강의학과를 가라는 글도 있고 심리상담을 받으라는 글도 있어서 더 헷갈려요.\n\n## 제가 이해한 것 (틀리면 알려 주세요)\n\n- 병원은 진단을 받고 필요하면 약 치료를 할 수 있는 곳\n- 상담은 이야기를 나누면서 마음을 살펴보는 곳\n- 둘을 같이 하는 사람도 있다\n\n약을 먹게 될까 봐 병원은 조금 무섭고, 상담은 제 상태에 충분한지 모르겠어요. 기록이 남는 것도 막연하게 걱정되고요.\n\n**어디를 먼저 가셨는지, 그렇게 정한 이유가 뭐였는지** 알려 주시면 도움이 될 것 같아요. 사람마다 다르다는 건 알지만, 처음 한 걸음을 어떻게 떼셨는지 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790914181000, 1790914181000, '운영팀 예시', 'qna')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_13', 'community', '병원이랑 상담, 어디를 먼저 가야 해요?', '# 도움을 받아야겠다고 마음먹었는데 어디부터 가야 할지 모르겠어요.\n\n두 달쯤 전부터 의욕이 없고 잠도 들쭉날쭉해요. 일은 겨우 하고 있는데 퇴근하면 아무것도 못 하겠어요. 검색해 보니 정신건강의학과를 가라는 글도 있고 심리상담을 받으라는 글도 있어서 더 헷갈려요.\n\n## 제가 이해한 것 (틀리면 알려 주세요)\n\n- 병원은 진단을 받고 필요하면 약 치료를 할 수 있는 곳\n- 상담은 이야기를 나누면서 마음을 살펴보는 곳\n- 둘을 같이 하는 사람도 있다\n\n약을 먹게 될까 봐 병원은 조금 무섭고, 상담은 제 상태에 충분한지 모르겠어요. 기록이 남는 것도 막연하게 걱정되고요.\n\n**어디를 먼저 가셨는지, 그렇게 정한 이유가 뭐였는지** 알려 주시면 도움이 될 것 같아요. 사람마다 다르다는 건 알지만, 처음 한 걸음을 어떻게 떼셨는지 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790914181000, 1790914181000, '운영팀', 'qna')"
 ],
 [
 "예시 댓글 2차 13-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_13_0', 'po_ex2_13', 'sys', '운영팀 예시', '저는 잠 문제가 커서 병원에 먼저 갔어요. 약이 꼭 필요한지도 진료에서 같이 의논할 수 있었어요.', 1790914781000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_13_0', 'po_ex2_13', 'sys', '운영팀', '저는 잠 문제가 커서 병원에 먼저 갔어요. 약이 꼭 필요한지도 진료에서 같이 의논할 수 있었어요.', 1790914781000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 13-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_13_1', 'po_ex2_13', 'sys', '운영팀 예시', '저는 상담부터 시작했고, 상담 선생님이 진료도 권해 주셔서 같이 다녀요. 어느 쪽이든 먼저 가면 다음 길을 안내받을 수 있어요.', 1790915381000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_13_1', 'po_ex2_13', 'sys', '운영팀', '저는 상담부터 시작했고, 상담 선생님이 진료도 권해 주셔서 같이 다녀요. 어느 쪽이든 먼저 가면 다음 길을 안내받을 수 있어요.', 1790915381000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 처음 약 받던 날 무서웠던",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_14', 'community', '처음 약 받던 날 무서웠던 마음', '# 처방전을 들고 약국 앞에서 한참 서 있었던 날 이야기예요.\n\n진료실에서는 고개를 끄덕였는데, 막상 약 봉투를 받으니까 겁이 났어요. ''이걸 먹으면 내가 달라지는 건 아닐까'', ''평생 먹어야 하는 건 아닐까'' 하는 생각이 한꺼번에 몰려왔어요.\n\n집에 와서도 첫날은 먹지 못했어요. 다음 진료 때 그 마음을 그대로 **주치의와 상의했어요**. 혼날 줄 알았는데 선생님은 그런 걱정을 하는 분이 많다고 하시면서, 제가 궁금해하던 걸 하나씩 설명해 주셨어요.\n\n## 그때 여쭤본 것\n\n- 언제쯤 변화를 느낄 수 있는지\n- 불편한 느낌이 생기면 어떻게 하면 되는지\n- 얼마나 오래 먹게 되는지는 어떻게 정하는지\n\n답을 듣는다고 무서움이 다 없어지지는 않았어요. 그래도 **모르는 채로 무서운 것보다는 훨씬 나았어요**. 지금은 선생님과 계속 이야기하면서 먹고 있고, 조금 나아졌다고 느껴요. 처음이라 무서운 분들께 제 경험이 작은 참고가 되면 좋겠어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790915118000, 1790915118000, '운영팀 예시', 'meds')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_14', 'community', '처음 약 받던 날 무서웠던 마음', '# 처방전을 들고 약국 앞에서 한참 서 있었던 날 이야기예요.\n\n진료실에서는 고개를 끄덕였는데, 막상 약 봉투를 받으니까 겁이 났어요. ''이걸 먹으면 내가 달라지는 건 아닐까'', ''평생 먹어야 하는 건 아닐까'' 하는 생각이 한꺼번에 몰려왔어요.\n\n집에 와서도 첫날은 먹지 못했어요. 다음 진료 때 그 마음을 그대로 **주치의와 상의했어요**. 혼날 줄 알았는데 선생님은 그런 걱정을 하는 분이 많다고 하시면서, 제가 궁금해하던 걸 하나씩 설명해 주셨어요.\n\n## 그때 여쭤본 것\n\n- 언제쯤 변화를 느낄 수 있는지\n- 불편한 느낌이 생기면 어떻게 하면 되는지\n- 얼마나 오래 먹게 되는지는 어떻게 정하는지\n\n답을 듣는다고 무서움이 다 없어지지는 않았어요. 그래도 **모르는 채로 무서운 것보다는 훨씬 나았어요**. 지금은 선생님과 계속 이야기하면서 먹고 있고, 조금 나아졌다고 느껴요. 처음이라 무서운 분들께 제 경험이 작은 참고가 되면 좋겠어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790915118000, 1790915118000, '운영팀', 'meds')"
 ],
 [
 "예시 댓글 2차 14-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_14_0', 'po_ex2_14', 'sys', '운영팀 예시', '저도 첫날 못 먹었어요. 그 마음을 진료에서 말해도 된다는 걸 이 글 보고 알았어요.', 1790915718000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_14_0', 'po_ex2_14', 'sys', '운영팀', '저도 첫날 못 먹었어요. 그 마음을 진료에서 말해도 된다는 걸 이 글 보고 알았어요.', 1790915718000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 14-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_14_1', 'po_ex2_14', 'sys', '운영팀 예시', '궁금한 걸 메모해서 가져간 게 저도 도움이 됐어요. 사람마다 다르니 주치의 선생님께 묻는 게 제일 정확하더라고요.', 1790916318000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_14_1', 'po_ex2_14', 'sys', '운영팀', '궁금한 걸 메모해서 가져간 게 저도 도움이 됐어요. 사람마다 다르니 주치의 선생님께 묻는 게 제일 정확하더라고요.', 1790916318000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 낮에 졸려서 주치의께 말씀",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_15', 'community', '낮에 졸려서 주치의께 말씀드렸어요', '# 약을 먹기 시작하고 낮에 졸음이 와서 고민하다가 진료 때 말씀드린 경험이에요.\n\n처음 몇 주 동안 오후만 되면 눈꺼풀이 무거웠어요. 회의 시간에 꾸벅하고 나서는 ''이걸 말해도 되나, 참아야 하나'' 하고 혼자 한참 고민했어요. 약 때문인지 그냥 피곤해서인지도 확신이 없었고요.\n\n혼자 판단해서 바꾸면 안 될 것 같아서, 다음 진료 날까지 메모를 해 뒀어요.\n\n## 메모해 간 것\n\n- 졸린 시간대 (저는 주로 점심 이후)\n- 며칠이나 그랬는지\n- 일상에서 어떤 점이 곤란했는지\n\n그걸 보여 드리면서 **주치의와 상의했어요**. 선생님이 제 생활 패턴을 물어보시고는 선생님 판단으로 조정해 주셨어요. 어떻게 조정했는지는 사람마다 다를 테니 적지 않을게요.\n\n제가 느낀 건, 불편한 걸 말하는 게 **선생님을 귀찮게 하는 일이 아니라 진료에 필요한 정보**였다는 거예요. 참고 계신 분이 있다면 다음 진료 때 꼭 이야기해 보세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790916055000, 1790916055000, '운영팀 예시', 'meds')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_15', 'community', '낮에 졸려서 주치의께 말씀드렸어요', '# 약을 먹기 시작하고 낮에 졸음이 와서 고민하다가 진료 때 말씀드린 경험이에요.\n\n처음 몇 주 동안 오후만 되면 눈꺼풀이 무거웠어요. 회의 시간에 꾸벅하고 나서는 ''이걸 말해도 되나, 참아야 하나'' 하고 혼자 한참 고민했어요. 약 때문인지 그냥 피곤해서인지도 확신이 없었고요.\n\n혼자 판단해서 바꾸면 안 될 것 같아서, 다음 진료 날까지 메모를 해 뒀어요.\n\n## 메모해 간 것\n\n- 졸린 시간대 (저는 주로 점심 이후)\n- 며칠이나 그랬는지\n- 일상에서 어떤 점이 곤란했는지\n\n그걸 보여 드리면서 **주치의와 상의했어요**. 선생님이 제 생활 패턴을 물어보시고는 선생님 판단으로 조정해 주셨어요. 어떻게 조정했는지는 사람마다 다를 테니 적지 않을게요.\n\n제가 느낀 건, 불편한 걸 말하는 게 **선생님을 귀찮게 하는 일이 아니라 진료에 필요한 정보**였다는 거예요. 참고 계신 분이 있다면 다음 진료 때 꼭 이야기해 보세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790916055000, 1790916055000, '운영팀', 'meds')"
 ],
 [
 "예시 댓글 2차 15-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_15_0', 'po_ex2_15', 'sys', '운영팀 예시', '저도 참다가 말씀드렸는데 왜 이제 말했냐고 하시더라고요. 메모해 가는 거 좋은 방법이에요.', 1790916655000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_15_0', 'po_ex2_15', 'sys', '운영팀', '저도 참다가 말씀드렸는데 왜 이제 말했냐고 하시더라고요. 메모해 가는 거 좋은 방법이에요.', 1790916655000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 15-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_15_1', 'po_ex2_15', 'sys', '운영팀 예시', '혼자 조절하지 않고 여쭤보신 게 제일 잘하신 일 같아요.', 1790917255000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_15_1', 'po_ex2_15', 'sys', '운영팀', '혼자 조절하지 않고 여쭤보신 게 제일 잘하신 일 같아요.', 1790917255000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 약 챙겨 먹는 습관, 저는",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_16', 'community', '약 챙겨 먹는 습관, 저는 이렇게 해요', '# 자꾸 깜빡해서 이것저것 해 보다가 저한테 맞는 방법을 찾았어요.\n\n처음에는 먹었는지 안 먹었는지 헷갈리는 날이 많았어요. 그럴 때마다 불안해지고, 진료 때 ''잘 드셨어요?''라는 질문에 대답하기가 민망했어요.\n\n## 제가 정착한 방법\n\n- **요일별 약통**: 칸이 비어 있으면 먹은 거라서 헷갈릴 일이 없어요\n- **이미 하는 일에 붙이기**: 저는 아침 양치 컵 옆에 약통을 둬요\n- **알람은 하나만**: 여러 개 맞추니까 오히려 무시하게 되더라고요\n- **빼먹은 날은 기록**: 다음 진료 때 그대로 말씀드려요\n\n빼먹었을 때 어떻게 해야 하는지는 약마다 다르다고 해서, 저는 **주치의와 상의했어요**. 미리 여쭤보고 적어 두니까 그런 날에도 덜 당황해요.\n\n완벽하게 지키지는 못해요. 그래도 예전보다 빠뜨리는 날이 줄었고, 그것만으로도 마음이 조금 편해졌어요. 다른 분들은 어떻게 챙기시는지 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790916992000, 1790916992000, '운영팀 예시', 'meds')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_16', 'community', '약 챙겨 먹는 습관, 저는 이렇게 해요', '# 자꾸 깜빡해서 이것저것 해 보다가 저한테 맞는 방법을 찾았어요.\n\n처음에는 먹었는지 안 먹었는지 헷갈리는 날이 많았어요. 그럴 때마다 불안해지고, 진료 때 ''잘 드셨어요?''라는 질문에 대답하기가 민망했어요.\n\n## 제가 정착한 방법\n\n- **요일별 약통**: 칸이 비어 있으면 먹은 거라서 헷갈릴 일이 없어요\n- **이미 하는 일에 붙이기**: 저는 아침 양치 컵 옆에 약통을 둬요\n- **알람은 하나만**: 여러 개 맞추니까 오히려 무시하게 되더라고요\n- **빼먹은 날은 기록**: 다음 진료 때 그대로 말씀드려요\n\n빼먹었을 때 어떻게 해야 하는지는 약마다 다르다고 해서, 저는 **주치의와 상의했어요**. 미리 여쭤보고 적어 두니까 그런 날에도 덜 당황해요.\n\n완벽하게 지키지는 못해요. 그래도 예전보다 빠뜨리는 날이 줄었고, 그것만으로도 마음이 조금 편해졌어요. 다른 분들은 어떻게 챙기시는지 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790916992000, 1790916992000, '운영팀', 'meds')"
 ],
 [
 "예시 댓글 2차 16-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_0', 'po_ex2_16', 'sys', '운영팀 예시', '빼먹은 날 기록해서 말씀드린다는 게 좋네요. 저는 숨기곤 했는데 솔직하게 말해 봐야겠어요.', 1790917592000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_0', 'po_ex2_16', 'sys', '운영팀', '빼먹은 날 기록해서 말씀드린다는 게 좋네요. 저는 숨기곤 했는데 솔직하게 말해 봐야겠어요.', 1790917592000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 16-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_1', 'po_ex2_16', 'sys', '운영팀 예시', '저도 처음엔 숨겼어요 ㅎㅎ 말씀드리니까 오히려 같이 방법을 찾아 주시더라고요.', 1790918192000, 0, 0, 'cm_ex2_16_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_1', 'po_ex2_16', 'sys', '운영팀', '저도 처음엔 숨겼어요 ㅎㅎ 말씀드리니까 오히려 같이 방법을 찾아 주시더라고요.', 1790918192000, 0, 0, 'cm_ex2_16_0')"
 ],
 [
 "예시 댓글 2차 16-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_2', 'po_ex2_16', 'sys', '운영팀 예시', '요일별 약통 저도 쓰는데 진짜 편해요. 양치 컵 옆 자리 아이디어 좋네요.', 1790918792000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_16_2', 'po_ex2_16', 'sys', '운영팀', '요일별 약통 저도 쓰는데 진짜 편해요. 양치 컵 옆 자리 아이디어 좋네요.', 1790918792000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 약 먹는다고 엄마한테 말했",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_17', 'community', '약 먹는다고 엄마한테 말했어요', '# 반년 가까이 숨기다가 지난주에 엄마한테 이야기했어요.\n\n약 봉투를 서랍 깊숙이 넣어 두고 방문을 닫고 먹었어요. 들키면 걱정하실 것 같기도 했고, ''마음이 약해서 그렇다''는 말을 들을까 봐 무서웠어요.\n\n말하기 전에 진료 시간에 이 고민을 꺼내서 **주치의와 상의했어요**. 꼭 말해야 하는 건 아니지만, 말하고 싶다면 어떻게 설명하면 좋을지 같이 정리해 주셨어요.\n\n## 제가 한 말\n\n- 요즘 잠이랑 기분 때문에 병원에 다니고 있다\n- 선생님과 상의해서 약을 먹고 있다\n- 걱정보다는 그냥 알고만 있어 주면 좋겠다\n\n엄마는 한참 말이 없다가 ''밥은 잘 먹고 다니냐''고 하셨어요. 기대했던 반응은 아니었지만, 저희 엄마식의 걱정이라는 건 알았어요.\n\n모든 집이 이렇게 되지는 않을 거예요. 저도 **말한 뒤에 전부 편해진 건 아니고**, 숨기느라 쓰던 힘이 조금 줄어든 정도예요. 고민 중인 분께 하나의 경험으로 읽혔으면 해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790917929000, 1790917929000, '운영팀 예시', 'meds')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_17', 'community', '약 먹는다고 엄마한테 말했어요', '# 반년 가까이 숨기다가 지난주에 엄마한테 이야기했어요.\n\n약 봉투를 서랍 깊숙이 넣어 두고 방문을 닫고 먹었어요. 들키면 걱정하실 것 같기도 했고, ''마음이 약해서 그렇다''는 말을 들을까 봐 무서웠어요.\n\n말하기 전에 진료 시간에 이 고민을 꺼내서 **주치의와 상의했어요**. 꼭 말해야 하는 건 아니지만, 말하고 싶다면 어떻게 설명하면 좋을지 같이 정리해 주셨어요.\n\n## 제가 한 말\n\n- 요즘 잠이랑 기분 때문에 병원에 다니고 있다\n- 선생님과 상의해서 약을 먹고 있다\n- 걱정보다는 그냥 알고만 있어 주면 좋겠다\n\n엄마는 한참 말이 없다가 ''밥은 잘 먹고 다니냐''고 하셨어요. 기대했던 반응은 아니었지만, 저희 엄마식의 걱정이라는 건 알았어요.\n\n모든 집이 이렇게 되지는 않을 거예요. 저도 **말한 뒤에 전부 편해진 건 아니고**, 숨기느라 쓰던 힘이 조금 줄어든 정도예요. 고민 중인 분께 하나의 경험으로 읽혔으면 해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790917929000, 1790917929000, '운영팀', 'meds')"
 ],
 [
 "예시 댓글 2차 17-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_17_0', 'po_ex2_17', 'sys', '운영팀 예시', '''알고만 있어 주면 좋겠다''는 말이 참 좋네요. 저도 언젠가 말하게 되면 빌려 쓸게요.', 1790918529000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_17_0', 'po_ex2_17', 'sys', '운영팀', '''알고만 있어 주면 좋겠다''는 말이 참 좋네요. 저도 언젠가 말하게 되면 빌려 쓸게요.', 1790918529000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 17-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_17_1', 'po_ex2_17', 'sys', '운영팀 예시', '저는 아직 말 안 했는데, 말하지 않는 것도 선택이라고 생각해요. 용기 내신 거 고생하셨어요.', 1790919129000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_17_1', 'po_ex2_17', 'sys', '운영팀', '저는 아직 말 안 했는데, 말하지 않는 것도 선택이라고 생각해요. 용기 내신 거 고생하셨어요.', 1790919129000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 대학원, 가야 할지 아직도",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_18', 'community', '대학원, 가야 할지 아직도 모르겠어요', '# 4학년이 됐는데 대학원 진학을 두고 매일 마음이 바뀌어요.\n\n심리학이 좋아서 여기까지 왔고, 사람을 돕는 일을 하고 싶다는 마음은 그대로예요. 그런데 석사에 수련까지 생각하면 앞으로 몇 년을 더 공부해야 하는지, 그동안 생활은 어떻게 하는지 막막해요.\n\n## 요즘 머릿속을 도는 질문\n\n- 임상과 상담 중에 나한테 맞는 쪽이 어디인지\n- 연구에 흥미가 크지 않아도 대학원 생활을 버틸 수 있는지\n- 학부 졸업 후 일을 먼저 해 보고 가는 건 어떤지\n\n주변에서는 ''어차피 갈 거면 빨리 가라''고 하는데, 확신 없이 가는 게 맞는지 모르겠어요. 반대로 확신이 생길 때까지 기다리다가는 영영 못 갈 것 같기도 하고요.\n\n선배님들은 **진학을 결정할 때 무엇이 기준이 됐는지** 궁금해요. 다시 돌아간다면 다르게 준비했을 것도 있다면 알려 주세요. 연구실을 알아볼 때 꼭 확인해야 할 점도 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790918866000, 1790918866000, '운영팀 예시', 'student')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_18', 'community', '대학원, 가야 할지 아직도 모르겠어요', '# 4학년이 됐는데 대학원 진학을 두고 매일 마음이 바뀌어요.\n\n심리학이 좋아서 여기까지 왔고, 사람을 돕는 일을 하고 싶다는 마음은 그대로예요. 그런데 석사에 수련까지 생각하면 앞으로 몇 년을 더 공부해야 하는지, 그동안 생활은 어떻게 하는지 막막해요.\n\n## 요즘 머릿속을 도는 질문\n\n- 임상과 상담 중에 나한테 맞는 쪽이 어디인지\n- 연구에 흥미가 크지 않아도 대학원 생활을 버틸 수 있는지\n- 학부 졸업 후 일을 먼저 해 보고 가는 건 어떤지\n\n주변에서는 ''어차피 갈 거면 빨리 가라''고 하는데, 확신 없이 가는 게 맞는지 모르겠어요. 반대로 확신이 생길 때까지 기다리다가는 영영 못 갈 것 같기도 하고요.\n\n선배님들은 **진학을 결정할 때 무엇이 기준이 됐는지** 궁금해요. 다시 돌아간다면 다르게 준비했을 것도 있다면 알려 주세요. 연구실을 알아볼 때 꼭 확인해야 할 점도 듣고 싶어요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790918866000, 1790918866000, '운영팀', 'student')"
 ],
 [
 "예시 댓글 2차 18-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_18_0', 'po_ex2_18', 'sys', '운영팀 예시', '저는 1년 일하고 진학했는데 후회 없어요. 하고 싶은 주제가 더 분명해져서 왔거든요.', 1790919466000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_18_0', 'po_ex2_18', 'sys', '운영팀', '저는 1년 일하고 진학했는데 후회 없어요. 하고 싶은 주제가 더 분명해져서 왔거든요.', 1790919466000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 18-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_18_1', 'po_ex2_18', 'sys', '운영팀 예시', '연구실은 졸업한 선배들 진로와 지도 방식, 그리고 분위기를 꼭 물어보세요. 재학생에게 직접 묻는 게 제일 정확해요.', 1790920066000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_18_1', 'po_ex2_18', 'sys', '운영팀', '연구실은 졸업한 선배들 진로와 지도 방식, 그리고 분위기를 꼭 물어보세요. 재학생에게 직접 묻는 게 제일 정확해요.', 1790920066000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 수련 기관 고르는 기준이 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_19', 'community', '수련 기관 고르는 기준이 궁금해요', '# 석사 마지막 학기인데 수련 기관을 어떻게 골라야 할지 감이 안 와요.\n\n모집 공고를 보면 조건이 제각각이라 뭘 우선으로 봐야 할지 모르겠어요. 좋은 곳은 경쟁이 치열하다고 하고, 붙여 주는 곳에 가야 하는 건 아닌지 불안하기도 해요.\n\n## 제가 비교하려는 항목\n\n- 수퍼비전이 얼마나 자주, 어떤 방식으로 이루어지는지\n- 만나게 되는 사례의 폭\n- 수련생 처우와 근무 시간\n- 통근 거리 (체력이 자신 없어서요)\n\n솔직히 처우 이야기를 꺼내면 ''배우러 가는 건데''라는 말을 들을까 봐 조심스러워요. 그런데 몇 년을 버텨야 하는 일이라 생활이 무너지면 배움도 어려울 것 같아요.\n\n**수련을 마치신 분들은 어떤 기준이 실제로 중요했는지** 알려 주세요. 지원 전에 미리 물어봐서 좋았던 질문, 가 보고 나서야 알게 된 것도 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790919803000, 1790919803000, '운영팀 예시', 'student')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_19', 'community', '수련 기관 고르는 기준이 궁금해요', '# 석사 마지막 학기인데 수련 기관을 어떻게 골라야 할지 감이 안 와요.\n\n모집 공고를 보면 조건이 제각각이라 뭘 우선으로 봐야 할지 모르겠어요. 좋은 곳은 경쟁이 치열하다고 하고, 붙여 주는 곳에 가야 하는 건 아닌지 불안하기도 해요.\n\n## 제가 비교하려는 항목\n\n- 수퍼비전이 얼마나 자주, 어떤 방식으로 이루어지는지\n- 만나게 되는 사례의 폭\n- 수련생 처우와 근무 시간\n- 통근 거리 (체력이 자신 없어서요)\n\n솔직히 처우 이야기를 꺼내면 ''배우러 가는 건데''라는 말을 들을까 봐 조심스러워요. 그런데 몇 년을 버텨야 하는 일이라 생활이 무너지면 배움도 어려울 것 같아요.\n\n**수련을 마치신 분들은 어떤 기준이 실제로 중요했는지** 알려 주세요. 지원 전에 미리 물어봐서 좋았던 질문, 가 보고 나서야 알게 된 것도 궁금해요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790919803000, 1790919803000, '운영팀', 'student')"
 ],
 [
 "예시 댓글 2차 19-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_0', 'po_ex2_19', 'sys', '운영팀 예시', '처우는 당연히 물어봐도 되는 항목이에요. 저는 수퍼비전의 질이 제일 크게 남았어요.', 1790920403000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_0', 'po_ex2_19', 'sys', '운영팀', '처우는 당연히 물어봐도 되는 항목이에요. 저는 수퍼비전의 질이 제일 크게 남았어요.', 1790920403000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 19-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_1', 'po_ex2_19', 'sys', '운영팀 예시', '먼저 수련한 선배 한 명이라도 연락이 닿으면 실제 하루 일과를 물어보세요. 공고에 없는 게 많아요.', 1790921003000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_1', 'po_ex2_19', 'sys', '운영팀', '먼저 수련한 선배 한 명이라도 연락이 닿으면 실제 하루 일과를 물어보세요. 공고에 없는 게 많아요.', 1790921003000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 19-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_2', 'po_ex2_19', 'sys', '운영팀 예시', '수퍼비전 질은 밖에서 어떻게 알 수 있을까요? 면접 때 여쭤봐도 괜찮을까요?', 1790921603000, 0, 0, 'cm_ex2_19_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_19_2', 'po_ex2_19', 'sys', '운영팀', '수퍼비전 질은 밖에서 어떻게 알 수 있을까요? 면접 때 여쭤봐도 괜찮을까요?', 1790921603000, 0, 0, 'cm_ex2_19_0')"
 ],
 [
 "예시 글 2차: 통계 앞에서 작아지는 사람",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_20', 'community', '통계 앞에서 작아지는 사람 손', '# 논문 분석을 돌릴 때마다 제가 대학원에 있어도 되는 사람인지 의심해요.\n\n수업에서 배울 때는 알 것 같았는데, 제 자료를 넣고 돌리면 결과가 예상과 다르게 나와요. 뭐가 잘못됐는지 찾다 보면 하루가 가고, 지도교수님 면담 날이 다가오면 속이 울렁거려요.\n\n## 요즘 제 상태\n\n- 결과표를 보는데 숫자가 글자로 안 읽힘\n- 동기들은 다 잘하는 것 같음\n- 질문하면 기초도 모른다고 들킬까 봐 못 물어봄\n\n지난주에는 용기를 내서 동기한테 물어봤는데, 그 친구도 똑같은 데서 막혀 있었어요. 둘이 한참 웃었어요. **나만 모르는 게 아니었다**는 게 생각보다 큰 위로가 됐어요.\n\n그래서 요즘은 모르는 걸 적어 두고 한꺼번에 물어보는 연습을 해요. 아직도 통계는 어렵지만, 혼자 끙끙대던 때보다는 조금 덜 무서워요.\n\n통계 공부할 때 도움이 됐던 방법이나, 논문 쓰면서 버틴 요령이 있으면 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790920740000, 1790920740000, '운영팀 예시', 'student')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_20', 'community', '통계 앞에서 작아지는 사람 손', '# 논문 분석을 돌릴 때마다 제가 대학원에 있어도 되는 사람인지 의심해요.\n\n수업에서 배울 때는 알 것 같았는데, 제 자료를 넣고 돌리면 결과가 예상과 다르게 나와요. 뭐가 잘못됐는지 찾다 보면 하루가 가고, 지도교수님 면담 날이 다가오면 속이 울렁거려요.\n\n## 요즘 제 상태\n\n- 결과표를 보는데 숫자가 글자로 안 읽힘\n- 동기들은 다 잘하는 것 같음\n- 질문하면 기초도 모른다고 들킬까 봐 못 물어봄\n\n지난주에는 용기를 내서 동기한테 물어봤는데, 그 친구도 똑같은 데서 막혀 있었어요. 둘이 한참 웃었어요. **나만 모르는 게 아니었다**는 게 생각보다 큰 위로가 됐어요.\n\n그래서 요즘은 모르는 걸 적어 두고 한꺼번에 물어보는 연습을 해요. 아직도 통계는 어렵지만, 혼자 끙끙대던 때보다는 조금 덜 무서워요.\n\n통계 공부할 때 도움이 됐던 방법이나, 논문 쓰면서 버틴 요령이 있으면 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790920740000, 1790920740000, '운영팀', 'student')"
 ],
 [
 "예시 댓글 2차 20-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_20_0', 'po_ex2_20', 'sys', '운영팀 예시', '저요. 저는 스터디를 만들어서 서로 분석 과정을 설명해 주는 게 제일 도움이 됐어요.', 1790921340000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_20_0', 'po_ex2_20', 'sys', '운영팀', '저요. 저는 스터디를 만들어서 서로 분석 과정을 설명해 주는 게 제일 도움이 됐어요.', 1790921340000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 20-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_20_1', 'po_ex2_20', 'sys', '운영팀 예시', '졸업한 사람인데 그때 저도 매일 의심했어요. 물어보는 사람이 결국 빨리 늘더라고요.', 1790921940000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_20_1', 'po_ex2_20', 'sys', '운영팀', '졸업한 사람인데 그때 저도 매일 의심했어요. 물어보는 사람이 결국 빨리 늘더라고요.', 1790921940000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 개원, 계산기 두드릴수록 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_21', 'community', '개원, 계산기 두드릴수록 잠이 안 옵니다', '# 봉직 몇 년 차에 개원을 알아보는 중인데 숫자를 볼수록 마음이 복잡해집니다.\n\n자리 몇 군데를 보고 왔습니다. 마음에 드는 곳은 임대료가 감당이 될지 모르겠고, 임대료가 괜찮은 곳은 접근성이 아쉽습니다. 인테리어 견적은 받을 때마다 올라가고요.\n\n## 요즘 고민하는 것\n\n- **임대료**: 초반 환자 수가 적은 기간을 몇 달까지 버틸 수 있을지\n- **인력**: 접수 직원 한 명으로 시작해도 되는지, 그 한 명이 그만두면 어떻게 할지\n- **진료 형태**: 면담 시간을 충분히 확보하고 싶은데 그게 운영과 양립하는지\n\n제일 큰 건 불안입니다. 진료실에서 환자분들께는 불확실성을 견디는 법을 이야기하면서, 정작 저는 대출 서류 앞에서 손이 떨립니다.\n\n먼저 개원하신 선생님들께 여쭙고 싶습니다. **시작 전에 가장 과소평가했던 비용이나 일**이 무엇이었는지, 그리고 초반 몇 달을 어떻게 버티셨는지 들려주시면 감사하겠습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790921677000, 1790921677000, '운영팀 예시', 'doctor')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_21', 'community', '개원, 계산기 두드릴수록 잠이 안 옵니다', '# 봉직 몇 년 차에 개원을 알아보는 중인데 숫자를 볼수록 마음이 복잡해집니다.\n\n자리 몇 군데를 보고 왔습니다. 마음에 드는 곳은 임대료가 감당이 될지 모르겠고, 임대료가 괜찮은 곳은 접근성이 아쉽습니다. 인테리어 견적은 받을 때마다 올라가고요.\n\n## 요즘 고민하는 것\n\n- **임대료**: 초반 환자 수가 적은 기간을 몇 달까지 버틸 수 있을지\n- **인력**: 접수 직원 한 명으로 시작해도 되는지, 그 한 명이 그만두면 어떻게 할지\n- **진료 형태**: 면담 시간을 충분히 확보하고 싶은데 그게 운영과 양립하는지\n\n제일 큰 건 불안입니다. 진료실에서 환자분들께는 불확실성을 견디는 법을 이야기하면서, 정작 저는 대출 서류 앞에서 손이 떨립니다.\n\n먼저 개원하신 선생님들께 여쭙고 싶습니다. **시작 전에 가장 과소평가했던 비용이나 일**이 무엇이었는지, 그리고 초반 몇 달을 어떻게 버티셨는지 들려주시면 감사하겠습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790921677000, 1790921677000, '운영팀', 'doctor')"
 ],
 [
 "예시 댓글 2차 21-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_0', 'po_ex2_21', 'sys', '운영팀 예시', '저는 행정 업무에 드는 시간을 가장 과소평가했습니다. 진료 외 시간이 생각보다 많이 듭니다.', 1790922277000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_0', 'po_ex2_21', 'sys', '운영팀', '저는 행정 업무에 드는 시간을 가장 과소평가했습니다. 진료 외 시간이 생각보다 많이 듭니다.', 1790922277000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 21-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_1', 'po_ex2_21', 'sys', '운영팀 예시', '직원 한 분으로 시작했는데, 업무 매뉴얼을 처음부터 문서로 만들어 둔 게 나중에 큰 도움이 됐습니다.', 1790922877000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_1', 'po_ex2_21', 'sys', '운영팀', '직원 한 분으로 시작했는데, 업무 매뉴얼을 처음부터 문서로 만들어 둔 게 나중에 큰 도움이 됐습니다.', 1790922877000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 21-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_2', 'po_ex2_21', 'sys', '운영팀 예시', '행정 시간은 미처 계산에 넣지 못했네요. 감사합니다.', 1790923477000, 0, 0, 'cm_ex2_21_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_21_2', 'po_ex2_21', 'sys', '운영팀', '행정 시간은 미처 계산에 넣지 못했네요. 감사합니다.', 1790923477000, 0, 0, 'cm_ex2_21_0')"
 ],
 [
 "예시 글 2차: 외래에서 소진을 느낄 때",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_22', 'community', '외래에서 소진을 느낄 때', '# 요즘 오후 외래 후반부가 되면 제가 듣고 있는 건지 버티고 있는 건지 모르겠습니다.\n\n대기 환자가 밀려 있으면 마음이 급해지고, 그러면 면담이 짧아지고, 짧게 끝낸 날은 퇴근길에 찜찜함이 남습니다. 환자분 이야기에 예전만큼 마음이 움직이지 않는 순간을 알아차릴 때가 제일 불편합니다.\n\n## 제가 알아차린 신호\n\n- 차트를 쓰면서 한숨이 늘었다\n- 집에 가서 말을 거의 안 한다\n- 쉬는 날에도 다음 주 외래 생각이 난다\n\n환자분들께는 쉬라고, 도움을 받으라고 말하면서 저는 동료에게 힘들다는 말 한마디를 못 꺼냈습니다. 이 글을 쓰는 것도 한참 망설였습니다.\n\n최근에는 외래 사이에 **5분이라도 자리에서 일어나 걷는 것**부터 시작했습니다. 큰 변화는 아니지만 오후가 조금 덜 버겁습니다.\n\n선생님들은 소진을 느낄 때 어떻게 하시는지, 진료 일정이나 구조를 바꿔 본 경험이 있으신지 듣고 싶습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790922614000, 1790922614000, '운영팀 예시', 'doctor')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_22', 'community', '외래에서 소진을 느낄 때', '# 요즘 오후 외래 후반부가 되면 제가 듣고 있는 건지 버티고 있는 건지 모르겠습니다.\n\n대기 환자가 밀려 있으면 마음이 급해지고, 그러면 면담이 짧아지고, 짧게 끝낸 날은 퇴근길에 찜찜함이 남습니다. 환자분 이야기에 예전만큼 마음이 움직이지 않는 순간을 알아차릴 때가 제일 불편합니다.\n\n## 제가 알아차린 신호\n\n- 차트를 쓰면서 한숨이 늘었다\n- 집에 가서 말을 거의 안 한다\n- 쉬는 날에도 다음 주 외래 생각이 난다\n\n환자분들께는 쉬라고, 도움을 받으라고 말하면서 저는 동료에게 힘들다는 말 한마디를 못 꺼냈습니다. 이 글을 쓰는 것도 한참 망설였습니다.\n\n최근에는 외래 사이에 **5분이라도 자리에서 일어나 걷는 것**부터 시작했습니다. 큰 변화는 아니지만 오후가 조금 덜 버겁습니다.\n\n선생님들은 소진을 느낄 때 어떻게 하시는지, 진료 일정이나 구조를 바꿔 본 경험이 있으신지 듣고 싶습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790922614000, 1790922614000, '운영팀', 'doctor')"
 ],
 [
 "예시 댓글 2차 22-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_22_0', 'po_ex2_22', 'sys', '운영팀 예시', '저도 비슷한 시기가 있었습니다. 예약 간격을 조정하고 동료 모임에 나가기 시작한 게 도움이 됐습니다.', 1790923214000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_22_0', 'po_ex2_22', 'sys', '운영팀', '저도 비슷한 시기가 있었습니다. 예약 간격을 조정하고 동료 모임에 나가기 시작한 게 도움이 됐습니다.', 1790923214000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 22-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_22_1', 'po_ex2_22', 'sys', '운영팀 예시', '쓰기 어려운 글이었을 텐데 감사합니다. 우리도 돌봄이 필요한 사람이라는 걸 자주 잊네요.', 1790923814000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_22_1', 'po_ex2_22', 'sys', '운영팀', '쓰기 어려운 글이었을 텐데 감사합니다. 우리도 돌봄이 필요한 사람이라는 걸 자주 잊네요.', 1790923814000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 봉직과 개원 사이에서",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_23', 'community', '봉직과 개원 사이에서', '# 지금 자리가 나쁘지 않은데도 계속 ''다음''을 생각하게 됩니다.\n\n봉직의로 일하면서 안정적인 건 분명합니다. 정해진 시간에 진료하고, 경영 걱정 없이 환자만 볼 수 있습니다. 그런데 진료 방식이나 시간 배분을 제 뜻대로 정할 수 없다는 답답함이 해마다 조금씩 커집니다.\n\n## 제가 저울질하는 것\n\n- **봉직**: 안정된 수입, 동료가 있는 환경, 다만 재량이 좁음\n- **개원**: 진료 철학을 구현할 자유, 다만 경영 부담과 고립\n- **제3의 길**: 근무 일수를 줄이고 다른 일을 병행하는 형태\n\n가족이 있다 보니 수입이 흔들리는 시기를 감당할 수 있을지도 현실적인 문제입니다. 한편으로는 지금 안 하면 영영 못 할 것 같다는 조급함도 있습니다.\n\n**결정의 기준을 어디에 두셨는지** 궁금합니다. 개원했다가 다시 봉직으로 돌아오신 분, 봉직을 오래 이어 가기로 하신 분의 이야기도 듣고 싶습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790923551000, 1790923551000, '운영팀 예시', 'doctor')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_23', 'community', '봉직과 개원 사이에서', '# 지금 자리가 나쁘지 않은데도 계속 ''다음''을 생각하게 됩니다.\n\n봉직의로 일하면서 안정적인 건 분명합니다. 정해진 시간에 진료하고, 경영 걱정 없이 환자만 볼 수 있습니다. 그런데 진료 방식이나 시간 배분을 제 뜻대로 정할 수 없다는 답답함이 해마다 조금씩 커집니다.\n\n## 제가 저울질하는 것\n\n- **봉직**: 안정된 수입, 동료가 있는 환경, 다만 재량이 좁음\n- **개원**: 진료 철학을 구현할 자유, 다만 경영 부담과 고립\n- **제3의 길**: 근무 일수를 줄이고 다른 일을 병행하는 형태\n\n가족이 있다 보니 수입이 흔들리는 시기를 감당할 수 있을지도 현실적인 문제입니다. 한편으로는 지금 안 하면 영영 못 할 것 같다는 조급함도 있습니다.\n\n**결정의 기준을 어디에 두셨는지** 궁금합니다. 개원했다가 다시 봉직으로 돌아오신 분, 봉직을 오래 이어 가기로 하신 분의 이야기도 듣고 싶습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790923551000, 1790923551000, '운영팀', 'doctor')"
 ],
 [
 "예시 댓글 2차 23-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_23_0', 'po_ex2_23', 'sys', '운영팀 예시', '저는 개원 후 다시 봉직으로 왔습니다. 실패라고 생각하지 않고, 저한테 맞는 형태를 확인한 과정이었습니다.', 1790924151000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_23_0', 'po_ex2_23', 'sys', '운영팀', '저는 개원 후 다시 봉직으로 왔습니다. 실패라고 생각하지 않고, 저한테 맞는 형태를 확인한 과정이었습니다.', 1790924151000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 23-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_23_1', 'po_ex2_23', 'sys', '운영팀 예시', '근무 일수를 줄이는 형태로 몇 년째 일하고 있는데, 수입은 줄었지만 진료의 질은 스스로 만족합니다.', 1790924751000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_23_1', 'po_ex2_23', 'sys', '운영팀', '근무 일수를 줄이는 형태로 몇 년째 일하고 있는데, 수입은 줄었지만 진료의 질은 스스로 만족합니다.', 1790924751000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 당직 다음 날, 체력이 바",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_24', 'community', '당직 다음 날, 체력이 바닥일 때', '# 당직을 서고 난 다음 날 오후가 되면 제가 무슨 말을 하고 있는지 저도 모를 때가 있습니다.\n\n밤사이 콜이 많았던 날은 한숨도 못 자고 아침 회진에 들어갑니다. 그 상태로 면담을 하면 환자분 말이 귀에 잘 안 들어오고, 그게 죄송해서 더 지칩니다.\n\n## 버티려고 하는 것들\n\n- 당직 전날은 약속을 잡지 않는다\n- 당직실에 간단한 먹을거리를 미리 둔다\n- 틈이 나면 10분이라도 눈을 붙인다\n- 다음 날 중요한 판단은 가능하면 선배와 한 번 더 확인한다\n\n체력이 떨어지니까 공부할 여력도 없고, 쉬는 날에는 잠만 자게 됩니다. 동기들은 운동도 하고 논문도 쓰는 것 같은데 저만 뒤처지는 기분입니다.\n\n**피곤하다고 말하는 게 약해 보일까 봐** 내색을 못 했는데, 여기서라도 적어 봅니다. 선생님들은 당직 주기를 어떻게 버티시는지, 체력 관리 요령이 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790924488000, 1790924488000, '운영팀 예시', 'resident')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_24', 'community', '당직 다음 날, 체력이 바닥일 때', '# 당직을 서고 난 다음 날 오후가 되면 제가 무슨 말을 하고 있는지 저도 모를 때가 있습니다.\n\n밤사이 콜이 많았던 날은 한숨도 못 자고 아침 회진에 들어갑니다. 그 상태로 면담을 하면 환자분 말이 귀에 잘 안 들어오고, 그게 죄송해서 더 지칩니다.\n\n## 버티려고 하는 것들\n\n- 당직 전날은 약속을 잡지 않는다\n- 당직실에 간단한 먹을거리를 미리 둔다\n- 틈이 나면 10분이라도 눈을 붙인다\n- 다음 날 중요한 판단은 가능하면 선배와 한 번 더 확인한다\n\n체력이 떨어지니까 공부할 여력도 없고, 쉬는 날에는 잠만 자게 됩니다. 동기들은 운동도 하고 논문도 쓰는 것 같은데 저만 뒤처지는 기분입니다.\n\n**피곤하다고 말하는 게 약해 보일까 봐** 내색을 못 했는데, 여기서라도 적어 봅니다. 선생님들은 당직 주기를 어떻게 버티시는지, 체력 관리 요령이 있으면 알려 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790924488000, 1790924488000, '운영팀', 'resident')"
 ],
 [
 "예시 댓글 2차 24-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_0', 'po_ex2_24', 'sys', '운영팀 예시', '동기들도 다 잠만 잡니다. 운동하고 논문 쓰는 것처럼 보이는 건 착시예요.', 1790925088000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_0', 'po_ex2_24', 'sys', '운영팀', '동기들도 다 잠만 잡니다. 운동하고 논문 쓰는 것처럼 보이는 건 착시예요.', 1790925088000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 24-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_1', 'po_ex2_24', 'sys', '운영팀 예시', '당직 다음 날 판단을 선배와 재확인하는 건 좋은 습관입니다. 저도 연차가 올라와도 그렇게 합니다.', 1790925688000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_1', 'po_ex2_24', 'sys', '운영팀', '당직 다음 날 판단을 선배와 재확인하는 건 좋은 습관입니다. 저도 연차가 올라와도 그렇게 합니다.', 1790925688000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 24-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_2', 'po_ex2_24', 'sys', '운영팀 예시', '착시라는 말에 조금 웃었습니다. 감사합니다.', 1790926288000, 0, 0, 'cm_ex2_24_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_24_2', 'po_ex2_24', 'sys', '운영팀', '착시라는 말에 조금 웃었습니다. 감사합니다.', 1790926288000, 0, 0, 'cm_ex2_24_0')"
 ],
 [
 "예시 글 2차: 정신치료 수련, 한계를 느",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_25', 'community', '정신치료 수련, 한계를 느낍니다', '# 정신치료 사례를 맡고 나서 제가 얼마나 서툰지 매주 확인하고 있습니다.\n\n책으로 읽을 때는 이해했다고 생각했습니다. 그런데 실제 면담에서는 침묵이 길어지면 견디지 못하고 먼저 말을 꺼내 버립니다. 수퍼비전에서 그 장면을 다시 보면 얼굴이 뜨거워집니다.\n\n## 요즘 부딪히는 지점\n\n- 침묵을 견디는 일\n- 해결책을 주고 싶은 충동을 참는 일\n- 환자분의 감정에 제가 흔들릴 때 알아차리는 일\n- 병동 업무 사이에서 면담 시간을 지키는 일\n\n약물 조정은 그래도 근거를 찾아 배울 수 있는데, 정신치료는 **제 자신이 도구**라는 점이 버겁습니다. 제가 부족하면 그대로 환자분께 영향이 갈 것 같아서요.\n\n수퍼바이저 선생님은 서툰 걸 아는 게 시작이라고 하시지만, 솔직히 위로가 잘 되지 않습니다. 먼저 이 시기를 지나신 선생님들은 **무엇이 달라지는 계기가 됐는지** 궁금합니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790925425000, 1790925425000, '운영팀 예시', 'resident')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_25', 'community', '정신치료 수련, 한계를 느낍니다', '# 정신치료 사례를 맡고 나서 제가 얼마나 서툰지 매주 확인하고 있습니다.\n\n책으로 읽을 때는 이해했다고 생각했습니다. 그런데 실제 면담에서는 침묵이 길어지면 견디지 못하고 먼저 말을 꺼내 버립니다. 수퍼비전에서 그 장면을 다시 보면 얼굴이 뜨거워집니다.\n\n## 요즘 부딪히는 지점\n\n- 침묵을 견디는 일\n- 해결책을 주고 싶은 충동을 참는 일\n- 환자분의 감정에 제가 흔들릴 때 알아차리는 일\n- 병동 업무 사이에서 면담 시간을 지키는 일\n\n약물 조정은 그래도 근거를 찾아 배울 수 있는데, 정신치료는 **제 자신이 도구**라는 점이 버겁습니다. 제가 부족하면 그대로 환자분께 영향이 갈 것 같아서요.\n\n수퍼바이저 선생님은 서툰 걸 아는 게 시작이라고 하시지만, 솔직히 위로가 잘 되지 않습니다. 먼저 이 시기를 지나신 선생님들은 **무엇이 달라지는 계기가 됐는지** 궁금합니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790925425000, 1790925425000, '운영팀', 'resident')"
 ],
 [
 "예시 댓글 2차 25-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_25_0', 'po_ex2_25', 'sys', '운영팀 예시', '저는 제 면담 기록을 직접 다시 읽는 게 가장 큰 공부였습니다. 괴롭지만 그만큼 늡니다.', 1790926025000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_25_0', 'po_ex2_25', 'sys', '운영팀', '저는 제 면담 기록을 직접 다시 읽는 게 가장 큰 공부였습니다. 괴롭지만 그만큼 늡니다.', 1790926025000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 25-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_25_1', 'po_ex2_25', 'sys', '운영팀 예시', '서툴다고 느끼는 수련의가 환자에게 더 조심스럽습니다. 그 감각을 잃지 않는 게 중요하다고 생각해요.', 1790926625000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_25_1', 'po_ex2_25', 'sys', '운영팀', '서툴다고 느끼는 수련의가 환자에게 더 조심스럽습니다. 그 감각을 잃지 않는 게 중요하다고 생각해요.', 1790926625000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 프리랜서 상담사, 수입이 ",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_26', 'community', '프리랜서 상담사, 수입이 불안합니다', '# 센터 두 곳에 나가며 프리랜서로 일하는데 달마다 수입이 달라서 마음이 늘 조마조마합니다.\n\n회기 수만큼 받는 구조라 내담자분이 취소하면 그 시간은 그대로 비게 됩니다. 방학이나 명절이 있는 달은 눈에 띄게 줄고요. 통장을 볼 때마다 다음 달이 걱정됩니다.\n\n## 현실적인 고민\n\n- 취소와 노쇼에 대한 기준이 센터마다 달라 요구하기가 조심스럽다\n- 수퍼비전과 교육비는 계속 나가는데 수입은 일정하지 않다\n- 사례를 더 받으면 체력과 상담의 질이 걱정된다\n- 4대 보험이나 퇴직금이 없다는 불안\n\n이 일을 좋아합니다. 그런데 좋아하는 마음만으로 버티기에는 생활이 걸려 있습니다. 돈 이야기를 하면 상담사답지 않다는 시선도 여전히 느껴지고요.\n\n**수입을 안정시키기 위해 해 보신 것**이 있다면 듣고 싶습니다. 계약할 때 꼭 확인해야 하는 조항, 일의 구성을 바꾼 경험도 나눠 주시면 감사하겠습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790926362000, 1790926362000, '운영팀 예시', 'expert')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_26', 'community', '프리랜서 상담사, 수입이 불안합니다', '# 센터 두 곳에 나가며 프리랜서로 일하는데 달마다 수입이 달라서 마음이 늘 조마조마합니다.\n\n회기 수만큼 받는 구조라 내담자분이 취소하면 그 시간은 그대로 비게 됩니다. 방학이나 명절이 있는 달은 눈에 띄게 줄고요. 통장을 볼 때마다 다음 달이 걱정됩니다.\n\n## 현실적인 고민\n\n- 취소와 노쇼에 대한 기준이 센터마다 달라 요구하기가 조심스럽다\n- 수퍼비전과 교육비는 계속 나가는데 수입은 일정하지 않다\n- 사례를 더 받으면 체력과 상담의 질이 걱정된다\n- 4대 보험이나 퇴직금이 없다는 불안\n\n이 일을 좋아합니다. 그런데 좋아하는 마음만으로 버티기에는 생활이 걸려 있습니다. 돈 이야기를 하면 상담사답지 않다는 시선도 여전히 느껴지고요.\n\n**수입을 안정시키기 위해 해 보신 것**이 있다면 듣고 싶습니다. 계약할 때 꼭 확인해야 하는 조항, 일의 구성을 바꾼 경험도 나눠 주시면 감사하겠습니다.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790926362000, 1790926362000, '운영팀', 'expert')"
 ],
 [
 "예시 댓글 2차 26-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_26_0', 'po_ex2_26', 'sys', '운영팀 예시', '저는 계약서에 취소 규정과 정산일을 반드시 명시하도록 요청합니다. 처음엔 어려웠지만 요청하면 대부분 반영됩니다.', 1790926962000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_26_0', 'po_ex2_26', 'sys', '운영팀', '저는 계약서에 취소 규정과 정산일을 반드시 명시하도록 요청합니다. 처음엔 어려웠지만 요청하면 대부분 반영됩니다.', 1790926962000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 26-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_26_1', 'po_ex2_26', 'sys', '운영팀 예시', '고정 근무 하루를 섞으니 마음이 훨씬 안정됐어요. 돈 이야기하는 게 전문가답지 않은 건 절대 아닙니다.', 1790927562000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_26_1', 'po_ex2_26', 'sys', '운영팀', '고정 근무 하루를 섞으니 마음이 훨씬 안정됐어요. 돈 이야기하는 게 전문가답지 않은 건 절대 아닙니다.', 1790927562000, 0, 0, NULL)"
 ],
 [
 "예시 글 2차: 센터에서 겪은 부당한 대우",
-"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_27', 'community', '센터에서 겪은 부당한 대우와 대처', '# 예전에 일하던 센터에서 겪은 일과 그때 제가 한 대처를 적어 봅니다.\n\n계약할 때 들은 조건과 실제가 달랐습니다. 정산이 약속한 날짜보다 계속 늦어졌고, 상담 외에 행정 업무와 홍보 글 작성까지 대가 없이 맡게 됐습니다. 문제를 제기하면 ''다들 그렇게 한다''는 답이 돌아왔습니다.\n\n처음에는 제가 예민한가 싶어 참았습니다. 그런데 참을수록 상담실에 들어갈 때 마음이 무거워졌습니다.\n\n## 제가 한 일\n\n- **기록**: 근무 시간과 추가로 한 업무, 정산일을 날짜별로 적어 뒀습니다\n- **문서 요청**: 말로 한 약속을 메시지나 메일로 다시 확인받았습니다\n- **상담**: 노동 관련 공공 상담 창구에 문의해 제 상황을 확인했습니다\n- **동료와 공유**: 같은 처지의 선생님과 이야기하니 저만의 문제가 아니었습니다\n\n결국 그곳을 나왔습니다. 모든 게 해결되지는 않았지만 **기록이 있었기에 정산은 받을 수 있었습니다**.\n\n비슷한 상황에 계신 분들께 참고가 되면 좋겠습니다. 다른 대처 경험도 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790927299000, 1790927299000, '운영팀 예시', 'expert')"
+"INSERT OR IGNORE INTO posts (id, hospital_id, title, body, tags, published, pinned, hidden, created, updated, author_name, board) VALUES ('po_ex2_27', 'community', '센터에서 겪은 부당한 대우와 대처', '# 예전에 일하던 센터에서 겪은 일과 그때 제가 한 대처를 적어 봅니다.\n\n계약할 때 들은 조건과 실제가 달랐습니다. 정산이 약속한 날짜보다 계속 늦어졌고, 상담 외에 행정 업무와 홍보 글 작성까지 대가 없이 맡게 됐습니다. 문제를 제기하면 ''다들 그렇게 한다''는 답이 돌아왔습니다.\n\n처음에는 제가 예민한가 싶어 참았습니다. 그런데 참을수록 상담실에 들어갈 때 마음이 무거워졌습니다.\n\n## 제가 한 일\n\n- **기록**: 근무 시간과 추가로 한 업무, 정산일을 날짜별로 적어 뒀습니다\n- **문서 요청**: 말로 한 약속을 메시지나 메일로 다시 확인받았습니다\n- **상담**: 노동 관련 공공 상담 창구에 문의해 제 상황을 확인했습니다\n- **동료와 공유**: 같은 처지의 선생님과 이야기하니 저만의 문제가 아니었습니다\n\n결국 그곳을 나왔습니다. 모든 게 해결되지는 않았지만 **기록이 있었기에 정산은 받을 수 있었습니다**.\n\n비슷한 상황에 계신 분들께 참고가 되면 좋겠습니다. 다른 대처 경험도 나눠 주세요.\n\n{gray|※ 게시판이 어떻게 쓰이는지 보여드리려고 운영팀이 만든 예시 글이에요. 실제 회원의 내용이 아니에요.}', '', 1, 0, 0, 1790927299000, 1790927299000, '운영팀', 'expert')"
 ],
 [
 "예시 댓글 2차 27-0",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_0', 'po_ex2_27', 'sys', '운영팀 예시', '기록의 중요성에 깊이 공감합니다. 저도 구두 약속만 믿었다가 곤란했던 적이 있어요.', 1790927899000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_0', 'po_ex2_27', 'sys', '운영팀', '기록의 중요성에 깊이 공감합니다. 저도 구두 약속만 믿었다가 곤란했던 적이 있어요.', 1790927899000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 27-1",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_1', 'po_ex2_27', 'sys', '운영팀 예시', '쓰기 어려운 경험 나눠 주셔서 감사합니다. 계약서를 받아 두는 것부터 시작해야겠네요.', 1790928499000, 0, 0, NULL)"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_1', 'po_ex2_27', 'sys', '운영팀', '쓰기 어려운 경험 나눠 주셔서 감사합니다. 계약서를 받아 두는 것부터 시작해야겠네요.', 1790928499000, 0, 0, NULL)"
 ],
 [
 "예시 댓글 2차 27-2",
-"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_2', 'po_ex2_27', 'sys', '운영팀 예시', '저도 그 뒤로는 계약서 없이는 시작하지 않습니다.', 1790929099000, 0, 0, 'cm_ex2_27_0')"
+"INSERT OR IGNORE INTO post_comments (id, post_id, client_id, name, text, ts, hidden, by_hospital, parent_id) VALUES ('cm_ex2_27_2', 'po_ex2_27', 'sys', '운영팀', '저도 그 뒤로는 계약서 없이는 시작하지 않습니다.', 1790929099000, 0, 0, 'cm_ex2_27_0')"
 ],
 [
 "예시 스티커 cm_ex_free1_1",
