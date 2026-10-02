@@ -263,6 +263,14 @@ ${transcript}
  "ally": ["'나'의 감정이 왜 그럴 만했는지 3~4문장. 상대를 깎아내리지 않고 '나'의 마음을 알아준다"],
  "mine": {"can": ["내가 다르게 할 수 있었던 것 1~3개. 비난이 아니라 다음에 써먹을 수 있는 말투로. 없으면 빈 배열"], "not": ["내 몫이 아닌 것(상대의 선택·말투·상황) 1~3개"]},
  "next": {"soft": "부드럽게 풀고 싶을 때 보낼 답장 초안(2~3문장, 사용자의 평소 말투에 맞춰)", "firm": "내 입장을 분명히 할 때 보낼 답장 초안", "space": "잠시 거리를 두고 싶을 때 보낼 답장 초안", "wait": "지금은 답하지 않는 편이 나은 경우와 그 이유 한 문장"},
+ "audit": {
+   "other": [{"sign": "상대방의 말·행동에 붙이는 이름(아래 목록에서)", "quote": "근거가 되는 실제 말(짧게 인용)", "level": "good | mild | concern | serious"}],
+   "me": [{"sign": "'나'의 말·행동에 붙이는 이름(같은 목록, 같은 기준)", "quote": "근거가 되는 실제 말", "level": "good | mild | concern | serious"}],
+   "verdict": "danger | concern | ordinary | myread | unknown 중 하나",
+   "verdictWhy": "그렇게 본 까닭 두 문장. 근거가 된 말을 짚어서",
+   "bias": "'나'의 읽기에 쏠림이 보이면 한 문장(예: 한 번의 말을 '항상'으로 넓혀 읽음, 확인 없이 속마음을 단정함). 없으면 빈 문자열",
+   "needMore": "더 확실히 알려면 무엇을 봐야 하는지 한 문장(예: 이런 일이 되풀이되는지, 다른 날의 대화)"
+ },
  "heat": [{"who": "나 또는 상대방", "quote": "그 순간의 말을 18자 이내로 짧게 인용", "t": 0}],
  "spark": {"who": "나 또는 상대방", "quote": "대화에 불이 붙은 한마디(실제 대화에서 인용)", "why": "왜 이 말에서 달아올랐는지 한 문장", "instead": "그 말이 '나'의 말이었다면 같은 뜻을 덜 날카롭게 한 문장으로 다시 쓴 것. 상대방의 말이었다면 그 말을 들은 '나'가 불을 키우지 않고 할 수 있었던 답 한 문장"},
  "other": ["상대방이 오늘 일을 자기 일기에 쓴다면 — 상대방의 1인칭으로 3~4문장. 대화에서 드러난 것만 바탕으로 한 짐작. 상대를 악당으로도 성인으로도 그리지 않는다"],
@@ -273,6 +281,12 @@ ${transcript}
 }
 
 규칙:
+- audit(객관 평가)는 <사람>이 아니라 <이 대화에 나타난 말과 행동>만 평가합니다. '나'와 상대방에게 똑같은 잣대를 씁니다. 사용자가 '나'라는 이유로 봐주지 않고, 사용자가 화가 나 있다는 이유로 상대를 더 나쁘게 보지도 않습니다. 각 3~5개.
+  sign 은 다음에서 고릅니다 — 해로운 쪽: 협박·위협 / 모욕·비하 / 통제(만나는 사람·돈·행동 제한) / 사실 부정(있었던 일을 없었다고 하거나 기억·판단을 의심하게 만듦 = 가스라이팅) / 죄책감 떠넘기기 / 책임 떠넘기기 / 넘겨짚기(단정) / 과장('항상·맨날') / 비꼼 / 대화 끊기·무시 / 요구만 하기. 건강한 쪽: 사과 / 인정 / 사정 설명 / 마음 묻기 / 양보 / 차분히 요청.
+  level: good(건강함) · mild(흔히 있는 날 선 말) · concern(되풀이되면 해로움) · serious(한 번이어도 위험 — 협박, 폭력 암시, 스토킹, 성적 강요, 금전 갈취, 사실 부정이 여러 번).
+  의견이 다른 것, 서운함을 말한 것, 한 번의 날 선 말은 가스라이팅이 아닙니다. '가스라이팅'은 사실 부정이 분명히 보일 때만 씁니다.
+  verdict: danger(위험 신호가 뚜렷함 — serious 가 있음) / concern(걱정되는 패턴 — 상대의 concern 이 여럿) / ordinary(흔한 다툼 범위 — 양쪽 다 mild 중심) / myread(대화에 드러난 것보다 '나'의 해석이 앞서 있음) / unknown(이 대화만으로는 판단할 수 없음). 근거가 부족하면 unknown 을 고릅니다 — 억지로 판정하지 않습니다.
+  '쓰레기', '나르시시스트', '소시오패스', '정신병' 같은 꼬리표와 진단명은 어느 쪽에도 붙이지 않습니다.
 - pairs 는 1~3개. '나'의 마음을 가장 크게 건드린 말부터. danger 가 있으면 빈 배열.
 - heat 는 대화의 흐름을 따라 6~10개. t 는 그 순간 대화의 긴장도(0 평온 ~ 100 폭발 직전). 처음·불이 붙은 곳·가장 높은 곳·끝을 꼭 넣는다.
 - 관계(직장·가족·친구·연인)에 맞는 말투와 거리감으로 조언한다. 직장이면 예의와 기록, 가족·연인이면 마음을 알아주는 말이 먼저다.
@@ -283,7 +297,7 @@ ${transcript}
 
     let res = null, raw = '';
     try {
-      const r = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 3200 }, 180000);
+      const r = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.2, max_tokens: 3800 }, 180000);
       if (r && r.ok) {
         const d = await r.json();
         raw = ((d.choices && d.choices[0] && d.choices[0].message.content) || '').trim();
@@ -306,7 +320,7 @@ ${transcript}
   _list(a) { return (Array.isArray(a) ? a : [a]).filter(Boolean); },
 
   // ── 결과: 다섯 걸음 ────────────────────────────────────────────────
-  STEPS: ['한눈에', '사실과 해석', '네 가지 눈', '다음 한 걸음', '마음 재기'],
+  STEPS: ['한눈에', '사실과 해석', '객관 평가', '네 가지 눈', '다음 한 걸음', '마음 재기'],
   _renderResult() {
     const b = this._body(), r = this._res, esc = this._esc.bind(this); if (!b || !r) return;
     const A = 'var(--accent-primary)';
@@ -411,8 +425,63 @@ ${transcript}
         ${r.gap ? `<div style="${card}">${h('서로 엇갈린 곳')}<p style="margin: 0; font-size: 0.93rem; line-height: 1.7; color: var(--text-primary);">${esc(r.gap)}</p></div>` : ''}
         ${statHtml}`;
     }
-    // ③ 네 가지 눈 ────────────────────────────────────────────────
+    // ③ 객관 평가 ────────────────────────────────────────────────
     else if (step === 2) {
+      const au = r.audit || {};
+      const LV = { good: ['#3d7659', '건강함'], mild: ['#8a7b68', '흔한 날 선 말'], concern: ['#d98a4a', '되풀이되면 해로움'], serious: ['#c0564f', '위험 신호'] };
+      const VD = {
+        danger: ['#c0564f', '위험 신호가 뚜렷해요', '이 대화에는 한 번이어도 가볍게 넘기면 안 되는 말·행동이 있어요.'],
+        concern: ['#d98a4a', '걱정되는 패턴이 보여요', '한 번이면 다툼이지만, 되풀이된다면 나를 깎아내리는 관계일 수 있어요.'],
+        ordinary: ['#3d7659', '흔한 다툼의 범위예요', '서로 날이 섰지만, 이 대화만 보면 위험한 관계의 신호는 뚜렷하지 않아요.'],
+        myread: ['#6f97ab', '내 해석이 앞서 있을 수 있어요', '대화에 실제로 적힌 것보다 내가 읽어 넣은 뜻이 더 커 보여요.'],
+        unknown: ['#8a7b68', '이 대화만으로는 판단하기 어려워요', '근거가 부족해요. 억지로 결론 내리지 않을게요.']
+      };
+      const vd = VD[au.verdict] || VD.unknown;
+      const rows = (list, who) => {
+        const a2 = this._list(list).filter(x => x && typeof x === 'object' && x.sign);
+        if (!a2.length) return `<p style="margin: 0; font-size: 0.86rem; color: var(--text-secondary);">짚을 만한 것이 보이지 않았어요.</p>`;
+        return a2.map(x => { const lv = LV[x.level] || LV.mild; return `
+          <div style="padding: 0.55rem 0; border-top: 1px dashed var(--glass-border);">
+            <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
+              <span style="flex: 0 0 auto; width: 0.55rem; height: 0.55rem; border-radius: 50%; background: ${lv[0]};"></span>
+              <b style="font-size: 0.88rem; color: var(--text-primary);">${esc(x.sign)}</b>
+              <span style="margin-left: auto; font-size: 0.66rem; font-weight: 800; color: ${lv[0]};">${lv[1]}</span>
+            </div>
+            ${x.quote ? `<div style="font-size: 0.86rem; line-height: 1.55; color: var(--text-secondary); padding-left: 0.95rem;">"${esc(x.quote)}"</div>` : ''}
+          </div>`; }).join('');
+      };
+      const count = list => { const c = { serious: 0, concern: 0, mild: 0, good: 0 }; this._list(list).forEach(x => { if (x && c[x.level] != null) c[x.level]++; }); return c; };
+      const meter = c => `<div style="display: flex; gap: 0.25rem; margin-top: 0.3rem;">${['serious', 'concern', 'mild', 'good'].map(k => c[k] ? `<span style="font-size: 0.68rem; font-weight: 800; padding: 0.12rem 0.5rem; border-radius: 999px; color: ${LV[k][0]}; background: color-mix(in srgb, ${LV[k][0]} 12%, transparent);">${LV[k][1]} ${c[k]}</span>` : '').join('')}</div>`;
+      const serious = au.verdict === 'danger' || au.verdict === 'concern';
+      body = `
+        <div style="display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.75rem 0.9rem; margin-bottom: 0.8rem; border-radius: 14px; border: 1.5px solid #d98a4a; background: color-mix(in srgb, #d98a4a 9%, var(--bg-secondary));">
+          <b style="flex: 0 0 auto; width: 1.4rem; height: 1.4rem; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; color: #fff; background: #d98a4a;">!</b>
+          <div style="font-size: 0.82rem; line-height: 1.6; color: var(--text-primary);"><b>이 평가는 틀릴 수 있어요.</b> 한쪽이 넣은 이 대화만 보고 AI 가 한 것이에요. 사람을 판정하는 것이 아니라 <b>이 대화에 나타난 말과 행동</b>만 봤어요. 헤어짐·신고 같은 큰 결정을 이것만으로 하지 마세요.</div>
+        </div>
+        <div style="${card} border-color: ${vd[0]}; background: color-mix(in srgb, ${vd[0]} 7%, var(--bg-secondary));">
+          ${h('이 대화만 놓고 보면', vd[0])}
+          <p style="margin: 0 0 0.35rem; font-size: 1.12rem; font-weight: 800; line-height: 1.45; color: var(--text-primary);">${vd[1]}</p>
+          <p style="margin: 0 0 0.5rem; font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary);">${vd[2]}</p>
+          ${au.verdictWhy ? `<p style="margin: 0; font-size: 0.92rem; line-height: 1.7; color: var(--text-primary);">${esc(au.verdictWhy)}</p>` : ''}
+        </div>
+        <div style="${card}">
+          ${h('상대의 말과 행동', 'var(--text-muted)')}${meter(count(au.other))}
+          <div style="margin-top: 0.5rem;">${rows(au.other)}</div>
+        </div>
+        <div style="${card}">
+          ${h('나의 말과 행동')}${meter(count(au.me))}
+          <div style="margin-top: 0.5rem;">${rows(au.me)}</div>
+          <p style="margin: 0.5rem 0 0; font-size: 0.76rem; line-height: 1.55; color: var(--text-muted);">상대와 똑같은 잣대로 봤어요. 내 편을 들어 봐주지도, 일부러 깎지도 않았어요.</p>
+        </div>
+        ${au.bias ? `<div style="${card} border-color: #6f97ab;">${h('내 눈에 낀 것', '#6f97ab')}<p style="margin: 0; font-size: 0.92rem; line-height: 1.7; color: var(--text-primary);">${esc(au.bias)}</p></div>` : ''}
+        ${serious ? `<div style="${card}">
+          ${h('이럴 때는 혼자 판단하지 마세요', '#c0564f')}
+          <div style="font-size: 0.88rem; line-height: 1.75; color: var(--text-primary);">· 이런 일이 <b>되풀이되는지</b> 날짜와 함께 적어 두세요. 한 번과 반복은 전혀 달라요.<br>· 믿을 만한 사람 한 명에게 이 대화를 그대로 보여 주고 어떻게 보이는지 물어보세요.<br>· 무섭거나 위협을 느낀다면 <b>112</b>, 여성긴급전화 <b>1366</b>(24시간), 직장이면 고용노동부 <b>1350</b>.</div>
+        </div>` : ''}
+        ${au.needMore ? `<p style="margin: 0 0 0.3rem; font-size: 0.8rem; line-height: 1.6; color: var(--text-secondary);"><b style="color: var(--text-primary);">더 확실히 알려면</b> · ${esc(au.needMore)}</p>` : ''}`;
+    }
+    // ④ 네 가지 눈 ────────────────────────────────────────────────
+    else if (step === 3) {
       const TABS = r.danger ? [['ally', '내 편']] : [['ally', '내 편'], ['neutral', '나그네의 눈'], ['other', '상대의 자리'], ['mine', '내 몫']];
       if (!TABS.some(x => x[0] === this._tab)) this._tab = TABS[0][0];
       const tabBar = TABS.length > 1 ? `<div style="display: flex; gap: 0.3rem; margin-bottom: 0.7rem; padding: 0.25rem; border-radius: 14px; background: var(--bg-tertiary);">${TABS.map(x => `
@@ -438,7 +507,7 @@ ${transcript}
         + (TABS.length > 1 ? `<p style="margin: 0; font-size: 0.76rem; line-height: 1.55; color: var(--text-muted);">네 가지를 다 읽어 보세요. 한 가지 눈으로만 보면 사람을 너무 믿게 되거나, 아예 믿지 않게 돼요.</p>` : '');
     }
     // ④ 다음 한 걸음 ──────────────────────────────────────────────
-    else if (step === 3) {
+    else if (step === 4) {
       const n = r.next || {};
       const draft = (label, t2) => t2 ? `<div style="${card} padding: 0.8rem 0.95rem;">
         <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;"><b style="flex: 1 1 auto; font-size: 0.76rem; color: ${A};">${label}</b>
