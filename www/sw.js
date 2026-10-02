@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'cbt-app-v338';
+﻿const CACHE_NAME = 'cbt-app-v339';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   './js/workcards.js',
   './js/talkcheck.js',
   './js/imgtext.js',
+  './js/sharein.js',
   './js/memory-vault.js',
   './js/aboutme.js',
   './js/capture.js',
@@ -184,6 +185,26 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+
+  // 다른 앱에서 '공유'로 넘어온 글·사진(manifest.json 의 share_target). 캐시에 잠깐 두고 앱을 연다 — 앱이 꺼내 가면 지운다(js/sharein.js).
+  if (req.method === 'POST' && new URL(req.url).pathname.endsWith('/share-target')) {
+    event.respondWith((async () => {
+      try {
+        const fd = await req.formData();
+        const c = await caches.open('share-inbox');
+        let n = 0;
+        for (const f of fd.getAll('file')) {
+          if (!f || !f.size || n >= 5) continue;
+          const isImg = /^image\//.test(f.type);
+          await c.put('/share-inbox/' + Date.now() + '-' + (n++), new Response(f, { headers: { 'content-type': isImg ? f.type : 'text/plain; charset=utf-8', 'x-name': encodeURIComponent(f.name || '') } }));
+        }
+        const text = [fd.get('title'), fd.get('text')].filter(Boolean).join(' / ');
+        if (!n && text) await c.put('/share-inbox/' + Date.now() + '-t', new Response(text, { headers: { 'content-type': 'text/plain; charset=utf-8' } }));
+      } catch (e) {}
+      return Response.redirect('./index.html#act=share', 303);
+    })());
+    return;
+  }
 
   // API 호출(POST 등)은 절대 가로채지 않는다.
   if (req.method !== 'GET') return;

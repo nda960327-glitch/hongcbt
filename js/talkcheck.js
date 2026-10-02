@@ -6,7 +6,9 @@
 //  · 폭력·협박·스토킹이 보이면 '양쪽 입장'을 말하지 않는다 — 안전 안내가 먼저다.
 //  · 결과의 '가장 걸리는 생각'은 햇님의 햇살 상담(생각 정리 실습)으로 넘길 수 있다.
 window.TalkCheck = {
-  MAX_CHARS: 9000,      // AI 로 보내는 대화의 최대 길이(뒤에서부터 자른다 — 다툼은 대개 끝부분에 있다)
+  // AI 로 보내는 대화의 최대 길이(뒤에서부터 자른다 — 다툼은 대개 끝부분에 있다). 4만 자 ≈ 짧은 메시지 2,000개쯤.
+  //  비용(2026-10 DeepSeek 기준 어림): 200개 ≈ 7원, 1,000개 ≈ 15원, 4만 자 가득 ≈ 25원. 길수록 느리고(1분 넘게) 초점이 흐려진다.
+  MAX_CHARS: 40000,
   _msgs: [], _me: '', _res: null, _tab: 'neutral',
 
   _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
@@ -100,6 +102,19 @@ window.TalkCheck = {
         <button type="button" onclick="window.TalkCheck.close(); window.ImgText && window.ImgText.pick()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">캡처 사진</button>
       </div>
       <textarea id="tc-text" rows="6" placeholder="또는 대화를 여기에 붙여넣으세요.&#10;&#10;카카오톡: 대화방 › 메뉴 › 대화 내용 내보내기" oninput="window.TalkCheck._changed()" style="${this._field} line-height: 1.5; resize: vertical;"></textarea>
+      <details style="margin: 0.5rem 0 0; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--bg-secondary);">
+        <summary style="cursor: pointer; padding: 0.6rem 0.8rem; font-size: 0.82rem; font-weight: 700; color: var(--accent-primary);">카카오톡 대화, 가장 쉽게 넣는 법</summary>
+        <div style="padding: 0 0.8rem 0.75rem; font-size: 0.84rem; line-height: 1.75; color: var(--text-primary);">
+          <b>방법 1 · 캡처로</b> (가장 쉬워요)<br>
+          다툰 부분을 캡처하고, 위의 <b>[캡처 사진]</b>을 눌러 고르면 글자를 읽어 넣어 드려요.<br>
+          <div style="height: 0.5rem;"></div>
+          <b>방법 2 · 대화 전체를 한 번에</b><br>
+          ① 카카오톡 대화방 오른쪽 위 <b>≡</b> › 아래 <b>톱니바퀴</b><br>
+          ② <b>대화 내용 내보내기</b> › <b>텍스트 메시지만 저장</b><br>
+          ③ 뜨는 목록에서 <b>마인드 인사이드</b>를 고르면 여기로 바로 들어와요.<br>
+          <span style="font-size: 0.76rem; color: var(--text-muted);">목록에 마인드 인사이드가 안 보이면 앱을 최신으로 업데이트해 주세요. 그 전에는 방법 1을 쓰면 돼요.</span>
+        </div>
+      </details>
       <div id="tc-meta" style="margin: 0.4rem 0 0.9rem; font-size: 0.76rem; color: var(--text-muted);">대화는 이 기기에서만 읽어요. 이름·전화번호·계좌는 가린 뒤 고른 구간만 분석에 쓰고, 저장하지 않아요.</div>
 
       <div id="tc-who" style="display: none; margin-bottom: 0.9rem;"></div>
@@ -167,9 +182,9 @@ window.TalkCheck = {
       who.innerHTML = `
         <div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">이 중에 누가 나인가요</div>
         <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.7rem;">${names.slice(0, 8).map(nm => chip(nm, nm, nm === this._me, 'window.TalkCheck._pickMe(this.dataset.v)')).join('')}</div>
-        ${this._msgs.length > 60 ? `<div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">어디까지 볼까요</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">${[[60, '마지막 60개'], [200, '마지막 200개'], [500, '마지막 500개']].map(x => chip(x[1], x[0], n === x[0], 'window.TalkCheck._pickN(+this.dataset.v)')).join('')}</div>
-        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">다툰 부분만 붙여넣으면 더 정확해요.</div>` : ''}`;
+        ${this._msgs.length > 200 ? `<div style="font-size: 0.78rem; font-weight: 800; color: var(--text-primary); margin-bottom: 0.3rem;">어디까지 볼까요</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.3rem;">${[[200, '마지막 200개'], [1000, '마지막 1,000개'], [100000, '전체 (최대 약 2,000개)']].map(x => chip(x[1], x[0], n === x[0], 'window.TalkCheck._pickN(+this.dataset.v)')).join('')}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.3rem;">다툰 부분만 볼수록 정확하고 빨라요. 많이 넣으면 1분 넘게 걸릴 수 있어요.</div>` : ''}`;
     }, 250);
   },
   _pickMe(v) { this._me = v; this._changed(); },
@@ -268,7 +283,7 @@ ${transcript}
 
     let res = null, raw = '';
     try {
-      const r = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 3200 }, 100000);
+      const r = await window.LLM._chatCompletion({ model: window.LLM.MODEL_HIGH || window.LLM.MODEL, messages: [{ role: 'user', content: prompt }], temperature: 0.3, max_tokens: 3200 }, 180000);
       if (r && r.ok) {
         const d = await r.json();
         raw = ((d.choices && d.choices[0] && d.choices[0].message.content) || '').trim();

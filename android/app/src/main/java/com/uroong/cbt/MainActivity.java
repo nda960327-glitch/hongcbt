@@ -15,11 +15,14 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(AppSettingsPlugin.class);
         // 걸려온 전화 알림(받기·거절)의 결과를 웹 JS 로 넘겨주는 다리
         registerPlugin(CallNotificationPlugin.class);
+        // 다른 앱에서 '공유'로 넘어온 대화 파일·캡처를 웹 화면에 넘겨주는 다리
+        registerPlugin(ShareInPlugin.class);
         super.onCreate(savedInstanceState);
         // 채널은 첫 전화가 오기 전에 만들어 둔다. 알림이 도착한 뒤에 만들면
         //  그 첫 알림만 기본 채널 설정(작은 소리)으로 뜨는 기기가 있다.
         CallNotificationPlugin.ensureChannel(this);
         onCallIntent(getIntent());
+        ShareInPlugin.handleIntent(this, getIntent());
     }
 
     @Override
@@ -27,6 +30,7 @@ public class MainActivity extends BridgeActivity {
         super.onNewIntent(intent);
         // launchMode=singleTask 라 앱이 살아 있으면 새 액티비티가 아니라 여기로 온다
         onCallIntent(intent);
+        ShareInPlugin.handleIntent(this, intent);
     }
 
     @Override

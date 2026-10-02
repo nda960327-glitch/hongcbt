@@ -33,6 +33,24 @@
                 <data android:scheme="@string/custom_url_scheme" />
             </intent-filter>
 
+            <!-- 다른 앱의 '공유' 목록에 이 앱이 뜨게 한다 — 카카오톡 "대화 내용 내보내기"(글 파일)와 캡처 사진을 받는다.
+                 받은 것은 ShareInPlugin 이 읽어 웹 화면(대화 분석·글자 읽기)에 넘긴다. -->
+            <intent-filter android:label="대화 분석">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter android:label="대화 분석">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter android:label="대화 분석">
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+
         </activity>
 
         <!-- ── 걸려온 전화 알림 ─────────────────────────────────────────
