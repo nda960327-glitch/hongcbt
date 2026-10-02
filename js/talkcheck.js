@@ -96,6 +96,7 @@ window.TalkCheck = {
       <div style="display: flex; gap: 0.4rem; margin-bottom: 0.4rem;">
         <button type="button" onclick="document.getElementById('tc-file').click()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">카카오톡 내보내기 파일(.txt)</button>
         <input id="tc-file" type="file" accept=".txt,text/plain" hidden onchange="window.TalkCheck._file(this)">
+        <button type="button" onclick="window.TalkCheck.close(); window.ImgText && window.ImgText.pick()" class="btn-secondary" style="width: auto; flex: 0 0 auto; font-size: 0.82rem; padding: 0.5rem 0.9rem;">캡처 사진</button>
       </div>
       <textarea id="tc-text" rows="6" placeholder="또는 대화를 여기에 붙여넣으세요.&#10;&#10;카카오톡: 대화방 › 메뉴 › 대화 내용 내보내기" oninput="window.TalkCheck._changed()" style="${this._field} line-height: 1.5; resize: vertical;"></textarea>
       <div id="tc-meta" style="margin: 0.4rem 0 0.9rem; font-size: 0.76rem; color: var(--text-muted);">대화는 이 기기에서만 읽어요. 이름·전화번호·계좌는 가린 뒤 고른 구간만 분석에 쓰고, 저장하지 않아요.</div>
