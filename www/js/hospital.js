@@ -147,7 +147,7 @@ window.Hospital = {
       el.innerHTML = `
         <button class="my-row" data-hosp-link>
           <span class="my-row__ico" data-ic="hospital" data-ic-size="19"></span>
-          <span class="my-row__txt"><b>담당 상담소 연결하기</b><span>다니는 상담소를 고르면 담당 선생님이 상담 기록을 함께 봐요</span></span>
+          <span class="my-row__txt"><b>다니던 상담소 연결하기</b><span>다니던 상담소를 고르면 선생님이 상담 기록을 함께 봐요 · 언제든 끊을 수 있어요</span></span>
           <span class="my-row__go">›</span>
         </button>`;
     } else {
@@ -158,7 +158,7 @@ window.Hospital = {
         <div class="my-row my-row--static">
           <span class="my-row__ico" data-ic="hospital" data-ic-size="19"></span>
           <span class="my-row__txt"><b>${esc(h.name)}</b><span>${esc([h.dept, h.doctor ? h.doctor + ' 선생님' : ''].filter(Boolean).join(' · ') || '담당 상담소')} · ${this._md(lk.linkedAt)} 연결</span></span>
-          <button class="my-row__btn" data-hosp-unlink>연결 해제</button>
+          <button class="my-row__btn" data-hosp-unlink>연결 끊기</button>
         </div>
         <button class="my-row" data-cm-hosp="${esc(h.id)}">
           <span class="my-row__ico" data-ic="note" data-ic-size="19"></span>
@@ -196,8 +196,8 @@ window.Hospital = {
   openLink() {
     const name = window.Storage._safeGet('cbt_user_name', '') || '';
     this._sheet('hospital-link-ov', `
-      <div class="feed-ov__bar"><span class="feed-tag">담당 상담소 연결</span><button class="feed-ov__x" data-hosp-close>닫기</button></div>
-      <h3>담당 상담소를 골라 주세요</h3>
+      <div class="feed-ov__bar"><span class="feed-tag">다니던 상담소 연결</span><button class="feed-ov__x" data-hosp-close>닫기</button></div>
+      <h3>다니던 상담소를 골라 주세요</h3>
       <p class="feed-ov__author">다니고 있는 상담소를 고르면 연결 요청이 가요. 상담소에서 수락하면 연결돼요.</p>
       <input id="hosp-q" type="search" autocomplete="off" placeholder="상담소 이름으로 찾기" oninput="window.Hospital._filterPick(this.value)" style="width: 100%; box-sizing: border-box; padding: 0.6rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font: inherit; font-size: 0.9rem; margin-bottom: 0.4rem;">
       <div id="hosp-pick" style="max-height: 11.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; margin-bottom: 0.5rem;"><p class="feed-ov__author" style="margin: 0.4rem 0;">불러오는 중…</p></div>
@@ -207,7 +207,7 @@ window.Hospital = {
       <input id="hosp-name" type="text" maxlength="40" value="${this._esc(name)}" placeholder="이름 (상담소에서 쓰는 이름)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.6rem;">
       <input id="hosp-birth" type="text" inputmode="numeric" maxlength="10" placeholder="생년월일 (선택, 예: 1995-03-27)" style="width: 100%; box-sizing: border-box; padding: 0.7rem 0.85rem; border-radius: 12px; border: 1px solid var(--glass-border); background: var(--bg-tertiary); color: var(--text-primary); font-size: 0.95rem; margin-bottom: 0.7rem;">
       <div class="feed-ov__note"><span>연결하면 담당 상담소의 선생님이 <b>상담사가 남긴 상담 요약·계획·숙제</b>를 볼 수 있고, 선생님이 남긴 피드백이 이 앱으로 옵니다.
-        우렁이와 나눈 <b>대화 내용은 상담소로 가지 않아요.</b> 언제든 연결을 해제할 수 있어요.</span></div>
+        우렁이와 나눈 <b>대화 내용은 상담소로 가지 않아요.</b> 연결은 마이에서 언제든 [연결 끊기]로 끊을 수 있어요.</span></div>
       <label style="display: flex; gap: 0.6rem; align-items: flex-start; margin: 0.6rem 0 0.7rem; font-size: 0.86rem; line-height: 1.5; color: var(--text-primary);">
         <input id="hosp-weekly" type="checkbox" checked style="margin-top: 0.2rem; width: 18px; height: 18px; accent-color: var(--accent-primary);">
         <span><b>주간 상태 요약도 공유할게요</b><br><span style="color: var(--text-secondary);">주 1회, 기분 체크인 평균·횟수·미션 수 같은 <b>숫자 몇 개만</b> 올라가요. 일기·대화 내용은 포함되지 않아요. 나중에 마이페이지에서 끌 수 있어요.</span></span>
@@ -298,11 +298,12 @@ window.Hospital = {
       return;
     }
     if (!lk) return;
-    if (!await window.UI.confirm(`${lk.hospital.name} 연결을 해제할까요?\n이후 상담 기록이 상담소에 공유되지 않고, 소장 피드백도 오지 않아요.`)) return;
+    if (!await window.UI.confirm(`${lk.hospital.name} 연결을 끊을까요?\n끊으면 그 뒤로는 상담 기록이 상담소에 공유되지 않고, 선생님 피드백도 오지 않아요. 다시 연결하고 싶으면 언제든 다시 연결할 수 있어요.`)) return;
     try { await window.Api.post('/api/patient/unlink', { clientId: this._cid() }); } catch (e) {}
     window.Storage._safeSet(this.KEY, null);
     window.Storage._safeSet(this.REC, { notes: [], feedback: [] });
     if (window.Sfx) window.Sfx.play('close');
+    if (window.App) window.App.showRecordToast('상담소 연결을 끊었어요');
     this.render();
   },
 

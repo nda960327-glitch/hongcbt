@@ -15,7 +15,7 @@ function codeCardHtml() {
       <div class="row wrap" style="gap:0.6rem;">
         <div class="grow" style="min-width:200px;">
           <b style="font-size:0.9rem;">상담소 코드</b>
-          <p class="muted" style="margin-top:0.15rem;">내담자가 앱 → 마이 → <b>담당 상담소 연결하기</b>에 이 코드와 이름을 넣으면 여기 내담자 목록에 나타나요. 소장 앱 비상 로그인에도 쓰이니 공개 게시물에는 올리지 마세요. 재발급은 운영팀에 요청하세요.</p>
+          <p class="muted" style="margin-top:0.15rem;">내담자가 앱 → 마이 → <b>다니던 상담소 연결하기</b>에 이 코드와 이름을 넣으면 여기 내담자 목록에 나타나요. 소장 앱 비상 로그인에도 쓰이니 공개 게시물에는 올리지 마세요. 재발급은 운영팀에 요청하세요.</p>
         </div>
         ${code ? `<div class="row" style="gap:0.4rem;"><span class="mono" style="font-size:1.05rem; letter-spacing:0.08em; padding:0.4rem 0.7rem; background:var(--bg); border:1px solid var(--line); border-radius:10px;">${esc(code)}</span><button class="btn soft sm" data-act="copy" data-v="${esc(code)}">복사</button></div>`
           : info ? '<span class="muted">코드 없음 — 운영팀에 문의</span>' : '<span class="muted">불러오는 중…</span>'}

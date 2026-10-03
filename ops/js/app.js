@@ -699,7 +699,7 @@ function viewHospitals() {
     <div class="sec-title">담당 상담소
       <span class="right"><button class="btn sm" data-act="hosp-new">＋ 상담소 등록</button></span></div>
     <p class="muted" style="margin-bottom: 0.7rem;">
-      등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 이 코드는 <b>내담자 연결용</b>입니다 — 내담자는 앱 → 마이 → 담당 상담소 연결하기에 이 코드를 넣어 연결합니다.
+      등록하면 <b>H-XXXX-XXXX</b> 상담소 코드가 나옵니다. 이 코드는 <b>내담자 연결용</b>입니다 — 내담자는 앱 → 마이 → 다니던 상담소 연결하기에 이 코드를 넣어 연결합니다.
       소장은 <b>소장 앱(doc.mindinsideapp.com)</b>에 등록한 이메일로 받은 로그인 링크(또는 '소장 관리 코드' HA-…)로 들어와 연결된 내담자의 상담 기록·주간 상태를 보고 피드백을 남깁니다.
       상담소 코드가 새면 '코드 재발급'으로 즉시 바꾸세요.</p>
     ${(HOSP_FORM || editing) ? form(editing) : ''}

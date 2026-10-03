@@ -1073,7 +1073,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
           <p style="font-size:13px;line-height:1.9;color:#6b5f50;margin:0;">
             1. <a href="${docUrl}" style="color:#4f8a6b;font-weight:700;">소장 앱 ${docUrl.replace(/^https?:\/\//, '')}</a> 에서 이 이메일 주소로 로그인 링크를 받으세요<br>
             2. 상담소 코드: <b style="font-family:ui-monospace,monospace;font-size:16px;letter-spacing:.06em;">${code}</b><br>
-            &nbsp;&nbsp;&nbsp;내담자에게 알려주면 앱 → 마이 → 담당 상담소 연결하기에 넣어 연결됩니다. 이 코드로는 소장 앱에 로그인할 수 없습니다(로그인은 1번의 이메일 링크로)<br>
+            &nbsp;&nbsp;&nbsp;내담자에게 알려주면 앱 → 마이 → 다니던 상담소 연결하기에 넣어 연결됩니다. 이 코드로는 소장 앱에 로그인할 수 없습니다(로그인은 1번의 이메일 링크로)<br>
             3. 소장 앱에서 상담소 페이지(소개·운영시간)를 확인하고, 소속 상담사의 등록을 안내해 주세요</p>
         </div>
         <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">정산: 상담소 채널 상담료는 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%로 나뉘고, 소속 상담사에게는 상담소가 지급합니다.</p>
