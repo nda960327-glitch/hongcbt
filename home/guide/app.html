@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>앱 사용법 — 마인드 인사이드</title><meta name="description" content="AI 상담사 고르는 법, 햇님(CBT)·달님(DBT)·소나무(MBCT) 언제 쓰는지, 카톡 대화 분석, 사람 상담사 예약, 상담소 연결까지 화면과 함께 자세히.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://mindinside.kr/guide/app.html"><meta name="theme-color" content="#4f8a6b">
+<meta property="og:type" content="article"><meta property="og:title" content="앱 사용법 — 마인드 인사이드"><meta property="og:description" content="AI 상담사 고르는 법, 햇님(CBT)·달님(DBT)·소나무(MBCT) 언제 쓰는지, 카톡 대화 분석, 사람 상담사 예약, 상담소 연결까지 화면과 함께 자세히."><meta property="og:url" content="https://mindinside.kr/guide/app.html">
+<link rel="icon" href="/icon-192.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&display=swap">
+<style>
+:root{--bg:#f7f3ec;--paper:#fff;--ink:#2f2923;--sub:#6b5f50;--line:rgba(120,96,66,.16);--acc:#3d7659;--acc2:#4f8a6b;--soft:#eaf2ec;--warn:#9a3d2e;--warnbg:#fbeee9;--note:#f3efe7;--gold:#a8741a;--goldbg:#fbf3e2}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#171513;--paper:#211e1b;--ink:#ece6dd;--sub:#b3a796;--line:rgba(220,200,170,.16);--acc:#7fc29e;--acc2:#6fb08e;--soft:#1f2c25;--warn:#f0a08f;--warnbg:#3a2420;--note:#2a2622;--gold:#e7b85c;--goldbg:#33291a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#171513;--paper:#211e1b;--ink:#ece6dd;--sub:#b3a796;--line:rgba(220,200,170,.16);--acc:#7fc29e;--acc2:#6fb08e;--soft:#1f2c25;--warn:#f0a08f;--warnbg:#3a2420;--note:#2a2622;--gold:#e7b85c;--goldbg:#33291a;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;font-size:16.5px;line-height:1.75;letter-spacing:-.01em;word-break:keep-all;overflow-wrap:anywhere}
+a{color:var(--acc)}
+.top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top .in{max-width:760px;margin:0 auto;padding:.6rem 16px;display:flex;align-items:center;gap:.6rem}
+.top b{font-weight:800}.top b i{font-style:normal;color:var(--acc)}
+.top a.home{margin-left:auto;font-size:.85rem;font-weight:700;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:.3rem .8rem;color:var(--ink);background:var(--paper)}
+main{max-width:760px;margin:0 auto;padding:1.4rem 16px 4rem}
+.eyebrow{font-size:.8rem;font-weight:800;letter-spacing:.06em;color:var(--acc)}
+h1{font-family:"Gowun Batang","Pretendard Variable",serif;font-size:1.9rem;line-height:1.35;margin:.3rem 0 .6rem;text-wrap:balance}
+.lead{color:var(--sub);font-size:1.02rem;margin:0 0 1.2rem}
+h2{font-size:1.32rem;line-height:1.4;margin:2.6rem 0 .8rem;padding-top:.4rem;text-wrap:balance;scroll-margin-top:64px}
+h2 .n{display:inline-block;min-width:1.9rem;color:var(--acc)}
+h3{font-size:1.08rem;margin:1.6rem 0 .5rem;scroll-margin-top:64px}
+p{margin:.5rem 0}
+ul,ol{padding-left:1.25rem;margin:.5rem 0}li{margin:.25rem 0}
+.toc{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:.9rem 1.1rem;margin:1rem 0 1.4rem}
+.toc b{display:block;font-size:.85rem;color:var(--sub);margin-bottom:.3rem}
+.toc ol{margin:0;padding-left:1.3rem;columns:1}.toc li{margin:.2rem 0}.toc a{text-decoration:none;color:var(--ink)}.toc a:hover{color:var(--acc)}
+@media(min-width:680px){.toc ol{columns:2;column-gap:2rem}}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:1rem 1.15rem;margin:.9rem 0}
+.big{background:var(--soft);border-color:transparent;font-size:1.05rem}
+.big b{color:var(--acc)}
+.warn{background:var(--warnbg);border-color:transparent}.warn h4{color:var(--warn)}
+.gold{background:var(--goldbg);border-color:transparent}.gold h4{color:var(--gold)}
+.card h4{margin:0 0 .35rem;font-size:1rem}
+.q{font-weight:800;font-size:1.05rem;margin:0 0 .3rem}
+.steps{list-style:none;padding:0;margin:.8rem 0;counter-reset:s;display:grid;gap:.6rem}
+.steps>li{counter-increment:s;display:grid;grid-template-columns:2rem minmax(0,1fr);gap:.7rem;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.8rem .95rem;margin:0}
+.steps>li::before{content:counter(s);width:2rem;height:2rem;border-radius:50%;background:var(--acc2);color:#fff;font-weight:800;display:grid;place-items:center}
+.steps b{display:block}.steps span{color:var(--sub);font-size:.95rem}
+.check{list-style:none;padding:0;display:grid;gap:.45rem}
+.check li{display:grid;grid-template-columns:1.5rem minmax(0,1fr);gap:.4rem;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:.6rem .8rem;margin:0}
+.check li::before{content:"";width:1.05rem;height:1.05rem;border:2px solid var(--acc2);border-radius:5px;margin-top:.32rem}
+.check em{display:block;font-style:normal;color:var(--sub);font-size:.9rem}
+.shots{display:flex;flex-wrap:wrap;gap:.9rem;justify-content:center;margin:1rem 0}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:.4rem;min-width:0}
+figure img{display:block;max-width:100%;height:auto;border-radius:18px;border:1px solid var(--line);box-shadow:0 10px 26px -18px rgba(60,40,20,.5);background:var(--paper)}
+figure.phone{width:min(300px,100%)}
+figure.phone.sm{width:min(250px,46%)}
+figure.wide{width:100%}figure.wide img{border-radius:12px}
+figcaption{font-size:.85rem;color:var(--sub);text-align:center;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:.95rem;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:.5rem .4rem;text-align:left;vertical-align:top}
+th{font-size:.82rem;color:var(--sub);font-weight:700}
+td.r,th.r{text-align:right}
+.tw{overflow-x:auto;margin:.6rem 0;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:.3rem .8rem}
+.pill{display:inline-block;font-size:.78rem;font-weight:800;padding:.05rem .5rem;border-radius:999px;background:var(--soft);color:var(--acc);margin-right:.3rem}
+.pill.r{background:var(--warnbg);color:var(--warn)}.pill.g{background:var(--goldbg);color:var(--gold)}
+.hub{display:grid;gap:.8rem;margin:1rem 0}
+.hub a{display:block;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:1rem 1.15rem;text-decoration:none;color:var(--ink)}
+.hub a b{display:block;font-size:1.12rem}.hub a span{color:var(--sub);font-size:.94rem}
+.hub a:hover,.hub a:focus-visible{border-color:var(--acc2);outline:none}
+.foot{margin-top:3rem;padding-top:1rem;border-top:1px solid var(--line);font-size:.85rem;color:var(--sub)}
+.kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:0 .35rem;font-size:.88em;background:var(--paper);white-space:nowrap}
+.money{font-size:1.5rem;font-weight:800;color:var(--acc);font-variant-numeric:tabular-nums}
+</style></head><body>
+<header class="top"><div class="in"><b>마인드 <i>인사이드</i> · 설명서</b><a class="home" href="https://mindinside.kr/">커뮤니티로</a></div></header>
+<main>
+<div class="eyebrow">이용자 설명서 · 화면과 함께</div>
+<h1>마인드 인사이드, 이렇게 쓰세요</h1>
+<p class="lead">처음 여는 순간부터 상담사 예약까지, 궁금한 것을 물어보는 순서대로 정리했어요. 차례에서 궁금한 질문을 눌러 바로 가세요.</p>
+<nav class="toc" aria-label="차례"><b>차례</b><ol><li><a href="#start">처음 열면 무엇을 하나요?</a></li><li><a href="#home">홈 화면에는 뭐가 있나요?</a></li><li><a href="#who">AI 상담사 다섯, 누구와 이야기할까요?</a></li><li><a href="#cbt">햇님(CBT)은 언제 도움이 되나요?</a></li><li><a href="#dbt">달님(DBT)은 언제 도움이 되나요?</a></li><li><a href="#mbct">소나무(ACT·MBCT)는 언제 도움이 되나요?</a></li><li><a href="#uroong">우렁의사·느루는 어떻게 다른가요?</a></li><li><a href="#talk">카톡 대화 분석은 어떻게 쓰나요?</a></li><li><a href="#crisis">너무 힘들 때는 어떻게 하나요?</a></li><li><a href="#human">사람 상담사와 상담하려면?</a></li><li><a href="#clinic">다니는 상담소와 연결하려면?</a></li><li><a href="#dash">대시보드·우렁이 키우기는 뭔가요?</a></li><li><a href="#import">ChatGPT에 쌓인 나를 가져올 수 있나요?</a></li><li><a href="#safe">내 대화는 누가 보나요?</a></li><li><a href="#community">커뮤니티는 어떻게 쓰나요?</a></li><li><a href="#price">돈이 드나요?</a></li></ol></nav>
+<div class="card big"><b>한 줄로</b> — 마인드 인사이드는 AI 상담사와 매일 마음을 돌보다가, 필요할 때 사람 상담사와 전화·채팅으로 상담하는 앱이에요. 앱 주소는 <b>mindinsideapp.com</b>, 커뮤니티는 <b>mindinside.kr</b> 이에요.</div>
+<h2 id="start"><span class="n">1</span>처음 열면 무엇을 하나요?</h2>
+<p>세 단계면 끝나요. 1분이면 돼요.</p>
+<ol class="steps"><li><div><b>동의하기</b><span>만 14세 이상인지, 이용약관과 개인정보 처리에 동의하는지 확인해요. "모두 동의합니다"를 누르고 [동의하고 시작하기].</span></div></li><li><div><b>AI 상담사 고르기</b><span>다섯 명 중 한 명을 골라요. 모르겠으면 맨 위 추천 상담사로 시작하세요. 언제든 위쪽 [바꾸기]로 바꿀 수 있어요.</span></div></li><li><div><b>로그인</b><span>카카오·네이버·구글 중 하나로 시작해요. 로그인하면 휴대폰을 바꿔도 우렁이의 기억과 리포트가 이어져요.</span></div></li></ol>
+<div class="shots"><figure class="phone sm"><img src="img/app-consent.jpg" alt="① 동의 화면" loading="lazy"><figcaption>① 동의 화면</figcaption></figure><figure class="phone sm"><img src="img/app-picker.jpg" alt="② AI 상담사 고르기" loading="lazy"><figcaption>② AI 상담사 고르기</figcaption></figure></div>
+<div class="card "><b>앱으로 설치하면 더 편해요.</b> 내려받을 파일도 스토어도 필요 없어요. mindinsideapp.com 을 열고 설치 안내를 따르면 돼요(아이폰은 사파리 공유 › "홈 화면에 추가"). 자세한 방법은 커뮤니티 메뉴의 <a href="https://mindinside.kr/blog/install">앱 설치</a>에 있어요.</div>
+<h2 id="home"><span class="n">2</span>홈 화면에는 뭐가 있나요?</h2>
+<div class="shots"><figure class="phone sm"><img src="img/app-home1.jpg" alt="홈 위쪽 — 대화 분석·지금 마음·오늘 할 일" loading="lazy"><figcaption>홈 위쪽 — 대화 분석·지금 마음·오늘 할 일</figcaption></figure><figure class="phone sm"><img src="img/app-home2.jpg" alt="홈 아래쪽 — 내 마음 도구·커뮤니티" loading="lazy"><figcaption>홈 아래쪽 — 내 마음 도구·커뮤니티</figcaption></figure></div>
+<ul><li><b>누구랑 다퉜나요? 대화 분석</b> — 카톡 대화를 넣으면 있었던 일을 정리해 줘요. <a href="#talk">아래 8번</a>에서 자세히 설명해요.</li><li><b>지금 마음은 어때요?</b> — 표정 하나만 누르면 오늘 기분이 기록돼요. 쌓이면 리포트와 그래프가 돼요.</li><li><b>오늘 할 일</b> — 오늘 해 볼 작은 일 두 가지. AI 상담사가 대화 내용을 보고 맞춤 숙제를 내 주기도 해요.</li><li><b>내 마음 도구</b> — 추천 영상, 사고 기록(생각 정리), 마음 안정(호흡·그라운딩), 하루 정리(3분 회고), 인지왜곡 학습.</li><li><b>커뮤니티·대면 상담</b> — 커뮤니티 새 글, 내 주변 정신건강의학과 찾기.</li></ul>
+<p>아래쪽 다섯 칸은 <span class="kbd">홈</span> <span class="kbd">AI심리상담</span> <span class="kbd">전화 심리상담</span> <span class="kbd">대시보드</span> <span class="kbd">마이</span> 예요.</p>
+<h2 id="who"><span class="n">3</span>AI 상담사 다섯, 누구와 이야기할까요?</h2>
+<p>다섯 상담사는 <b>기억을 함께 써요.</b> 햇님과 이야기하다 달님으로 바꿔도 처음부터 다시 설명하지 않아도 돼요.</p>
+<div class="tw"><table><tr><th>상담사</th><th>방식</th><th>이럴 때</th></tr><tr><td><b>우렁의사</b> <span class="pill">추천</span></td><td>통합 상담 — 그날 마음에 맞춰 여러 기법을 섞어요</td><td>뭘 골라야 할지 모를 때, 한곳에서 다 이야기하고 싶을 때</td></tr><tr><td><b>느루</b></td><td>통합 상담 — 다정하고 능청스러운 동네 주치의</td><td>가볍게 수다 떨듯 시작하고 싶을 때</td></tr><tr><td><b>햇님</b></td><td>인지행동치료(CBT) 6단계 실습</td><td>자책·걱정이 머릿속을 맴돌 때</td></tr><tr><td><b>달님</b></td><td>변증법적 행동치료(DBT) 6단계 실습</td><td>감정이 너무 커서 감당이 안 될 때, 충동이 올라올 때</td></tr><tr><td><b>소나무</b></td><td>수용전념치료(ACT)·마음챙김 인지치료(MBCT), 솔숲 명상</td><td>같은 생각을 곱씹을 때, 우울이 자꾸 되돌아올 때</td></tr></table></div>
+<div class="card gold"><b>햇님·달님·소나무는 수다 상대가 아니에요.</b> 스스로 해 보면서 배우는 <b>실습 선생님</b>이에요. 단계마다 무엇을 왜 하는지 한 줄로 배우고, 카드에 직접 적고 고르면서 진행해요. 위쪽 막대에 지금 몇 단계인지, 무엇을 하는 중인지 늘 보여요.</div>
+<h2 id="cbt"><span class="n">4</span>햇님(CBT)은 언제 도움이 되나요?</h2>
+<p><b>인지행동치료(CBT)</b>는 우울, 불안(공황·사회불안·걱정), 불면 같은 문제에서 효과가 가장 많이 연구된 심리치료예요. 핵심은 하나예요. <b>기분을 만드는 건 사건이 아니라, 그 순간 스친 생각</b>이라는 것. 그 생각을 붙잡아 사실인지 따져 보면 감정이 달라져요.</p>
+<p class="q">이럴 때 햇님을 고르세요</p><ul><li>"다 내 잘못이야", "난 항상 망해" 같은 생각이 떠나지 않을 때</li><li>상사 한숨, 친구 답장 같은 작은 일에 하루 종일 마음이 무너질 때</li><li>시험·발표·면접 전에 최악의 장면만 떠오를 때</li></ul>
+<p class="q">어떻게 하나요</p>
+<ol class="steps"><li><div><b>[햇살 상담 시작하기]를 눌러요</b><span>위쪽 주황 버튼이에요. 6단계 코스가 시작되고, 위에 단계 막대가 생겨요.</span></div></li><li><div><b>상황 떠올리기</b><span>막연한 기분 말고 한 장면을 적어요. 언제, 어디서, 무슨 일이 있었는지 — 해석 없이 사진 찍듯.</span></div></li><li><div><b>자동적 사고 붙잡기</b><span>그 순간 머릿속을 스친 말을 그대로 적고, 그 생각을 얼마나 믿는지 0~100으로 매겨요.</span></div></li><li><div><b>감정 이름·강도 매기기</b><span>불안·수치심·화… 감정 이름을 고르고 강도를 매겨요. 이름을 붙이면 한 걸음 물러설 수 있어요.</span></div></li><li><div><b>증거 검토하기</b><span>그 생각이 맞다는 증거와 아니라는 증거를 나란히 적어요. 느낌과 추측은 증거가 아니에요.</span></div></li><li><div><b>인지왜곡 찾기</b><span>내 생각에 숨은 함정을 골라요. 흑백논리·과잉일반화·독심술·재앙화·개인화·감정적 추론·당위 진술·긍정 격하.</span></div></li><li><div><b>균형 잡힌 생각 만들기</b><span>양쪽 증거를 다 담은 더 정확한 문장을 만들고, 감정 점수를 다시 매겨요. 처음 점수와 비교해 보세요.</span></div></li></ol>
+<div class="shots"><figure class="phone sm"><img src="img/app-cbt1.jpg" alt="1단계 카드 — 배우기 한 줄 + 직접 적기" loading="lazy"><figcaption>1단계 카드 — 배우기 한 줄 + 직접 적기</figcaption></figure><figure class="phone sm"><img src="img/app-cbt-reply.jpg" alt="햇님은 짧게 짚고 다음 단계로" loading="lazy"><figcaption>햇님은 짧게 짚고 다음 단계로</figcaption></figure><figure class="phone sm"><img src="img/app-cbt3.jpg" alt="3단계 — 감정 고르고 강도 매기기" loading="lazy"><figcaption>3단계 — 감정 고르고 강도 매기기</figcaption></figure><figure class="phone sm"><img src="img/app-cbt5.jpg" alt="5단계 — 인지왜곡 고르기" loading="lazy"><figcaption>5단계 — 인지왜곡 고르기</figcaption></figure></div>
+<div class="shots"><figure class="phone"><img src="img/app-cbt-summary.jpg" alt="끝나면 오늘 한 것을 한 장으로 정리해 줘요" loading="lazy"><figcaption>끝나면 오늘 한 것을 한 장으로 정리해 줘요</figcaption></figure></div>
+<div class="card "><b>왜 이렇게 하나요?</b> 생각을 머릿속에서만 굴리면 같은 자리를 돌아요. 글로 적고, 증거를 나누고, 함정에 이름을 붙이는 순서가 CBT의 "생각 기록지"예요. 몇 번 하다 보면 앱 없이도 머릿속에서 이 순서가 돌아가요. 그게 목표예요.</div>
+<h2 id="dbt"><span class="n">5</span>달님(DBT)은 언제 도움이 되나요?</h2>
+<p><b>변증법적 행동치료(DBT)</b>는 미국 심리학자 마샤 리네한이 <b>죽고 싶은 마음과 자해 충동이 되풀이되는 사람들</b>을 돕기 위해 만든 치료예요. 연구에서 자해와 자살 시도를 줄이는 효과가 확인됐고, 지금은 감정이 한순간에 치솟는 많은 사람에게 쓰여요.</p>
+<p>DBT의 출발점은 <b>수용</b>이에요. "그러지 마"는 감정이 큰 사람에게 통하지 않아요. 지금 마음이 그럴 만하다는 걸 먼저 인정받고(수용), 그 위에서 감정을 다루는 기술을 익힐 때(변화) 달라져요.</p>
+<p class="q">이럴 때 달님을 고르세요</p><ul><li>감정이 한번 올라오면 가라앉히기 어려울 때</li><li>욱해서 문자를 보내거나, 물건을 던지거나, 폭식할 것 같을 때</li><li>스스로를 해치고 싶은 충동이 올라올 때 — 단, 지금 위험하면 <a href="#crisis">9번</a>부터 보세요</li><li>마음이 널뛰어서 지칠 때</li></ul>
+<p class="q">달빛 상담 6단계</p>
+<ol class="steps"><li><div><b>감정 온도 재기</b><span>지금 가장 큰 감정에 이름을 붙이고 0~100으로 온도를 재요.</span></div></li><li><div><b>멈추기 (STOP)</b><span>멈추고 → 한 걸음 물러나 숨 한 번 → 몸·생각·상황 살피기 → 나에게 도움이 되는 쪽 고르기. 하나씩 해 보며 눌러요.</span></div></li><li><div><b>몸으로 온도 낮추기 (TIP)</b><span>감정이 아주 클 때는 생각보다 몸이 먼저예요. 찬물로 얼굴 적시기, 제자리에서 빠르게 움직이기, 4초 들이쉬고 6초 내쉬기, 주먹 꽉 쥐었다 풀기 중 하나를 1분 [60초 시작]으로 해 보고 온도를 다시 재요.</span></div></li><li><div><b>감정 파도 타기</b><span>감정은 파도처럼 올라왔다가 반드시 내려가요. 몸 어디에서 느껴지는지 고르고, 밀어내지도 붙잡지도 않고 지켜봐요.</span></div></li><li><div><b>반대로 해보기</b><span>감정이 시키는 행동(숨기, 쏘아붙이기, 연락 끊기…)이 지금 도움이 안 된다면, 그 반대의 아주 작은 행동을 정해요.</span></div></li><li><div><b>오늘의 한 걸음</b><span>오늘 해 볼 한 가지를 정하고 마무리해요.</span></div></li></ol>
+<div class="shots"><figure class="phone sm"><img src="img/app-dbt-intro.jpg" alt="코스 안내" loading="lazy"><figcaption>코스 안내</figcaption></figure><figure class="phone sm"><img src="img/app-dbt1.jpg" alt="1단계 — 감정 온도" loading="lazy"><figcaption>1단계 — 감정 온도</figcaption></figure><figure class="phone sm"><img src="img/app-dbt2.jpg" alt="2단계 — 멈추기(STOP)" loading="lazy"><figcaption>2단계 — 멈추기(STOP)</figcaption></figure><figure class="phone sm"><img src="img/app-dbt3.jpg" alt="3단계 — 몸으로 온도 낮추기" loading="lazy"><figcaption>3단계 — 몸으로 온도 낮추기</figcaption></figure></div>
+<div class="card gold"><h4>심장·혈압이 걱정되면</h4>찬물 방법은 건너뛰세요. 앱에도 같은 안내가 나와요.</div>
+<h2 id="mbct"><span class="n">6</span>소나무(ACT·MBCT)는 언제 도움이 되나요?</h2>
+<p><b>마음챙김 인지치료(MBCT)</b>는 <b>우울증이 여러 번 되돌아온 사람의 재발을 막으려고</b> 만든 8주 프로그램이에요. 영국 국립보건임상연구원(NICE)도 우울증 재발 예방에 권하는 방법이에요. 생각을 고치기보다 생각과 한 걸음 떨어져 바라보는 연습을 해요.</p>
+<p><b>수용전념치료(ACT)</b>는 불안이나 잡념을 없애려고 싸울수록 더 커지는 사람에게 맞아요. 싸움을 멈추고, 기분이 아니라 내가 원하는 방향을 따라 움직이게 도와요.</p>
+<p class="q">이럴 때 소나무를 고르세요</p><ul><li>같은 생각을 몇 시간씩 곱씹을 때</li><li>우울이 나아졌다가도 자꾸 되돌아올 때</li><li>"이 기분만 사라지면 살 텐데" 하며 삶이 멈춰 있을 때</li><li>머리가 시끄러워서 잠들기 어려울 때</li></ul>
+<p class="q">솔숲 명상 — 채팅 대신 몸으로 하는 연습</p>
+<p>소나무 화면에서 [솔숲 명상]을 열면 음성 안내를 따라 하는 연습이 있어요. 이어폰을 끼면 더 좋아요.</p>
+<ul><li><b>3분 호흡 공간</b>(4분) — 하루 중 언제든 멈춰 서기. MBCT에서 가장 자주 쓰는 연습</li><li><b>호흡 명상</b>(10분) · <b>바디스캔</b>(15분) · <b>소리와 생각</b>(12분) · <b>한 입 명상</b>(7분) · <b>걷기 명상</b>(8분)</li><li><b>8주 코스</b> — 한 주에 한 주제씩, 두 연습을 번갈아 매일</li><li>배경음(산들바람·가는 비·시냇물·싱잉볼)과 음성 안내, 진동을 고를 수 있어요</li></ul>
+<div class="shots"><figure class="phone sm"><img src="img/app-sona-card.jpg" alt="소나무 소개" loading="lazy"><figcaption>소나무 소개</figcaption></figure><figure class="phone sm"><img src="img/app-forest1.jpg" alt="솔숲 명상 — 연습 고르기" loading="lazy"><figcaption>솔숲 명상 — 연습 고르기</figcaption></figure><figure class="phone sm"><img src="img/app-forest2.jpg" alt="연습 화면 — 숨 쉬는 구슬" loading="lazy"><figcaption>연습 화면 — 숨 쉬는 구슬</figcaption></figure></div>
+<h2 id="uroong"><span class="n">7</span>우렁의사·느루는 어떻게 다른가요?</h2>
+<p>둘 다 <b>통합 상담사</b>예요. 정해진 코스 없이 카톡하듯 아무 얘기나 시작하면, 그날 마음에 맞춰 CBT·DBT·마음챙김을 골라 써요. "ㅋㅋ", "어", "엌" 같은 짧은 대답도 알아들어요.</p><ul><li><b>우렁의사</b> — 모든 기법을 합쳐 알맞게 답하는 통합 상담사. 처음이라면 여기서 시작하세요.</li><li><b>느루</b> — 다정하고 능청스러운 동네 주치의 말투.</li></ul><p>이야기하다가 "이건 생각을 정리하면 좋겠다" 싶으면 햇님 코스를, "감정부터 가라앉히자" 싶으면 달님 코스를 권하기도 해요.</p>
+<h2 id="talk"><span class="n">8</span>카톡 대화 분석은 어떻게 쓰나요?</h2>
+<p>다툰 대화, 이상하게 마음에 걸리는 대화를 넣으면 <b>있었던 일을 먼저 정리</b>하고, 상대와 나를 같은 잣대로 평가하고, 앞으로 어떻게 할지 <b>결론과 행동</b>까지 알려 줘요. 왕따·가스라이팅·통제처럼 위험한 신호가 보이면 맨 위에 먼저 알려 주고, 도움받을 곳을 보여 줘요.</p>
+<p class="q">대화 넣는 법 (세 가지 중 편한 것)</p>
+<ol class="steps"><li><div><b>카톡에서 바로 공유</b><span>카톡 대화방 › 오른쪽 위 메뉴(≡) › 설정(톱니) › <b>대화 내용 내보내기</b> › "텍스트만 보내기" › 공유 목록에서 <b>마인드 인사이드</b>를 고르면 바로 분석 화면이 열려요. (앱으로 설치했을 때)</span></div></li><li><div><b>파일 고르기</b><span>분석 화면의 [카카오톡 내보내기 파일(.txt)]을 눌러 저장해 둔 파일을 골라요.</span></div></li><li><div><b>붙여넣기</b><span>대화를 길게 눌러 복사한 뒤 칸에 붙여넣어도 돼요.</span></div></li></ol>
+<ol class="steps"><li><div><b>누구와의 대화인지 고르기</b><span>직장·학교 / 가족 / 친구 / 연인·배우자. 상대를 부를 이름(예: 팀장, 엄마)을 적어 두면 다음에 같은 사람을 또 분석할 때 이어서 봐요.</span></div></li><li><div><b>상황과 지금 마음</b><span>한두 줄 상황(안 적어도 돼요)과 지금 마음(화·억울함·서운함…)을 골라요.</span></div></li><li><div><b>분석할 양 고르기</b><span>마지막 200개·1,000개는 무료예요. 전체(최대 약 2,000개)는 캐시가 들고, 화면에 금액이 먼저 나와요.</span></div></li><li><div><b>기다리기</b><span>몇 %인지 막대로 보여요. 창을 닫거나 다른 화면으로 가도 분석은 계속돼요.</span></div></li><li><div><b>8단계 결과 보기</b><span>한눈에 → 사실과 해석 → 객관 평가 → 깊이 보기 → 네 가지 눈 → 답장 → 앞날 → 결론과 행동.</span></div></li></ol>
+<div class="shots"><figure class="phone sm"><img src="img/app-tc1.jpg" alt="대화 넣기 화면" loading="lazy"><figcaption>대화 넣기 화면</figcaption></figure><figure class="phone sm"><img src="img/tc-overview.jpg" alt="1단계 한눈에 — 위험 신호는 맨 위에" loading="lazy"><figcaption>1단계 한눈에 — 위험 신호는 맨 위에</figcaption></figure><figure class="phone sm"><img src="img/tc-eval.jpg" alt="3단계 객관 평가 — &quot;틀릴 수 있어요&quot; 경고" loading="lazy"><figcaption>3단계 객관 평가 — "틀릴 수 있어요" 경고</figcaption></figure></div>
+<p class="q">결과에서 꼭 볼 것</p><ul><li><b>객관 평가</b> — 상대의 말투가 존중하는지, 함께하면 좋은 사람인지, 내 말에는 문제가 없는지까지 근거를 들어 보여 줘요.</li><li><b>앞날</b> — 선택지마다 1주·한 달 뒤 어떻게 될지 나란히 보여 줘요.</li><li><b>결론과 행동</b> — 돌려 말하지 않아요. 왕따라면 학교·전학 절차를, 통제하는 연인이라면 안전하게 끝내는 순서와 도움받을 곳을 알려 줘요.</li><li><b>알면서도 못 빠져나오는 이유</b> — 마지막에 "왜 못 빠져나오는지"를 묻고, 대답을 들은 뒤 다시 짚어 줘요.</li><li><b>이어서 상담</b> — 결과를 들고 원하는 AI 상담사와 바로 이어서 이야기할 수 있어요.</li></ul>
+<div class="card warn"><h4>꼭 알아 두세요</h4>한쪽이 넣은 대화만 보고 AI가 한 분석이라 <b>틀릴 수 있어요.</b> 헤어짐·신고 같은 큰 결정은 이것만으로 하지 마시고, 믿을 수 있는 사람이나 상담사와 한 번 더 이야기하세요. 대화는 이 기기에서 읽고, 이름·전화번호·계좌는 가린 뒤 고른 구간만 분석에 쓰고, 저장하지 않아요.</div>
+<h2 id="crisis"><span class="n">9</span>너무 힘들 때는 어떻게 하나요?</h2>
+<div class="card warn"><h4>지금 스스로를 해칠 것 같다면 — 앱보다 먼저 전화하세요</h4><ul><li><b>109</b> 자살예방 상담전화 (24시간, 무료)</li><li><b>1577-0199</b> 정신건강 상담전화</li><li><b>119</b> 응급 · <b>112</b> 위험할 때</li></ul>AI 상담사는 응급 치료를 대신할 수 없어요. 앱 안에도 109로 바로 거는 버튼이 있어요.</div>
+<p><b>나의 안전 계획</b>을 미리 만들어 두세요. 마이 › 나의 안전 계획에서 3분이면 만들어요. 괜찮을 때 적어 둔 계획이 무너지는 순간 큰 힘이 돼요.</p>
+<ol><li>나의 경고 신호 — 위기가 오기 전 나타나는 신호(잠을 못 잔다, 연락을 끊는다)</li><li>혼자서 나를 진정시키는 방법 — 산책, 샤워, 음악, 앱의 호흡</li><li>힘들 때 연락할 사람 — "나 지금 좀 힘들어"라고 말해도 되는 사람</li><li>그래도 살아갈 이유 — 소중한 것, 지키고 싶은 것</li></ol>
+<div class="shots"><figure class="phone"><img src="img/app-safety.jpg" alt="나의 안전 계획" loading="lazy"><figcaption>나의 안전 계획</figcaption></figure></div>
+<p>달님의 DBT 기술(멈추기, 몸으로 온도 낮추기, 감정 파도 타기)은 위기 <b>전과 사이</b>에 연습해 둘수록 위기 때 꺼내 쓸 수 있어요.</p>
+<h2 id="human"><span class="n">10</span>사람 상담사와 상담하려면?</h2>
+<p>아래 <span class="kbd">전화 심리상담</span> 칸에서 자격을 확인하고 입점한 심리상담사를 찾아요. 이름·상담소·전문 분야로 검색하고, 가까운 순·바로상담 가능만 골라 볼 수 있어요.</p>
+<div class="shots"><figure class="phone"><img src="img/app-phone-list.jpg" alt="상담사 목록 — 예약 상담과 바로상담" loading="lazy"><figcaption>상담사 목록 — 예약 상담과 바로상담</figcaption></figure></div>
+<ul><li><b>예약 상담</b> — 원하는 날짜·시간을 골라 예약해요. 30분 단위 가격이 카드에 보여요. 상담 30분 전에 알림이 와요.</li><li><b>바로상담</b> — 초록 점(상담 가능)인 상담사와 지금 바로 연결돼요. 쓴 만큼 캐시가 나가요.</li><li><b>채팅 문의</b> — 예약 전에 궁금한 걸 물어볼 수 있어요.</li><li><b>프로필·후기 보기</b> — 소개, 자격, 다른 분들의 후기.</li></ul>
+<p class="q">취소·환불</p><ul><li>상담사가 예약을 거절하거나 나타나지 않으면 전액 돌려받아요.</li><li>상담 24시간 안에 취소하면 상담료의 절반이 상담사에게 가요. 일정이 바뀌면 일찍 취소해 주세요.</li><li>상담이 끝나면 [확인]을 눌러 주세요. 문제가 있었다면 그때 이의를 남기면 운영팀이 살펴봐요.</li></ul>
+<div class="card ">사람 상담사와 나눈 상담도 진단이나 약 처방은 하지 않아요. 잠·식사가 무너졌거나 약이 필요하다고 느끼면 정신건강의학과 진료를 함께 받으세요. 홈 맨 아래 "내 주변 정신건강의학과 찾기"가 있어요.</div>
+<h2 id="clinic"><span class="n">11</span>다니는 상담소와 연결하려면?</h2>
+<ol class="steps"><li><div><b>마이 › 담당 상담소 연결하기</b><span>다니는 상담소나 병원을 목록에서 골라 요청해요.</span></div></li><li><div><b>상담소가 수락하면 연결 끝</b><span>상담소에서 받은 코드(H-로 시작)가 있으면 넣는 즉시 연결돼요.</span></div></li><li><div><b>무엇이 공유되나요</b><span>상담사가 남긴 회기 기록과, 내가 동의한 경우 주간 기분 같은 숫자예요. AI와 나눈 대화 원문은 공유되지 않아요.</span></div></li></ol>
+<div class="shots"><figure class="phone"><img src="img/app-my2.jpg" alt="마이 — 담당 상담소·상담 숙제·상담 내역" loading="lazy"><figcaption>마이 — 담당 상담소·상담 숙제·상담 내역</figcaption></figure></div>
+<p>연결되면 담당 선생님이 회기 사이에 할 <b>상담 숙제</b>를 내 주고, 마이 › 상담 숙제에서 확인할 수 있어요. 연결은 언제든 끊을 수 있어요.</p>
+<h2 id="dash"><span class="n">12</span>대시보드·우렁이 키우기는 뭔가요?</h2>
+<p>마음 돌봄을 매일 이어 가게 돕는 칸이에요. 체크인·퀘스트·하루 정리·사고 기록·호흡을 하면 <b>물</b>이 고이고, 우렁이가 자라요. 옷장·훈장·상점·농장에서 우렁이 방을 꾸미고, 사진을 찍어 커뮤니티 "우렁이 자랑방"에 자랑할 수 있어요.</p>
+<div class="shots"><figure class="phone"><img src="img/app-dash.jpg" alt="대시보드 — 우렁이와 오늘의 퀘스트" loading="lazy"><figcaption>대시보드 — 우렁이와 오늘의 퀘스트</figcaption></figure></div>
+<h2 id="import"><span class="n">13</span>ChatGPT에 쌓인 나를 가져올 수 있나요?</h2>
+<p>네. 마이 › <b>다른 AI가 아는 나</b> › [내 정보 가져오기]. 질문을 복사해서 쓰던 AI(ChatGPT·제미나이·클로드)에 붙여넣고, 받은 답을 다시 붙여넣으면 돼요. 1분이면 끝나고, 처음부터 다시 설명하지 않아도 나에게 맞춰 상담해요.</p>
+<div class="shots"><figure class="phone"><img src="img/app-my.jpg" alt="마이 — 다른 AI가 아는 나" loading="lazy"><figcaption>마이 — 다른 AI가 아는 나</figcaption></figure></div>
+<h2 id="safe"><span class="n">14</span>내 대화는 누가 보나요?</h2>
+<ul><li><b>AI와 나눈 대화 원문은 이 기기에만</b> 저장돼요. 답을 만들 때만 AI 업체로 보내고, 상담사·상담소에도 전해지지 않아요.</li><li>기분 기록, 검사 점수, 상담 기록처럼 서비스에 필요한 정보만 서버에 저장해요.</li><li>로그인하면 기억과 리포트는 기기를 바꿔도 이어져요.</li><li>채팅 화면에서 대화를 초기화해도 리포트의 대화량 기록은 남아요.</li><li>자세한 내용은 앱의 개인정보처리방침에 있어요.</li></ul>
+<h2 id="community"><span class="n">15</span>커뮤니티는 어떻게 쓰나요?</h2>
+<p>앱 홈의 커뮤니티 칸이나 <b>mindinside.kr</b> 에서 열려요. 앱과 같은 계정으로 로그인하고, 글에는 별명만 보여요.</p><ul><li><b>수다방</b> — 오늘 있었던 일, 아무 말 · <b>고민 Q&amp;A</b> — 상담사가 답해요 · <b>약 이야기</b> — 복용 경험 · <b>우렁이 자랑방</b></li><li><b>방금 올라온</b> — 첫 화면에서 모든 게시판의 새 글·새 댓글을 한눈에</li><li><b>알림</b> — 내 글에 댓글·공감, 담아 둔 글의 새 댓글, 공지가 오면 알려 줘요</li><li><b>마음건강 백과·약 정보</b> — 병과 약을 쉬운 말로</li></ul>
+<div class="card gold"><h4>커뮤니티 약속</h4>회원끼리 쪽지는 없어요. 연락처 교환, 자해·자살 방법, 특정 약 권유·용량 이야기는 가려져요. 힘든 마음은 고민 Q&amp;A에 털어놓고, 위급하면 109로 전화하세요.</div>
+<h2 id="price"><span class="n">16</span>돈이 드나요?</h2>
+<ul><li>처음 7일은 무료 체험이에요. 이후 AI 상담은 구독(1개월 9,900원, 12개월 79,000원)이에요. 체험이 끝나도 기록과 기억은 그대로 남고 대화만 잠겨요.</li><li>사람 상담사 상담과 대화 분석 "전체"는 <b>캐시</b>로 내요. 마이 › 우렁이 캐시에서 충전해요.</li><li>커뮤니티, 기분 기록, 솔숲 명상, 안전 계획은 무료예요.</li></ul>
+<div class="foot">화면 사진은 예시 데이터로 찍었어요. 이름·숫자·글은 모두 예시예요. 기능은 계속 좋아지고 있어서 실제 화면과 조금 다를 수 있어요. 궁금한 점은 mindinsideapp@gmail.com 으로 보내 주세요.</div>
+</main></body></html>
