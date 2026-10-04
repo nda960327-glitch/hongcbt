@@ -1079,7 +1079,7 @@ export async function handleCommunity(request, env, cors, path, ctx) {
         <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0 0 18px;">정산: 상담소 채널 상담료는 상담소 90% · 마인드 인사이드 7% · 결제 수수료 3%로 나뉘고, 소속 상담사에게는 상담소가 지급합니다.</p>
         <div style="background:#eef4ef;border-radius:12px;padding:14px 18px;margin:0 0 18px;">
           <p style="font-size:13px;font-weight:700;margin:0 0 6px;">제휴계약서를 첨부했습니다 — 회신 부탁드려요</p>
-          <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">첨부한 심리상담사업자 제휴계약서를 읽어보시고, 동의하시면 <b>이 메일에 "동의합니다"라고 회신</b>해 주세요. 수정이 필요한 조항은 같은 메일로 알려주시면 협의합니다. 회신은 <a href="mailto:${OPS_REPLY}" style="color:#4f8a6b;">${OPS_REPLY}</a> 로 갑니다.</p>
+          <p style="font-size:13px;line-height:1.8;color:#6b5f50;margin:0;">첨부한 제휴계약서는 미리 읽어 보실 수 있게 넣었어요. <b>서명은 상담소 콘솔에서</b> 해요 — 콘솔에 들어가면 계약서 서명 창이 뜨고, 마우스나 손가락으로 서명하면 끝나요. 수정이 필요한 조항은 같은 메일로 알려주시면 협의합니다. 회신은 <a href="mailto:${OPS_REPLY}" style="color:#4f8a6b;">${OPS_REPLY}</a> 로 갑니다.</p>
         </div>
         <p style="font-size:12px;line-height:1.7;color:#8a7b68;margin:0;">문의: <a href="mailto:mindinsideapp@gmail.com" style="color:#4f8a6b;">mindinsideapp@gmail.com</a></p>`),
         { replyTo: OPS_REPLY, attachments: [{ filename: '마인드인사이드_심리상담사업자_제휴계약서.docx', path: String(env.APP_URL || 'https://mindinsideapp.com').replace(/\/+$/, '') + '/legal/partner-agreement.docx' }] }).catch(() => {});

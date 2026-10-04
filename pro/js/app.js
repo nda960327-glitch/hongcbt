@@ -693,6 +693,8 @@ function enterApp() {
   // 로그인한 그 순간이 '이 앱을 전화기로 쓰기 시작하는' 순간이다 —
   //  절전 예외는 여기서 딱 한 번 묻는다 (자세한 이유는 askBatteryExemption).
   setTimeout(askBatteryExemption, 2000);
+  // 게시된 입점계약서에 아직 서명 안 했으면 서명 창 (js/agreement.js)
+  setTimeout(() => { if (window.ProAgr) window.ProAgr.check(); }, 2500);
 }
 
 // ── 전화 알림 다리 (스토어 앱 전용) ──────────────────────────────────
@@ -3775,6 +3777,7 @@ function openSettings() {
         viaHosp || payOk ? '' : '<span class="chip new">필요</span>') : ''}
     ${ME && ME.hospitalId && typeof blogFoldHtml === 'function' ? row('data-act="blog-open"', '<path d="M5 4h10l4 4v12H5z"/><path d="M9 12h6M9 16h6M9 8h3"/>',
         '블로그 글쓰기', `${esc(ME.hospital || '상담소')} 소식에 글 올리기`) : ''}
+    ${ME && window.ProAgr ? window.ProAgr.rowHtml() : ''}
     ${row('data-act="qr-edit"', '<path d="M4 20h4l10-10-4-4L4 16z"/><path d="M14 6l4 4"/>', '빠른 답장', `저장된 문장 ${QR.length}개`)}
     ${isStandalone() ? '' : row('data-act="install"', '<path d="M12 3v12M6 10l6 6 6-6"/><path d="M4 21h16"/>', '앱으로 설치하기', '홈 화면에서 바로 열 수 있어요')}
     <button class="menurow" data-act="logout" style="margin-top:0.6rem; color:var(--danger);">
@@ -4165,6 +4168,11 @@ const ACT = {
   // ── 빠른 답장 ──
   'qr-use': (el) => useQuickReply(+el.dataset.arg),
   'qr-edit': () => openQuickSheet(),
+  // ── 입점계약서 (js/agreement.js) ──
+  'agr-open': () => window.ProAgr && window.ProAgr.open(),
+  'agr-sign': () => window.ProAgr && window.ProAgr.sign(),
+  'agr-clear': () => window.ProAgr && window.ProAgr.clear(),
+  'agr-later': () => window.ProAgr && window.ProAgr.later(),
   'qr-add': () => {
     const v = (($('qr-new') || {}).value || '').trim();
     if (!v) { toast('문장을 적어주세요'); return; }

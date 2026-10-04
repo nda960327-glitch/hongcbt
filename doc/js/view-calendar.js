@@ -99,6 +99,7 @@ VIEWS.settings = {
     return `
       <div class="grid2">
         <div>
+          <div class="card" id="agr-card" hidden></div>
           <div class="card">
             <b style="font-size:0.9rem;">상담소 정보</b>
             <p class="muted" style="margin:0.2rem 0 0.6rem;">이름·전문 분야·소장·이메일은 운영팀(mindinsideapp@gmail.com)에 문의해 바꿔요.</p>

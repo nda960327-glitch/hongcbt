@@ -339,6 +339,8 @@ function enter(h) {
   $('side-login').textContent = HS ? '로그인됨 · 이 기기 30일' : '소장 관리 코드 로그인';
   buildNav();
   showTab(UI.tab || 'dash', true);
+  // 게시된 제휴계약서에 아직 서명 안 했으면 서명 창 (js/view-agreement.js)
+  setTimeout(() => { if (window.DocAgr) window.DocAgr.check(); }, 1800);
 }
 function dropSession(msg) {
   HS = ''; HC = '';

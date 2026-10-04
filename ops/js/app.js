@@ -270,6 +270,7 @@ const TITLES = {
   reviews: ['리뷰 관리', '전체 후기 열람 · 부적절 후기 삭제'],
   feed: ['추천 콘텐츠', '홈 "우렁이의 추천"에 뜨는 영상·글 · 도움됐어요/별로예요 집계'],
   clinics: ['주변 정신과', '앱 홈 "대면상담 및 진료" — 제휴 병원 등록 · 전국 정신과 수집'],
+  agreements: ['계약서', '입점·제휴 계약서 게시 · 앱에서 받은 서명 모아 보기'],
   hospitals: ['상담소 관리', '담당 상담소 등록 · 상담소 코드 발급 · 연결 내담자 수'],
   community: ['커뮤니티', '상담소가 올린 글 · 부적절한 글 숨기기'],
   usage: ['AI 사용량', '일별 호출 · 한도 · 차단 기록'],
@@ -289,6 +290,7 @@ const LAZY = {
   feed: ['feed', () => loadFeed()],
   clinics: ['clinics', () => loadClinics()],
   hospitals: ['hospitals', () => loadHospitals()],
+  agreements: ['agr', () => window.loadAgreements()],
   community: ['community', () => loadCommunity()],
   payments: ['payments', () => loadPayments()],
   diag: ['diag', () => loadDiag()],
@@ -843,7 +845,7 @@ function render() {
   const VIEWS = {
     dash: viewDash, calls: viewCalls, apply: viewApply, counselors: viewCounselors,
     clients: viewClients, settle: viewSettle, payments: viewPayments, reviews: viewReviews,
-    feed: viewFeed, clinics: viewClinics, hospitals: viewHospitals, community: viewCommunity, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
+    feed: viewFeed, clinics: viewClinics, hospitals: viewHospitals, agreements: window.viewAgreements, community: viewCommunity, usage: viewUsage, contact: viewContact, diag: viewDiag, settings: viewSettings
   };
   const fn = VIEWS[TAB];
   if (fn) {
