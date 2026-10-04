@@ -298,6 +298,8 @@ document.addEventListener('click',function(e){var a=e.target.closest('a[href]');
  if(h.indexOf(${JSON.stringify(APP)})===0){e.preventDefault();try{window.parent.postMessage({mi:'app',href:h},'*')}catch(x){}}});
 })();</script>`;
 
+// 네이버 서치어드바이저 소유 확인 — 앱 소개(home/about)에 넣어 둔 것과 같은 값. 커뮤니티 모든 쪽 머리에 붙인다.
+const NAVER_VERIFY = ['bbe9f1c76f0ad3a607642ee1e469adada1f09ef9', 'd08af225052a056c9c9ea89112b9ddb02797b77a'];
 function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav, script }) {
   const url = c.site + path;
   // 메뉴 묶음 — [이름, [[키, 주소, 이름, 한 줄 설명], …]]
@@ -312,7 +314,7 @@ function page(c, { title, desc, path, body, ogImage, jsonld, type, noindex, nav,
     `<div class="dd${items.some(i => i[0] === nav) ? ' cur' : ''}"><button type="button" aria-haspopup="true">${g}<i></i></button><div class="menu">${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}><b>${i[2]}</b><span>${i[3]}</span></a>`).join('')}</div></div>`).join('');
   const sheetHtml = MENU.map(([g, items]) => `<div class="mg"><h4>${g}</h4>${items.map(i => `<a href="${i[1]}"${i[0] === nav ? ' class="on"' : ''}>${i[2]}</a>`).join('')}</div>`).join('');
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(url)}">${c.gv ? `<meta name="google-site-verification" content="${c.gv}">` : ''}${noindex ? '<meta name="robots" content="noindex,follow">' : ''}
+<title>${esc(title)}</title><meta name="description" content="${esc(desc)}"><link rel="canonical" href="${esc(url)}">${c.gv ? `<meta name="google-site-verification" content="${c.gv}">` : ''}${NAVER_VERIFY.map(v => `<meta name="naver-site-verification" content="${v}">`).join('')}${noindex ? '<meta name="robots" content="noindex,follow">' : ''}
 <meta property="og:type" content="${type || 'website'}"><meta property="og:site_name" content="${BRAND}"><meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(ogImage || c.site + '/icon.png')}"><meta property="og:locale" content="ko_KR">
 <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}"><link rel="alternate" type="application/rss+xml" title="${BRAND} 커뮤니티" href="${c.site}/blog/rss.xml"><link rel="icon" href="/icon.png">
 <link rel="preconnect" href="https://cdn.jsdelivr.net"><link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&display=swap">

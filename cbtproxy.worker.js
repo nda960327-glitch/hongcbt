@@ -601,6 +601,12 @@ export default {
   scheduled: (event, env, ctx) => APP.scheduled(event, env, ctx),
   async fetch(request, env, ctx) {
     // http 로 들어온 사이트 주소는 https 로 넘긴다 — 검색엔진이 같은 글을 두 주소로 보지 않게
+    // 네이버 HTML 소유 확인 파일 (mindinside.kr/naver<코드>.html) — 이름 그대로 한 줄을 200 으로
+    {
+      const nu = new URL(request.url);
+      const nm = nu.pathname.match(/^\/(naver[0-9a-f]{32})(\.html)?$/);
+      if (nm && /^(www\.)?mindinside\.kr$/.test(nu.hostname)) return new Response(`naver-site-verification: ${nm[1]}.html`, { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
     // 옛 주소 neurumind.com → 새 주소 301 (검색엔진·브라우저). 옛 안드로이드 앱 웹뷰는 그대로 Pages 로 보낸다.
     {
       const hu = new URL(request.url);
