@@ -44,7 +44,7 @@ window.Account = {
       ['상담 예약과 후기', '']
     ],
     안올라감: [
-      ['대화 원문', '우렁이와 나눈 이야기는 이 기기에만 있어요'],
+      ['대화 원문', '우렁이와 나눈 이야기는 본인 기기에만 있어요'],
       ['생각기록', '직접 쓰신 글은 올리지 않아요'],
       ['밤편지 초안', ''],
       ['전화번호·잠금 PIN', '']
@@ -411,7 +411,7 @@ window.Account = {
       return;
     }
     if (window.UI) {
-      window.UI.alert(`${d.user.nickname ? d.user.nickname + '님, ' : ''}반가워요!\n\n이제 폰을 바꿔도 리포트와 레벨이 따라와요.\n대화 내용은 이 기기에만 남습니다.`);
+      window.UI.alert(`${d.user.nickname ? d.user.nickname + '님, ' : ''}반가워요!\n\n이제 폰을 바꿔도 리포트와 레벨이 따라와요.\n대화 내용은 본인 기기에만 남습니다.`);
     }
     this.render();
   },
@@ -591,7 +591,7 @@ window.Account = {
           저장되는 값은 서버에서 암호화돼요.</p>
         <p style="margin:0.6rem 0 0.2rem; font-size:0.76rem; font-weight:800; color:var(--accent-primary);">계정에 저장돼요</p>
         ${this.SCOPE_TEXT.올라감.map(x => row(x, true)).join('')}
-        <p style="margin:0.9rem 0 0.2rem; font-size:0.76rem; font-weight:800; color:#c14a4a;">이 기기에만 남아요</p>
+        <p style="margin:0.9rem 0 0.2rem; font-size:0.76rem; font-weight:800; color:#c14a4a;">본인 기기에만 남아요</p>
         ${this.SCOPE_TEXT.안올라감.map(x => row(x, false)).join('')}`
     });
   },

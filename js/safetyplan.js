@@ -235,7 +235,7 @@ window.SafetyPlan = {
       <button class="btn-primary" style="width: 100%; margin-top: 0.9rem; padding: 0.75rem; font-size: 0.9rem;"
         onclick="window.SafetyPlan.close()">저장하고 닫기</button>
       <p style="margin: 0.6rem 0 0; font-size: 0.7rem; line-height: 1.6; color: var(--text-muted); text-align: center;">
-        이 내용은 이 기기에만 저장돼요. 상담사에게 보내려면 리포트 화면에서 함께 보낼 수 있어요.
+        이 내용은 본인 기기에만 저장돼요. 상담사에게 보내려면 리포트 화면에서 함께 보낼 수 있어요.
       </p>`;
 
     document.body.appendChild(ov);

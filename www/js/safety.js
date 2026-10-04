@@ -68,7 +68,7 @@ window.Safety = {
             <p style="font-size: 0.74rem; color: var(--text-muted); margin: 0.2rem 0 0.4rem;">나에게 소중한 것, 지키고 싶은 것, 기다리는 것</p>
             ${ta('sf-reasons', '예: 우리 강아지, 내년 봄 여행, 아직 못 해본 것들…', p.reasons)}
           </div>
-          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">전문 기관 연락처(109·1577-0199·1366)는 자동으로 함께 담겨요. 이 계획은 이 기기에만 저장됩니다.</p>
+          <p style="font-size: 0.72rem; color: var(--text-muted); margin: 0;">전문 기관 연락처(109·1577-0199·1366)는 자동으로 함께 담겨요. 이 계획은 본인 기기에만 저장됩니다.</p>
           <div style="display: flex; gap: 0.5rem;">
             <button class="btn-secondary" style="flex: 1;" onclick="document.getElementById('safety-edit').remove()">닫기</button>
  <button class="btn-primary"style="flex: 1.4;"onclick="window.Safety.save()">안전 계획 저장 </button>

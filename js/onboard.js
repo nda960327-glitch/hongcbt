@@ -68,7 +68,7 @@ window.Onboard = {
         <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.65; margin: 0 0 1.3rem;">저는 당신의 마음 주치의, <b>우렁이</b>예요.<br>뭐라고 불러드리면 될까요?</p>
         <input id="ob-name" maxlength="12" placeholder="별명이나 이름" style="width: 100%; box-sizing: border-box; padding: 0.85rem 1rem; border-radius: 14px; border: 1.5px solid var(--glass-border); background: var(--bg-secondary); color: var(--text-primary); outline: none; font-size: 0.95rem; text-align: center;">
         <button id="ob-next" class="btn-primary" style="width: 100%; margin-top: 1rem;">다음 ›</button>
- <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 이 기기에만 저장돼요 </p>`);
+ <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 1rem;">모든 이야기는 본인 기기에만 저장돼요 </p>`);
       const input = document.getElementById('ob-name');
       setTimeout(() => input.focus(), 200);
       // 이름은 꼭 받는다 — 비워 두고 넘어가면 우렁이가 끝까지 이름을 못 부른다 (2026-09-28 팀 피드백)
