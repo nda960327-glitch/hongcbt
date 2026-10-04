@@ -33,6 +33,7 @@ import { handleMarket } from "./market.js";
 import { handleFeed } from "./feed.js";
 import { handleSurvey } from "./survey.js";
 import { handleHospital } from "./hospital.js";
+import { handleAgreements } from "./agreements.js";
 import { handleCommunity } from "./community.js";
 import { handleBlog } from "./blogpage.js";
 import { handleClinics } from "./clinics.js";
@@ -396,6 +397,11 @@ const APP = {
       const r = await handleCommunity(request, env, cors, path, ctx);
       if (r) return r;
     }
+    // 전자 계약 — 상담사·상담소가 앱에서 계약서에 서명, 운영자는 모아 본다 (agreements.js)
+    if (/^\/(agreement\/|admin\/agreements)/.test(path)) {
+      const r = await handleAgreements(request, env, cors, path);
+      if (r) return r;
+    }
     // 상담소(소장) 연동 — 내담자 연결·회기 기록·소장 피드백
     if (/^\/(patient\/|session-notes|hospital\/|admin\/hospitals|doctor-feedback)/.test(path)) {
       const r = await handleHospital(request, env, cors, path, ctx);
@@ -595,6 +601,14 @@ export default {
   scheduled: (event, env, ctx) => APP.scheduled(event, env, ctx),
   async fetch(request, env, ctx) {
     // http 로 들어온 사이트 주소는 https 로 넘긴다 — 검색엔진이 같은 글을 두 주소로 보지 않게
+    // 옛 주소 neurumind.com → 새 주소 301 (검색엔진·브라우저). 옛 안드로이드 앱 웹뷰는 그대로 Pages 로 보낸다.
+    {
+      const hu = new URL(request.url);
+      if (hu.hostname === 'neurumind.com' || hu.hostname === 'www.neurumind.com') {
+        if (/; wv\)/.test(request.headers.get('User-Agent') || '')) return fetch(request);
+        return Response.redirect('https://mindinsideapp.com' + hu.pathname + hu.search, 301);
+      }
+    }
     if (request.method === 'GET' && request.url.startsWith('http://') && /^http:\/\/(www\.)?mindinside(\.kr|app\.com)\//.test(request.url)) return Response.redirect('https://' + request.url.slice(7), 301);
     if (request.method === 'OPTIONS' || !env.DB) return APP.fetch(request, env, ctx);
     request = await suSwap(request, env);
